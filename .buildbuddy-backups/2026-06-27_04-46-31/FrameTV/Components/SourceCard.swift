@@ -82,8 +82,9 @@ struct SourceCard: View {
                         .lineLimit(1)
                 }
             }
-            .padding(Theme.Spacing.lg)
-            .frame(maxWidth: .infinity, minHeight: Theme.CardSize.sourceHeight,
+            .padding(Theme.Spacing.md)
+            .frame(width: Theme.CardSize.sourceWidth,
+                   height: Theme.CardSize.sourceHeight,
                    alignment: .topLeading)
             .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous))
             .overlay(

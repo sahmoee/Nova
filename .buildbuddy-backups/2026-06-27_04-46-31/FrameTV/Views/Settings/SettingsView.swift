@@ -33,7 +33,6 @@ struct SettingsView: View {
                         playbackSection
                         subtitleSection
                         librarySection
-                        backupSection
                         privacyLegalSection
                     }
                     .padding(.horizontal, Theme.Spacing.edge)
@@ -80,23 +79,6 @@ struct SettingsView: View {
                            detail: "TMDB · Trakt · Subtitles")
             }.buttonStyle(.plain)
         }
-    }
-
-    private var backupSection: some View {
-        section("Backup & Sync") {
-            NavigationLink { BackupView() } label: {
-                settingRow("iCloud Backup & Restore", systemImage: "icloud.and.arrow.up",
-                           detail: backupDetail)
-            }.buttonStyle(.plain)
-        }
-    }
-
-    private var backupDetail: String {
-        if let date = BackupManager.shared.lastBackupDate {
-            let fmt = DateFormatter(); fmt.dateStyle = .medium; fmt.timeStyle = .short
-            return "Last: \(fmt.string(from: date))"
-        }
-        return "Not backed up"
     }
 
     private var streamingSection: some View {

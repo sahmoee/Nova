@@ -13,12 +13,8 @@ struct SourcesView: View {
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var library: LibraryStore
 
-    // Flexible columns so cards stretch to fill the row: fewer, wider cards on
-    // iPhone; more on iPad/tvOS. This avoids the narrow-cells-with-gaps look.
-    private var columns: [GridItem] {
-        let count = Theme.isCompact ? 2 : 3
-        return Array(repeating: GridItem(.flexible(), spacing: Theme.Spacing.lg), count: count)
-    }
+    private let columns = [GridItem(.adaptive(minimum: Theme.CardSize.sourceWidth),
+                                    spacing: Theme.Spacing.md)]
 
     var body: some View {
         NavigationStack(path: $path) {

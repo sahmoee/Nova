@@ -145,25 +145,3 @@ The app uses explicit per-target Info.plist files (`Info-iOS.plist`,
 `Info-tvOS.plist`). App Transport Security allows arbitrary loads so you can reach
 your own non-HTTPS servers; FrameTV sends no data anywhere except the services you
 configure.
-
-
-## SMB streaming, backup, and signing
-
-**Real SMB.** FrameTV streams from SMB shares using the AMSMB2 library (added as a
-Swift package). Files play through a small local HTTP bridge that serves byte
-ranges read from the share on demand; nothing is written to disk. Enter a server
-as a network name (e.g. `mynas.local`), an IP, or a full `smb://host/share` path.
-
-**iCloud backup & restore.** Settings ▸ Backup & Sync creates a snapshot of your
-preferences, sources, addons, and all logins/API keys and stores it in your private
-iCloud. Restore it on another device signed in to the same Apple ID — manually from
-that screen, or via the prompt shown automatically on a fresh install. Secrets are
-included so logins move between your own devices; the snapshot never leaves iCloud.
-
-**Signing team.** The project generator preserves an existing `DEVELOPMENT_TEAM`
-across regenerations, so once the team is set in Xcode it will not be reset. To pin
-it explicitly, set the `FRAMETV_TEAM` environment variable when regenerating, or
-just select the team once in Signing & Capabilities.
-
-**Package note.** On first open, Xcode resolves the AMSMB2 package automatically
-(File ▸ Packages ▸ Resolve if needed). Both targets link the AMSMB2 product.

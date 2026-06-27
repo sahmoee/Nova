@@ -61,6 +61,8 @@
 		E4423BAEEDE0626B0124775D /* AddonStore.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = 3113BC855DAFD76F714E502E /* AddonStore.swift */; };
 		907B0104A1AA205608EBD729 /* AppConfig.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 1FC301D6F2541CF2DFF3E673 /* AppConfig.swift */; };
 		86147A25A4557FA1DE897CD6 /* AppConfig.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = 1FC301D6F2541CF2DFF3E673 /* AppConfig.swift */; };
+		CB71E7E09F69AD07DBC2CDF2 /* BackupManager.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 402D3F833A9056E61BE51691 /* BackupManager.swift */; };
+		9414BDDC6455718454781E02 /* BackupManager.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = 402D3F833A9056E61BE51691 /* BackupManager.swift */; };
 		91CE871B06CA54B23B2B4705 /* CatalogCache.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = C4B6B11C8B202C03CABA9905 /* CatalogCache.swift */; };
 		A1B07703B593FB08A766950C /* CatalogCache.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = C4B6B11C8B202C03CABA9905 /* CatalogCache.swift */; };
 		D5ACD8FFC813541D11D054C6 /* CatalogService.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = A9A7C4E1AFA66F74900ABB30 /* CatalogService.swift */; };
@@ -85,8 +87,12 @@
 		3180A8DF0AC50FFE7D788635 /* PlaybackProgressStore.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = E8DDEC4592E90E4DF8676EBD /* PlaybackProgressStore.swift */; };
 		CE8C02D01EB26FB096971EAB /* RealDebridClient.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 2090DCADB481BDF4EDDCA1AF /* RealDebridClient.swift */; };
 		74364A7B259B873F821DC6DA /* RealDebridClient.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = 2090DCADB481BDF4EDDCA1AF /* RealDebridClient.swift */; };
+		5D3267EB0C547C96A9FD62A6 /* RealSMBProvider.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = C5414ACC0FB76135E40B8DCB /* RealSMBProvider.swift */; };
+		249FFBDE8F9434A41638857C /* RealSMBProvider.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = C5414ACC0FB76135E40B8DCB /* RealSMBProvider.swift */; };
 		85E00B32BD77EB8B8930FE70 /* SMBService.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 0E02843FF0C186D60397EFC2 /* SMBService.swift */; };
 		A578F60DD65F852F9833715D /* SMBService.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = 0E02843FF0C186D60397EFC2 /* SMBService.swift */; };
+		E727E4C734429F74E0D8DADF /* SMBStreamServer.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 0B03807FF5A0213B684F13BA /* SMBStreamServer.swift */; };
+		80E983EF6F086220424866AD /* SMBStreamServer.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = 0B03807FF5A0213B684F13BA /* SMBStreamServer.swift */; };
 		0C95B8FE408C8792E076EA15 /* SkipSegmentProvider.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 5E8A1B16D0BE98A202EE1956 /* SkipSegmentProvider.swift */; };
 		60B33A17570A6922751C73FD /* SkipSegmentProvider.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = 5E8A1B16D0BE98A202EE1956 /* SkipSegmentProvider.swift */; };
 		BD31DDD1D1667A14FCB4BF0D /* StreamRanker.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 8FDC1C7E9F7D7C4CE9065ECD /* StreamRanker.swift */; };
@@ -145,6 +151,8 @@
 		B860740617DD0DA54CF10691 /* SMBListView.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = C36E60012F8E3116210EC657 /* SMBListView.swift */; };
 		6FA4FE8990BD9F74733C8242 /* AccountsView.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = C91B171DD6121F6DDC2FF67C /* AccountsView.swift */; };
 		822ABC768797B2F3C293F1C0 /* AccountsView.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = C91B171DD6121F6DDC2FF67C /* AccountsView.swift */; };
+		CA53C805868FFE702752C60F /* BackupView.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 39B2C5271E02B4684B46C23F /* BackupView.swift */; };
+		EDE0C2C81D40167A16F3AEE3 /* BackupView.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = 39B2C5271E02B4684B46C23F /* BackupView.swift */; };
 		436E8D72BE1C9F753D97304A /* PrivacyLegalView.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = A659D99C45AB4145BEBEC3FF /* PrivacyLegalView.swift */; };
 		6870A63AF437109F9EB890E1 /* PrivacyLegalView.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = A659D99C45AB4145BEBEC3FF /* PrivacyLegalView.swift */; };
 		EAC1069E5978F856D05629F5 /* SettingsView.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 8FC799C8FC202185F638B2DF /* SettingsView.swift */; };
@@ -155,6 +163,8 @@
 		01702E17AF35498948A07819 /* SourcesView.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = F3E5544B3718E0F4AECA8BB8 /* SourcesView.swift */; };
 		D174DF935C079BD7E7423DDF /* Assets-tvOS.xcassets in Resources (tvOS) */ = {isa = PBXBuildFile; fileRef = DEFB4E40EEB8790716864FAA /* Assets-tvOS.xcassets */; };
 		4B803595345C09B16AEF8006 /* Assets-iOS.xcassets in Resources (iOS) */ = {isa = PBXBuildFile; fileRef = C414BCD1EBD70925A4A75CB7 /* Assets-iOS.xcassets */; };
+		599A1F3A07A4BD7461A12AB7 /* AMSMB2 in Frameworks */ = {isa = PBXBuildFile; productRef = 0AA93A977A91C256389533FA /* AMSMB2 */; };
+		5016CB58642BF28FE8597B76 /* AMSMB2 in Frameworks */ = {isa = PBXBuildFile; productRef = 7BB5FCE66E92A3B157284758 /* AMSMB2 */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -185,6 +195,7 @@
 		43C936856E3D4228C0C70A72 /* StreamModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StreamModels.swift"; sourceTree = "<group>"; };
 		3113BC855DAFD76F714E502E /* AddonStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AddonStore.swift"; sourceTree = "<group>"; };
 		1FC301D6F2541CF2DFF3E673 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppConfig.swift"; sourceTree = "<group>"; };
+		402D3F833A9056E61BE51691 /* BackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BackupManager.swift"; sourceTree = "<group>"; };
 		C4B6B11C8B202C03CABA9905 /* CatalogCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CatalogCache.swift"; sourceTree = "<group>"; };
 		A9A7C4E1AFA66F74900ABB30 /* CatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CatalogService.swift"; sourceTree = "<group>"; };
 		9E57411D31532633B500CBFA /* CloudSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CloudSync.swift"; sourceTree = "<group>"; };
@@ -197,7 +208,9 @@
 		D9A3CF2809BE0FF038926BC0 /* NetworkRetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NetworkRetry.swift"; sourceTree = "<group>"; };
 		E8DDEC4592E90E4DF8676EBD /* PlaybackProgressStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PlaybackProgressStore.swift"; sourceTree = "<group>"; };
 		2090DCADB481BDF4EDDCA1AF /* RealDebridClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RealDebridClient.swift"; sourceTree = "<group>"; };
+		C5414ACC0FB76135E40B8DCB /* RealSMBProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RealSMBProvider.swift"; sourceTree = "<group>"; };
 		0E02843FF0C186D60397EFC2 /* SMBService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SMBService.swift"; sourceTree = "<group>"; };
+		0B03807FF5A0213B684F13BA /* SMBStreamServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SMBStreamServer.swift"; sourceTree = "<group>"; };
 		5E8A1B16D0BE98A202EE1956 /* SkipSegmentProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SkipSegmentProvider.swift"; sourceTree = "<group>"; };
 		8FDC1C7E9F7D7C4CE9065ECD /* StreamRanker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StreamRanker.swift"; sourceTree = "<group>"; };
 		02CE2BC66986B738CE05444C /* StreamResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StreamResolver.swift"; sourceTree = "<group>"; };
@@ -227,6 +240,7 @@
 		410A6B98F5D25814A0E10886 /* SMBBrowseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SMBBrowseView.swift"; sourceTree = "<group>"; };
 		C36E60012F8E3116210EC657 /* SMBListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SMBListView.swift"; sourceTree = "<group>"; };
 		C91B171DD6121F6DDC2FF67C /* AccountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccountsView.swift"; sourceTree = "<group>"; };
+		39B2C5271E02B4684B46C23F /* BackupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BackupView.swift"; sourceTree = "<group>"; };
 		A659D99C45AB4145BEBEC3FF /* PrivacyLegalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PrivacyLegalView.swift"; sourceTree = "<group>"; };
 		8FC799C8FC202185F638B2DF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsView.swift"; sourceTree = "<group>"; };
 		CAAA886CA126FFC76F3A830C /* TraktConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TraktConnectView.swift"; sourceTree = "<group>"; };
@@ -245,6 +259,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				599A1F3A07A4BD7461A12AB7 /* AMSMB2 in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -252,6 +267,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5016CB58642BF28FE8597B76 /* AMSMB2 in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -336,6 +352,7 @@
 			children = (
 				3113BC855DAFD76F714E502E /* AddonStore.swift */,
 				1FC301D6F2541CF2DFF3E673 /* AppConfig.swift */,
+				402D3F833A9056E61BE51691 /* BackupManager.swift */,
 				C4B6B11C8B202C03CABA9905 /* CatalogCache.swift */,
 				A9A7C4E1AFA66F74900ABB30 /* CatalogService.swift */,
 				9E57411D31532633B500CBFA /* CloudSync.swift */,
@@ -348,7 +365,9 @@
 				D9A3CF2809BE0FF038926BC0 /* NetworkRetry.swift */,
 				E8DDEC4592E90E4DF8676EBD /* PlaybackProgressStore.swift */,
 				2090DCADB481BDF4EDDCA1AF /* RealDebridClient.swift */,
+				C5414ACC0FB76135E40B8DCB /* RealSMBProvider.swift */,
 				0E02843FF0C186D60397EFC2 /* SMBService.swift */,
+				0B03807FF5A0213B684F13BA /* SMBStreamServer.swift */,
 				5E8A1B16D0BE98A202EE1956 /* SkipSegmentProvider.swift */,
 				8FDC1C7E9F7D7C4CE9065ECD /* StreamRanker.swift */,
 				02CE2BC66986B738CE05444C /* StreamResolver.swift */,
@@ -465,6 +484,7 @@
 			isa = PBXGroup;
 			children = (
 				C91B171DD6121F6DDC2FF67C /* AccountsView.swift */,
+				39B2C5271E02B4684B46C23F /* BackupView.swift */,
 				A659D99C45AB4145BEBEC3FF /* PrivacyLegalView.swift */,
 				8FC799C8FC202185F638B2DF /* SettingsView.swift */,
 				CAAA886CA126FFC76F3A830C /* TraktConnectView.swift */,
@@ -513,6 +533,9 @@
 			dependencies = (
 			);
 			name = "FrameTV-tvOS";
+			packageProductDependencies = (
+				0AA93A977A91C256389533FA /* AMSMB2 */,
+			);
 			productName = FrameTV;
 			productReference = 2D9D32517F4A99A04FA76A0E /* FrameTV.app */;
 			productType = "com.apple.product-type.application";
@@ -530,6 +553,9 @@
 			dependencies = (
 			);
 			name = "FrameTV-iOS";
+			packageProductDependencies = (
+				7BB5FCE66E92A3B157284758 /* AMSMB2 */,
+			);
 			productName = FrameTV;
 			productReference = 47F79402BB28EE3F82626E35 /* FrameTV-iOS.app */;
 			productType = "com.apple.product-type.application";
@@ -564,6 +590,9 @@
 			productRefGroup = 91BC47345339F429878D36A4 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
+			packageReferences = (
+				633901F5205620047E8B9190 /* XCRemoteSwiftPackageReference "AMSMB2" */,
+			);
 			targets = (
 				4DCF8737B17BB9BA373F67F4 /* FrameTV-tvOS */,
 				97119EBDC41CCAA9F66844E0 /* FrameTV-iOS */,
@@ -622,6 +651,7 @@
 				B2F2A47BE4BD83F0B1F6A18E /* StreamModels.swift in Sources */,
 				BCBD54F98906B4F665E1CE85 /* AddonStore.swift in Sources */,
 				907B0104A1AA205608EBD729 /* AppConfig.swift in Sources */,
+				CB71E7E09F69AD07DBC2CDF2 /* BackupManager.swift in Sources */,
 				91CE871B06CA54B23B2B4705 /* CatalogCache.swift in Sources */,
 				D5ACD8FFC813541D11D054C6 /* CatalogService.swift in Sources */,
 				F171FE5F14D976CAFF3558BD /* CloudSync.swift in Sources */,
@@ -634,7 +664,9 @@
 				37D0C5B4609F15FCDBB13270 /* NetworkRetry.swift in Sources */,
 				827EF6B04218B4A1E2AA9227 /* PlaybackProgressStore.swift in Sources */,
 				CE8C02D01EB26FB096971EAB /* RealDebridClient.swift in Sources */,
+				5D3267EB0C547C96A9FD62A6 /* RealSMBProvider.swift in Sources */,
 				85E00B32BD77EB8B8930FE70 /* SMBService.swift in Sources */,
+				E727E4C734429F74E0D8DADF /* SMBStreamServer.swift in Sources */,
 				0C95B8FE408C8792E076EA15 /* SkipSegmentProvider.swift in Sources */,
 				BD31DDD1D1667A14FCB4BF0D /* StreamRanker.swift in Sources */,
 				A728155878776DAFE0D0E490 /* StreamResolver.swift in Sources */,
@@ -664,6 +696,7 @@
 				99DF9FA82EA7847A75AC1C4B /* SMBBrowseView.swift in Sources */,
 				6C82AD7ED6DB4BE31229B760 /* SMBListView.swift in Sources */,
 				6FA4FE8990BD9F74733C8242 /* AccountsView.swift in Sources */,
+				CA53C805868FFE702752C60F /* BackupView.swift in Sources */,
 				436E8D72BE1C9F753D97304A /* PrivacyLegalView.swift in Sources */,
 				EAC1069E5978F856D05629F5 /* SettingsView.swift in Sources */,
 				7D6FD4DDFF63100F62EE3E97 /* TraktConnectView.swift in Sources */,
@@ -702,6 +735,7 @@
 				3541381E61534003500F685F /* StreamModels.swift in Sources */,
 				E4423BAEEDE0626B0124775D /* AddonStore.swift in Sources */,
 				86147A25A4557FA1DE897CD6 /* AppConfig.swift in Sources */,
+				9414BDDC6455718454781E02 /* BackupManager.swift in Sources */,
 				A1B07703B593FB08A766950C /* CatalogCache.swift in Sources */,
 				BA04B98BD13A865FB18ADA56 /* CatalogService.swift in Sources */,
 				188C776565F6BA1480F6DE19 /* CloudSync.swift in Sources */,
@@ -714,7 +748,9 @@
 				F97853D45251273A4560E351 /* NetworkRetry.swift in Sources */,
 				3180A8DF0AC50FFE7D788635 /* PlaybackProgressStore.swift in Sources */,
 				74364A7B259B873F821DC6DA /* RealDebridClient.swift in Sources */,
+				249FFBDE8F9434A41638857C /* RealSMBProvider.swift in Sources */,
 				A578F60DD65F852F9833715D /* SMBService.swift in Sources */,
+				80E983EF6F086220424866AD /* SMBStreamServer.swift in Sources */,
 				60B33A17570A6922751C73FD /* SkipSegmentProvider.swift in Sources */,
 				80A9916B394F7F69D3889E2A /* StreamRanker.swift in Sources */,
 				5DE9463C7417AE4616433269 /* StreamResolver.swift in Sources */,
@@ -744,6 +780,7 @@
 				EE65EEBDAB625A2E5B5F25AD /* SMBBrowseView.swift in Sources */,
 				B860740617DD0DA54CF10691 /* SMBListView.swift in Sources */,
 				822ABC768797B2F3C293F1C0 /* AccountsView.swift in Sources */,
+				EDE0C2C81D40167A16F3AEE3 /* BackupView.swift in Sources */,
 				6870A63AF437109F9EB890E1 /* PrivacyLegalView.swift in Sources */,
 				04CA3B72B7CD1A73DF99DC77 /* SettingsView.swift in Sources */,
 				1AE64675717A970B90592A33 /* TraktConnectView.swift in Sources */,
@@ -916,6 +953,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		633901F5205620047E8B9190 /* XCRemoteSwiftPackageReference "AMSMB2" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/amosavian/AMSMB2";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0AA93A977A91C256389533FA /* AMSMB2 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 633901F5205620047E8B9190 /* XCRemoteSwiftPackageReference "AMSMB2" */;
+			productName = AMSMB2;
+		};
+		7BB5FCE66E92A3B157284758 /* AMSMB2 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 633901F5205620047E8B9190 /* XCRemoteSwiftPackageReference "AMSMB2" */;
+			productName = AMSMB2;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 	};
 	rootObject = 174A093B2797EF63BBAFD724 /* Project object */;

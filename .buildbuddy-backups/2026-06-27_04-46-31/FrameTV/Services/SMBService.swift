@@ -111,15 +111,14 @@ actor MockSMBProvider: SMBProviding {
 // MARK: - Service facade
 
 /// Wraps whichever SMBProviding implementation is active and exposes a simple
-/// API to the view models. Uses the real AMSMB2-backed provider; the mock remains
-/// available for previews and tests by injecting it explicitly.
+/// API to the view models. Defaults to the mock provider.
 final class SMBService {
 
     static let shared = SMBService()
 
     private let provider: SMBProviding
 
-    init(provider: SMBProviding = RealSMBProvider()) {
+    init(provider: SMBProviding = MockSMBProvider()) {
         self.provider = provider
     }
 
@@ -135,3 +134,30 @@ final class SMBService {
         try await provider.streamURL(for: file)
     }
 }
+
+//
+// ─────────────────────────────────────────────────────────────────────────────
+//  PHASE 5 — REAL SMB INTEGRATION (add the AMSMB2 Swift package, then implement)
+//
+//  1. In Xcode: File ▸ Add Package Dependencies…
+//     URL: https://github.com/amosavian/AMSMB2
+//     Add the "AMSMB2" product to the FrameTV tvOS target.
+//
+//  2. Create `RealSMBProvider: SMBProviding` that:
+//       - builds an `SMB2Manager` with the share URL (smb://host/share)
+//       - authenticates with username + password pulled from KeychainStore
+//         (account == share.keychainAccount)
+//       - maps AMSMB2 directory entries to RemoteFileItem
+//       - for streamURL, either returns a direct smb URL if AVPlayer can read it,
+//         or starts the progressive local streaming bridge described below.
+//
+//  3. Switch the active provider:
+//       SMBService(provider: RealSMBProvider())
+//
+//  PROGRESSIVE LOCAL STREAMING BRIDGE (only for user-owned network files):
+//       - Spin up a tiny local HTTP server (e.g. on 127.0.0.1) that reads bytes
+//         from the SMB file on demand and serves them with Range support.
+//       - Hand AVPlayer the http://127.0.0.1:<port>/… URL.
+//       - Keep the on-disk cache minimal/temporary; purge on playback end.
+// ─────────────────────────────────────────────────────────────────────────────
+//

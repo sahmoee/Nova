@@ -11,7 +11,6 @@ import SwiftUI
 
 struct AccountsView: View {
     @EnvironmentObject private var env: AppEnvironment
-    @Environment(\.openURL) private var openURL
 
     @State private var tmdbKey = ""
     @State private var traktID = ""
@@ -35,7 +34,6 @@ struct AccountsView: View {
                     text: $tmdbKey,
                     isPresent: config.isPresent(.tmdbAPIKey)
                 )
-                linkButton("Get a TMDB API key", url: "https://www.themoviedb.org/settings/api")
 
                 Divider().overlay(Theme.Colors.card)
 
@@ -45,7 +43,6 @@ struct AccountsView: View {
                 Text("Sync your watchlist and watched progress. Create an app at trakt.tv/oauth/applications.")
                     .font(.appFont(18))
                     .foregroundStyle(Theme.Colors.textSecondary)
-                linkButton("Create a Trakt app", url: "https://trakt.tv/oauth/applications")
 
                 credentialField(title: "Trakt Client ID", subtitle: nil,
                                 text: $traktID, isPresent: config.isPresent(.traktClientID))
@@ -69,24 +66,12 @@ struct AccountsView: View {
 
                 Divider().overlay(Theme.Colors.card)
 
-                Text("Real-Debrid")
-                    .font(Theme.Font.sectionTitle())
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                Text("Resolve torrents and magnets you own through your own Real-Debrid account.")
-                    .font(.appFont(18))
-                    .foregroundStyle(Theme.Colors.textSecondary)
-                linkButton("Open Real-Debrid", url: "https://real-debrid.com/")
-                linkButton("Get your Real-Debrid API token", url: "https://real-debrid.com/apitoken")
-
-                Divider().overlay(Theme.Colors.card)
-
                 credentialField(
                     title: "OpenSubtitles API Key",
                     subtitle: "Optional. Enables subtitle search from OpenSubtitles.",
                     text: $openSubtitlesKey,
                     isPresent: config.isPresent(.openSubtitlesAPIKey)
                 )
-                linkButton("Get an OpenSubtitles API key", url: "https://www.opensubtitles.com/consumers")
 
                 FocusableButton(title: savedFlash ? "Saved ✓" : "Save Credentials",
                                 systemImage: "checkmark.circle",
@@ -105,24 +90,6 @@ struct AccountsView: View {
         }
         .background(Theme.Colors.background.ignoresSafeArea())
         .onAppear(perform: loadExisting)
-    }
-
-    /// A small button that opens an external service page (sign-in / get-key /
-    /// authorize). Uses the system browser via the openURL environment action.
-    private func linkButton(_ title: String, url: String) -> some View {
-        Button {
-            if let u = URL(string: url) { openURL(u) }
-        } label: {
-            HStack(spacing: Theme.Spacing.xs) {
-                Image(systemName: "arrow.up.right.square")
-                Text(title)
-                Spacer(minLength: 0)
-            }
-            .font(.appFont(18, weight: .semibold))
-            .foregroundStyle(Theme.Colors.accent)
-            .padding(.vertical, Theme.Spacing.xs)
-        }
-        .buttonStyle(.plain)
     }
 
     private func credentialField(title: String,

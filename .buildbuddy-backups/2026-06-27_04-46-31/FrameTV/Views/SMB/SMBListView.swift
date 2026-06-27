@@ -116,9 +116,9 @@ struct SMBAddView: View {
 
                     field("Display Name", text: $displayName, placeholder: "Living Room NAS")
                     field("Server (hostname or IP)", text: $host,
-                          placeholder: "mynas.local  or  192.168.1.10")
+                          placeholder: "sowens.local  or  192.168.1.10")
                         .onChange(of: host) { _, newValue in normalizeHost(newValue) }
-                    Text("You can enter a network name (like mynas.local), an IP address, or paste a full path such as smb://mynas.local/Media.")
+                    Text("You can enter a network name like sowens.local, an IP address, or paste a full path such as smb://sowens.local/Home.")
                         .font(.appFont(15))
                         .foregroundStyle(Theme.Colors.textTertiary)
                     field("Share Name", text: $shareName, placeholder: "Home")
@@ -148,8 +148,8 @@ struct SMBAddView: View {
 
     /// Accepts a hostname, IP, or a pasted full path (with or without an smb://
     /// scheme) and splits it into the server, share, and path fields. Examples:
-    ///   "smb://mynas.local/Media/Movies" -> host=mynas.local, share=Media, path=/Movies
-    ///   "mynas.local/Media"               -> host=mynas.local, share=Media
+    ///   "smb://sowens.local/Home/Movies" -> host=sowens.local, share=Home, path=/Movies
+    ///   "sowens.local/Home"              -> host=sowens.local, share=Home
     ///   "192.168.1.10"                   -> host unchanged
     private func normalizeHost(_ raw: String) {
         guard let parsed = SMBURLParser.parse(raw) else { return }
