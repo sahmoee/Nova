@@ -41,7 +41,7 @@ struct DiscoverView: View {
                         if !watchlist.isEmpty { watchlistSection }
                         else { hint }
                     case .searching:
-                        skeletonGrid
+                        LoadingView(message: "Searching…").frame(height: 300)
                     case .results:
                         grid(results)
                     case .empty:
@@ -118,25 +118,6 @@ struct DiscoverView: View {
                     posterCard(item)
                 }
                 .buttonStyle(.plain)
-            }
-        }
-    }
-
-    /// Shimmering placeholder grid shown while a search is in flight.
-    private var skeletonGrid: some View {
-        let w = Theme.CardSize.posterWidth * 0.95
-        return LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
-            ForEach(0..<8, id: \.self) { _ in
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .fill(Theme.Colors.card)
-                        .frame(width: w, height: w * 1.5)
-                        .shimmering()
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(Theme.Colors.card)
-                        .frame(width: w * 0.7, height: 14)
-                        .shimmering()
-                }
             }
         }
     }

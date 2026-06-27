@@ -17,18 +17,6 @@ struct MediaCard: View {
     private var width: CGFloat { wide ? Theme.CardSize.wideWidth : Theme.CardSize.posterWidth }
     private var height: CGFloat { wide ? Theme.CardSize.wideHeight : Theme.CardSize.posterHeight }
 
-    /// A spoken label combining the title with watched/progress context.
-    private var accessibilityText: String {
-        var parts = [item.displayTitle]
-        if item.isWatched {
-            parts.append("watched")
-        } else if item.hasResumePoint {
-            let pct = Int((item.progressFraction * 100).rounded())
-            parts.append("\(pct) percent watched")
-        }
-        return parts.joined(separator: ", ")
-    }
-
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
@@ -37,11 +25,8 @@ struct MediaCard: View {
             }
             .frame(width: width)
         }
-        .buttonStyle(.pressable)
+        .buttonStyle(.plain)
         .focused($focused)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityText)
-        .accessibilityAddTraits(.isButton)
         .scaleEffect(focused ? Theme.CardSize.focusScale : 1.0)
         .shadow(color: .black.opacity(focused ? 0.6 : 0.0),
                 radius: focused ? 24 : 0, x: 0, y: 12)

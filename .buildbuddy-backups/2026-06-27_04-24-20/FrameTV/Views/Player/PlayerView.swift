@@ -25,9 +25,6 @@ struct PlayerView: View {
     @State private var navigateNext: MediaItem?      // bound to navigationDestination
     @State private var prepareTask: Task<Void, Never>?
     @State private var showNextPrompt = false
-    @State private var controlsVisible = true        // auto-hiding overlay controls
-    @State private var hideControlsTask: Task<Void, Never>?
-    @State private var upNextCancelled = false       // user dismissed the up-next card
 
     init(item: MediaItem, series: CatalogItem? = nil) {
         self.item = item
@@ -45,25 +42,7 @@ struct PlayerView: View {
             case .ready:
                 AVPlayerContainer(player: model.player)
                     .ignoresSafeArea()
-                // Buffering indicator distinct from initial load.
-                if model.isBuffering {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .tint(.white)
-                        .scaleEffect(1.4)
-                        .padding(Theme.Spacing.lg)
-                        .background(.ultraThinMaterial, in: Circle())
-                }
                 overlay
-                    .opacity(controlsVisible ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.25), value: controlsVisible)
-                // Tap anywhere to toggle the overlay (iOS); the up-next card stays.
-                #if os(iOS)
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture { revealControls() }
-                    .allowsHitTesting(!controlsVisible)
-                #endif
             case .failed(let message):
                 ErrorStateView(
                     title: "Playback failed",
@@ -81,9 +60,8 @@ struct PlayerView: View {
                             openSubtitles: env.openSubtitles)
             model.start()
             prepareNextEpisode()
-            scheduleHideControls()
         }
-        .onDisappear { model.stopAndSave(); prepareTask?.cancel(); hideControlsTask?.cancel() }
+        .onDisappear { model.stopAndSave(); prepareTask?.cancel() }
         .onChange(of: model.didFinish) { _, finished in
             if finished { handleFinish() }
         }
@@ -117,14 +95,8 @@ struct PlayerView: View {
             Spacer()
 
             // Bottom-right skip / next controls.
-            HStack(alignment: .bottom) {
-                // Up-next countdown card grows from the left.
-                if showUpNextCard {
-                    upNextCard
-                    Spacer()
-                } else {
-                    Spacer()
-                }
+            HStack {
+                Spacer()
                 VStack(alignment: .trailing, spacing: Theme.Spacing.sm) {
                     if let skip = model.activeSkip {
                         skipButton(skip)
@@ -136,57 +108,6 @@ struct PlayerView: View {
             }
             .padding(Theme.Spacing.xl)
         }
-    }
-
-    /// Whether to show the auto-play-next countdown card: we're near the end, the
-    /// next episode is ready, auto-play is on, and the user hasn't dismissed it.
-    private var showUpNextCard: Bool {
-        settings.autoPlayNext
-            && preparedNext != nil
-            && !upNextCancelled
-            && model.isNearEnd(within: 20)
-    }
-
-    private var upNextCard: some View {
-        let secs = Int(model.remainingTime.rounded())
-        return VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text("Up Next")
-                .font(.appFont(16, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.7))
-            if let next = preparedNext {
-                Text(next.episodeLabel ?? next.title)
-                    .font(.appFont(22, weight: .bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
-            }
-            Text("Playing in \(secs)s")
-                .font(.appFont(15))
-                .foregroundStyle(.white.opacity(0.6))
-            HStack(spacing: Theme.Spacing.sm) {
-                Button { playNext() } label: {
-                    Label("Play Now", systemImage: "play.fill")
-                        .font(.appFont(18, weight: .bold))
-                        .padding(.horizontal, Theme.Spacing.md)
-                        .padding(.vertical, Theme.Spacing.xs)
-                        .background(Theme.Colors.accent, in: Capsule())
-                        .foregroundStyle(.white)
-                }
-                .buttonStyle(.plain)
-                Button { upNextCancelled = true } label: {
-                    Text("Keep Watching")
-                        .font(.appFont(18, weight: .semibold))
-                        .padding(.horizontal, Theme.Spacing.md)
-                        .padding(.vertical, Theme.Spacing.xs)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        .foregroundStyle(.white)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(Theme.Spacing.lg)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-        .frame(maxWidth: 420, alignment: .leading)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
     private func overlayButton(systemImage: String, label: String, action: @escaping () -> Void) -> some View {
@@ -279,25 +200,6 @@ struct PlayerView: View {
         env.library.add(next)
         model.stopAndSave()
         navigateNext = next
-    }
-
-    // MARK: - Auto-hiding controls
-
-    /// Shows the overlay, then schedules it to hide after a few idle seconds.
-    private func revealControls() {
-        controlsVisible = true
-        scheduleHideControls()
-    }
-
-    private func scheduleHideControls() {
-        hideControlsTask?.cancel()
-        hideControlsTask = Task {
-            try? await Task.sleep(nanoseconds: 4_000_000_000)   // 4s idle
-            if Task.isCancelled { return }
-            await MainActor.run {
-                withAnimation { controlsVisible = false }
-            }
-        }
     }
 }
 

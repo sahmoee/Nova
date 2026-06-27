@@ -11,7 +11,6 @@ import SwiftUI
 struct LibraryView: View {
     @Binding var path: NavigationPath
     @EnvironmentObject private var library: LibraryStore
-    @EnvironmentObject private var nav: NavigationCoordinator
     @State private var filter: LibraryFilter = .all
     @State private var selectedItem: MediaItem?
     @State private var detailItem: MediaItem?
@@ -36,11 +35,9 @@ struct LibraryView: View {
 
                     if displayedItems.isEmpty {
                         EmptyStateView(
-                            systemImage: emptyIcon,
-                            title: emptyTitle,
-                            message: emptyMessage,
-                            actionTitle: emptyActionTitle,
-                            action: emptyAction
+                            systemImage: "rectangle.stack",
+                            title: "Nothing here yet",
+                            message: emptyMessage
                         )
                     } else {
                         ScrollView {
@@ -99,41 +96,9 @@ struct LibraryView: View {
 
     private var emptyMessage: String {
         switch filter {
-        case .favorites:        return "Tap the star on any title to keep it close."
+        case .favorites:        return "Mark items as favorites to see them here."
         case .continueWatching: return "Start watching something and it'll show up here."
-        default:                return "Add a source or discover something to get started."
-        }
-    }
-
-    private var emptyTitle: String {
-        switch filter {
-        case .favorites:        return "No favorites yet"
-        case .continueWatching: return "Nothing in progress"
-        default:                return "Your library is empty"
-        }
-    }
-
-    private var emptyIcon: String {
-        switch filter {
-        case .favorites:        return "star"
-        case .continueWatching: return "play.circle"
-        default:                return "rectangle.stack"
-        }
-    }
-
-    private var emptyActionTitle: String? {
-        switch filter {
-        case .favorites:        return nil
-        case .continueWatching: return "Discover"
-        default:                return "Go to Sources"
-        }
-    }
-
-    private func emptyAction() {
-        switch filter {
-        case .continueWatching: nav.selection = .discover
-        case .favorites:        break
-        default:                nav.selection = .sources
+        default:                return "Add media from the Sources tab to get started."
         }
     }
 }

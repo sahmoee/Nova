@@ -57,7 +57,6 @@ struct SMBListView: View {
             SMBAddView { newShare, password in
                 model.add(newShare, password: password)
                 showingAdd = false
-                ToastCenter.shared.show("Added \(newShare.displayName)", systemImage: "externaldrive.fill.badge.plus")
             }
         }
     }

@@ -141,13 +141,6 @@ struct MediaItem: Identifiable, Codable, Hashable {
         }
         return title
     }
-
-    /// A short label for an episode (e.g. "S01E02 · Episode title"), or the plain
-    /// title for non-episodes. Used by the up-next card.
-    var episodeLabel: String? {
-        guard let episode else { return nil }
-        return "\(episode.label) · \(title)"
-    }
 }
 
 /// Lightweight reference to a specific episode, stored on a MediaItem so the

@@ -57,7 +57,6 @@ struct SourceCard: View {
                 HStack {
                     Image(systemName: systemImage)
                         .font(.appFont(34, weight: .semibold))
-                        .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(Theme.Colors.accent)
                     Spacer()
                     Image(systemName: status.systemImage)
@@ -93,7 +92,7 @@ struct SourceCard: View {
                             lineWidth: focused ? 4 : 1)
             )
         }
-        .buttonStyle(.pressable)
+        .buttonStyle(.plain)
         .focused($focused)
         .scaleEffect(focused ? Theme.CardSize.focusScale : 1.0)
         .animation(.easeOut(duration: 0.16), value: focused)

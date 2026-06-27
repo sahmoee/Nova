@@ -137,25 +137,4 @@ final class LibraryStore: ObservableObject {
     func item(id: UUID) -> MediaItem? {
         items.first { $0.id == id }
     }
-
-    /// Finds a library item matching a series (by IMDB/TMDB id) and a specific
-    /// season+episode, if one has been played before.
-    func episodeItem(imdb: String?, tmdb: Int?, season: Int, number: Int) -> MediaItem? {
-        items.first { item in
-            guard let ep = item.episode, ep.season == season, ep.number == number else { return false }
-            if let imdb, item.contentID?.imdb == imdb { return true }
-            if let tmdb, item.contentID?.tmdb == tmdb { return true }
-            return false
-        }
-    }
-
-    /// Whether a specific episode has been watched (>= 90%).
-    func isEpisodeWatched(imdb: String?, tmdb: Int?, season: Int, number: Int) -> Bool {
-        episodeItem(imdb: imdb, tmdb: tmdb, season: season, number: number)?.isWatched ?? false
-    }
-
-    /// Whether a specific episode is partially watched (has a resume point).
-    func isEpisodeInProgress(imdb: String?, tmdb: Int?, season: Int, number: Int) -> Bool {
-        episodeItem(imdb: imdb, tmdb: tmdb, season: season, number: number)?.hasResumePoint ?? false
-    }
 }

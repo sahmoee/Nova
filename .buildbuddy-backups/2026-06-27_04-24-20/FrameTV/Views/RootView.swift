@@ -36,6 +36,5 @@ struct RootView: View {
         }
         .background(Theme.Colors.background.ignoresSafeArea())
         .environmentObject(nav)
-        .toastHost()
     }
 }

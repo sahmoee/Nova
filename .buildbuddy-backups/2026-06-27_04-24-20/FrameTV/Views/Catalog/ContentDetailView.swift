@@ -43,41 +43,11 @@ struct ContentDetailView: View {
             .padding(Theme.Spacing.edge)
             .frame(maxWidth: Theme.contentMaxWidth(1400), alignment: .leading)
         }
-        .background(alignment: .top) {
-            backdropHero
-        }
         .background(Theme.Colors.background.ignoresSafeArea())
         .navigationDestination(item: $streamTarget) { target in
             StreamPickerView(catalog: target.catalog, episode: target.episode)
         }
         .task { await hydrate() }
-    }
-
-    // MARK: - Backdrop hero
-
-    @ViewBuilder
-    private var backdropHero: some View {
-        if let url = item.backdropURL {
-            CachedAsyncImage(url: url) { image in
-                image.resizable().aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Color.clear
-            }
-            .frame(height: Theme.isCompact ? 320 : 560)
-            .frame(maxWidth: .infinity)
-            .clipped()
-            .overlay(
-                LinearGradient(
-                    colors: [
-                        Theme.Colors.background.opacity(0.2),
-                        Theme.Colors.background.opacity(0.7),
-                        Theme.Colors.background
-                    ],
-                    startPoint: .top, endPoint: .bottom
-                )
-            )
-            .ignoresSafeArea(edges: .top)
-        }
     }
 
     // MARK: - Header
@@ -121,47 +91,12 @@ struct ContentDetailView: View {
                     .padding(.top, Theme.Spacing.md)
                 }
 
-                // Series: jump straight to the next unwatched episode.
-                if item.isSeries, let nextUp = nextUnwatchedEpisode() {
-                    FocusableButton(title: resumeButtonTitle(nextUp),
-                                    systemImage: "play.fill", prominent: true) {
-                        streamTarget = StreamTarget(catalog: item, episode: nextUp)
-                    }
-                    .frame(maxWidth: Theme.isCompact ? .infinity : 360)
-                    .padding(.top, Theme.Spacing.md)
-                }
-
                 if isHydrating {
                     ProgressView().tint(Theme.Colors.accent).padding(.top, Theme.Spacing.sm)
                 }
             }
             Spacer(minLength: 0)
         }
-    }
-
-    /// First episode (in season/number order) that hasn't been watched yet. If the
-    /// user is mid-episode somewhere, that in-progress episode is preferred.
-    private func nextUnwatchedEpisode() -> EpisodeInfo? {
-        let seasons = item.seasons
-            .filter { $0.number > 0 }
-            .sorted { $0.number < $1.number }
-        let ordered = seasons.flatMap { $0.episodes.sorted { $0.number < $1.number } }
-        // Prefer an in-progress episode.
-        if let inProgress = ordered.first(where: {
-            env.library.isEpisodeInProgress(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
-                                            season: $0.season, number: $0.number)
-        }) { return inProgress }
-        // Otherwise the first unwatched.
-        return ordered.first(where: {
-            !env.library.isEpisodeWatched(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
-                                          season: $0.season, number: $0.number)
-        }) ?? ordered.first
-    }
-
-    private func resumeButtonTitle(_ ep: EpisodeInfo) -> String {
-        let inProgress = env.library.isEpisodeInProgress(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
-                                                         season: ep.season, number: ep.number)
-        return "\(inProgress ? "Resume" : "Play") \(ep.label)"
     }
 
     // MARK: - Movie
@@ -218,39 +153,15 @@ struct ContentDetailView: View {
     }
 
     private func episodeRow(_ ep: EpisodeInfo) -> some View {
-        let watched = env.library.isEpisodeWatched(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
-                                               season: ep.season, number: ep.number)
-        let inProgress = env.library.isEpisodeInProgress(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
-                                                     season: ep.season, number: ep.number)
-        return Button { streamTarget = StreamTarget(catalog: item, episode: ep) } label: {
+        Button { streamTarget = StreamTarget(catalog: item, episode: ep) } label: {
             HStack(spacing: Theme.Spacing.md) {
                 PosterImage(url: ep.stillURL, width: Theme.scaled(200, min: 120), height: Theme.scaled(112, min: 68))
-                    .opacity(watched ? 0.55 : 1)
-                    .overlay(alignment: .bottomLeading) {
-                        if watched {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.appFont(20))
-                                .foregroundStyle(.white, Theme.Colors.accent)
-                                .padding(6)
-                        } else if inProgress {
-                            Image(systemName: "play.circle.fill")
-                                .font(.appFont(20))
-                                .foregroundStyle(.white, Theme.Colors.accentSecondary)
-                                .padding(6)
-                        }
-                    }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(ep.label) · \(ep.displayTitle)")
                         .font(.appFont(22, weight: .semibold))
-                        .foregroundStyle(watched ? Theme.Colors.textSecondary : Theme.Colors.textPrimary)
+                        .foregroundStyle(Theme.Colors.textPrimary)
                         .lineLimit(1)
-                    // Runtime + air date line.
-                    if let meta = episodeMetaLine(ep) {
-                        Text(meta)
-                            .font(.appFont(15))
-                            .foregroundStyle(Theme.Colors.textTertiary)
-                    }
                     if let overview = ep.overview, !overview.isEmpty {
                         Text(overview)
                             .font(.appFont(17))
@@ -259,7 +170,7 @@ struct ContentDetailView: View {
                     }
                 }
                 Spacer()
-                Image(systemName: inProgress ? "play.circle" : "play.circle.fill")
+                Image(systemName: "play.circle.fill")
                     .font(.appFont(30))
                     .foregroundStyle(Theme.Colors.accent)
             }
@@ -267,20 +178,6 @@ struct ContentDetailView: View {
             .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
         .buttonStyle(.plain)
-    }
-
-    /// Builds a "42 min · Aired Jan 3, 2024" style line from available episode data.
-    private func episodeMetaLine(_ ep: EpisodeInfo) -> String? {
-        var parts: [String] = []
-        if let runtime = ep.runtime, runtime > 0 {
-            let minutes = Int((runtime / 60).rounded())
-            parts.append("\(minutes) min")
-        }
-        if let air = ep.airDate {
-            let fmt = DateFormatter(); fmt.dateStyle = .medium
-            parts.append("Aired \(fmt.string(from: air))")
-        }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     // MARK: - Hydration

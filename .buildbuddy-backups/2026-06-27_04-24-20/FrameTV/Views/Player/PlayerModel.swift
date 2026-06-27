@@ -30,7 +30,6 @@ final class PlayerModel: ObservableObject {
     @Published private(set) var duration: TimeInterval = 0
     @Published private(set) var activeSkip: SkipSegment?       // currently-offerable skip
     @Published private(set) var didFinish = false
-    @Published private(set) var isBuffering = false            // mid-stream stall indicator
     @Published var showSubtitlePicker = false
     @Published private(set) var selectedSubtitleID: String?
 
@@ -46,7 +45,6 @@ final class PlayerModel: ObservableObject {
     // Internal.
     private var saveTask: Task<Void, Never>?
     private var timeObserver: Any?
-    private var timeControlObserver: NSKeyValueObservation?
     private var statusObservation: NSKeyValueObservation?
     private var endObserver: NSObjectProtocol?
     private var lastScrobbleProgress: Double = -1
@@ -138,13 +136,6 @@ final class PlayerModel: ObservableObject {
             self.currentTime = t
             self.updateActiveSkip(at: t)
         }
-
-        // Track buffering vs playing for a mid-stream stall indicator.
-        timeControlObserver = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
-            Task { @MainActor in
-                self?.isBuffering = (player.timeControlStatus == .waitingToPlayAtSpecifiedRate)
-            }
-        }
     }
 
     private func updateActiveSkip(at t: TimeInterval) {
@@ -205,17 +196,6 @@ final class PlayerModel: ObservableObject {
     private var progressPercent: Double {
         guard duration > 0 else { return 0 }
         return min(max(currentTime / duration * 100, 0), 100)
-    }
-
-    /// Seconds remaining in the current item (0 when unknown).
-    var remainingTime: TimeInterval {
-        guard duration > 0 else { return 0 }
-        return max(duration - currentTime, 0)
-    }
-
-    /// True in the final stretch of playback, used to surface the up-next card.
-    func isNearEnd(within seconds: TimeInterval) -> Bool {
-        duration > 0 && remainingTime <= seconds && remainingTime > 0
     }
 
     private func scrobbleProgressIfNeeded() {
@@ -440,7 +420,6 @@ final class PlayerModel: ObservableObject {
 
     private func teardownObservers() {
         statusObservation?.invalidate(); statusObservation = nil
-        timeControlObserver?.invalidate(); timeControlObserver = nil
         if let timeObserver { player.removeTimeObserver(timeObserver) }
         timeObserver = nil
         if let endObserver { NotificationCenter.default.removeObserver(endObserver) }

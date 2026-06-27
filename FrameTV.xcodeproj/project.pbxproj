@@ -27,6 +27,8 @@
 		D0A3A638B8D080EB733B42A9 /* MediaCard.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = B6307E16A16FB54315B4AF2C /* MediaCard.swift */; };
 		A5B701AFE260C5A6D18C3904 /* MediaRow.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 8243FC1919BC503B71FAB073 /* MediaRow.swift */; };
 		BDAA2FA9B72220A480137965 /* MediaRow.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = 8243FC1919BC503B71FAB073 /* MediaRow.swift */; };
+		082659205D303618ACAA8F42 /* Polish.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = C55499A51559CA657E707F1E /* Polish.swift */; };
+		3D5842C1360EF3BA7E80446A /* Polish.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = C55499A51559CA657E707F1E /* Polish.swift */; };
 		0388EDC7D93E2042B4BD9DB2 /* ScreenHeader.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = F8F5CA2AC22C7C68AC4ABCC7 /* ScreenHeader.swift */; };
 		73BE6730CFDE4C6E69470986 /* ScreenHeader.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = F8F5CA2AC22C7C68AC4ABCC7 /* ScreenHeader.swift */; };
 		17F15CAA4ECC2087F6DAD79A /* Shimmer.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 6CE7D48EBB51FC4F7FF4A79E /* Shimmer.swift */; };
@@ -35,6 +37,8 @@
 		5107ED73861BF850AB3D8E41 /* SourceCard.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = B88A11CF177FBA4F22DEB5B4 /* SourceCard.swift */; };
 		ADC0A03B2C889BB8E841FBBE /* StateViews.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 5519B507B9E49505F005D45A /* StateViews.swift */; };
 		7CC2A2F90160E897B5B1E7B5 /* StateViews.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = 5519B507B9E49505F005D45A /* StateViews.swift */; };
+		F763BAF56303DCCAF2C20326 /* Toast.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 7971F8C33FC8B250056CB48E /* Toast.swift */; };
+		D75DCB86C9C039501CA0C5BD /* Toast.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = 7971F8C33FC8B250056CB48E /* Toast.swift */; };
 		0806F21A7FE72942A6A46322 /* AddonModels.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = CE6A4FDCD25B45BA32E3775D /* AddonModels.swift */; };
 		16DFD579A56B29B7155815AA /* AddonModels.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = CE6A4FDCD25B45BA32E3775D /* AddonModels.swift */; };
 		C0716E580285CCA516460A38 /* CatalogModels.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = D8F5C8D6D9A7FBACD7D3D9D6 /* CatalogModels.swift */; };
@@ -164,10 +168,12 @@
 		0891FE55B78DCC3DE872A952 /* LegalConfirmToggle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LegalConfirmToggle.swift"; sourceTree = "<group>"; };
 		B6307E16A16FB54315B4AF2C /* MediaCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MediaCard.swift"; sourceTree = "<group>"; };
 		8243FC1919BC503B71FAB073 /* MediaRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MediaRow.swift"; sourceTree = "<group>"; };
+		C55499A51559CA657E707F1E /* Polish.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Polish.swift"; sourceTree = "<group>"; };
 		F8F5CA2AC22C7C68AC4ABCC7 /* ScreenHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ScreenHeader.swift"; sourceTree = "<group>"; };
 		6CE7D48EBB51FC4F7FF4A79E /* Shimmer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Shimmer.swift"; sourceTree = "<group>"; };
 		B88A11CF177FBA4F22DEB5B4 /* SourceCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SourceCard.swift"; sourceTree = "<group>"; };
 		5519B507B9E49505F005D45A /* StateViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StateViews.swift"; sourceTree = "<group>"; };
+		7971F8C33FC8B250056CB48E /* Toast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Toast.swift"; sourceTree = "<group>"; };
 		CE6A4FDCD25B45BA32E3775D /* AddonModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AddonModels.swift"; sourceTree = "<group>"; };
 		D8F5C8D6D9A7FBACD7D3D9D6 /* CatalogModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CatalogModels.swift"; sourceTree = "<group>"; };
 		E501EBDA1415CB797D128711 /* MediaItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MediaItem.swift"; sourceTree = "<group>"; };
@@ -287,10 +293,12 @@
 				0891FE55B78DCC3DE872A952 /* LegalConfirmToggle.swift */,
 				B6307E16A16FB54315B4AF2C /* MediaCard.swift */,
 				8243FC1919BC503B71FAB073 /* MediaRow.swift */,
+				C55499A51559CA657E707F1E /* Polish.swift */,
 				F8F5CA2AC22C7C68AC4ABCC7 /* ScreenHeader.swift */,
 				6CE7D48EBB51FC4F7FF4A79E /* Shimmer.swift */,
 				B88A11CF177FBA4F22DEB5B4 /* SourceCard.swift */,
 				5519B507B9E49505F005D45A /* StateViews.swift */,
+				7971F8C33FC8B250056CB48E /* Toast.swift */,
 			);
 			path = "Components";
 			sourceTree = "<group>";
@@ -597,10 +605,12 @@
 				75BCFAFCE61FF1926E8C5DBE /* LegalConfirmToggle.swift in Sources */,
 				9C8610B008346C795486B9B4 /* MediaCard.swift in Sources */,
 				A5B701AFE260C5A6D18C3904 /* MediaRow.swift in Sources */,
+				082659205D303618ACAA8F42 /* Polish.swift in Sources */,
 				0388EDC7D93E2042B4BD9DB2 /* ScreenHeader.swift in Sources */,
 				17F15CAA4ECC2087F6DAD79A /* Shimmer.swift in Sources */,
 				96238FA47EB311C5ACE348B8 /* SourceCard.swift in Sources */,
 				ADC0A03B2C889BB8E841FBBE /* StateViews.swift in Sources */,
+				F763BAF56303DCCAF2C20326 /* Toast.swift in Sources */,
 				0806F21A7FE72942A6A46322 /* AddonModels.swift in Sources */,
 				C0716E580285CCA516460A38 /* CatalogModels.swift in Sources */,
 				D01F610D15B2D2990D059FBE /* MediaItem.swift in Sources */,
@@ -675,10 +685,12 @@
 				1BF506E25F219FE0F4DB9887 /* LegalConfirmToggle.swift in Sources */,
 				D0A3A638B8D080EB733B42A9 /* MediaCard.swift in Sources */,
 				BDAA2FA9B72220A480137965 /* MediaRow.swift in Sources */,
+				3D5842C1360EF3BA7E80446A /* Polish.swift in Sources */,
 				73BE6730CFDE4C6E69470986 /* ScreenHeader.swift in Sources */,
 				141BF1095C8EEF53C7B98B18 /* Shimmer.swift in Sources */,
 				5107ED73861BF850AB3D8E41 /* SourceCard.swift in Sources */,
 				7CC2A2F90160E897B5B1E7B5 /* StateViews.swift in Sources */,
+				D75DCB86C9C039501CA0C5BD /* Toast.swift in Sources */,
 				16DFD579A56B29B7155815AA /* AddonModels.swift in Sources */,
 				099D4E40704095124E40AADF /* CatalogModels.swift in Sources */,
 				8E01AF5B09F5787B5E3A6E88 /* MediaItem.swift in Sources */,
