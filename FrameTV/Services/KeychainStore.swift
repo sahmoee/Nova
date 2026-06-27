@@ -1,0 +1,135 @@
+//
+//  KeychainStore.swift
+//  FrameTV
+//
+//  Thin wrapper over the Security framework for storing secrets
+//  (Real-Debrid token, SMB passwords). Values are never logged.
+//
+
+import Foundation
+import Security
+
+enum KeychainError: LocalizedError {
+    case unexpectedStatus(OSStatus)
+    case dataConversionFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .unexpectedStatus(let status):
+            return "Keychain operation failed (code \(status))."
+        case .dataConversionFailed:
+            return "Could not convert the value for secure storage."
+        }
+    }
+}
+
+/// A namespaced Keychain helper. All items share a service identifier so
+/// they can be enumerated/cleared as a group.
+struct KeychainStore {
+
+    static let shared = KeychainStore()
+
+    private let service = "com.frametv.app.secrets"
+
+    // MARK: - Save / Update
+
+    func set(_ value: String, for account: String) throws {
+        guard let data = value.data(using: .utf8) else {
+            throw KeychainError.dataConversionFailed
+        }
+
+        // Try update first; if not found, add. Synchronizable so secrets sync
+        // across the user's devices via iCloud Keychain.
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: kCFBooleanTrue as Any
+        ]
+
+        let attributes: [String: Any] = [
+            kSecValueData as String: data
+        ]
+
+        let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+
+        if updateStatus == errSecItemNotFound {
+            var addQuery = query
+            addQuery[kSecValueData as String] = data
+            // Accessible after first unlock so it can sync, and survives reboots.
+            addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+            let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+            guard addStatus == errSecSuccess else {
+                throw KeychainError.unexpectedStatus(addStatus)
+            }
+        } else if updateStatus != errSecSuccess {
+            throw KeychainError.unexpectedStatus(updateStatus)
+        }
+    }
+
+    // MARK: - Read
+
+    func get(_ account: String) -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny as Any,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        guard status == errSecSuccess,
+              let data = item as? Data,
+              let value = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+        return value
+    }
+
+    // MARK: - Delete
+
+    func delete(_ account: String) throws {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny as Any
+        ]
+        let status = SecItemDelete(query as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw KeychainError.unexpectedStatus(status)
+        }
+    }
+
+    /// Removes every secret stored by this app under our service identifier.
+    func deleteAll() throws {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny as Any
+        ]
+        let status = SecItemDelete(query as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw KeychainError.unexpectedStatus(status)
+        }
+    }
+
+    // MARK: - Convenience for the Real-Debrid token
+
+    static let realDebridTokenAccount = "realdebrid.token"
+
+    var realDebridToken: String? {
+        get { get(Self.realDebridTokenAccount) }
+    }
+
+    func setRealDebridToken(_ token: String) throws {
+        try set(token, for: Self.realDebridTokenAccount)
+    }
+
+    func clearRealDebridToken() throws {
+        try delete(Self.realDebridTokenAccount)
+    }
+}

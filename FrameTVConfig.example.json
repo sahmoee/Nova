@@ -1,0 +1,12 @@
+{
+  "_comment": "Optional fallback config for FrameTV. Rename to FrameTVConfig.json and place it in the app's Documents folder (via Files sharing) or bundle it at build time. Values set in the in-app Settings ▸ Metadata & Accounts screen take priority over this file. Trakt access tokens are never read from this file for security; connect Trakt in-app via the device-code flow.",
+
+  "tmdbApiKey": "your-tmdb-v3-api-key",
+  "traktClientId": "your-trakt-client-id",
+  "traktClientSecret": "your-trakt-client-secret",
+  "openSubtitlesApiKey": "your-opensubtitles-api-key",
+
+  "addonManifestURLs": [
+    "https://your-configured-addon.example/manifest.json"
+  ]
+}

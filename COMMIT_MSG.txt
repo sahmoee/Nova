@@ -1,0 +1,26 @@
+Rename the project from JooTV to FrameTV
+
+WHY
+The app is now named FrameTV. This renames the entire project to match.
+
+WHAT
+The product, the source folder, the Xcode project, both targets and both schemes,
+the app entry type, the file headers, the bundle identifiers, the Keychain service,
+the iCloud key value store identifier, the entitlements file, the optional config
+file, and all in app text now use FrameTV. The two bundle identifiers are com dot
+frametv dot app and com dot frametv dot app dot ios. Two internal helpers that used
+the old brand prefix were also renamed for cleanliness, the logger type and the
+scaled font helper, with the font helper renamed to a neutral name so it does not
+collide with the built in frame modifier.
+
+Because the Keychain service identifier and the iCloud key value store identifier
+changed, secrets and synced settings saved under the old name are not read by the
+renamed build, so the user reconnects accounts and re-confirms preferences once.
+
+FILES CHANGED
+This is the full renamed project. The source tree moves under FrameTV slash
+FrameTV with the entry point renamed to FrameTVApp dot swift and the entitlements
+renamed to FrameTV dot entitlements. The Xcode project and both schemes are
+regenerated with the new names, targets, bundle identifiers, and per target plist
+and entitlements paths. README dot md, AppStoreReviewNotes dot md, TEST underscore
+CHECKLIST dot md, and the example config file are updated to FrameTV.
