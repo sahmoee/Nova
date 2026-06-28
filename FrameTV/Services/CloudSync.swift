@@ -65,6 +65,14 @@ final class CloudSync: ObservableObject {
         scheduleFlush()
     }
 
+    func double(forKey key: String) -> Double? {
+        guard store.object(forKey: key) != nil else { return nil }
+        return store.double(forKey: key)
+    }
+    func setDouble(_ value: Double, forKey key: String) {
+        store.set(value, forKey: key); scheduleFlush()
+    }
+
     func object(forKey key: String) -> Any? { store.object(forKey: key) }
 
     /// Pushes any pending changes to iCloud immediately.

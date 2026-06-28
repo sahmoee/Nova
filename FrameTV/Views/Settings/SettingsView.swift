@@ -152,6 +152,10 @@ struct SettingsView: View {
 
     private var playbackSection: some View {
         section("Playback") {
+            NavigationLink { PlayerSettingsView() } label: {
+                settingRow("Player", systemImage: "play.rectangle.on.rectangle",
+                           detail: playerDetail)
+            }.frameRowStyle()
             toggleRow("Resume Playback", systemImage: "play.circle",
                       isOn: $settings.resumePlaybackEnabled)
             toggleRow("Auto-Play Next Episode", systemImage: "forward.end",
@@ -165,6 +169,13 @@ struct SettingsView: View {
             toggleRow("Scrobble to Trakt", systemImage: "checkmark.seal",
                       isOn: $settings.traktScrobblingEnabled)
         }
+    }
+
+    private var playerDetail: String {
+        #if os(iOS)
+        if settings.useExternalPlayer { return settings.preferredExternalPlayer.title }
+        #endif
+        return settings.builtInPlayer.title
     }
 
     private var subtitleSection: some View {

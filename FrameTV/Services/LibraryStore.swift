@@ -20,6 +20,14 @@ final class LibraryStore: ObservableObject {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
+    // iCloud sync. The library is mirrored to iCloud KVS so favorites, watch
+    // progress, and saved items follow the user across iPhone, iPad, and Apple TV.
+    private let cloudKey = "cloud.library.v1"
+    private let cloudRevisionKey = "cloud.library.revision"
+    private var cancellables = Set<AnyCancellable>()
+    /// Guards against echoing a remote change straight back to iCloud.
+    private var applyingRemoteChange = false
+
     init(filename: String = "library.json") {
         let support = FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)
@@ -40,6 +48,63 @@ final class LibraryStore: ObservableObject {
         self.decoder = dec
 
         load()
+        startCloudSync()
+    }
+
+    // MARK: - iCloud sync
+
+    private func startCloudSync() {
+        // Adopt a newer cloud copy at launch (e.g. changes made on another device
+        // while this one was closed).
+        mergeFromCloudIfNewer()
+
+        // React to live changes pushed from other devices.
+        CloudSync.shared.externalChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] keys in
+                guard let self else { return }
+                if keys.contains(self.cloudKey) || keys.contains(self.cloudRevisionKey) {
+                    self.mergeFromCloudIfNewer()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Loads the library from iCloud if its revision is newer than what we last saw,
+    /// then publishes it. Uses a monotonically increasing revision so the most recent
+    /// write wins and devices converge.
+    private func mergeFromCloudIfNewer() {
+        guard let data = CloudSync.shared.data(forKey: cloudKey),
+              let decoded = try? decoder.decode([MediaItem].self, from: data) else { return }
+
+        let cloudRev = CloudSync.shared.double(forKey: cloudRevisionKey) ?? 0
+        let localRev = UserDefaults.standard.double(forKey: cloudRevisionKey)
+        // Only adopt if the cloud copy is at least as new, and actually differs.
+        guard cloudRev >= localRev else { return }
+
+        applyingRemoteChange = true
+        items = decoded
+        UserDefaults.standard.set(cloudRev, forKey: cloudRevisionKey)
+        // Write through to the local file so an offline launch still has the latest.
+        persistLocalOnly()
+        applyingRemoteChange = false
+    }
+
+    /// Pushes the current library to iCloud with a fresh revision stamp.
+    private func pushToCloud() {
+        guard !applyingRemoteChange else { return }
+        guard let data = try? encoder.encode(items) else { return }
+        // Skip if the payload exceeds iCloud KVS's per-value limit (~1MB); the local
+        // file still holds everything, we just can't mirror an oversized library.
+        guard data.count < 900_000 else {
+            FrameLog.sync.error("Library too large to sync to iCloud (\(data.count) bytes)")
+            return
+        }
+        let rev = Date().timeIntervalSince1970
+        UserDefaults.standard.set(rev, forKey: cloudRevisionKey)
+        CloudSync.shared.setData(data, forKey: cloudKey)
+        CloudSync.shared.setDouble(rev, forKey: cloudRevisionKey)
+        CloudSync.shared.flush()
     }
 
     // MARK: - Persistence
@@ -76,6 +141,13 @@ final class LibraryStore: ObservableObject {
     }
 
     private func persist() {
+        persistLocalOnly()
+        pushToCloud()
+    }
+
+    /// Writes only the local file, without touching iCloud (used when applying a
+    /// change that came *from* iCloud, to avoid an echo).
+    private func persistLocalOnly() {
         do {
             let data = try encoder.encode(items)
             try data.write(to: fileURL, options: [.atomic])

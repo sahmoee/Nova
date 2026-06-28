@@ -336,6 +336,43 @@ final class BackupManager: ObservableObject {
         return availableContents(in: snap)
     }
 
+    /// Downloads a snapshot from a URL (e.g. a link or one encoded in a QR code) and
+    /// returns it as Data for inspection/import. Only http(s) URLs are fetched.
+    func downloadSnapshot(from url: URL) async -> Data? {
+        guard url.scheme == "http" || url.scheme == "https" else { return nil }
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                return nil
+            }
+            // Validate it actually decodes as a snapshot before handing it back.
+            guard (try? JSONDecoder().decode(BackupSnapshot.self, from: data)) != nil else { return nil }
+            return data
+        } catch {
+            FrameLog.sync.error("Snapshot download failed: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
+    /// Returns which categories a raw snapshot blob contains.
+    func contentsOfSnapshotData(_ data: Data) -> BackupContents? {
+        guard let snap = try? JSONDecoder().decode(BackupSnapshot.self, from: data) else { return nil }
+        return availableContents(in: snap)
+    }
+
+    /// Imports a snapshot from a raw blob (from a URL download or QR payload),
+    /// applying only the selected categories.
+    @discardableResult
+    func importSnapshotData(_ data: Data, restoring contents: BackupContents = .all) -> Bool {
+        guard let snap = try? JSONDecoder().decode(BackupSnapshot.self, from: data) else {
+            FrameLog.sync.error("Snapshot import failed: unreadable data")
+            return false
+        }
+        apply(snap, restoring: contents)
+        FrameLog.sync.info("Imported snapshot from data (selected categories)")
+        return true
+    }
+
     /// The categories present (non-empty) in a snapshot.
     private func availableContents(in snap: BackupSnapshot) -> BackupContents {
         var c: BackupContents = []

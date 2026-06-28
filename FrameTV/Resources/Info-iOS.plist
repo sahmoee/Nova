@@ -31,6 +31,16 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>FrameTV uses your local network to connect to SMB shares you configure and to stream your own video files.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>FrameTV uses the camera to scan a QR code that points to a snapshot you want to import.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>infuse</string>
+		<string>vlc</string>
+		<string>outplayer</string>
+		<string>nplayer-http</string>
+		<string>nplayer-https</string>
+	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchScreen</key>

@@ -32,14 +32,64 @@ struct PlayerView: View {
     }
 
     var body: some View {
+        Group {
+            #if os(iOS)
+            if settings.useExternalPlayer {
+                // Hand the stream to the chosen external app, then dismiss.
+                externalHandoffBody
+            } else {
+                inAppBody
+            }
+            #else
+            inAppBody
+            #endif
+        }
+    }
+
+    @ViewBuilder
+    private var inAppBody: some View {
         // AVPlayer can only open MP4/M4V/MOV/HLS. For anything else (MKV, AVI,
         // WebM, or unknown), use the VLC-backed player which handles all formats.
-        if PlaybackEngineRouter.shouldUseVLC(for: item) {
+        // The user's preferred built-in player can force one engine.
+        if PlaybackEngineRouter.shouldUseVLC(for: item, preference: settings.builtInPlayer) {
             VLCPlayerView(item: item, series: series)
         } else {
             avPlayerBody
         }
     }
+
+    #if os(iOS)
+    @State private var handoffFailed = false
+
+    @ViewBuilder
+    private var externalHandoffBody: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            VStack(spacing: Theme.Spacing.lg) {
+                if handoffFailed {
+                    ErrorStateView(
+                        title: "\(settings.preferredExternalPlayer.title) isn't available",
+                        message: "Install it, or turn off external playback in Settings to play in FrameTV.",
+                        onBack: { dismiss() }
+                    )
+                } else {
+                    ProgressView().tint(.white)
+                    Text("Opening in \(settings.preferredExternalPlayer.title)…")
+                        .font(.appFont(20)).foregroundStyle(.white)
+                }
+            }
+        }
+        .onAppear {
+            let ok = settings.preferredExternalPlayer.open(item.playbackURL)
+            if ok {
+                // Mark progress as played and leave the player screen.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { dismiss() }
+            } else {
+                handoffFailed = true
+            }
+        }
+    }
+    #endif
 
     private var avPlayerBody: some View {
         ZStack {

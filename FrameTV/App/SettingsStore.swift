@@ -31,6 +31,9 @@ final class SettingsStore: ObservableObject {
         static let subtitleLanguage = "settings.subtitleLanguage"
         static let subtitlesEnabled = "settings.subtitlesEnabled"
         static let traktScrobbling = "settings.traktScrobbling"
+        static let builtInPlayer = "settings.builtInPlayer"
+        static let preferredExternalPlayer = "settings.preferredExternalPlayer"
+        static let useExternalPlayer = "settings.useExternalPlayer"
     }
 
     // MARK: - Playback
@@ -41,6 +44,21 @@ final class SettingsStore: ObservableObject {
 
     @Published var defaultQuality: PlaybackQuality {
         didSet { defaults.set(defaultQuality.rawValue, forKey: Key.defaultQuality); CloudSync.shared.setString(defaultQuality.rawValue, forKey: Key.defaultQuality) }
+    }
+
+    /// Which built-in playback engine/profile to use.
+    @Published var builtInPlayer: BuiltInPlayer {
+        didSet { defaults.set(builtInPlayer.rawValue, forKey: Key.builtInPlayer); CloudSync.shared.setString(builtInPlayer.rawValue, forKey: Key.builtInPlayer) }
+    }
+
+    /// Whether to hand playback to an external app instead of playing in-app (iOS).
+    @Published var useExternalPlayer: Bool {
+        didSet { defaults.set(useExternalPlayer, forKey: Key.useExternalPlayer); CloudSync.shared.setBool(useExternalPlayer, forKey: Key.useExternalPlayer) }
+    }
+
+    /// Which external app to hand playback to when `useExternalPlayer` is on.
+    @Published var preferredExternalPlayer: ExternalPlayer {
+        didSet { defaults.set(preferredExternalPlayer.rawValue, forKey: Key.preferredExternalPlayer); CloudSync.shared.setString(preferredExternalPlayer.rawValue, forKey: Key.preferredExternalPlayer) }
     }
 
     /// Auto-play the next episode when the current one finishes.
@@ -145,6 +163,13 @@ final class SettingsStore: ObservableObject {
         self.subtitlesEnabled = defaults.bool(forKey: Key.subtitlesEnabled)
         self.subtitleLanguage = defaults.string(forKey: Key.subtitleLanguage) ?? "en"
         self.traktScrobblingEnabled = defaults.bool(forKey: Key.traktScrobbling)
+        self.builtInPlayer = BuiltInPlayer(
+            rawValue: defaults.string(forKey: Key.builtInPlayer) ?? BuiltInPlayer.auto.rawValue
+        ) ?? .auto
+        self.useExternalPlayer = defaults.bool(forKey: Key.useExternalPlayer)
+        self.preferredExternalPlayer = ExternalPlayer(
+            rawValue: defaults.string(forKey: Key.preferredExternalPlayer) ?? ExternalPlayer.infuse.rawValue
+        ) ?? .infuse
 
         // Pull any iCloud values that exist (a newer device may have synced).
         mergeFromCloud()
@@ -180,6 +205,7 @@ final class SettingsStore: ObservableObject {
         applyBool(Key.subtitlesEnabled, \.subtitlesEnabled)
         applyBool(Key.traktScrobbling, \.traktScrobblingEnabled)
         applyBool(Key.requireLegalConfirmation, \.requireLegalConfirmation)
+        applyBool(Key.useExternalPlayer, \.useExternalPlayer)
 
         if let v = cloud.string(forKey: Key.defaultQuality),
            let q = PlaybackQuality(rawValue: v), defaultQuality != q { defaultQuality = q }
@@ -188,6 +214,10 @@ final class SettingsStore: ObservableObject {
         if let v = cloud.string(forKey: Key.subtitleLanguage), subtitleLanguage != v {
             subtitleLanguage = v
         }
+        if let v = cloud.string(forKey: Key.builtInPlayer),
+           let p = BuiltInPlayer(rawValue: v), builtInPlayer != p { builtInPlayer = p }
+        if let v = cloud.string(forKey: Key.preferredExternalPlayer),
+           let p = ExternalPlayer(rawValue: v), preferredExternalPlayer != p { preferredExternalPlayer = p }
     }
 }
 

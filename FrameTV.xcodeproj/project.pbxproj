@@ -57,6 +57,8 @@
 		8E01AF5B09F5787B5E3A6E88 /* MediaItem.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = E501EBDA1415CB797D128711 /* MediaItem.swift */; };
 		0DC83E057E0F8E087E82CA79 /* MetadataModels.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 9B0DD290C7440A9826D9500C /* MetadataModels.swift */; };
 		8CA4F94C172DE8E12EF9E4CE /* MetadataModels.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = 9B0DD290C7440A9826D9500C /* MetadataModels.swift */; };
+		860A3EB2EF85C7F98075F76D /* PlayerOptions.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = DD61DA3F4315330B41ED6EF7 /* PlayerOptions.swift */; };
+		85257439153140EEC7ACDEE0 /* PlayerOptions.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = DD61DA3F4315330B41ED6EF7 /* PlayerOptions.swift */; };
 		994709B6CC0249D05165FFD7 /* RealDebridModels.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 4C12CF106AE8B2228CFDD644 /* RealDebridModels.swift */; };
 		D6376CA8AE6A8EBB2DAE049C /* RealDebridModels.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = 4C12CF106AE8B2228CFDD644 /* RealDebridModels.swift */; };
 		11B12A4AF77805F6D3802FAF /* RemoteFileItem.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = A732AEF7E1C3C2DA2642B99A /* RemoteFileItem.swift */; };
@@ -191,8 +193,12 @@
 		B0A2A52698898847ED7CA104 /* BackupContentsPicker.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = BEE869D9AF813DD87B3D0012 /* BackupContentsPicker.swift */; };
 		CA53C805868FFE702752C60F /* BackupView.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 39B2C5271E02B4684B46C23F /* BackupView.swift */; };
 		EDE0C2C81D40167A16F3AEE3 /* BackupView.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = 39B2C5271E02B4684B46C23F /* BackupView.swift */; };
+		C7ACA22E839B21D4C5370D64 /* PlayerSettingsView.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 79C61692B3A500A951D88317 /* PlayerSettingsView.swift */; };
+		A7AB9EA894930E976E69B8C7 /* PlayerSettingsView.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = 79C61692B3A500A951D88317 /* PlayerSettingsView.swift */; };
 		436E8D72BE1C9F753D97304A /* PrivacyLegalView.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = A659D99C45AB4145BEBEC3FF /* PrivacyLegalView.swift */; };
 		6870A63AF437109F9EB890E1 /* PrivacyLegalView.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = A659D99C45AB4145BEBEC3FF /* PrivacyLegalView.swift */; };
+		2EC9E685A1DF4A94C6E9441E /* QRScannerView.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = EE3ABE58915541F160C540E1 /* QRScannerView.swift */; };
+		B979825A57CFF051A12F24FD /* QRScannerView.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = EE3ABE58915541F160C540E1 /* QRScannerView.swift */; };
 		EAC1069E5978F856D05629F5 /* SettingsView.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = 8FC799C8FC202185F638B2DF /* SettingsView.swift */; };
 		04CA3B72B7CD1A73DF99DC77 /* SettingsView.swift in Sources (iOS) */ = {isa = PBXBuildFile; fileRef = 8FC799C8FC202185F638B2DF /* SettingsView.swift */; };
 		7D6FD4DDFF63100F62EE3E97 /* TraktConnectView.swift in Sources (tvOS) */ = {isa = PBXBuildFile; fileRef = CAAA886CA126FFC76F3A830C /* TraktConnectView.swift */; };
@@ -235,6 +241,7 @@
 		44483A3741A3146721D8B9CC /* HomeShelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HomeShelf.swift"; sourceTree = "<group>"; };
 		E501EBDA1415CB797D128711 /* MediaItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MediaItem.swift"; sourceTree = "<group>"; };
 		9B0DD290C7440A9826D9500C /* MetadataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MetadataModels.swift"; sourceTree = "<group>"; };
+		DD61DA3F4315330B41ED6EF7 /* PlayerOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PlayerOptions.swift"; sourceTree = "<group>"; };
 		4C12CF106AE8B2228CFDD644 /* RealDebridModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RealDebridModels.swift"; sourceTree = "<group>"; };
 		A732AEF7E1C3C2DA2642B99A /* RemoteFileItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RemoteFileItem.swift"; sourceTree = "<group>"; };
 		C192BE7B4DF65820AA978983 /* SMBShare.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SMBShare.swift"; sourceTree = "<group>"; };
@@ -302,7 +309,9 @@
 		C91B171DD6121F6DDC2FF67C /* AccountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccountsView.swift"; sourceTree = "<group>"; };
 		BEE869D9AF813DD87B3D0012 /* BackupContentsPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BackupContentsPicker.swift"; sourceTree = "<group>"; };
 		39B2C5271E02B4684B46C23F /* BackupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BackupView.swift"; sourceTree = "<group>"; };
+		79C61692B3A500A951D88317 /* PlayerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PlayerSettingsView.swift"; sourceTree = "<group>"; };
 		A659D99C45AB4145BEBEC3FF /* PrivacyLegalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PrivacyLegalView.swift"; sourceTree = "<group>"; };
+		EE3ABE58915541F160C540E1 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "QRScannerView.swift"; sourceTree = "<group>"; };
 		8FC799C8FC202185F638B2DF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsView.swift"; sourceTree = "<group>"; };
 		CAAA886CA126FFC76F3A830C /* TraktConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TraktConnectView.swift"; sourceTree = "<group>"; };
 		FC5898173AC34F3D610F77E2 /* WhatsNewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WhatsNewView.swift"; sourceTree = "<group>"; };
@@ -419,6 +428,7 @@
 				44483A3741A3146721D8B9CC /* HomeShelf.swift */,
 				E501EBDA1415CB797D128711 /* MediaItem.swift */,
 				9B0DD290C7440A9826D9500C /* MetadataModels.swift */,
+				DD61DA3F4315330B41ED6EF7 /* PlayerOptions.swift */,
 				4C12CF106AE8B2228CFDD644 /* RealDebridModels.swift */,
 				A732AEF7E1C3C2DA2642B99A /* RemoteFileItem.swift */,
 				C192BE7B4DF65820AA978983 /* SMBShare.swift */,
@@ -599,7 +609,9 @@
 				C91B171DD6121F6DDC2FF67C /* AccountsView.swift */,
 				BEE869D9AF813DD87B3D0012 /* BackupContentsPicker.swift */,
 				39B2C5271E02B4684B46C23F /* BackupView.swift */,
+				79C61692B3A500A951D88317 /* PlayerSettingsView.swift */,
 				A659D99C45AB4145BEBEC3FF /* PrivacyLegalView.swift */,
+				EE3ABE58915541F160C540E1 /* QRScannerView.swift */,
 				8FC799C8FC202185F638B2DF /* SettingsView.swift */,
 				CAAA886CA126FFC76F3A830C /* TraktConnectView.swift */,
 				FC5898173AC34F3D610F77E2 /* WhatsNewView.swift */,
@@ -761,6 +773,7 @@
 				7EF2C1B421BC895D8C00EC4B /* HomeShelf.swift in Sources */,
 				D01F610D15B2D2990D059FBE /* MediaItem.swift in Sources */,
 				0DC83E057E0F8E087E82CA79 /* MetadataModels.swift in Sources */,
+				860A3EB2EF85C7F98075F76D /* PlayerOptions.swift in Sources */,
 				994709B6CC0249D05165FFD7 /* RealDebridModels.swift in Sources */,
 				11B12A4AF77805F6D3802FAF /* RemoteFileItem.swift in Sources */,
 				434EB9B84E21C9A7B36511EC /* SMBShare.swift in Sources */,
@@ -828,7 +841,9 @@
 				6FA4FE8990BD9F74733C8242 /* AccountsView.swift in Sources */,
 				CE414F4C64F85A9CE5F81D78 /* BackupContentsPicker.swift in Sources */,
 				CA53C805868FFE702752C60F /* BackupView.swift in Sources */,
+				C7ACA22E839B21D4C5370D64 /* PlayerSettingsView.swift in Sources */,
 				436E8D72BE1C9F753D97304A /* PrivacyLegalView.swift in Sources */,
+				2EC9E685A1DF4A94C6E9441E /* QRScannerView.swift in Sources */,
 				EAC1069E5978F856D05629F5 /* SettingsView.swift in Sources */,
 				7D6FD4DDFF63100F62EE3E97 /* TraktConnectView.swift in Sources */,
 				0D3A48495063D523111F44AC /* WhatsNewView.swift in Sources */,
@@ -864,6 +879,7 @@
 				B4525BEFCBD56B13A3FE6472 /* HomeShelf.swift in Sources */,
 				8E01AF5B09F5787B5E3A6E88 /* MediaItem.swift in Sources */,
 				8CA4F94C172DE8E12EF9E4CE /* MetadataModels.swift in Sources */,
+				85257439153140EEC7ACDEE0 /* PlayerOptions.swift in Sources */,
 				D6376CA8AE6A8EBB2DAE049C /* RealDebridModels.swift in Sources */,
 				27E85DA5960F76C6CAB778F5 /* RemoteFileItem.swift in Sources */,
 				3BA34509E408D150B0AF3803 /* SMBShare.swift in Sources */,
@@ -931,7 +947,9 @@
 				822ABC768797B2F3C293F1C0 /* AccountsView.swift in Sources */,
 				B0A2A52698898847ED7CA104 /* BackupContentsPicker.swift in Sources */,
 				EDE0C2C81D40167A16F3AEE3 /* BackupView.swift in Sources */,
+				A7AB9EA894930E976E69B8C7 /* PlayerSettingsView.swift in Sources */,
 				6870A63AF437109F9EB890E1 /* PrivacyLegalView.swift in Sources */,
+				B979825A57CFF051A12F24FD /* QRScannerView.swift in Sources */,
 				04CA3B72B7CD1A73DF99DC77 /* SettingsView.swift in Sources */,
 				1AE64675717A970B90592A33 /* TraktConnectView.swift in Sources */,
 				BA600D04DF7FBF85EFB416BE /* WhatsNewView.swift in Sources */,

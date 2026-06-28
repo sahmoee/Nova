@@ -15,25 +15,37 @@ enum PlaybackEngineRouter {
     /// Extensions AVPlayer reliably plays.
     private static let avPlayerExtensions: Set<String> = ["mp4", "m4v", "mov"]
 
-    /// Whether to use the VLC engine for this item.
-    static func shouldUseVLC(for item: MediaItem) -> Bool {
+    /// Whether to use the VLC engine for this item, honoring the user's preferred
+    /// built-in player profile (which can force VLC or force AVPlayer).
+    static func shouldUseVLC(for item: MediaItem, preference: BuiltInPlayer = .auto) -> Bool {
+        // Explicit user choices win, except that AVPlayer can't open formats it doesn't
+        // support — in that case fall back to VLC regardless.
+        if preference.forcesVLC { return true }
+        if preference.forcesAVPlayer { return !isAVPlayerCompatible(item) ? true : false }
+        return !isAVPlayerCompatible(item)
+    }
+
+    /// Whether AVPlayer can reliably open this item based on its container/extension.
+    static func isAVPlayerCompatible(for item: MediaItem) -> Bool { isAVPlayerCompatible(item) }
+
+    private static func isAVPlayerCompatible(_ item: MediaItem) -> Bool {
         let url = item.playbackURL
         let ext = url.pathExtension.lowercased()
 
         // HLS streams play great in AVPlayer.
-        if ext == "m3u8" { return false }
+        if ext == "m3u8" { return true }
         // Known AVPlayer-friendly containers stay on AVPlayer.
-        if avPlayerExtensions.contains(ext) { return false }
+        if avPlayerExtensions.contains(ext) { return true }
 
         // Local SMB bridge URLs carry the real filename in the path; check that.
         if url.host == "127.0.0.1" {
             let lastComponent = url.lastPathComponent.lowercased()
-            if avPlayerExtensions.contains((lastComponent as NSString).pathExtension) { return false }
-            if lastComponent.hasSuffix(".m3u8") { return false }
+            if avPlayerExtensions.contains((lastComponent as NSString).pathExtension) { return true }
+            if lastComponent.hasSuffix(".m3u8") { return true }
         }
 
         // Everything else — MKV, AVI, WebM, TS, or no/unknown extension (common for
-        // debrid and addon links) — goes to VLC, which can handle it.
-        return true
+        // debrid and addon links) — is not known-compatible, so prefer VLC.
+        return false
     }
 }

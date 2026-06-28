@@ -88,6 +88,17 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         hasScrobbledStart = false
 
         let media = VLCMedia(url: item.playbackURL)
+        // Apply the user's built-in player profile (network cache size, hardware
+        // decoding preference). These map to libVLC media options.
+        if let profile = settings?.builtInPlayer {
+            if let cacheMs = profile.vlcNetworkCacheMs {
+                media.addOption("--network-caching=\(cacheMs)")
+                media.addOption("--file-caching=\(cacheMs)")
+            }
+            if profile.prefersHardwareDecoding {
+                media.addOption("--codec=videotoolbox")
+            }
+        }
         mediaPlayer.media = media
         mediaPlayer.delegate = self
         mediaPlayer.play()
