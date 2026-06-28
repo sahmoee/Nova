@@ -107,14 +107,12 @@ struct SettingsView: View {
                            detail: backupDetail)
             }.frameRowStyle()
 
-            if let note = WhatsNew.latest {
-                NavigationLink {
-                    WhatsNewView(note: note) {}
-                } label: {
-                    settingRow("What's New", systemImage: "sparkles",
-                               detail: "Version \(note.version)")
-                }.frameRowStyle()
-            }
+            NavigationLink {
+                WhatsNewView(note: WhatsNewTracker.shared.currentNote) {}
+            } label: {
+                settingRow("What's New", systemImage: "sparkles",
+                           detail: "Version \(WhatsNewTracker.shared.currentVersion) · Build \(WhatsNewTracker.shared.currentBuild)")
+            }.frameRowStyle()
         }
     }
 

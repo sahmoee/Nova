@@ -56,15 +56,13 @@ struct RootView: View {
         .onAppear(perform: maybeOfferRestore)
         .onAppear(perform: maybeShowWhatsNew)
         .sheet(isPresented: $showWhatsNew) {
-            if let note = WhatsNew.note(for: WhatsNewTracker.shared.currentVersion) {
-                WhatsNewView(note: note) {
-                    WhatsNewTracker.shared.markSeen()
-                    showWhatsNew = false
-                }
-                #if os(iOS)
-                .presentationDragIndicator(.visible)
-                #endif
+            WhatsNewView(note: WhatsNewTracker.shared.currentNote) {
+                WhatsNewTracker.shared.markSeen()
+                showWhatsNew = false
             }
+            #if os(iOS)
+            .presentationDragIndicator(.visible)
+            #endif
         }
         .alert("Restore your setup?", isPresented: $offerRestore) {
             Button("Restore from iCloud") {

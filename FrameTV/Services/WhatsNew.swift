@@ -102,31 +102,64 @@ enum WhatsNew {
 
     /// The newest release note.
     static var latest: ReleaseNote? { releases.first }
+
+    /// A generic note used when there is no hand-written entry for the current
+    /// version. This guarantees the What's New screen always has something to show
+    /// after an update, even when a specific changelog wasn't authored for it.
+    static func fallbackNote(version: String) -> ReleaseNote {
+        ReleaseNote(
+            version: version,
+            headline: "Improvements and fixes",
+            features: [
+                ReleaseFeature(
+                    symbol: "sparkles",
+                    title: "Refinements under the hood",
+                    detail: "This build includes stability fixes and small improvements across the app."
+                )
+            ]
+        )
+    }
+
+    /// The note to present for a version: the authored one if it exists, otherwise
+    /// the generic fallback. Always returns a value.
+    static func resolvedNote(for version: String) -> ReleaseNote {
+        note(for: version) ?? fallbackNote(version: version)
+    }
 }
 
-// MARK: - Seen-version tracking
+// MARK: - Version / build tracking
 
 @MainActor
 final class WhatsNewTracker: ObservableObject {
     static let shared = WhatsNewTracker()
 
-    private let key = "whatsNew.lastSeenVersion"
+    // Keyed off the build number so a new What's New is offered on every increment,
+    // since version and build now move together on each build or fix.
+    private let key = "whatsNew.lastSeenBuild"
 
-    /// The app's current marketing version from the bundle.
+    /// The app's current marketing version from the bundle (CFBundleShortVersionString).
     var currentVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1"
     }
 
-    /// Whether a What's New screen should be shown for the current version: there
-    /// is a matching note and the user hasn't seen this version yet.
-    func shouldShow() -> Bool {
-        let seen = UserDefaults.standard.string(forKey: key)
-        guard seen != currentVersion else { return false }
-        return WhatsNew.note(for: currentVersion) != nil
+    /// The app's current build number from the bundle (CFBundleVersion).
+    var currentBuild: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
     }
 
-    /// Marks the current version as seen so the screen isn't shown again.
+    /// The release note to show for the current version (authored or fallback).
+    var currentNote: ReleaseNote {
+        WhatsNew.resolvedNote(for: currentVersion)
+    }
+
+    /// Whether a What's New screen should be shown: the user hasn't seen this build yet.
+    func shouldShow() -> Bool {
+        let seen = UserDefaults.standard.string(forKey: key)
+        return seen != currentBuild
+    }
+
+    /// Marks the current build as seen so the screen isn't shown again until the next one.
     func markSeen() {
-        UserDefaults.standard.set(currentVersion, forKey: key)
+        UserDefaults.standard.set(currentBuild, forKey: key)
     }
 }

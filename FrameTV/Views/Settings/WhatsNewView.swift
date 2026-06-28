@@ -12,6 +12,16 @@ struct WhatsNewView: View {
     let note: ReleaseNote
     var onDismiss: () -> Void
 
+    /// Marketing version from the bundle (CFBundleShortVersionString).
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? note.version
+    }
+
+    /// Build number from the bundle (CFBundleVersion).
+    private var appBuild: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
@@ -20,9 +30,12 @@ struct WhatsNewView: View {
                         .font(Theme.Font.screenTitle())
                         .screenTitleStyle()
                         .foregroundStyle(Theme.Colors.textPrimary)
-                    Text("Version \(note.version) · \(note.headline)")
+                    Text(note.headline)
                         .font(.appFont(20))
                         .foregroundStyle(Theme.Colors.textSecondary)
+                    Text("Version \(appVersion) · Build \(appBuild)")
+                        .font(.appFont(16, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.textSecondary.opacity(0.8))
                 }
 
                 VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
