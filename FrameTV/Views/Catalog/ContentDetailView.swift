@@ -272,8 +272,9 @@ struct ContentDetailView: View {
                 .background(isActive ? Theme.Colors.accent : Theme.Colors.card,
                             in: Capsule())
                 .foregroundStyle(isActive ? .white : Theme.Colors.textSecondary)
+                .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(FrameChipButtonStyle())
     }
 
     private func episodeRow(_ ep: EpisodeInfo) -> some View {

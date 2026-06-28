@@ -73,6 +73,40 @@ extension View {
     }
 }
 
+/// A focus style for small capsule chips (e.g. season selectors, filter pills) that
+/// already provide their own background. Adds only an accent ring + lift on focus and,
+/// because it's a custom ButtonStyle, fully suppresses the tvOS default white card.
+struct FrameChipButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        FrameChipBody(configuration: configuration)
+    }
+
+    private struct FrameChipBody: View {
+        let configuration: Configuration
+        @Environment(\.isFocused) private var isFocused
+        @Environment(\.dynamicAccent) private var accent
+
+        private var active: Bool {
+            #if os(tvOS)
+            return isFocused
+            #else
+            return configuration.isPressed
+            #endif
+        }
+
+        var body: some View {
+            configuration.label
+                .overlay(
+                    Capsule().strokeBorder(active ? accent : .clear, lineWidth: 3)
+                )
+                .shadow(color: active ? accent.opacity(0.45) : .clear,
+                        radius: active ? 18 : 0, y: active ? 6 : 0)
+                .scaleEffect(active ? 1.08 : 1.0)
+                .animation(.easeOut(duration: 0.18), value: active)
+        }
+    }
+}
+
 /// A focus-reactive container for non-button rows (e.g. cards in a grid). Mirrors the
 /// button style's highlight so the whole app shares one focus language.
 struct FocusHighlight: ViewModifier {

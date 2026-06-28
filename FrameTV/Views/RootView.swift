@@ -41,6 +41,9 @@ struct RootView: View {
         .environmentObject(nav)
         .environment(\.dynamicAccent, accentManager.accent)
         .tint(accentManager.accent)
+        // Hide the tab bar while a video is playing. Applied at the TabView root, which
+        // is where the tab bar actually lives, so tvOS honors it reliably.
+        .toolbar(nowPlaying.playerPresented ? .hidden : .visible, for: .tabBar)
         .safeAreaInset(edge: .bottom) {
             nowPlayingBar
         }

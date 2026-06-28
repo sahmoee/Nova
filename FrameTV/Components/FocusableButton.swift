@@ -13,9 +13,6 @@ struct FocusableButton: View {
     var prominent: Bool = false
     let action: () -> Void
 
-    @FocusState private var focused: Bool
-    @Environment(\.dynamicAccent) private var accent
-
     var body: some View {
         Button(action: action) {
             HStack(spacing: Theme.Spacing.sm) {
@@ -25,34 +22,61 @@ struct FocusableButton: View {
                 Text(title)
                     .fontWeight(.semibold)
             }
-            .padding(.horizontal, Theme.Spacing.md)
-            .padding(.vertical, Theme.Spacing.sm)
             .frame(maxWidth: prominent ? .infinity : nil)
-            .background(background)
-            .foregroundStyle(foreground)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
-                    .stroke(focused ? accent : .clear, lineWidth: 3)
-            )
-            .shadow(color: focused ? accent.opacity(0.45) : .clear,
-                    radius: focused ? 20 : 0, y: focused ? 6 : 0)
-            .scaleEffect(focused ? 1.06 : 1.0)
-            .animation(.easeOut(duration: 0.18), value: focused)
         }
-        .buttonStyle(.plain)
-        .focused($focused)
+        .buttonStyle(FocusableButtonStyle(prominent: prominent))
+    }
+}
+
+/// The button style behind FocusableButton. Implemented as a ButtonStyle (reading
+/// isFocused from the environment) so that on tvOS it fully replaces the system focus
+/// appearance — no white card behind the button.
+struct FocusableButtonStyle: ButtonStyle {
+    var prominent: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        FocusableButtonBody(configuration: configuration, prominent: prominent)
     }
 
-    private var background: some ShapeStyle {
-        if prominent {
-            return AnyShapeStyle(accent)
-        }
-        return AnyShapeStyle(focused ? accent.opacity(0.9) : Theme.Colors.card)
-    }
+    private struct FocusableButtonBody: View {
+        let configuration: Configuration
+        let prominent: Bool
+        @Environment(\.isFocused) private var isFocused
+        @Environment(\.dynamicAccent) private var accent
 
-    private var foreground: Color {
-        if prominent { return .white }
-        return focused ? .white : Theme.Colors.textPrimary
+        private var active: Bool {
+            #if os(tvOS)
+            return isFocused
+            #else
+            return configuration.isPressed
+            #endif
+        }
+
+        private var background: some ShapeStyle {
+            if prominent { return AnyShapeStyle(accent) }
+            return AnyShapeStyle(active ? accent.opacity(0.9) : Theme.Colors.card)
+        }
+
+        private var foreground: Color {
+            if prominent { return .white }
+            return active ? .white : Theme.Colors.textPrimary
+        }
+
+        var body: some View {
+            configuration.label
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.vertical, Theme.Spacing.sm)
+                .background(background)
+                .foregroundStyle(foreground)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
+                        .stroke(active ? accent : .clear, lineWidth: 3)
+                )
+                .shadow(color: active ? accent.opacity(0.45) : .clear,
+                        radius: active ? 20 : 0, y: active ? 6 : 0)
+                .scaleEffect(active ? 1.06 : 1.0)
+                .animation(.easeOut(duration: 0.18), value: active)
+        }
     }
 }

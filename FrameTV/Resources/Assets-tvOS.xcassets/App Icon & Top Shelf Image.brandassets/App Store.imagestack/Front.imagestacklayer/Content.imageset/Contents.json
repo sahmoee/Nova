@@ -1,9 +1,13 @@
 {
   "images" : [
     {
+      "filename" : "appstore_front.png",
       "idiom" : "tv",
-      "scale" : "1x",
-      "filename" : "appstore_front.png"
+      "scale" : "1x"
+    },
+    {
+      "idiom" : "tv",
+      "scale" : "2x"
     }
   ],
   "info" : {
