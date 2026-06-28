@@ -24,10 +24,6 @@ struct PlayerView: View {
     @State private var preparedNext: MediaItem?      // pre-resolved, not yet navigated
     @State private var navigateNext: MediaItem?      // bound to navigationDestination
     @State private var prepareTask: Task<Void, Never>?
-    @State private var showNextPrompt = false
-    @State private var controlsVisible = true        // auto-hiding overlay controls
-    @State private var hideControlsTask: Task<Void, Never>?
-    @State private var upNextCancelled = false       // user dismissed the up-next card
 
     init(item: MediaItem, series: CatalogItem? = nil) {
         self.item = item
@@ -36,6 +32,16 @@ struct PlayerView: View {
     }
 
     var body: some View {
+        // AVPlayer can only open MP4/M4V/MOV/HLS. For anything else (MKV, AVI,
+        // WebM, or unknown), use the VLC-backed player which handles all formats.
+        if PlaybackEngineRouter.shouldUseVLC(for: item) {
+            VLCPlayerView(item: item, series: series)
+        } else {
+            avPlayerBody
+        }
+    }
+
+    private var avPlayerBody: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
@@ -43,27 +49,11 @@ struct PlayerView: View {
             case .loading:
                 LoadingView(message: "Preparing playback…")
             case .ready:
-                AVPlayerContainer(player: model.player)
+                // Native AVPlayerViewController UI: scrubbing, subtitle/audio menus,
+                // fullscreen toggle, Picture in Picture, and AirPlay. In fullscreen the
+                // system hides all chrome automatically.
+                AVPlayerContainer(player: model.player, onExitFullscreen: { dismiss() })
                     .ignoresSafeArea()
-                // Buffering indicator distinct from initial load.
-                if model.isBuffering {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .tint(.white)
-                        .scaleEffect(1.4)
-                        .padding(Theme.Spacing.lg)
-                        .background(.ultraThinMaterial, in: Circle())
-                }
-                overlay
-                    .opacity(controlsVisible ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.25), value: controlsVisible)
-                // Tap anywhere to toggle the overlay (iOS); the up-next card stays.
-                #if os(iOS)
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture { revealControls() }
-                    .allowsHitTesting(!controlsVisible)
-                #endif
             case .failed(let message):
                 ErrorStateView(
                     title: "Playback failed",
@@ -81,157 +71,22 @@ struct PlayerView: View {
                             openSubtitles: env.openSubtitles)
             model.start()
             prepareNextEpisode()
-            scheduleHideControls()
         }
-        .onDisappear { model.stopAndSave(); prepareTask?.cancel(); hideControlsTask?.cancel() }
+        .onDisappear { model.stopAndSave(); prepareTask?.cancel() }
+        #if os(iOS)
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
+        .statusBarHidden(true)
+        #endif
         .onChange(of: model.didFinish) { _, finished in
             if finished { handleFinish() }
-        }
-        .sheet(isPresented: $model.showSubtitlePicker) {
-            SubtitlePickerView(
-                tracks: model.availableSubtitles,
-                selectedID: model.selectedSubtitleID,
-                onSelect: { model.selectSubtitle($0) }
-            )
         }
         .navigationDestination(item: $navigateNext) { next in
             PlayerView(item: next, series: series)
         }
     }
 
-    // MARK: - Overlay
-
-    @ViewBuilder
-    private var overlay: some View {
-        VStack {
-            // Top-right transport affordances.
-            HStack {
-                Spacer()
-                if !model.availableSubtitles.isEmpty {
-                    overlayButton(systemImage: "captions.bubble",
-                                  label: "Subtitles") { model.showSubtitlePicker = true }
-                }
-            }
-            .padding(Theme.Spacing.lg)
-
-            Spacer()
-
-            // Bottom-right skip / next controls.
-            HStack(alignment: .bottom) {
-                // Up-next countdown card grows from the left.
-                if showUpNextCard {
-                    upNextCard
-                    Spacer()
-                } else {
-                    Spacer()
-                }
-                VStack(alignment: .trailing, spacing: Theme.Spacing.sm) {
-                    if let skip = model.activeSkip {
-                        skipButton(skip)
-                    }
-                    if showNextPrompt, preparedNext != nil {
-                        nextEpisodeButton
-                    }
-                }
-            }
-            .padding(Theme.Spacing.xl)
-        }
-    }
-
-    /// Whether to show the auto-play-next countdown card: we're near the end, the
-    /// next episode is ready, auto-play is on, and the user hasn't dismissed it.
-    private var showUpNextCard: Bool {
-        settings.autoPlayNext
-            && preparedNext != nil
-            && !upNextCancelled
-            && model.isNearEnd(within: 20)
-    }
-
-    private var upNextCard: some View {
-        let secs = Int(model.remainingTime.rounded())
-        return VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text("Up Next")
-                .font(.appFont(16, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.7))
-            if let next = preparedNext {
-                Text(next.episodeLabel ?? next.title)
-                    .font(.appFont(22, weight: .bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
-            }
-            Text("Playing in \(secs)s")
-                .font(.appFont(15))
-                .foregroundStyle(.white.opacity(0.6))
-            HStack(spacing: Theme.Spacing.sm) {
-                Button { playNext() } label: {
-                    Label("Play Now", systemImage: "play.fill")
-                        .font(.appFont(18, weight: .bold))
-                        .padding(.horizontal, Theme.Spacing.md)
-                        .padding(.vertical, Theme.Spacing.xs)
-                        .background(Theme.Colors.accent, in: Capsule())
-                        .foregroundStyle(.white)
-                }
-                .buttonStyle(.plain)
-                Button { upNextCancelled = true } label: {
-                    Text("Keep Watching")
-                        .font(.appFont(18, weight: .semibold))
-                        .padding(.horizontal, Theme.Spacing.md)
-                        .padding(.vertical, Theme.Spacing.xs)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        .foregroundStyle(.white)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(Theme.Spacing.lg)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-        .frame(maxWidth: 420, alignment: .leading)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-    }
-
-    private func overlayButton(systemImage: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Label(label, systemImage: systemImage)
-                .font(.appFont(22, weight: .semibold))
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.vertical, Theme.Spacing.sm)
-                .background(.ultraThinMaterial, in: Capsule())
-                .foregroundStyle(.white)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func skipButton(_ skip: SkipSegment) -> some View {
-        Button { model.performSkip(skip) } label: {
-            Label(skip.kind.label, systemImage: "forward.end.fill")
-                .font(.appFont(24, weight: .bold))
-                .padding(.horizontal, Theme.Spacing.lg)
-                .padding(.vertical, Theme.Spacing.md)
-                .background(Theme.Colors.accent, in: Capsule())
-                .foregroundStyle(.white)
-        }
-        .buttonStyle(.plain)
-        .transition(.move(edge: .trailing).combined(with: .opacity))
-    }
-
-    private var nextEpisodeButton: some View {
-        Button { playNext() } label: {
-            Label("Next Episode", systemImage: "play.fill")
-                .font(.appFont(24, weight: .bold))
-                .padding(.horizontal, Theme.Spacing.lg)
-                .padding(.vertical, Theme.Spacing.md)
-                .background(Theme.Colors.accentSecondary, in: Capsule())
-                .foregroundStyle(.white)
-        }
-        .buttonStyle(.plain)
-        .transition(.move(edge: .trailing).combined(with: .opacity))
-    }
-
-    // MARK: - Next episode
-
-    /// Pre-resolves the next episode's playable item so the Next button is instant.
-    /// Done regardless of the auto-play setting (the setting only controls whether
-    /// it plays automatically vs. shows a button).
     private func prepareNextEpisode() {
         guard let series, let epRef = item.episode else { return }
         guard let nextEp = env.catalog.nextEpisode(after: epRef, in: series) else { return }
@@ -269,7 +124,8 @@ struct PlayerView: View {
         if settings.autoPlayNext {
             playNext()
         } else {
-            withAnimation { showNextPrompt = true }
+            // No auto-play and no overlay prompt with native controls: just exit.
+            dismiss()
         }
     }
 
@@ -281,40 +137,37 @@ struct PlayerView: View {
         navigateNext = next
     }
 
-    // MARK: - Auto-hiding controls
-
-    /// Shows the overlay, then schedules it to hide after a few idle seconds.
-    private func revealControls() {
-        controlsVisible = true
-        scheduleHideControls()
-    }
-
-    private func scheduleHideControls() {
-        hideControlsTask?.cancel()
-        hideControlsTask = Task {
-            try? await Task.sleep(nanoseconds: 4_000_000_000)   // 4s idle
-            if Task.isCancelled { return }
-            await MainActor.run {
-                withAnimation { controlsVisible = false }
-            }
-        }
-    }
 }
 
 // MARK: - AVPlayerViewController bridge
 
-/// A tvOS-friendly player surface using AVPlayerViewController so we get the
-/// native transport bar, info panel, and subtitle/audio menus, while still being
-/// able to overlay our own SwiftUI controls on top.
+/// A player surface using AVPlayerViewController with its full native UI: transport
+/// bar, scrubbing, subtitle and audio menus, Picture in Picture, AirPlay, and the
+/// fullscreen toggle. On iOS it enters fullscreen automatically when playback begins.
 struct AVPlayerContainer: UIViewControllerRepresentable {
     let player: AVPlayer
+    /// Called when the user exits fullscreen so the presenting view can dismiss.
+    var onExitFullscreen: (() -> Void)? = nil
+
+    func makeCoordinator() -> Coordinator { Coordinator(onExitFullscreen: onExitFullscreen) }
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let vc = AVPlayerViewController()
         vc.player = player
+        vc.delegate = context.coordinator
+        // Native transport UI (scrub bar, subtitle/audio menu, fullscreen button).
+        vc.showsPlaybackControls = true
         vc.allowsPictureInPicturePlayback = true
+        vc.canStartPictureInPictureAutomaticallyFromInline = true
+        #if os(iOS)
+        vc.videoGravity = .resizeAspect
+        vc.entersFullScreenWhenPlaybackBegins = true
+        vc.exitsFullScreenWhenPlaybackEnds = false
+        vc.updatesNowPlayingInfoCenter = true
+        #endif
         #if os(tvOS)
         vc.playbackControlsIncludeInfoViews = true
+        vc.playbackControlsIncludeTransportBar = true
         #endif
         return vc
     }
@@ -323,5 +176,21 @@ struct AVPlayerContainer: UIViewControllerRepresentable {
         if uiViewController.player !== player {
             uiViewController.player = player
         }
+    }
+
+    final class Coordinator: NSObject, AVPlayerViewControllerDelegate {
+        let onExitFullscreen: (() -> Void)?
+        init(onExitFullscreen: (() -> Void)?) { self.onExitFullscreen = onExitFullscreen }
+
+        #if os(iOS)
+        // Called when the user taps the exit-fullscreen (minimize) control.
+        func playerViewController(_ playerViewController: AVPlayerViewController,
+                                  willEndFullScreenPresentationWithAnimationCoordinator
+                                  coordinator: UIViewControllerTransitionCoordinator) {
+            coordinator.animate(alongsideTransition: nil) { [weak self] _ in
+                self?.onExitFullscreen?()
+            }
+        }
+        #endif
     }
 }

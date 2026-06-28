@@ -109,6 +109,17 @@ struct TMDBExternalIDs: Codable {
     enum CodingKeys: String, CodingKey { case imdbId = "imdb_id" }
 }
 
+/// Minimal detail payload used to fetch artwork for a TMDB id (e.g. enriching Trakt
+/// rows, which have ids but no images).
+struct TMDBArtworkDetail: Codable {
+    let posterPath: String?
+    let backdropPath: String?
+    enum CodingKeys: String, CodingKey {
+        case posterPath = "poster_path"
+        case backdropPath = "backdrop_path"
+    }
+}
+
 /// Helpers for building TMDB image URLs.
 enum TMDBImage {
     static let base = "https://image.tmdb.org/t/p/"

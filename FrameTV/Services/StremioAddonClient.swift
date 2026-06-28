@@ -40,7 +40,7 @@ actor StremioAddonClient {
     private let session: URLSession
     private let decoder = JSONDecoder()
 
-    init(session: URLSession = .shared) {
+    init(session: URLSession = AppNetworking.shared) {
         self.session = session
     }
 
@@ -48,15 +48,85 @@ actor StremioAddonClient {
 
     /// Fetches and parses an addon manifest, returning an InstalledAddon shell.
     func fetchManifest(at manifestURL: URL) async throws -> InstalledAddon {
-        let manifest: AddonManifest = try await getJSON(manifestURL, wrap: AddonError.manifestFetchFailed)
+        // Short timeout, no retry, so a bad/unreachable URL fails quickly instead of
+        // leaving the install button spinning for the full retry window.
+        let req: URLRequest = {
+            var r = URLRequest(url: manifestURL)
+            r.timeoutInterval = 10
+            r.setValue("application/json", forHTTPHeaderField: "Accept")
+            return r
+        }()
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: req)
+        } catch {
+            throw AddonError.network(error)
+        }
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw AddonError.manifestFetchFailed
+        }
+        let manifest: AddonManifest
+        do {
+            manifest = try decoder.decode(AddonManifest.self, from: data)
+        } catch {
+            throw AddonError.decoding(error)
+        }
+        let catalogs = (manifest.catalogs ?? []).map {
+            AddonCatalogRef(type: $0.type, catalogID: $0.id,
+                            name: $0.name ?? "\($0.type.capitalized)")
+        }
         return InstalledAddon(
             manifestURL: manifestURL,
             name: manifest.name,
             version: manifest.version,
             description: manifest.description,
             resources: manifest.resourceNames,
-            types: manifest.types ?? []
+            types: manifest.types ?? [],
+            catalogs: catalogs
         )
+    }
+
+    // MARK: - Catalogs (home shelves + live TV channel lists)
+
+    /// Fetches the metas for a catalog and maps them to CatalogItems.
+    /// Optional `search` and `genre` become query params per the Stremio protocol.
+    func catalog(from addon: InstalledAddon,
+                 type: String,
+                 catalogID: String,
+                 search: String? = nil,
+                 genre: String? = nil) async throws -> [CatalogItem] {
+        guard addon.supports(resource: "catalog") else { return [] }
+
+        var url = addon.baseURL
+            .appendingPathComponent("catalog")
+            .appendingPathComponent(type)
+            .appendingPathComponent(catalogID)
+
+        // Extra path segments for search/genre (Stremio uses "/search=foo.json").
+        var extras: [String] = []
+        if let search, !search.isEmpty {
+            let enc = search.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? search
+            extras.append("search=\(enc)")
+        }
+        if let genre, !genre.isEmpty {
+            let enc = genre.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? genre
+            extras.append("genre=\(enc)")
+        }
+        if extras.isEmpty {
+            url.appendPathComponent("\(catalogID).json")
+        } else {
+            url.appendPathComponent(extras.joined(separator: "&") + ".json")
+        }
+
+        let response: AddonCatalogResponse = try await getJSON(url, wrap: AddonError.manifestFetchFailed)
+        let metas = response.metas ?? []
+        return metas.compactMap { $0.toCatalogItem(defaultType: type) }
+    }
+
+    /// Resolves the playable stream(s) for a live channel meta id.
+    func channelStreams(from addon: InstalledAddon, channelID: String) async throws -> [StreamOption] {
+        try await streams(from: addon, type: .tv, stremioID: channelID)
     }
 
     // MARK: - Streams
@@ -68,7 +138,7 @@ actor StremioAddonClient {
                  stremioID: String) async throws -> [StreamOption] {
         guard addon.supports(resource: "stream") else { return [] }
 
-        let typePath = (type == .movie) ? "movie" : "series"
+        let typePath = type.stremioPath
         let url = addon.baseURL
             .appendingPathComponent("stream")
             .appendingPathComponent(typePath)
@@ -86,7 +156,7 @@ actor StremioAddonClient {
                    stremioID: String) async throws -> [SubtitleTrack] {
         guard addon.supports(resource: "subtitles") else { return [] }
 
-        let typePath = (type == .movie) ? "movie" : "series"
+        let typePath = type.stremioPath
         let url = addon.baseURL
             .appendingPathComponent("subtitles")
             .appendingPathComponent(typePath)
@@ -176,9 +246,14 @@ actor StremioAddonClient {
     // MARK: - Networking
 
     private func getJSON<T: Decodable>(_ url: URL, wrap fetchError: AddonError) async throws -> T {
-        var req = URLRequest(url: url)
-        req.timeoutInterval = 25
-        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        // Build the request immutably so it can be safely captured by the retry
+        // closure (a mutable var capture is an error in the Swift 6 language mode).
+        let req: URLRequest = {
+            var r = URLRequest(url: url)
+            r.timeoutInterval = 25
+            r.setValue("application/json", forHTTPHeaderField: "Accept")
+            return r
+        }()
 
         let data: Data
         let response: URLResponse

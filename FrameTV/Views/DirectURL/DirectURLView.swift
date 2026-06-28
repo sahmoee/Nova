@@ -21,7 +21,6 @@ struct DirectURLView: View {
     @State private var isWorking = false
     @State private var errorMessage: String?
     @State private var addedItem: MediaItem?
-    @State private var navigateToPlayer = false
 
     var body: some View {
         ZStack {
@@ -73,13 +72,11 @@ struct DirectURLView: View {
                 .padding(Theme.Spacing.edge)
                 .frame(maxWidth: Theme.contentMaxWidth(1100), alignment: .leading)
             }
-
-            // Hidden navigation trigger.
-            NavigationLink(isActive: $navigateToPlayer) {
-                if let addedItem { PlayerView(item: addedItem) }
-            } label: { EmptyView() }
-            .hidden()
         }
+        .navigationDestination(item: $addedItem) { item in
+            PlayerView(item: item)
+        }
+        .dismissKeyboardOnTap()
     }
 
     private var canSubmit: Bool {
@@ -109,7 +106,6 @@ struct DirectURLView: View {
         guard let item = await buildItem() else { return }
         library.add(item)
         addedItem = item
-        navigateToPlayer = true
     }
 
     private func addOnly() async {

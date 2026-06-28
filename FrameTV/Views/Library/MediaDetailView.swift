@@ -17,61 +17,67 @@ struct MediaDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        ZStack {
-            Theme.Colors.background.ignoresSafeArea()
-            backdrop
+        GeometryReader { geo in
+            ZStack(alignment: .bottomLeading) {
+                Theme.Colors.background.ignoresSafeArea()
+                backdrop(in: geo.size)
 
-            VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                Spacer()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                        Spacer(minLength: geo.size.height * 0.35)
 
-                Text(item.title)
-                    .font(Theme.Font.screenTitle())
-                    .screenTitleStyle()
-                    .foregroundStyle(Theme.Colors.textPrimary)
+                        Text(item.title)
+                            .font(Theme.Font.screenTitle())
+                            .screenTitleStyle()
+                            .foregroundStyle(Theme.Colors.textPrimary)
 
-                if !item.subtitleLine.isEmpty {
-                    Text(item.subtitleLine)
-                        .font(.appFont(24))
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                }
-
-                metadataChips
-
-                HStack(spacing: Theme.Spacing.md) {
-                    FocusableButton(
-                        title: item.hasResumePoint ? "Resume" : "Play",
-                        systemImage: "play.fill",
-                        prominent: true,
-                        action: onPlay
-                    )
-                    .frame(maxWidth: Theme.isCompact ? .infinity : 280)
-
-                    if item.hasResumePoint {
-                        FocusableButton(title: "Start Over", systemImage: "gobackward") {
-                            progress.reset(for: item.id)
-                            onPlay()
+                        if !item.subtitleLine.isEmpty {
+                            Text(item.subtitleLine)
+                                .font(.appFont(24))
+                                .foregroundStyle(Theme.Colors.textSecondary)
                         }
-                        .frame(maxWidth: Theme.isCompact ? .infinity : 280)
-                    }
 
-                    FocusableButton(
-                        title: currentItem.isFavorite ? "Unfavorite" : "Favorite",
-                        systemImage: currentItem.isFavorite ? "star.slash" : "star"
-                    ) {
-                        library.toggleFavorite(item)
-                    }
-                    .frame(maxWidth: Theme.isCompact ? .infinity : 280)
+                        metadataChips
 
-                    FocusableButton(title: "Remove", systemImage: "trash") {
-                        library.remove(item)
-                        dismiss()
+                        actionButtons
                     }
-                    .frame(maxWidth: Theme.isCompact ? .infinity : 240)
+                    .padding(Theme.Spacing.edge)
+                    .frame(minHeight: geo.size.height, alignment: .bottom)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .padding(Theme.Spacing.edge)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        // Buttons wrap to a column on compact (iPhone) so they never overflow.
+        let resume = item.hasResumePoint
+        VStack(spacing: Theme.Spacing.sm) {
+            FocusableButton(
+                title: resume ? "Resume" : "Play",
+                systemImage: "play.fill",
+                prominent: true,
+                action: onPlay
+            )
+            if resume {
+                FocusableButton(title: "Start Over", systemImage: "gobackward") {
+                    progress.reset(for: item.id)
+                    onPlay()
+                }
+            }
+            FocusableButton(
+                title: currentItem.isFavorite ? "Unfavorite" : "Favorite",
+                systemImage: currentItem.isFavorite ? "star.slash" : "star"
+            ) {
+                library.toggleFavorite(item)
+            }
+            FocusableButton(title: "Remove", systemImage: "trash") {
+                library.remove(item)
+                dismiss()
+            }
+        }
+        .frame(maxWidth: Theme.isCompact ? .infinity : 520)
     }
 
     // Re-read from store so favorite toggles reflect live.
@@ -79,7 +85,7 @@ struct MediaDetailView: View {
         library.item(id: item.id) ?? item
     }
 
-    private var backdrop: some View {
+    private func backdrop(in size: CGSize) -> some View {
         Group {
             if let url = item.backdropURL ?? item.posterURL {
                 CachedAsyncImage(url: url) { image in
@@ -91,14 +97,15 @@ struct MediaDetailView: View {
                 Theme.Colors.heroGradient
             }
         }
-        .ignoresSafeArea()
+        .frame(width: size.width, height: size.height)
+        .clipped()
         .overlay(
             LinearGradient(
-                colors: [.clear, Theme.Colors.background.opacity(0.95)],
+                colors: [.clear, Theme.Colors.background.opacity(0.6), Theme.Colors.background],
                 startPoint: .top, endPoint: .bottom
             )
-            .ignoresSafeArea()
         )
+        .ignoresSafeArea()
     }
 
     private var metadataChips: some View {

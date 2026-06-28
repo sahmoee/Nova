@@ -124,10 +124,10 @@ struct AddonsView: View {
                         Image(systemName: "chevron.right")
                             .foregroundStyle(Theme.Colors.textTertiary)
                     }
-                    .padding(Theme.Spacing.md)
-                    .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                    .padding(.vertical, Theme.Spacing.xs)
+                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .frameRowStyle()
             }
         }
         .padding(.top, Theme.Spacing.md)
@@ -164,6 +164,40 @@ struct AddAddonView: View {
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
 
+                // Setup steps for this preset.
+                if let preset {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        ForEach(Array(preset.steps.enumerated()), id: \.offset) { idx, step in
+                            HStack(alignment: .top, spacing: Theme.Spacing.sm) {
+                                Text("\(idx + 1)")
+                                    .font(.appFont(15, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 26, height: 26)
+                                    .background(Theme.Colors.accent, in: Circle())
+                                Text(step)
+                                    .font(.appFont(18))
+                                    .foregroundStyle(Theme.Colors.textSecondary)
+                            }
+                        }
+                    }
+                    .padding(Theme.Spacing.md)
+                    .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+
+                    // One-tap install when this preset has a public instance.
+                    if let direct = preset.directURL, let directURL = URL(string: direct) {
+                        FocusableButton(title: isInstalling ? "Installing…" : "Quick Add \(preset.displayName)",
+                                        systemImage: "bolt.fill", prominent: true) {
+                            install(directURL)
+                        }
+                        .frame(maxWidth: Theme.isCompact ? .infinity : 320)
+                        .disabled(isInstalling)
+
+                        Text("Or paste a custom URL below.")
+                            .font(.appFont(15))
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                    }
+                }
+
                 TextField(preset?.placeholderURL ?? "https://…/manifest.json", text: $urlText)
                     .textFieldStyle(.plain)
                     .font(.appFont(22))
@@ -172,8 +206,8 @@ struct AddAddonView: View {
                     .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
                     #if os(iOS)
                     .keyboardType(.URL)
-                    .autocapitalization(.none)
-                    .disableAutocorrection(true)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled(true)
                     #endif
 
                 if let errorMessage {
@@ -184,7 +218,7 @@ struct AddAddonView: View {
 
                 FocusableButton(title: isInstalling ? "Installing…" : "Install",
                                 systemImage: "square.and.arrow.down",
-                                prominent: true) {
+                                prominent: preset?.directURL == nil) {
                     install()
                 }
                 .frame(maxWidth: Theme.isCompact ? .infinity : 320)
@@ -207,8 +241,8 @@ struct AddAddonView: View {
         return URL(string: s)
     }
 
-    private func install() {
-        guard let url = normalizedURL else { return }
+    private func install(_ explicitURL: URL? = nil) {
+        guard let url = explicitURL ?? normalizedURL else { return }
         isInstalling = true
         errorMessage = nil
         Task {

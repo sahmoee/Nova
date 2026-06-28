@@ -7,13 +7,25 @@
 //
 
 import SwiftUI
+#if os(iOS)
+import UniformTypeIdentifiers
+#endif
 
 struct BackupView: View {
     @EnvironmentObject private var env: AppEnvironment
     @StateObject private var backup = BackupManager.shared
 
-    @State private var confirmRestore = false
     @State private var restoreResult: String?
+    @State private var showShareSheet = false
+    @State private var showImporter = false
+    @State private var exportURL: URL?
+
+    // Contents-picker state for choosing what to include / restore.
+    @State private var showExportPicker = false
+    @State private var showCloudRestorePicker = false
+    @State private var showFileRestorePicker = false
+    @State private var pendingImportURL: URL?
+    @State private var pendingImportContents: BackupContents = []
 
     var body: some View {
         ScrollView {
@@ -61,7 +73,7 @@ struct BackupView: View {
 
                 // Restore.
                 FocusableButton(title: "Restore from iCloud", systemImage: "icloud.and.arrow.down") {
-                    confirmRestore = true
+                    showCloudRestorePicker = true
                 }
                 .frame(maxWidth: Theme.isCompact ? .infinity : 360)
                 .disabled(!backup.hasCloudSnapshot())
@@ -77,22 +89,89 @@ struct BackupView: View {
                     .font(.appFont(15))
                     .foregroundStyle(Theme.Colors.textTertiary)
                     .padding(.top, Theme.Spacing.sm)
+
+                #if os(iOS)
+                Divider().padding(.vertical, Theme.Spacing.md)
+
+                Text("Share a Snapshot File")
+                    .font(Theme.Font.sectionTitle())
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Text("Export your setup as a file you can share or move to another device. You choose what goes in — preferences, sources, addons, and optionally your logins and API keys for sharing within a trusted household.")
+                    .font(.appFont(17))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+
+                FocusableButton(title: "Export Snapshot File", systemImage: "square.and.arrow.up") {
+                    showExportPicker = true
+                }
+                .frame(maxWidth: Theme.isCompact ? .infinity : 360)
+
+                FocusableButton(title: "Import Snapshot File", systemImage: "square.and.arrow.down") {
+                    showImporter = true
+                }
+                .frame(maxWidth: Theme.isCompact ? .infinity : 360)
+                #endif
             }
             .padding(.horizontal, Theme.Spacing.edge)
             .padding(.bottom, Theme.Spacing.xl)
             .frame(maxWidth: Theme.contentMaxWidth(1000), alignment: .leading)
         }
         .background(Theme.Colors.background.ignoresSafeArea())
-        .alert("Restore from iCloud?", isPresented: $confirmRestore) {
-            Button("Restore", role: .destructive) { performRestore() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This replaces this device's preferences, sources, addons, and logins with the iCloud snapshot.")
+        // iCloud restore: pick what to restore.
+        .sheet(isPresented: $showCloudRestorePicker) {
+            BackupContentsPicker(mode: .restore,
+                                 available: backup.cloudSnapshotContents() ?? .safe) { contents in
+                performRestore(contents)
+            }
         }
+        #if os(iOS)
+        // Export: pick what to include, then share.
+        .sheet(isPresented: $showExportPicker) {
+            BackupContentsPicker(mode: .export, available: backup.currentDeviceContents()) { contents in
+                if let url = backup.exportSnapshotFile(including: contents) {
+                    exportURL = url
+                    showShareSheet = true
+                } else {
+                    ToastCenter.shared.show("Couldn't create export", systemImage: "exclamationmark.triangle")
+                }
+            }
+        }
+        // File restore: pick what to apply from the imported file.
+        .sheet(isPresented: $showFileRestorePicker) {
+            BackupContentsPicker(mode: .restore, available: pendingImportContents) { contents in
+                if let url = pendingImportURL {
+                    let ok = backup.importSnapshotFile(url, restoring: contents)
+                    ToastCenter.shared.show(ok ? "Snapshot imported" : "Import failed",
+                                            systemImage: ok ? "checkmark.circle.fill" : "exclamationmark.triangle")
+                }
+            }
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if let exportURL { ShareSheet(items: [exportURL]) }
+        }
+        .fileImporter(isPresented: $showImporter,
+                      allowedContentTypes: [.data, .json],
+                      allowsMultipleSelection: false) { result in
+            switch result {
+            case .success(let urls):
+                if let url = urls.first {
+                    // Read what the file contains, then let the user choose.
+                    if let contents = backup.contentsOfSnapshotFile(url), !contents.isEmpty {
+                        pendingImportURL = url
+                        pendingImportContents = contents
+                        showFileRestorePicker = true
+                    } else {
+                        ToastCenter.shared.show("Couldn't read snapshot", systemImage: "exclamationmark.triangle")
+                    }
+                }
+            case .failure:
+                ToastCenter.shared.show("Import cancelled", systemImage: "xmark.circle")
+            }
+        }
+        #endif
     }
 
-    private func performRestore() {
-        let ok = backup.restoreFromCloud()
+    private func performRestore(_ contents: BackupContents = .all) {
+        let ok = backup.restoreFromCloud(restoring: contents)
         restoreResult = ok
             ? "Restored. Reopen the app to fully apply restored sources and logins."
             : "Couldn't find a snapshot to restore."
@@ -104,3 +183,14 @@ struct BackupView: View {
         return fmt.string(from: date)
     }
 }
+
+#if os(iOS)
+/// Wraps UIActivityViewController for sharing the exported snapshot file.
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+#endif

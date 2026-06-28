@@ -29,6 +29,8 @@ final class AppEnvironment: ObservableObject {
     let resolver: StreamResolver
     let skipProvider: SkipSegmentProvider
     let catalog: CatalogService
+    let shelfLoader: ShelfLoader
+    let aiSearch: AISearchService
 
     init() {
         let lib = LibraryStore()
@@ -65,19 +67,19 @@ final class AppEnvironment: ObservableObject {
             hasDebridToken: { KeychainStore.shared.realDebridToken != nil }
         )
 
-        seedMockDataIfNeeded()
+        self.shelfLoader = ShelfLoader(
+            tmdb: tmdbClient,
+            trakt: self.trakt,
+            addonClient: addonCli,
+            addonStore: store
+        )
+
+        self.aiSearch = AISearchService(tmdb: tmdbClient)
+
+        // Library intentionally starts empty — it fills as the user plays or
+        // favorites content. No sample/placeholder items are seeded.
 
         // Seed default addons (Cinemeta + any from config) in the background.
         Task { await store.seedDefaultsIfNeeded() }
-    }
-
-    /// Seeds a few public-domain sample items the first time the app runs so the
-    /// UI isn't empty. Controlled by a flag so it only happens once.
-    private func seedMockDataIfNeeded() {
-        guard !settings.didSeedMockData else { return }
-        for item in MockData.sampleLibrary {
-            library.add(item)
-        }
-        settings.didSeedMockData = true
     }
 }

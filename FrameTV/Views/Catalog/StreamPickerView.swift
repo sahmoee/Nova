@@ -22,6 +22,13 @@ struct StreamPickerView: View {
     @State private var resolvingStreamID: String?
     @State private var playable: MediaItem?
 
+    // Result filters.
+    @State private var minQuality: StreamQuality? = nil      // nil = any
+    @State private var selectedSource: String? = nil         // nil = all addons
+    @State private var maxSizeGB: Double? = nil              // nil = any
+    @State private var cachedOnly = false
+    @State private var showFilters = false
+
     enum ViewState: Equatable { case loading, loaded, empty, error(String) }
 
     private var epRef: EpisodeRef? {
@@ -72,17 +79,131 @@ struct StreamPickerView: View {
                     .font(Theme.Font.screenTitle())
                     .screenTitleStyle()
                     .foregroundStyle(Theme.Colors.textPrimary)
-                Text("\(streams.count) streams")
-                    .font(.appFont(20))
-                    .foregroundStyle(Theme.Colors.textSecondary)
 
-                ForEach(streams) { stream in
+                HStack {
+                    Text(filterSummary)
+                        .font(.appFont(20))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                    Spacer()
+                    Button { withAnimation { showFilters.toggle() } } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "line.3.horizontal.decrease.circle\(anyFilterActive ? ".fill" : "")")
+                            Text("Filter")
+                        }
+                        .font(.appFont(18, weight: .semibold))
+                        .foregroundStyle(anyFilterActive ? Theme.Colors.accent : Theme.Colors.textSecondary)
+                    }
+                    .frameRowStyle()
+                }
+
+                if showFilters { filterBar }
+
+                ForEach(filteredStreams) { stream in
                     streamRow(stream)
+                }
+
+                if filteredStreams.isEmpty {
+                    Text("No streams match these filters.")
+                        .font(.appFont(20))
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                        .padding(.top, Theme.Spacing.lg)
                 }
             }
             .padding(Theme.Spacing.edge)
             .frame(maxWidth: Theme.contentMaxWidth(1200), alignment: .leading)
         }
+    }
+
+    // MARK: - Filtering
+
+    /// Streams after applying the active filters, preserving rank order.
+    private var filteredStreams: [StreamOption] {
+        streams.filter { s in
+            if let minQuality, s.quality.rank < minQuality.rank { return false }
+            if let selectedSource, s.addonName != selectedSource { return false }
+            if cachedOnly, !s.isCached { return false }
+            if let maxSizeGB, let bytes = s.sizeBytes {
+                if Double(bytes) > maxSizeGB * 1_073_741_824 { return false }
+            }
+            return true
+        }
+    }
+
+    private var availableSources: [String] {
+        Array(Set(streams.map(\.addonName))).sorted()
+    }
+
+    private var anyFilterActive: Bool {
+        minQuality != nil || selectedSource != nil || maxSizeGB != nil || cachedOnly
+    }
+
+    private var filterSummary: String {
+        let n = filteredStreams.count
+        let total = streams.count
+        return n == total ? "\(total) streams" : "\(n) of \(total) streams"
+    }
+
+    private var filterBar: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            // Quality.
+            filterGroup("Minimum Quality") {
+                chip("Any", active: minQuality == nil) { minQuality = nil }
+                ForEach([StreamQuality.uhd4k, .fhd1080, .hd720, .sd480], id: \.self) { q in
+                    chip(q.rawValue, active: minQuality == q) { minQuality = q }
+                }
+            }
+            // Source.
+            if availableSources.count > 1 {
+                filterGroup("Source") {
+                    chip("All", active: selectedSource == nil) { selectedSource = nil }
+                    ForEach(availableSources, id: \.self) { src in
+                        chip(src, active: selectedSource == src) { selectedSource = src }
+                    }
+                }
+            }
+            // Max size.
+            filterGroup("Max Size") {
+                chip("Any", active: maxSizeGB == nil) { maxSizeGB = nil }
+                ForEach([2.0, 5.0, 10.0, 20.0], id: \.self) { gb in
+                    chip("\(Int(gb)) GB", active: maxSizeGB == gb) { maxSizeGB = gb }
+                }
+            }
+            // Cached only.
+            chip("Instant (cached) only", active: cachedOnly) { cachedOnly.toggle() }
+
+            if anyFilterActive {
+                Button("Clear filters") {
+                    minQuality = nil; selectedSource = nil; maxSizeGB = nil; cachedOnly = false
+                }
+                .font(.appFont(17, weight: .semibold))
+                .foregroundStyle(Theme.Colors.accent)
+                .padding(.top, 4)
+            }
+        }
+        .padding(Theme.Spacing.md)
+        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+    }
+
+    private func filterGroup<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.appFont(16, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textTertiary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) { content() }
+            }
+        }
+    }
+
+    private func chip(_ label: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.appFont(17, weight: .semibold))
+                .padding(.horizontal, 14).padding(.vertical, 8)
+                .background(active ? Theme.Colors.accent : Color.white.opacity(0.10),
+                            in: Capsule())
+                .foregroundStyle(active ? .white : Theme.Colors.textPrimary)
+        }
+        .buttonStyle(.plain)
     }
 
     private func streamRow(_ stream: StreamOption) -> some View {
@@ -96,19 +217,23 @@ struct StreamPickerView: View {
                     .background(qualityColor(stream.quality), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .foregroundStyle(.white)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(stream.rawTitle)
                         .font(.appFont(20, weight: .medium))
                         .foregroundStyle(Theme.Colors.textPrimary)
                         .lineLimit(2)
+                    // Source health badges (Cached, Fast, 4K, HDR, Dolby, Low Seed
+                    // Risk, Local SMB, Cloud), parsed from the stream's title.
+                    if !stream.badges.isEmpty {
+                        FlowBadges(badges: stream.badges)
+                    }
                     HStack(spacing: Theme.Spacing.sm) {
                         Label(stream.addonName, systemImage: "puzzlepiece.extension")
                         if let size = stream.sizeDisplay { Text(size) }
                         if let seeders = stream.seeders { Label("\(seeders)", systemImage: "arrow.up.circle") }
-                        if stream.isCached {
-                            Label("Cached", systemImage: "bolt.fill")
-                                .foregroundStyle(Theme.Colors.success)
-                        }
+                        if stream.videoCodec != .unknown { Text(stream.videoCodec.rawValue) }
+                        if let ch = stream.audioChannels { Text(ch) }
+                        if let lang = stream.languages.first { Text(lang) }
                     }
                     .font(.appFont(15))
                     .foregroundStyle(Theme.Colors.textTertiary)
@@ -122,10 +247,10 @@ struct StreamPickerView: View {
                         .foregroundStyle(Theme.Colors.accent)
                 }
             }
-            .padding(Theme.Spacing.md)
-            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .padding(.vertical, Theme.Spacing.xs)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .frameRowStyle()
         .disabled(resolvingStreamID != nil)
     }
 

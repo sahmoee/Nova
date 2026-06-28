@@ -22,6 +22,7 @@ struct InstalledAddon: Identifiable, Codable, Hashable {
     var description: String?
     var resources: [String]        // e.g. ["stream", "subtitles", "catalog", "meta"]
     var types: [String]            // e.g. ["movie", "series"]
+    var catalogs: [AddonCatalogRef] // browsable catalogs (for live TV + shelves)
     var isEnabled: Bool
     var addedDate: Date
 
@@ -33,6 +34,7 @@ struct InstalledAddon: Identifiable, Codable, Hashable {
         description: String? = nil,
         resources: [String] = [],
         types: [String] = [],
+        catalogs: [AddonCatalogRef] = [],
         isEnabled: Bool = true,
         addedDate: Date = Date()
     ) {
@@ -43,6 +45,7 @@ struct InstalledAddon: Identifiable, Codable, Hashable {
         self.description = description
         self.resources = resources
         self.types = types
+        self.catalogs = catalogs
         self.isEnabled = isEnabled
         self.addedDate = addedDate
     }
@@ -113,6 +116,17 @@ struct ManifestCatalog: Codable, Hashable {
     let name: String?
 }
 
+/// A browsable catalog exposed by an addon (e.g. "Live TV", "Trending"). Stored on
+/// the InstalledAddon so the app can offer it as a home shelf or a channel list.
+struct AddonCatalogRef: Codable, Hashable, Identifiable {
+    var type: String       // "tv", "movie", "series", "channel"
+    var catalogID: String  // the addon's catalog id
+    var name: String       // display name
+
+    var id: String { "\(type)|\(catalogID)" }
+    var isLiveTV: Bool { type == "tv" || type == "channel" }
+}
+
 // MARK: - Stream response
 
 /// The shape of an addon's /stream/{type}/{id}.json response.
@@ -156,43 +170,185 @@ struct AddonSubtitle: Codable {
     let SubEncoding: String?
 }
 
+// MARK: - Catalog responses (home shelves + live TV)
+
+struct AddonCatalogResponse: Codable {
+    let metas: [AddonMeta]?
+}
+
+/// A meta preview returned by a catalog. Maps to a CatalogItem for display.
+struct AddonMeta: Codable {
+    let id: String
+    let type: String?
+    let name: String?
+    let poster: String?
+    let background: String?
+    let logo: String?
+    let description: String?
+    let releaseInfo: String?     // often a year or year range
+    let imdbRating: String?
+    let genres: [String]?
+
+    func toCatalogItem(defaultType: String) -> CatalogItem? {
+        let typeStr = type ?? defaultType
+        let contentType: ContentType = {
+            switch typeStr {
+            case "movie": return .movie
+            case "series": return .series
+            case "tv", "channel": return .tv
+            default: return .movie
+            }
+        }()
+
+        // Build a content id. Live channels and addon-specific ids use the raw id;
+        // IMDB-style ids (tt...) populate the imdb field for cross-service linking.
+        var cid: ContentID
+        if id.hasPrefix("tt") {
+            cid = ContentID(imdb: id, type: contentType)
+        } else {
+            cid = ContentID(addonItemID: id, type: contentType)
+        }
+
+        let year = Int(releaseInfo?.prefix(4) ?? "")
+        return CatalogItem(
+            contentID: cid,
+            title: name ?? id,
+            overview: description,
+            posterURL: URL(string: poster ?? logo ?? ""),
+            backdropURL: URL(string: background ?? ""),
+            year: year,
+            rating: Double(imdbRating ?? ""),
+            genres: genres ?? []
+        )
+    }
+}
+
 // MARK: - Preset addons (prefill helpers)
 
 enum AddonPreset: String, CaseIterable, Identifiable {
     case aioStreams
+    case mediaFusion
     case comet
+    case torrentio
+    case tmdb
+    case iptvOrg
+    case usaTV
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .aioStreams: return "AIOStreams"
-        case .comet:      return "Comet"
+        case .aioStreams:  return "AIOStreams"
+        case .mediaFusion: return "MediaFusion"
+        case .comet:       return "Comet"
+        case .torrentio:   return "Torrentio"
+        case .tmdb:        return "TMDB Catalogs"
+        case .iptvOrg:     return "IPTV-org (Live TV)"
+        case .usaTV:       return "USA TV (Live TV)"
         }
     }
 
     var blurb: String {
         switch self {
         case .aioStreams:
-            return "Aggregates multiple stream providers behind one addon. Paste your configured AIOStreams manifest URL."
+            return "Aggregates multiple stream providers into one clean, deduplicated, filterable list. The top pick. Needs a configured instance URL."
+        case .mediaFusion:
+            return "All-in-one movies, series, and live TV/sports. Works with Real-Debrid and other debrid services. Needs a configured instance URL."
         case .comet:
-            return "A fast stream resolver addon. Paste your configured Comet manifest URL."
+            return "A fast, lightweight stream resolver with built-in proxy streaming. Good secondary source. Needs a configured instance URL."
+        case .torrentio:
+            return "The long-standing torrent source addon. Pairs with your Real-Debrid account. Best configured on your own instance."
+        case .tmdb:
+            return "Adds trending, popular, top-rated, and upcoming catalog rows from TMDB for browsing."
+        case .iptvOrg:
+            return "Free, public live TV channels from the open-source iptv-org project. The safest live-TV source."
+        case .usaTV:
+            return "180+ live US channels (news, sports, entertainment) from public IPTV links."
         }
     }
 
-    /// A hint URL template shown as a placeholder. Users supply their own
-    /// configured instance URL (these addons require a per-user config path).
+    /// A directly-installable manifest URL when the addon offers a public instance
+    /// that needs no per-user configuration. nil means the user supplies their own
+    /// configured URL (most aggregators require a config path).
+    var directURL: String? {
+        switch self {
+        case .torrentio: return "https://torrentio.strem.fun/manifest.json"
+        default:         return nil
+        }
+    }
+
+    var requiresOwnURL: Bool { directURL == nil }
+
+    /// Step-by-step setup instructions shown in the add sheet.
+    var steps: [String] {
+        switch self {
+        case .aioStreams:
+            return [
+                "Open aiostreams.elfhosted.com/configure in a browser.",
+                "Choose your sources and a debrid provider if you have one.",
+                "Copy the generated manifest URL it gives you.",
+                "Paste it below and tap Install."
+            ]
+        case .mediaFusion:
+            return [
+                "Open the MediaFusion configure page in a browser.",
+                "Pick your providers and add your debrid account if you have one.",
+                "Copy the generated manifest URL.",
+                "Paste it below and tap Install."
+            ]
+        case .comet:
+            return [
+                "Open comet.elfhosted.com/configure in a browser.",
+                "Configure it and add your debrid account if you have one.",
+                "Copy the generated manifest URL.",
+                "Paste it below and tap Install."
+            ]
+        case .torrentio:
+            return [
+                "Tap Quick Add to install Torrentio, or open torrentio.strem.fun for a custom config.",
+                "Connect Real-Debrid in Settings so it can return cached streams."
+            ]
+        case .tmdb:
+            return [
+                "Open the TMDB addon's configure page in a browser (search 'TMDB Stremio addon').",
+                "Copy its manifest URL.",
+                "Paste it below and tap Install for trending and popular catalog rows."
+            ]
+        case .iptvOrg:
+            return [
+                "Find the iptv-org Stremio addon manifest URL (from its GitHub or the community addons list).",
+                "Paste it below and tap Install.",
+                "Open Discover then Live TV to watch the free public channels."
+            ]
+        case .usaTV:
+            return [
+                "Find a USA TV addon manifest URL from the Stremio community addons list.",
+                "Paste it below and tap Install.",
+                "Open Discover ▸ Live TV to watch."
+            ]
+        }
+    }
+
+    /// A hint URL template shown as a placeholder.
     var placeholderURL: String {
         switch self {
-        case .aioStreams: return "https://aiostreams.<your-host>/<config>/manifest.json"
-        case .comet:      return "https://comet.<your-host>/<config>/manifest.json"
+        case .aioStreams:  return "https://aiostreams.elfhosted.com/<config>/manifest.json"
+        case .mediaFusion: return "https://<mediafusion-host>/<config>/manifest.json"
+        case .comet:       return "https://comet.elfhosted.com/<config>/manifest.json"
+        case .usaTV:       return "https://<usa-tv-host>/manifest.json"
+        default:           return "https://…/manifest.json"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .aioStreams: return "square.stack.3d.up"
-        case .comet:      return "sparkles"
+        case .aioStreams:  return "square.stack.3d.up"
+        case .mediaFusion: return "rectangle.stack.badge.play"
+        case .comet:       return "sparkles"
+        case .torrentio:   return "arrow.down.circle"
+        case .tmdb:        return "film.stack"
+        case .iptvOrg:     return "dot.radiowaves.left.and.right"
+        case .usaTV:       return "tv"
         }
     }
 }

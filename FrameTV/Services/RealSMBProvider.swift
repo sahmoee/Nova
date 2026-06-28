@@ -23,18 +23,36 @@ actor RealSMBProvider: SMBProviding {
     func connect(to share: SMBShare) async throws {
         let host = share.host.trimmingCharacters(in: .whitespaces)
         guard !host.isEmpty else { throw SMBError.hostUnreachable }
+        // 127.0.0.1 / localhost on the device points at the device itself, not the
+        // user's computer — a common mistake. Catch it with a helpful message.
+        let lowerHost = host.lowercased()
+        if lowerHost == "127.0.0.1" || lowerHost == "localhost" || lowerHost == "::1" {
+            throw SMBError.loopbackHost
+        }
         guard let url = URL(string: "smb://\(host)") else { throw SMBError.hostUnreachable }
 
-        guard let manager = SMB2Manager(url: url) else { throw SMBError.hostUnreachable }
-
         // Credentials from Keychain (empty username => guest).
-        let password = KeychainStore.shared.get(share.keychainAccount) ?? ""
-        let user = share.username.isEmpty ? "guest" : share.username
+        let rawPassword = KeychainStore.shared.get(share.keychainAccount) ?? ""
+        // Trim stray leading/trailing whitespace that a text field can capture, which
+        // would make a correct-looking password fail authentication.
+        let password = rawPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        let user = share.username.trimmingCharacters(in: .whitespacesAndNewlines)
+        let connectUser = user.isEmpty ? "guest" : user
+
+        if !user.isEmpty && password.isEmpty {
+            throw SMBError.passwordMissing
+        }
+
+        let credential = URLCredential(user: connectUser, password: password, persistence: .forSession)
+
+        guard let manager = SMB2Manager(url: url, credential: credential) else {
+            throw SMBError.hostUnreachable
+        }
 
         do {
-            try await manager.connectShare(name: share.shareName, user: user, password: password)
+            try await manager.connectShare(name: share.shareName)
         } catch {
-            // Map common failures to friendly errors.
+            FrameLog.network.error("SMB connect failed for user length \(user.count, privacy: .public), password length \(password.count, privacy: .public): \(String(describing: error), privacy: .public)")
             throw mapError(error)
         }
 
@@ -43,13 +61,43 @@ actor RealSMBProvider: SMBProviding {
         FrameLog.network.info("Connected to SMB share \(share.shareName, privacy: .public)")
     }
 
+    /// Connects to the server (no specific share) and lists its shares so the user
+    /// can pick one — mirrors how the Files app shows shares under a server.
+    func listShares(host: String, username: String, keychainAccount: String) async throws -> [String] {
+        let trimmed = host.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { throw SMBError.hostUnreachable }
+        let lowerHost = trimmed.lowercased()
+        if lowerHost == "127.0.0.1" || lowerHost == "localhost" || lowerHost == "::1" {
+            throw SMBError.loopbackHost
+        }
+        guard let url = URL(string: "smb://\(trimmed)") else { throw SMBError.hostUnreachable }
+
+        let password = KeychainStore.shared.get(keychainAccount) ?? ""
+        let user = username.isEmpty ? "guest" : username
+        if !username.isEmpty && password.isEmpty {
+            throw SMBError.passwordMissing
+        }
+        let credential = URLCredential(user: user, password: password, persistence: .forSession)
+        guard let manager = SMB2Manager(url: url, credential: credential) else {
+            throw SMBError.hostUnreachable
+        }
+
+        do {
+            let shares = try await manager.listShares()
+            // Filter out administrative/hidden shares ending in "$" (e.g. IPC$, C$).
+            return shares.map(\.name).filter { !$0.hasSuffix("$") }
+        } catch {
+            throw mapError(error)
+        }
+    }
+
     // MARK: - List
 
     func listDirectory(path: String) async throws -> [RemoteFileItem] {
         guard let client else { throw SMBError.notConnected }
         let smbPath = normalizedPath(path)
 
-        let entries: [[URLResourceKey: Any]]
+        let entries: [[URLResourceKey: any Sendable]]
         do {
             entries = try await client.contentsOfDirectory(atPath: smbPath)
         } catch {
@@ -62,7 +110,12 @@ actor RealSMBProvider: SMBProviding {
 
             let typeValue = attrs[.fileResourceTypeKey] as? URLFileResourceType
             let isDir = (typeValue == .directory)
-            let size = (attrs[.fileSizeKey] as? NSNumber)?.int64Value
+            // Size may arrive as Int, Int64, or NSNumber depending on platform.
+            let size: Int64?
+            if let n = attrs[.fileSizeKey] as? Int64 { size = n }
+            else if let n = attrs[.fileSizeKey] as? Int { size = Int64(n) }
+            else if let n = attrs[.fileSizeKey] as? NSNumber { size = n.int64Value }
+            else { size = nil }
             let modified = attrs[.contentModificationDateKey] as? Date
 
             let childPath = smbPath.isEmpty || smbPath == "/"
@@ -111,12 +164,23 @@ actor RealSMBProvider: SMBProviding {
 
     private func mapError(_ error: Error) -> SMBError {
         let ns = error as NSError
+        let desc = ns.localizedDescription.uppercased()
+
+        // SMB/NT status codes are surfaced in the description text by AMSMB2.
+        if desc.contains("LOGON_FAILURE") || desc.contains("ACCESS_DENIED")
+            || desc.contains("WRONG_PASSWORD") || desc.contains("ACCOUNT") {
+            return .authenticationFailed
+        }
+        if desc.contains("BAD_NETWORK_NAME") || desc.contains("OBJECT_NAME_NOT_FOUND") {
+            return .pathNotFound
+        }
+
         // POSIX/SMB error codes surfaced by AMSMB2.
         switch ns.code {
-        case 13, 1:    return .authenticationFailed   // EACCES / EPERM
-        case 2:        return .pathNotFound            // ENOENT
-        case 61, 64, 65: return .hostUnreachable       // ECONNREFUSED / EHOSTDOWN / EHOSTUNREACH
-        default:       return .underlying(error)
+        case 13, 1:      return .authenticationFailed   // EACCES / EPERM
+        case 2:          return .pathNotFound            // ENOENT
+        case 61, 64, 65: return .hostUnreachable         // ECONNREFUSED / EHOSTDOWN / EHOSTUNREACH
+        default:         return .underlying(error)
         }
     }
 }

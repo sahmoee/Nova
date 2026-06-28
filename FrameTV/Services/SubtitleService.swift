@@ -37,7 +37,7 @@ actor OpenSubtitlesClient {
     private let decoder = JSONDecoder()
     private let keyProvider: @Sendable () -> String?
 
-    init(session: URLSession = .shared,
+    init(session: URLSession = AppNetworking.shared,
          keyProvider: @escaping @Sendable () -> String? = { AppConfig.shared.openSubtitlesKey }) {
         self.session = session
         self.keyProvider = keyProvider

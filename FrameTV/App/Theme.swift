@@ -23,9 +23,10 @@ enum Theme {
     static let isCompact = false
     static let uiScale: CGFloat = 1.0
     #else
-    /// On iOS/iPadOS, shrink to a comfortable handheld scale.
+    /// On iOS/iPadOS, shrink to a comfortable handheld scale. Tuned so poster rows
+    /// show roughly three cards across on a typical iPhone without feeling cramped.
     static let isCompact = true
-    static let uiScale: CGFloat = 0.62
+    static let uiScale: CGFloat = 0.52
     #endif
 
     /// Scales a tvOS dimension to the current platform, with a floor so values

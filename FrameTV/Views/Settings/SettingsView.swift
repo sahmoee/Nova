@@ -15,6 +15,7 @@ struct SettingsView: View {
 
     @State private var confirmClearLibrary = false
     @State private var confirmClearHistory = false
+    @State private var expandedSections: [String: Bool] = [:]
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -27,16 +28,21 @@ struct SettingsView: View {
                             .screenTitleStyle()
                             .foregroundStyle(Theme.Colors.textPrimary)
                             .padding(.top, Theme.Spacing.lg)
+                            .padding(.horizontal, Theme.Spacing.edge)
 
-                        accountsSection
-                        streamingSection
-                        playbackSection
-                        subtitleSection
-                        librarySection
-                        backupSection
-                        privacyLegalSection
+                        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                            accountsSection
+                            streamingSection
+                            playbackSection
+                            subtitleSection
+                            librarySection
+                            backupSection
+                            privacyLegalSection
+                        }
+                        // Edge-to-edge accordion: only a slim inset so the section cards
+                        // span nearly the full width of the screen.
+                        .padding(.horizontal, Theme.isCompact ? Theme.Spacing.sm : Theme.Spacing.edge)
                     }
-                    .padding(.horizontal, Theme.Spacing.edge)
                     .padding(.bottom, Theme.Spacing.xl)
                     .frame(maxWidth: Theme.contentMaxWidth(1100), alignment: .leading)
                 }
@@ -63,22 +69,34 @@ struct SettingsView: View {
             NavigationLink { RealDebridView() } label: {
                 settingRow("Real-Debrid Account", systemImage: "arrow.down.circle",
                            detail: KeychainStore.shared.realDebridToken == nil ? "Not connected" : "Connected")
-            }.buttonStyle(.plain)
+            }.frameRowStyle()
 
-            NavigationLink { SMBListView() } label: {
-                settingRow("SMB Shares", systemImage: "externaldrive.connected.to.line.below",
-                           detail: "Manage")
-            }.buttonStyle(.plain)
+            // SMB Shares temporarily hidden while the SMB sign-in issue is sorted out.
 
             NavigationLink { AddonsView() } label: {
                 settingRow("Addons", systemImage: "puzzlepiece.extension",
                            detail: "\(env.addonStore.addons.count) installed")
-            }.buttonStyle(.plain)
+            }.frameRowStyle()
+
+            NavigationLink { DirectURLView() } label: {
+                settingRow("Play from URL", systemImage: "link",
+                           detail: "Open a direct video link")
+            }.frameRowStyle()
+
+            NavigationLink { MagnetView() } label: {
+                settingRow("Play from Magnet", systemImage: "scope",
+                           detail: "Via Real-Debrid")
+            }.frameRowStyle()
 
             NavigationLink { AccountsView() } label: {
                 settingRow("Metadata & Accounts", systemImage: "key",
                            detail: "TMDB · Trakt · Subtitles")
-            }.buttonStyle(.plain)
+            }.frameRowStyle()
+
+            NavigationLink { AISearchSettingsView() } label: {
+                settingRow("AI Search", systemImage: "sparkles",
+                           detail: AISearchService.isConfigured ? "Ready" : "Set up")
+            }.frameRowStyle()
         }
     }
 
@@ -87,7 +105,16 @@ struct SettingsView: View {
             NavigationLink { BackupView() } label: {
                 settingRow("iCloud Backup & Restore", systemImage: "icloud.and.arrow.up",
                            detail: backupDetail)
-            }.buttonStyle(.plain)
+            }.frameRowStyle()
+
+            if let note = WhatsNew.latest {
+                NavigationLink {
+                    WhatsNewView(note: note) {}
+                } label: {
+                    settingRow("What's New", systemImage: "sparkles",
+                               detail: "Version \(note.version)")
+                }.frameRowStyle()
+            }
         }
     }
 
@@ -183,19 +210,50 @@ struct SettingsView: View {
                       isOn: $settings.requireLegalConfirmation)
             NavigationLink { PrivacyLegalView() } label: {
                 settingRow("Privacy & Legal Info", systemImage: "hand.raised", detail: "View")
-            }.buttonStyle(.plain)
+            }.frameRowStyle()
         }
     }
 
     // MARK: - Builders
 
+    @ViewBuilder
     private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
+        // Build the section's body once so it isn't captured by DisclosureGroup's
+        // escaping closure (which would require `content` to be @escaping).
+        let body = VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            content()
+        }
+        #if os(iOS)
+        // Expandable accordion. Starts expanded; the user can collapse sections.
+        DisclosureGroup(
+            isExpanded: Binding(
+                get: { expandedSections[title] ?? defaultExpanded(title) },
+                set: { expandedSections[title] = $0 }
+            )
+        ) {
+            body.padding(.top, Theme.Spacing.sm)
+        } label: {
+            Text(title)
+                .font(Theme.Font.sectionTitle())
+                .foregroundStyle(Theme.Colors.textPrimary)
+        }
+        .tint(Theme.Colors.textSecondary)
+        .padding(Theme.Spacing.md)
+        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        #else
+        // tvOS: keep sections always visible (DisclosureGroup isn't focus-friendly).
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             Text(title)
                 .font(Theme.Font.sectionTitle())
                 .foregroundStyle(Theme.Colors.textPrimary)
-            content()
+            body
         }
+        #endif
+    }
+
+    /// Sections that start expanded; others start collapsed to keep Settings tidy.
+    private func defaultExpanded(_ title: String) -> Bool {
+        ["Accounts & Sources", "Backup & Sync"].contains(title)
     }
 
     private func settingRow(_ title: String, systemImage: String, detail: String) -> some View {
@@ -207,8 +265,8 @@ struct SettingsView: View {
             Text(detail).foregroundStyle(Theme.Colors.textSecondary).font(.appFont(20))
             Image(systemName: "chevron.right").foregroundStyle(Theme.Colors.textTertiary)
         }
-        .padding(Theme.Spacing.md)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .padding(.vertical, Theme.Spacing.xs)
+        .contentShape(Rectangle())
     }
 
     private func toggleRow(_ title: String, systemImage: String, isOn: Binding<Bool>) -> some View {
@@ -230,9 +288,9 @@ struct SettingsView: View {
                     .font(.appFont(22))
                 Spacer()
             }
-            .padding(Theme.Spacing.md)
-            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .padding(.vertical, Theme.Spacing.xs)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .frameRowStyle()
     }
 }

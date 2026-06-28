@@ -14,6 +14,7 @@ struct FocusableButton: View {
     let action: () -> Void
 
     @FocusState private var focused: Bool
+    @Environment(\.dynamicAccent) private var accent
 
     var body: some View {
         Button(action: action) {
@@ -32,10 +33,12 @@ struct FocusableButton: View {
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
-                    .stroke(focused ? Theme.Colors.accent : .clear, lineWidth: 3)
+                    .stroke(focused ? accent : .clear, lineWidth: 3)
             )
+            .shadow(color: focused ? accent.opacity(0.45) : .clear,
+                    radius: focused ? 20 : 0, y: focused ? 6 : 0)
             .scaleEffect(focused ? 1.06 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: focused)
+            .animation(.easeOut(duration: 0.18), value: focused)
         }
         .buttonStyle(.plain)
         .focused($focused)
@@ -43,9 +46,9 @@ struct FocusableButton: View {
 
     private var background: some ShapeStyle {
         if prominent {
-            return AnyShapeStyle(Theme.Colors.accent)
+            return AnyShapeStyle(accent)
         }
-        return AnyShapeStyle(focused ? Theme.Colors.accent.opacity(0.9) : Theme.Colors.card)
+        return AnyShapeStyle(focused ? accent.opacity(0.9) : Theme.Colors.card)
     }
 
     private var foreground: Color {

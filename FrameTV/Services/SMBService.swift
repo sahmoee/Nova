@@ -13,6 +13,7 @@ import Foundation
 
 protocol SMBProviding: Sendable {
     func connect(to share: SMBShare) async throws
+    func listShares(host: String, username: String, keychainAccount: String) async throws -> [String]
     func listDirectory(path: String) async throws -> [RemoteFileItem]
     func streamURL(for file: RemoteFileItem) async throws -> URL
 }
@@ -22,7 +23,9 @@ protocol SMBProviding: Sendable {
 enum SMBError: LocalizedError {
     case notConnected
     case authenticationFailed
+    case passwordMissing
     case hostUnreachable
+    case loopbackHost
     case pathNotFound
     case streamingUnavailable
     case underlying(Error)
@@ -30,8 +33,10 @@ enum SMBError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notConnected:         return "Not connected to the SMB share."
-        case .authenticationFailed: return "SMB sign-in failed. Check the username and password."
+        case .authenticationFailed: return "Sign-in was rejected. Use your computer account's user name (often your short name, like the one shown on your Mac login) and its exact password. For a Mac, make sure that account is allowed to share files."
+        case .passwordMissing:      return "The saved password couldn't be read back. Remove this share and add it again. If it keeps happening, your device's Keychain may be blocking it."
         case .hostUnreachable:      return "Couldn't reach the SMB server. Check the name or IP and that the share is online."
+        case .loopbackHost:         return "This share points to 127.0.0.1 (this device). Use your computer's network name (e.g. mycomputer.local) or its LAN IP address (e.g. 192.168.1.20) instead."
         case .pathNotFound:         return "That folder couldn't be found on the share."
         case .streamingUnavailable: return "This file can't be streamed directly from the share."
         case .underlying(let e):    return e.localizedDescription
@@ -55,6 +60,14 @@ actor MockSMBProvider: SMBProviding {
             throw SMBError.hostUnreachable
         }
         connectedShare = share
+    }
+
+    func listShares(host: String, username: String, keychainAccount: String) async throws -> [String] {
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        guard !host.trimmingCharacters(in: .whitespaces).isEmpty else {
+            throw SMBError.hostUnreachable
+        }
+        return ["Movies", "TV Shows", "Backups"]
     }
 
     func listDirectory(path: String) async throws -> [RemoteFileItem] {
@@ -125,6 +138,10 @@ final class SMBService {
 
     func connect(to share: SMBShare) async throws {
         try await provider.connect(to: share)
+    }
+
+    func listShares(host: String, username: String, keychainAccount: String) async throws -> [String] {
+        try await provider.listShares(host: host, username: username, keychainAccount: keychainAccount)
     }
 
     func listDirectory(_ path: String) async throws -> [RemoteFileItem] {

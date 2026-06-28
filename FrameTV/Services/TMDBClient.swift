@@ -32,7 +32,7 @@ actor TMDBClient {
     private let decoder = JSONDecoder()
     private let keyProvider: @Sendable () -> String?
 
-    init(session: URLSession = .shared,
+    init(session: URLSession = AppNetworking.shared,
          keyProvider: @escaping @Sendable () -> String? = { AppConfig.shared.tmdbKey }) {
         self.session = session
         self.keyProvider = keyProvider
@@ -86,6 +86,56 @@ actor TMDBClient {
         return m + s
     }
 
+    // MARK: - Discovery catalogs (home shelves)
+
+    private func mapMovies(_ results: [TMDBMovie]) -> [CatalogItem] {
+        results.map {
+            CatalogItem(contentID: ContentID(tmdb: $0.id, type: .movie),
+                        title: $0.title ?? "Untitled", overview: $0.overview,
+                        posterURL: TMDBImage.poster($0.posterPath),
+                        backdropURL: TMDBImage.backdrop($0.backdropPath),
+                        year: $0.year, rating: $0.voteAverage)
+        }
+    }
+    private func mapShows(_ results: [TMDBShow]) -> [CatalogItem] {
+        results.map {
+            CatalogItem(contentID: ContentID(tmdb: $0.id, type: .series),
+                        title: $0.name ?? "Untitled", overview: $0.overview,
+                        posterURL: TMDBImage.poster($0.posterPath),
+                        backdropURL: TMDBImage.backdrop($0.backdropPath),
+                        year: $0.year, rating: $0.voteAverage)
+        }
+    }
+
+    func trendingMovies() async throws -> [CatalogItem] {
+        let resp: TMDBSearchResponse<TMDBMovie> = try await get("trending/movie/week")
+        return mapMovies(resp.results)
+    }
+    func trendingShows() async throws -> [CatalogItem] {
+        let resp: TMDBSearchResponse<TMDBShow> = try await get("trending/tv/week")
+        return mapShows(resp.results)
+    }
+    func popularMovies() async throws -> [CatalogItem] {
+        let resp: TMDBSearchResponse<TMDBMovie> = try await get("movie/popular")
+        return mapMovies(resp.results)
+    }
+    func nowPlayingMovies() async throws -> [CatalogItem] {
+        let resp: TMDBSearchResponse<TMDBMovie> = try await get("movie/now_playing")
+        return mapMovies(resp.results)
+    }
+    func topRatedMovies() async throws -> [CatalogItem] {
+        let resp: TMDBSearchResponse<TMDBMovie> = try await get("movie/top_rated")
+        return mapMovies(resp.results)
+    }
+    func popularShows() async throws -> [CatalogItem] {
+        let resp: TMDBSearchResponse<TMDBShow> = try await get("tv/popular")
+        return mapShows(resp.results)
+    }
+    func airingTodayShows() async throws -> [CatalogItem] {
+        let resp: TMDBSearchResponse<TMDBShow> = try await get("tv/airing_today")
+        return mapShows(resp.results)
+    }
+
     // MARK: - Details + IMDB resolution
 
     /// Fetches a movie's external ids (to get its IMDB id for addon stream lookups).
@@ -97,6 +147,39 @@ actor TMDBClient {
     func showIMDBID(tmdbID: Int) async throws -> String? {
         let ext: TMDBExternalIDs = try await get("tv/\(tmdbID)/external_ids")
         return ext.imdbId
+    }
+
+    /// Fetches the poster and backdrop URLs for a TMDB id. Trakt only returns ids and
+    /// titles, so we use this to fill in artwork for watchlist/Trakt rows.
+    func artwork(tmdbID: Int, isMovie: Bool) async throws -> (poster: URL?, backdrop: URL?) {
+        let path = isMovie ? "movie/\(tmdbID)" : "tv/\(tmdbID)"
+        let detail: TMDBArtworkDetail = try await get(path)
+        return (TMDBImage.poster(detail.posterPath), TMDBImage.backdrop(detail.backdropPath))
+    }
+
+    /// Enriches a list of CatalogItems (e.g. from Trakt) that have TMDB ids but no
+    /// artwork. Runs lookups concurrently and leaves items without a TMDB id untouched.
+    func enrichArtwork(_ items: [CatalogItem]) async -> [CatalogItem] {
+        guard hasKey else { return items }
+        return await withTaskGroup(of: (Int, URL?, URL?).self) { group -> [CatalogItem] in
+            for (idx, item) in items.enumerated() {
+                // Only look up items that need artwork and have a TMDB id.
+                guard item.posterURL == nil, let tmdb = item.contentID.tmdb else { continue }
+                let isMovie = item.contentID.type == .movie
+                group.addTask {
+                    let art = try? await self.artwork(tmdbID: tmdb, isMovie: isMovie)
+                    return (idx, art?.poster, art?.backdrop)
+                }
+            }
+            var result = items
+            for await (idx, poster, backdrop) in group {
+                if result.indices.contains(idx) {
+                    if result[idx].posterURL == nil { result[idx].posterURL = poster }
+                    if result[idx].backdropURL == nil { result[idx].backdropURL = backdrop }
+                }
+            }
+            return result
+        }
     }
 
     /// Fully hydrates a series CatalogItem with seasons and episodes plus its IMDB id.
@@ -167,8 +250,13 @@ actor TMDBClient {
         for (k, v) in query { items.append(URLQueryItem(name: k, value: v)) }
         comps.queryItems = items
 
-        var req = URLRequest(url: comps.url!)
-        req.timeoutInterval = 25
+        // Build the request immutably so it can be safely captured by the retry
+        // closure (a mutable var capture is an error in the Swift 6 language mode).
+        let req: URLRequest = {
+            var r = URLRequest(url: comps.url!)
+            r.timeoutInterval = 25
+            return r
+        }()
 
         let data: Data
         let response: URLResponse

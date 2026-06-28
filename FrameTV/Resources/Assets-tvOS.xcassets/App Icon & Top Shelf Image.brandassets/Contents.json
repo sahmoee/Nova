@@ -7,12 +7,6 @@
       "size" : "400x240"
     },
     {
-      "filename" : "App Icon - App Store.imagestack",
-      "idiom" : "tv",
-      "role" : "app-store-icon",
-      "size" : "1280x768"
-    },
-    {
       "filename" : "Top Shelf Image.imageset",
       "idiom" : "tv",
       "role" : "top-shelf-image",

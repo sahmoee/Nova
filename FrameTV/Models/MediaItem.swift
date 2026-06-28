@@ -35,6 +35,28 @@ struct MediaItem: Identifiable, Codable, Hashable {
     /// Skip segments (intro/outro/recap) when known.
     var skipSegments: [SkipSegment]
 
+    /// A stable identity for the *same content*, independent of the random `id`
+    /// assigned per playback. Used to dedupe the library so replaying an episode
+    /// doesn't create a second entry. Prefers cross-service IDs, then series +
+    /// episode, then the playback URL, then the title.
+    var contentKey: String {
+        if let contentID {
+            let raw = contentID.stableKey
+            // Only trust a real cross-service ID, not the "unknown:" fallback.
+            if !raw.hasPrefix("unknown:") {
+                if let episode { return "\(raw)|s\(episode.season)e\(episode.number)" }
+                return raw
+            }
+        }
+        if let seriesTitle, let episode {
+            return "series:\(seriesTitle.lowercased())|s\(episode.season)e\(episode.number)"
+        }
+        // Fall back to the playback URL (stable for a given file/stream), then title.
+        let urlKey = playbackURL.absoluteString
+        if !urlKey.isEmpty { return "url:\(urlKey)" }
+        return "title:\(title.lowercased())"
+    }
+
     init(
         id: UUID = UUID(),
         title: String,

@@ -24,7 +24,6 @@ struct MagnetView: View {
     @State private var selectedFileIDs: Set<Int> = []
     @State private var message: String?
     @State private var addedItem: MediaItem?
-    @State private var navigate = false
 
     enum Phase: Equatable { case input, loadingMeta, selectFiles, finalizing, error(String) }
 
@@ -61,11 +60,11 @@ struct MagnetView: View {
                 .padding(Theme.Spacing.edge)
                 .frame(maxWidth: Theme.contentMaxWidth(1100), alignment: .leading)
             }
-
-            NavigationLink(isActive: $navigate) {
-                if let addedItem { PlayerView(item: addedItem) }
-            } label: { EmptyView() }.hidden()
         }
+        .navigationDestination(item: $addedItem) { item in
+            PlayerView(item: item)
+        }
+        .dismissKeyboardOnTap()
     }
 
     private var noTokenNotice: some View {
@@ -124,10 +123,10 @@ struct MagnetView: View {
                         }
                         Spacer()
                     }
-                    .padding(Theme.Spacing.md)
-                    .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                    .padding(.vertical, Theme.Spacing.xs)
+                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .frameRowStyle()
             }
 
             FocusableButton(title: "Add Selected", systemImage: "plus", prominent: true) {
@@ -198,7 +197,6 @@ struct MagnetView: View {
             )
             library.add(item)
             addedItem = item
-            navigate = true
         } catch {
             phase = .error((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
         }

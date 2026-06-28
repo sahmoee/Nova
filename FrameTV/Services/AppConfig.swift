@@ -13,7 +13,7 @@
 import Foundation
 
 /// Keys for the various credentials FrameTV can use.
-enum CredentialKey: String {
+enum CredentialKey: String, CaseIterable {
     case tmdbAPIKey = "tmdb.apiKey"
     case traktClientID = "trakt.clientId"
     case traktClientSecret = "trakt.clientSecret"
@@ -30,6 +30,8 @@ struct FrameTVConfigFile: Codable {
     var openSubtitlesApiKey: String?
     /// Optional list of addon manifest URLs to preinstall on first run.
     var addonManifestURLs: [String]?
+    /// Optional Cloudflare Worker URL for Claude-powered AI search.
+    var aiWorkerUrl: String?
 }
 
 final class AppConfig {
@@ -120,5 +122,11 @@ final class AppConfig {
     /// Addon manifest URLs to seed on first run, from the config file (if any).
     var seedAddonURLs: [URL] {
         (fileConfig?.addonManifestURLs ?? []).compactMap { URL(string: $0) }
+    }
+
+    /// Optional Worker URL for AI search, from the config file (user setting wins).
+    var aiWorkerURL: String? {
+        let v = fileConfig?.aiWorkerUrl?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (v?.isEmpty == false) ? v : nil
     }
 }

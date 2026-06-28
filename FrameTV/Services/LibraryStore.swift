@@ -51,7 +51,24 @@ final class LibraryStore: ObservableObject {
         }
         do {
             let data = try Data(contentsOf: fileURL)
-            items = try decoder.decode([MediaItem].self, from: data)
+            let decoded = try decoder.decode([MediaItem].self, from: data)
+            // One-time cleanup: collapse duplicates (same content saved multiple
+            // times before dedup-by-contentKey existed), keeping the first.
+            var seen = Set<String>()
+            var deduped: [MediaItem] = []
+            for item in decoded where seen.insert(item.contentKey).inserted {
+                deduped.append(item)
+            }
+            // Remove the old seeded sample items (Google sample-video bucket) that the
+            // user never favorited or started watching, so the library isn't filled
+            // with placeholder rows that have no real artwork.
+            let cleaned = deduped.filter { item in
+                let isSample = item.playbackURL.absoluteString.contains("gtv-videos-bucket")
+                let engaged = item.isFavorite || item.lastPlayedPosition > 0 || item.lastPlayedDate != nil
+                return !(isSample && !engaged)
+            }
+            items = cleaned
+            if cleaned.count != decoded.count { persist() }
         } catch {
             // Corrupt/old format: start clean rather than crash.
             items = []
@@ -70,8 +87,15 @@ final class LibraryStore: ObservableObject {
     // MARK: - CRUD
 
     func add(_ item: MediaItem) {
-        if let idx = items.firstIndex(where: { $0.id == item.id }) {
-            items[idx] = item
+        // Dedupe by stable content identity, not the per-playback random id, so
+        // replaying the same episode updates its entry instead of adding a copy.
+        if let idx = items.firstIndex(where: { $0.contentKey == item.contentKey }) {
+            // Preserve the existing id, favorite flag, and added date; refresh the rest.
+            var updated = item
+            updated.id = items[idx].id
+            updated.isFavorite = items[idx].isFavorite
+            updated.addedDate = items[idx].addedDate
+            items[idx] = updated
         } else {
             items.insert(item, at: 0)
         }
@@ -114,6 +138,23 @@ final class LibraryStore: ObservableObject {
         persist()
     }
 
+    /// Removes a single item from Continue Watching by resetting its progress.
+    func clearProgress(for id: UUID) {
+        guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
+        items[idx].lastPlayedPosition = 0
+        items[idx].lastPlayedDate = nil
+        persist()
+    }
+
+    /// Clears everything from Continue Watching at once.
+    func clearContinueWatching() {
+        for idx in items.indices where items[idx].hasResumePoint {
+            items[idx].lastPlayedPosition = 0
+            items[idx].lastPlayedDate = nil
+        }
+        persist()
+    }
+
     // MARK: - Queries (used by Home/Library rows)
 
     var favorites: [MediaItem] {
@@ -128,6 +169,30 @@ final class LibraryStore: ObservableObject {
 
     var recentlyAdded: [MediaItem] {
         items.sorted { $0.addedDate > $1.addedDate }
+    }
+
+    /// The library grid's entries: standalone movies as-is, but episodes collapsed so
+    /// each series-season shows a single entry (represented by its most recently added
+    /// episode) instead of one card per episode. Sorted by most recently added.
+    var libraryEntries: [MediaItem] {
+        let sorted = items.sorted { $0.addedDate > $1.addedDate }
+        var seenSeasonKeys = Set<String>()
+        var result: [MediaItem] = []
+        for item in sorted {
+            if let ep = item.episode {
+                // Group key: series identity + season number.
+                let seriesKey = item.seriesTitle?.lowercased()
+                    ?? item.contentID?.stableKey
+                    ?? item.title.lowercased()
+                let key = "\(seriesKey)|s\(ep.season)"
+                if seenSeasonKeys.insert(key).inserted {
+                    result.append(item)   // first (most recent) episode represents the season
+                }
+            } else {
+                result.append(item)       // movies and non-episodic content stay individual
+            }
+        }
+        return result
     }
 
     func items(for source: SourceType) -> [MediaItem] {

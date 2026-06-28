@@ -38,25 +38,32 @@ struct KeychainStore {
             throw KeychainError.dataConversionFailed
         }
 
-        // Try update first; if not found, add. Synchronizable so secrets sync
-        // across the user's devices via iCloud Keychain.
+        // Prefer a synchronizable item so secrets sync via iCloud Keychain. If that
+        // fails (e.g. iCloud Keychain disabled), fall back to a local-only item so
+        // the secret is never silently lost — a lost SMB password otherwise looks
+        // exactly like a wrong password at connect time.
+        do {
+            try write(data, account: account, synchronizable: true)
+        } catch {
+            try write(data, account: account, synchronizable: false)
+        }
+    }
+
+    private func write(_ data: Data, account: String, synchronizable: Bool) throws {
+        let syncValue: Any = synchronizable ? (kCFBooleanTrue as Any) : (kCFBooleanFalse as Any)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
-            kSecAttrSynchronizable as String: kCFBooleanTrue as Any
+            kSecAttrSynchronizable as String: syncValue
         ]
 
-        let attributes: [String: Any] = [
-            kSecValueData as String: data
-        ]
-
+        let attributes: [String: Any] = [kSecValueData as String: data]
         let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
 
         if updateStatus == errSecItemNotFound {
             var addQuery = query
             addQuery[kSecValueData as String] = data
-            // Accessible after first unlock so it can sync, and survives reboots.
             addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
             let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
             guard addStatus == errSecSuccess else {

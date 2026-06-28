@@ -20,10 +20,14 @@ struct RealDebridView: View {
     @State private var isError = false
     @State private var isWorking = false
 
+    // Browser device-code flow.
+    @State private var rdDeviceCode: RDDeviceCode?
+    @State private var rdPollTask: Task<Void, Never>?
+    @Environment(\.openURL) private var openURL
+
     @State private var linkText = ""
     @State private var legalConfirmed = false
     @State private var addedItem: MediaItem?
-    @State private var navigate = false
 
     private var hasToken: Bool { KeychainStore.shared.realDebridToken != nil }
 
@@ -44,12 +48,12 @@ struct RealDebridView: View {
                 .padding(Theme.Spacing.edge)
                 .frame(maxWidth: Theme.contentMaxWidth(1100), alignment: .leading)
             }
-
-            NavigationLink(isActive: $navigate) {
-                if let addedItem { PlayerView(item: addedItem) }
-            } label: { EmptyView() }.hidden()
+        }
+        .navigationDestination(item: $addedItem) { item in
+            PlayerView(item: item)
         }
         .task { await loadAccountIfPossible() }
+        .dismissKeyboardOnTap()
     }
 
     // MARK: - Account
@@ -82,10 +86,53 @@ struct RealDebridView: View {
                     isError = false
                 }
                 .frame(maxWidth: Theme.isCompact ? .infinity : 300)
+            } else if let device = rdDeviceCode {
+                // Browser device-code flow in progress.
+                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                    Text("Sign in to Real-Debrid")
+                        .font(.appFont(22, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    Text("Your code:")
+                        .font(.appFont(17))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                    Text(device.userCode)
+                        .font(.appFont(48, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .tracking(6)
+                    FocusableButton(title: "Open Real-Debrid to Sign In",
+                                    systemImage: "arrow.up.right.square", prominent: true) {
+                        openRDAuth(device)
+                    }
+                    .frame(maxWidth: Theme.isCompact ? .infinity : 340)
+                    Text("After you approve in Real-Debrid, come back here — it connects automatically.")
+                        .font(.appFont(15))
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                    HStack(spacing: Theme.Spacing.sm) {
+                        ProgressView().tint(Theme.Colors.accent)
+                        Text("Waiting for authorization…")
+                            .font(.appFont(17))
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                    }
+                    Button("Cancel") { cancelRDDeviceFlow() }
+                        .font(.appFont(16))
+                        .foregroundStyle(Theme.Colors.accent)
+                }
             } else {
-                Text("Paste your Real-Debrid API token to connect. Get it from your Real-Debrid account settings.")
+                Text("Sign in with your Real-Debrid account, or paste an API token.")
                     .font(.appFont(20))
                     .foregroundStyle(Theme.Colors.textSecondary)
+
+                FocusableButton(title: "Sign in with Real-Debrid",
+                                systemImage: "person.crop.circle.badge.checkmark",
+                                prominent: true) {
+                    Task { await startRDDeviceFlow() }
+                }
+                .frame(maxWidth: Theme.isCompact ? .infinity : 340)
+
+                Text("Or paste an API token")
+                    .font(.appFont(16))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                    .padding(.top, Theme.Spacing.sm)
 
                 SecureField("API token", text: $tokenText)
                     .textFieldStyle(.plain)
@@ -94,9 +141,8 @@ struct RealDebridView: View {
                     .foregroundStyle(Theme.Colors.textPrimary)
 
                 FocusableButton(
-                    title: isWorking ? "Validating…" : "Connect",
-                    systemImage: "checkmark.circle",
-                    prominent: true
+                    title: isWorking ? "Validating…" : "Connect with Token",
+                    systemImage: "checkmark.circle"
                 ) {
                     Task { await connect() }
                 }
@@ -166,6 +212,61 @@ struct RealDebridView: View {
         if user != nil { tokenText = "" }
     }
 
+    // MARK: - Browser device-code flow
+
+    private func startRDDeviceFlow() async {
+        do {
+            let device = try await environment.realDebrid.requestDeviceCode()
+            rdDeviceCode = device
+            startRDPolling(device)
+        } catch {
+            statusMessage = "Couldn't start sign-in. Try again."
+            isError = true
+        }
+    }
+
+    private func openRDAuth(_ device: RDDeviceCode) {
+        let urlString = device.verificationURL.isEmpty
+            ? "https://real-debrid.com/device" : device.verificationURL
+        if let url = URL(string: urlString) { openURL(url) }
+    }
+
+    private func startRDPolling(_ device: RDDeviceCode) {
+        rdPollTask?.cancel()
+        let interval = max(device.interval, 3)
+        rdPollTask = Task {
+            let deadline = Date().addingTimeInterval(TimeInterval(device.expiresIn))
+            while !Task.isCancelled && Date() < deadline {
+                try? await Task.sleep(nanoseconds: UInt64(interval) * 1_000_000_000)
+                if Task.isCancelled { return }
+                guard let creds = try? await environment.realDebrid.pollForCredentials(deviceCode: device.deviceCode) else {
+                    continue   // still pending
+                }
+                // Got client credentials — exchange for a token.
+                if let token = try? await environment.realDebrid.obtainToken(
+                    clientID: creds.clientID,
+                    clientSecret: creds.clientSecret,
+                    deviceCode: device.deviceCode
+                ) {
+                    try? KeychainStore.shared.setRealDebridToken(token)
+                    await MainActor.run {
+                        rdDeviceCode = nil
+                        rdPollTask = nil
+                    }
+                    await connectUsingStoredToken()
+                    return
+                }
+            }
+            await MainActor.run { rdDeviceCode = nil }
+        }
+    }
+
+    private func cancelRDDeviceFlow() {
+        rdPollTask?.cancel()
+        rdPollTask = nil
+        rdDeviceCode = nil
+    }
+
     private func connectUsingStoredToken() async {
         isWorking = true; defer { isWorking = false }
         do {
@@ -199,7 +300,6 @@ struct RealDebridView: View {
             )
             library.add(item)
             addedItem = item
-            navigate = true
         } catch {
             statusMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             isError = true

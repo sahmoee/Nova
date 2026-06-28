@@ -11,7 +11,7 @@ import SwiftUI
 import Combine
 
 enum AppTab: Hashable {
-    case home, discover, library, sources, settings
+    case home, discover, library, settings
 }
 
 @MainActor
@@ -22,7 +22,6 @@ final class NavigationCoordinator: ObservableObject {
     @Published var homePath = NavigationPath()
     @Published var discoverPath = NavigationPath()
     @Published var libraryPath = NavigationPath()
-    @Published var sourcesPath = NavigationPath()
     @Published var settingsPath = NavigationPath()
 
     /// A binding that, when set to an already-selected tab, pops that tab to root.
@@ -45,7 +44,6 @@ final class NavigationCoordinator: ObservableObject {
         case .home:     homePath = NavigationPath()
         case .discover: discoverPath = NavigationPath()
         case .library:  libraryPath = NavigationPath()
-        case .sources:  sourcesPath = NavigationPath()
         case .settings: settingsPath = NavigationPath()
         }
     }

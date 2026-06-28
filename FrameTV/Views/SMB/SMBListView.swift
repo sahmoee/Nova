@@ -71,7 +71,7 @@ struct SMBListView: View {
                 Text(share.displayName)
                     .font(Theme.Font.cardTitle())
                     .foregroundStyle(Theme.Colors.textPrimary)
-                Text("\(share.host)/\(share.shareName)")
+                Text(share.shareName.isEmpty ? "smb://\(share.host)" : "\(share.host)/\(share.shareName)")
                     .font(.appFont(18))
                     .foregroundStyle(Theme.Colors.textSecondary)
             }
@@ -97,47 +97,107 @@ struct SMBAddView: View {
     let onSave: (SMBShare, String) -> Void
     @Environment(\.dismiss) private var dismiss
 
-    @State private var displayName = ""
-    @State private var host = ""
-    @State private var shareName = ""
+    // Single server field like the Files app, e.g. "smb://yourmac.local" or
+    // "smb://yourmac.local/Media". Parsed once on save, never while typing, so
+    // characters like "//" aren't eaten by live normalization.
+    @State private var server = "smb://"
+    @State private var connectAsGuest = false
     @State private var username = ""
     @State private var password = ""
-    @State private var path = ""
+    @State private var displayName = ""
 
     var body: some View {
         ZStack {
             Theme.Colors.background.ignoresSafeArea()
             ScrollView {
-                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                    Text("Add SMB Share")
+                VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                    Text("Connect to Server")
                         .font(Theme.Font.screenTitle())
                         .screenTitleStyle()
                         .foregroundStyle(Theme.Colors.textPrimary)
 
-                    field("Display Name", text: $displayName, placeholder: "Living Room NAS")
-                    field("Server (hostname or IP)", text: $host,
-                          placeholder: "mynas.local  or  192.168.1.10")
-                        .onChange(of: host) { _, newValue in normalizeHost(newValue) }
-                    Text("You can enter a network name (like mynas.local), an IP address, or paste a full path such as smb://mynas.local/Media.")
-                        .font(.appFont(15))
-                        .foregroundStyle(Theme.Colors.textTertiary)
-                    field("Share Name", text: $shareName, placeholder: "Home")
-                    field("Username", text: $username, placeholder: "guest")
-                    secureField("Password", text: $password)
-                    field("Path (optional)", text: $path, placeholder: "/Movies")
+                    // Server field.
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                        Text("Server").font(.appFont(20, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                        TextField("smb://yourcomputer.local", text: $server)
+                            .textFieldStyle(.plain)
+                            #if os(iOS)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled(true)
+                            .keyboardType(.URL)
+                            #endif
+                            .padding(Theme.Spacing.md)
+                            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                        Text("Enter your computer's name or IP, e.g. smb://yourcomputer.local. You'll see its shared folders next. You can also go straight to one: smb://yourcomputer.local/Media.")
+                            .font(.appFont(15))
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                    }
 
-                    FocusableButton(title: "Save Share", systemImage: "checkmark", prominent: true) {
-                        let share = SMBShare(
-                            displayName: displayName.isEmpty ? host : displayName,
-                            host: host,
-                            shareName: shareName,
-                            username: username,
-                            path: path.isEmpty ? nil : path
-                        )
-                        onSave(share, password)
+                    // Connect As (Guest / Registered User), like the Files app.
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                        Text("Connect As").font(.appFont(20, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                        VStack(spacing: 0) {
+                            connectAsRow(title: "Guest", selected: connectAsGuest) {
+                                connectAsGuest = true
+                            }
+                            Divider().overlay(Theme.Colors.separator)
+                            connectAsRow(title: "Registered User", selected: !connectAsGuest) {
+                                connectAsGuest = false
+                            }
+                        }
+                        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                    }
+
+                    // Credentials only for Registered User.
+                    if !connectAsGuest {
+                        VStack(spacing: 0) {
+                            HStack {
+                                Text("Name").font(.appFont(19))
+                                    .foregroundStyle(Theme.Colors.textSecondary)
+                                    .frame(width: 110, alignment: .leading)
+                                TextField("Name", text: $username)
+                                    .textFieldStyle(.plain)
+                                    #if os(iOS)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled(true)
+                                    #endif
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+                            }
+                            .padding(Theme.Spacing.md)
+                            Divider().overlay(Theme.Colors.separator)
+                            HStack {
+                                Text("Password").font(.appFont(19))
+                                    .foregroundStyle(Theme.Colors.textSecondary)
+                                    .frame(width: 110, alignment: .leading)
+                                SecureField("Required", text: $password)
+                                    .textFieldStyle(.plain)
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+                            }
+                            .padding(Theme.Spacing.md)
+                        }
+                        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                    }
+
+                    // Optional friendly name.
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                        Text("Display Name (optional)").font(.appFont(20, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                        TextField("My Computer", text: $displayName)
+                            .textFieldStyle(.plain)
+                            .padding(Theme.Spacing.md)
+                            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                    }
+
+                    FocusableButton(title: "Connect", systemImage: "checkmark", prominent: true) {
+                        save()
                     }
                     .frame(maxWidth: Theme.isCompact ? .infinity : 360)
-                    .disabled(host.isEmpty || shareName.isEmpty)
+                    .disabled(!canSave)
+                    .opacity(canSave ? 1 : 0.5)
                     .padding(.top, Theme.Spacing.sm)
                 }
                 .padding(Theme.Spacing.edge)
@@ -146,40 +206,47 @@ struct SMBAddView: View {
         }
     }
 
-    /// Accepts a hostname, IP, or a pasted full path (with or without an smb://
-    /// scheme) and splits it into the server, share, and path fields. Examples:
-    ///   "smb://mynas.local/Media/Movies" -> host=mynas.local, share=Media, path=/Movies
-    ///   "mynas.local/Media"               -> host=mynas.local, share=Media
-    ///   "192.168.1.10"                   -> host unchanged
-    private func normalizeHost(_ raw: String) {
-        guard let parsed = SMBURLParser.parse(raw) else { return }
-        host = parsed.host
-        if let share = parsed.share, shareName.isEmpty { shareName = share }
-        if let p = parsed.path, path.isEmpty { path = p }
+    private func connectAsRow(title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(title).font(.appFont(19))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Spacer()
+                if selected {
+                    Image(systemName: "checkmark")
+                        .font(.appFont(18, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.accent)
+                }
+            }
+            .padding(Theme.Spacing.md)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
-    private func field(_ label: String, text: Binding<String>, placeholder: String) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Text(label).font(.appFont(20, weight: .semibold))
-                .foregroundStyle(Theme.Colors.textSecondary)
-            TextField(placeholder, text: text)
-                .textFieldStyle(.plain)
-                .padding(Theme.Spacing.md)
-                .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
-                .foregroundStyle(Theme.Colors.textPrimary)
-        }
+    /// Can save when we have a host and, for a registered user, a name + password.
+    private var canSave: Bool {
+        guard let parsed = SMBURLParser.parse(server), !parsed.host.isEmpty else { return false }
+        if connectAsGuest { return true }
+        return !username.isEmpty && !password.isEmpty
     }
 
-    private func secureField(_ label: String, text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Text(label).font(.appFont(20, weight: .semibold))
-                .foregroundStyle(Theme.Colors.textSecondary)
-            SecureField("••••••••", text: text)
-                .textFieldStyle(.plain)
-                .padding(Theme.Spacing.md)
-                .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
-                .foregroundStyle(Theme.Colors.textPrimary)
-        }
+    /// Parse the single server string into host/share/path once, on save.
+    private func save() {
+        guard let parsed = SMBURLParser.parse(server), !parsed.host.isEmpty else { return }
+        let user = connectAsGuest ? "" : username
+        let pass = connectAsGuest ? "" : password
+        let name = displayName.isEmpty
+            ? (parsed.share ?? parsed.host)
+            : displayName
+        let share = SMBShare(
+            displayName: name,
+            host: parsed.host,
+            shareName: parsed.share ?? "",
+            username: user,
+            path: parsed.path
+        )
+        onSave(share, pass)
     }
 }
 
@@ -238,8 +305,15 @@ final class SMBSharesModel: ObservableObject {
 
     func add(_ share: SMBShare, password: String) {
         shares.append(share)
-        // Store password securely; never persisted in JSON.
-        try? KeychainStore.shared.set(password, for: share.keychainAccount)
+        // Store password securely; never persisted in JSON. Surface a failure so a
+        // silent keychain write error doesn't later look like a wrong password.
+        if !password.isEmpty {
+            do {
+                try KeychainStore.shared.set(password, for: share.keychainAccount)
+            } catch {
+                FrameLog.network.error("Failed to save SMB password to Keychain: \(String(describing: error), privacy: .public)")
+            }
+        }
         persist()
     }
 

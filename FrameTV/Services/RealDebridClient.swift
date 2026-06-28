@@ -88,7 +88,7 @@ final actor RealDebridClient {
     private let tokenProvider: @Sendable () -> String?
 
     init(
-        session: URLSession = .shared,
+        session: URLSession = AppNetworking.shared,
         tokenProvider: @escaping @Sendable () -> String? = { KeychainStore.shared.realDebridToken }
     ) {
         let config = session.configuration
@@ -131,6 +131,56 @@ final actor RealDebridClient {
 
     func mediaInfo(id: String) async throws -> MediaInfo {
         try await request(.mediaInfo(id))
+    }
+
+    // MARK: - OAuth device flow (browser sign-in)
+
+    /// Real-Debrid's open-source device-code client id (used by their own apps).
+    private static let oauthClientID = "X245A4XAIBGVM"
+    private static let oauthBase = "https://api.real-debrid.com/oauth/v2"
+
+    /// Step 1: request a device + user code. The user visits the verification URL,
+    /// signs in, and enters the code — same pattern as the Trakt browser flow.
+    func requestDeviceCode() async throws -> RDDeviceCode {
+        var comps = URLComponents(string: "\(Self.oauthBase)/device/code")!
+        comps.queryItems = [
+            URLQueryItem(name: "client_id", value: Self.oauthClientID),
+            URLQueryItem(name: "new_credentials", value: "yes")
+        ]
+        let (data, _) = try await session.data(from: comps.url!)
+        return try decoder.decode(RDDeviceCode.self, from: data)
+    }
+
+    /// Step 2: poll until the user authorizes. Returns nil while still pending.
+    func pollForCredentials(deviceCode: String) async throws -> RDCredentials? {
+        var comps = URLComponents(string: "\(Self.oauthBase)/device/credentials")!
+        comps.queryItems = [
+            URLQueryItem(name: "client_id", value: Self.oauthClientID),
+            URLQueryItem(name: "code", value: deviceCode)
+        ]
+        let (data, response) = try await session.data(from: comps.url!)
+        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+            return nil   // still pending
+        }
+        return try? decoder.decode(RDCredentials.self, from: data)
+    }
+
+    /// Step 3: exchange the device code + obtained client credentials for a token.
+    func obtainToken(clientID: String, clientSecret: String, deviceCode: String) async throws -> String {
+        var req = URLRequest(url: URL(string: "\(Self.oauthBase)/token")!)
+        req.httpMethod = "POST"
+        req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        let body = [
+            "client_id": clientID,
+            "client_secret": clientSecret,
+            "code": deviceCode,
+            "grant_type": "http://oauth.net/grant_type/device/1.0"
+        ].map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) ?? $0.value)" }
+         .joined(separator: "&")
+        req.httpBody = body.data(using: .utf8)
+        let (data, _) = try await session.data(for: req)
+        let token = try decoder.decode(RDToken.self, from: data)
+        return token.accessToken
     }
 
     // MARK: - Request plumbing

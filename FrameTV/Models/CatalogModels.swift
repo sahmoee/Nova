@@ -14,8 +14,21 @@ import Foundation
 enum ContentType: String, Codable, Hashable {
     case movie
     case series
+    case tv
 
-    var displayName: String { self == .movie ? "Movie" : "Series" }
+    var displayName: String {
+        switch self {
+        case .movie:  return "Movie"
+        case .series: return "Series"
+        case .tv:     return "Live TV"
+        }
+    }
+
+    /// The path segment Stremio addons use for this type.
+    var stremioPath: String { rawValue }
+
+    /// Live content isn't resumable/scrobbled like movies and episodes.
+    var isLive: Bool { self == .tv }
 }
 
 // MARK: - Content identity
@@ -26,24 +39,28 @@ struct ContentID: Codable, Hashable {
     var imdb: String?      // e.g. "tt0903747"
     var tmdb: Int?
     var trakt: Int?
+    var addonItemID: String?   // addon-specific id (live channels, custom catalogs)
     var type: ContentType
 
-    init(imdb: String? = nil, tmdb: Int? = nil, trakt: Int? = nil, type: ContentType) {
+    init(imdb: String? = nil, tmdb: Int? = nil, trakt: Int? = nil,
+         addonItemID: String? = nil, type: ContentType) {
         self.imdb = imdb
         self.tmdb = tmdb
         self.trakt = trakt
+        self.addonItemID = addonItemID
         self.type = type
     }
 
     /// The id Stremio addons expect in stream/meta requests.
     /// For episodes this is suffixed by the caller (imdb:season:episode).
-    var stremioBaseID: String? { imdb }
+    var stremioBaseID: String? { imdb ?? addonItemID }
 
     /// A stable key for local correlation even if only one id is known.
     var stableKey: String {
         if let imdb { return "imdb:\(imdb)" }
         if let tmdb { return "tmdb:\(type.rawValue):\(tmdb)" }
         if let trakt { return "trakt:\(type.rawValue):\(trakt)" }
+        if let addonItemID { return "addon:\(type.rawValue):\(addonItemID)" }
         return "unknown:\(type.rawValue)"
     }
 }

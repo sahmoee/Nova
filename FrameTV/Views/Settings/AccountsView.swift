@@ -65,7 +65,7 @@ struct AccountsView: View {
                     .padding(Theme.Spacing.md)
                     .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                 }
-                .buttonStyle(.plain)
+                .frameRowStyle()
 
                 Divider().overlay(Theme.Colors.card)
 
@@ -105,6 +105,7 @@ struct AccountsView: View {
         }
         .background(Theme.Colors.background.ignoresSafeArea())
         .onAppear(perform: loadExisting)
+        .dismissKeyboardOnTap()
     }
 
     /// A small button that opens an external service page (sign-in / get-key /
@@ -122,7 +123,7 @@ struct AccountsView: View {
             .foregroundStyle(Theme.Colors.accent)
             .padding(.vertical, Theme.Spacing.xs)
         }
-        .buttonStyle(.plain)
+        .frameRowStyle()
     }
 
     private func credentialField(title: String,
@@ -159,8 +160,8 @@ struct AccountsView: View {
             .padding(Theme.Spacing.md)
             .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
             #if os(iOS)
-            .autocapitalization(.none)
-            .disableAutocorrection(true)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled(true)
             #endif
         }
     }

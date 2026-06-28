@@ -11,9 +11,9 @@ enum SourceType: String, Codable, CaseIterable, Identifiable {
     case smb
     case realDebrid
     case directURL
-    case publicDomain
     case addon          // Stremio-protocol addons (Stremio, AIOStreams, Comet)
     case trakt          // content surfaced from a Trakt list / watchlist
+    case liveTV         // live channel from an addon's tv catalog
 
     var id: String { rawValue }
 
@@ -23,9 +23,9 @@ enum SourceType: String, Codable, CaseIterable, Identifiable {
         case .smb:          return "SMB Share"
         case .realDebrid:   return "Real-Debrid"
         case .directURL:    return "Direct URL"
-        case .publicDomain: return "Public Domain"
         case .addon:        return "Addon"
         case .trakt:        return "Trakt"
+        case .liveTV:       return "Live TV"
         }
     }
 
@@ -35,8 +35,8 @@ enum SourceType: String, Codable, CaseIterable, Identifiable {
         case .smb:          return "externaldrive.connected.to.line.below"
         case .realDebrid:   return "arrow.down.circle"
         case .directURL:    return "link"
-        case .publicDomain: return "building.columns"
         case .addon:        return "puzzlepiece.extension"
+        case .liveTV:       return "dot.radiowaves.left.and.right"
         case .trakt:        return "checkmark.seal"
         }
     }

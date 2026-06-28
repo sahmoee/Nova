@@ -12,7 +12,8 @@ struct LibraryView: View {
     @Binding var path: NavigationPath
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var nav: NavigationCoordinator
-    @State private var filter: LibraryFilter = .all
+    @State private var filter: LibraryFilter = .recentlyAdded
+    @State private var typeFilter: LibraryTypeFilter = .all
     @State private var selectedItem: MediaItem?
     @State private var detailItem: MediaItem?
 
@@ -32,7 +33,21 @@ struct LibraryView: View {
                         .padding(.horizontal, Theme.Spacing.edge)
                         .padding(.top, Theme.Spacing.lg)
 
-                    filterBar
+                    HStack {
+                        filterBar
+                        Spacer()
+                        if filter == .continueWatching && !displayedItems.isEmpty {
+                            Button {
+                                withAnimation { library.clearContinueWatching() }
+                            } label: {
+                                Text("Clear All")
+                                    .font(.appFont(17, weight: .semibold))
+                                    .foregroundStyle(Theme.Colors.accent)
+                            }
+                            .frameRowStyle()
+                            .padding(.trailing, Theme.Spacing.edge)
+                        }
+                    }
 
                     if displayedItems.isEmpty {
                         EmptyStateView(
@@ -46,8 +61,28 @@ struct LibraryView: View {
                         ScrollView {
                             LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
                                 ForEach(displayedItems) { item in
-                                    MediaCard(item: item) {
+                                    MediaCard(item: item, seasonGrouped: true) {
                                         detailItem = item
+                                    }
+                                    .contextMenu {
+                                        if item.hasResumePoint {
+                                            Button(role: .destructive) {
+                                                withAnimation { library.clearProgress(for: item.id) }
+                                            } label: {
+                                                Label("Remove from Continue Watching", systemImage: "xmark.circle")
+                                            }
+                                        }
+                                        Button {
+                                            library.toggleFavorite(item)
+                                        } label: {
+                                            Label(item.isFavorite ? "Unfavorite" : "Favorite",
+                                                  systemImage: item.isFavorite ? "star.slash" : "star")
+                                        }
+                                        Button(role: .destructive) {
+                                            withAnimation { library.remove(item) }
+                                        } label: {
+                                            Label("Remove from Library", systemImage: "trash")
+                                        }
                                     }
                                 }
                             }
@@ -72,28 +107,46 @@ struct LibraryView: View {
     // MARK: - Filter bar
 
     private var filterBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Theme.Spacing.sm) {
-                ForEach(LibraryFilter.allCases) { f in
-                    FocusableButton(title: f.title, prominent: f == filter) {
-                        filter = f
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    ForEach(LibraryFilter.allCases) { f in
+                        FocusableButton(title: f.title, prominent: f == filter) {
+                            filter = f
+                        }
                     }
                 }
+                .padding(.horizontal, Theme.Spacing.edge)
             }
-            .padding(.horizontal, Theme.Spacing.edge)
-            .padding(.vertical, Theme.Spacing.sm)
+            // Movie / show type filter, applied on top of the active filter.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    ForEach(LibraryTypeFilter.allCases) { t in
+                        FocusableButton(title: t.title, systemImage: t.systemImage,
+                                        prominent: t == typeFilter) {
+                            typeFilter = t
+                        }
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.edge)
+            }
         }
+        .padding(.vertical, Theme.Spacing.sm)
     }
 
     // MARK: - Data
 
     private var displayedItems: [MediaItem] {
+        let base: [MediaItem]
         switch filter {
-        case .all:               return library.recentlyAdded
-        case .favorites:         return library.favorites
-        case .recentlyAdded:     return library.recentlyAdded
-        case .continueWatching:  return library.continueWatching
-        case .source(let type):  return library.items(for: type)
+        case .recentlyAdded:     base = library.libraryEntries
+        case .favorites:         base = library.favorites
+        case .continueWatching:  base = library.continueWatching
+        }
+        switch typeFilter {
+        case .all:    return base
+        case .shows:  return base.filter { $0.episode != nil || $0.seriesTitle != nil }
+        case .movies: return base.filter { $0.episode == nil && $0.seriesTitle == nil }
         }
     }
 
@@ -125,7 +178,7 @@ struct LibraryView: View {
         switch filter {
         case .favorites:        return nil
         case .continueWatching: return "Discover"
-        default:                return "Go to Sources"
+        default:                return "Set Up Sources"
         }
     }
 
@@ -133,42 +186,64 @@ struct LibraryView: View {
         switch filter {
         case .continueWatching: nav.selection = .discover
         case .favorites:        break
-        default:                nav.selection = .sources
+        default:                nav.selection = .settings
         }
     }
 }
 
-// MARK: - Filter
+// MARK: - Filters
 
-enum LibraryFilter: Hashable, Identifiable, CaseIterable {
-    case all
-    case favorites
-    case recentlyAdded
-    case continueWatching
-    case source(SourceType)
-
-    static var allCases: [LibraryFilter] {
-        [.all, .favorites, .recentlyAdded, .continueWatching]
-        + SourceType.allCases.map { .source($0) }
-    }
+/// Filters the library by content type, applied on top of the section filter.
+enum LibraryTypeFilter: Hashable, Identifiable, CaseIterable {
+    case all, movies, shows
 
     var id: String {
         switch self {
-        case .all:               return "all"
-        case .favorites:         return "fav"
-        case .recentlyAdded:     return "recent"
-        case .continueWatching:  return "continue"
-        case .source(let t):     return "src.\(t.rawValue)"
+        case .all:    return "all"
+        case .movies: return "movies"
+        case .shows:  return "shows"
         }
     }
 
     var title: String {
         switch self {
-        case .all:               return "All"
-        case .favorites:         return "Favorites"
+        case .all:    return "All"
+        case .movies: return "Movies"
+        case .shows:  return "Shows"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .all:    return "square.grid.2x2"
+        case .movies: return "film"
+        case .shows:  return "tv"
+        }
+    }
+}
+
+enum LibraryFilter: Hashable, Identifiable, CaseIterable {
+    case recentlyAdded
+    case favorites
+    case continueWatching
+
+    static var allCases: [LibraryFilter] {
+        [.recentlyAdded, .favorites, .continueWatching]
+    }
+
+    var id: String {
+        switch self {
+        case .recentlyAdded:     return "recent"
+        case .favorites:         return "fav"
+        case .continueWatching:  return "continue"
+        }
+    }
+
+    var title: String {
+        switch self {
         case .recentlyAdded:     return "Recently Added"
+        case .favorites:         return "Favorites"
         case .continueWatching:  return "Continue Watching"
-        case .source(let t):     return t.displayName
         }
     }
 }

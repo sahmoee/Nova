@@ -132,3 +132,50 @@ struct MediaInfo: Codable, Hashable {
     var episodeInt: Int? { episode.flatMap { Int($0) } }
     var yearInt: Int? { year.flatMap { Int($0) } }
 }
+
+// MARK: - OAuth device flow
+
+struct RDDeviceCode: Codable {
+    let deviceCode: String
+    let userCode: String
+    let interval: Int
+    let expiresIn: Int
+    let verificationURL: String
+
+    enum CodingKeys: String, CodingKey {
+        case deviceCode = "device_code"
+        case userCode = "user_code"
+        case interval
+        case expiresIn = "expires_in"
+        case verificationURL = "verification_url"
+    }
+}
+
+struct RDCredentials: Codable {
+    let clientID: String
+    let clientSecret: String
+
+    enum CodingKeys: String, CodingKey {
+        case clientID = "client_id"
+        case clientSecret = "client_secret"
+    }
+}
+
+struct RDToken: Codable {
+    let accessToken: String
+    let refreshToken: String?
+
+    enum CodingKeys: String, CodingKey {
+        case accessToken = "access_token"
+        case refreshToken = "refresh_token"
+    }
+}
+
+extension CharacterSet {
+    /// Characters allowed in a URL query value (excludes reserved delimiters).
+    static let urlQueryValueAllowed: CharacterSet = {
+        var set = CharacterSet.urlQueryAllowed
+        set.remove(charactersIn: "+&=?")
+        return set
+    }()
+}

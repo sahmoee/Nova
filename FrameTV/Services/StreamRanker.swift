@@ -31,6 +31,19 @@ enum StreamRanker {
             filename: raw.behaviorHints?.filename
         )
 
+        // Rich signals for badges + smart ranking.
+        let hdr = parseHDR(from: haystack)
+        let codec = parseCodec(from: haystack)
+        let audio = parseAudio(from: haystack)
+        let channels = parseChannels(from: haystack)
+        let langs = parseLanguages(from: haystack)
+        // Decide where the stream comes from: a direct URL with no infohash is a
+        // cloud/debrid/direct source; an infohash is a torrent.
+        let kind: SourceKind
+        if raw.infoHash != nil { kind = .torrent }
+        else if url != nil { kind = cached ? .cloud : .directURL }
+        else { kind = .unknown }
+
         return StreamOption(
             addonName: addonName,
             name: raw.name,
@@ -42,43 +55,88 @@ enum StreamRanker {
             quality: quality,
             sizeBytes: size,
             seeders: seeders,
-            isCached: cached
+            isCached: cached,
+            hdr: hdr,
+            videoCodec: codec,
+            audioFormat: audio,
+            audioChannels: channels,
+            languages: langs,
+            sourceKind: kind
         )
     }
 
     // MARK: - Ranking
 
-    /// Sorts streams best-first. Order of preference:
-    ///   1. Instantly playable / cached
-    ///   2. Higher resolution
-    ///   3. More seeders (for torrents)
-    ///   4. Larger size (proxy for bitrate) but capped so absurd files don't win
-    static func rank(_ streams: [StreamOption], preferredQuality: StreamQuality? = nil) -> [StreamOption] {
+    /// Sorts streams best-first using a weighted score across all signals:
+    /// availability, resolution, HDR tier, codec efficiency, audio format, seeders,
+    /// and a sane file-size sweet spot. A preferred quality and language can bias the
+    /// result toward the user's settings.
+    static func rank(_ streams: [StreamOption],
+                     preferredQuality: StreamQuality? = nil,
+                     preferredLanguage: String? = nil) -> [StreamOption] {
         streams.sorted { a, b in
-            // Preferred quality bubbles to the top if specified and present.
-            if let preferredQuality {
-                let aPref = a.quality == preferredQuality
-                let bPref = b.quality == preferredQuality
-                if aPref != bPref { return aPref }
-            }
-            if a.isCached != b.isCached { return a.isCached }
-            if a.quality.rank != b.quality.rank { return a.quality.rank > b.quality.rank }
-            let aSeed = a.seeders ?? 0, bSeed = b.seeders ?? 0
-            if aSeed != bSeed { return aSeed > bSeed }
-            let aSize = a.sizeBytes ?? 0, bSize = b.sizeBytes ?? 0
-            return aSize > bSize
+            let sa = score(a, preferredQuality: preferredQuality, preferredLanguage: preferredLanguage)
+            let sb = score(b, preferredQuality: preferredQuality, preferredLanguage: preferredLanguage)
+            if sa != sb { return sa > sb }
+            // Tie-break on raw size (proxy for bitrate).
+            return (a.sizeBytes ?? 0) > (b.sizeBytes ?? 0)
         }
+    }
+
+    /// Computes a single comparable score for a stream. Weights are tuned so that
+    /// instant availability and resolution dominate, with HDR/codec/audio refining
+    /// between otherwise-similar options.
+    static func score(_ s: StreamOption,
+                      preferredQuality: StreamQuality?,
+                      preferredLanguage: String?) -> Int {
+        var score = 0
+        // Availability is paramount: a cached/instant source beats a faster-on-paper
+        // torrent the user has to wait for.
+        if s.isCached { score += 1000 }
+        // Honor an explicit quality preference strongly.
+        if let pq = preferredQuality, s.quality == pq { score += 400 }
+        // Resolution.
+        score += s.quality.rank * 100
+        // HDR tier (Dolby Vision > HDR10+ > HDR10 > HDR).
+        score += s.hdr.rank * 40
+        // Audio format (Atmos/TrueHD/DTS-HD ... ).
+        score += s.audioFormat.rank * 12
+        // Codec efficiency (HEVC/AV1 preferred).
+        score += s.videoCodec.rank * 10
+        // Seeders give confidence for non-cached torrents (diminishing).
+        let seed = s.seeders ?? 0
+        score += min(seed, 200) / 10
+        // Preferred language match.
+        if let pl = preferredLanguage?.uppercased(),
+           s.languages.contains(where: { $0.uppercased() == pl }) {
+            score += 60
+        }
+        // File-size sweet spot: reward a reasonable size, gently penalize absurdly
+        // large files (likely remuxes that may stutter) and tiny ones (low bitrate).
+        if let bytes = s.sizeBytes {
+            let gb = Double(bytes) / 1_073_741_824.0
+            switch s.quality {
+            case .uhd4k:
+                if gb >= 8 && gb <= 60 { score += 30 } else if gb > 80 { score -= 30 }
+            case .fhd1080:
+                if gb >= 2 && gb <= 20 { score += 30 } else if gb > 30 { score -= 20 }
+            default:
+                if gb >= 0.5 && gb <= 8 { score += 20 }
+            }
+        }
+        return score
     }
 
     /// Picks the single best stream for auto-select, optionally honoring a quality
     /// preference and whether instant playback is required.
     static func autoSelect(_ streams: [StreamOption],
                            preferredQuality: StreamQuality?,
-                           requireCached: Bool) -> StreamOption? {
+                           requireCached: Bool,
+                           preferredLanguage: String? = nil) -> StreamOption? {
         var pool = streams
         if requireCached { pool = pool.filter { $0.isCached } }
-        return rank(pool, preferredQuality: preferredQuality).first
-            ?? rank(streams, preferredQuality: preferredQuality).first
+        return rank(pool, preferredQuality: preferredQuality, preferredLanguage: preferredLanguage).first
+            ?? rank(streams, preferredQuality: preferredQuality, preferredLanguage: preferredLanguage).first
     }
 
     // MARK: - Parsing helpers
@@ -128,5 +186,64 @@ enum StreamRanker {
             || lower.contains("⚡")
             || lower.contains("[rd+]")
             || lower.contains("instant")
+    }
+
+    static func parseHDR(from s: String) -> HDRFormat {
+        let l = s.lowercased()
+        if l.contains("dolby vision") || l.contains("dovi") || l.contains("dv ") || l.contains(".dv.") || l.contains("[dv]") {
+            return .dolbyVision
+        }
+        if l.contains("hdr10+") || l.contains("hdr10plus") || l.contains("hdr+ ") { return .hdr10Plus }
+        if l.contains("hdr10") { return .hdr10 }
+        if l.contains("hdr") { return .hdr }
+        return .none
+    }
+
+    static func parseCodec(from s: String) -> VideoCodec {
+        let l = s.lowercased()
+        if l.contains("av1") { return .av1 }
+        if l.contains("x265") || l.contains("h265") || l.contains("h.265") || l.contains("hevc") { return .hevc }
+        if l.contains("x264") || l.contains("h264") || l.contains("h.264") || l.contains("avc") { return .avc }
+        return .unknown
+    }
+
+    static func parseAudio(from s: String) -> AudioFormat {
+        let l = s.lowercased()
+        if l.contains("atmos") { return .atmos }
+        if l.contains("truehd") || l.contains("true-hd") { return .trueHD }
+        if l.contains("dts-hd") || l.contains("dts hd") || l.contains("dtshd") { return .dtsHD }
+        if l.contains("dts") { return .dts }
+        if l.contains("eac3") || l.contains("e-ac3") || l.contains("ddp") || l.contains("dd+") { return .eac3 }
+        if l.contains("ac3") || l.contains("dolby digital") || l.contains(" dd ") { return .ac3 }
+        if l.contains("aac") { return .aac }
+        return .unknown
+    }
+
+    /// Parses surround channel layouts like "5.1", "7.1", or Atmos.
+    static func parseChannels(from s: String) -> String? {
+        if s.lowercased().contains("atmos") { return "Atmos" }
+        if let r = s.range(of: #"\b[5-9]\.1\b|\b7\.1\b|\b2\.0\b"#, options: .regularExpression) {
+            return String(s[r])
+        }
+        return nil
+    }
+
+    /// Detects common audio-language tags in a title. Returns uppercase ISO-ish codes.
+    static func parseLanguages(from s: String) -> [String] {
+        let map: [String: String] = [
+            "english": "EN", "eng": "EN", " en ": "EN",
+            "spanish": "ES", "espanol": "ES", "latino": "ES",
+            "french": "FR", "francais": "FR",
+            "german": "DE", "deutsch": "DE",
+            "italian": "IT", "japanese": "JA", "korean": "KO",
+            "hindi": "HI", "portuguese": "PT", "russian": "RU",
+            "multi": "MULTI", "dual": "DUAL"
+        ]
+        let l = " " + s.lowercased() + " "
+        var found: [String] = []
+        for (k, v) in map where l.contains(k) {
+            if !found.contains(v) { found.append(v) }
+        }
+        return found
     }
 }

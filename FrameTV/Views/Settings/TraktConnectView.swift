@@ -12,6 +12,7 @@ import SwiftUI
 struct TraktConnectView: View {
     @EnvironmentObject private var env: AppEnvironment
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     @State private var phase: Phase = .checking
     @State private var deviceCode: TraktDeviceCode?
@@ -90,21 +91,30 @@ struct TraktConnectView: View {
 
     private var deviceCodeView: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            Text("Go to this address on your phone or computer:")
+            Text("Authorize FrameTV with your Trakt account.")
                 .font(.appFont(22))
                 .foregroundStyle(Theme.Colors.textSecondary)
-            Text(deviceCode?.verificationUrl ?? "trakt.tv/activate")
-                .font(.appFont(34, weight: .bold))
-                .foregroundStyle(Theme.Colors.accent)
 
-            Text("Enter this code:")
-                .font(.appFont(22))
+            Text("Your code:")
+                .font(.appFont(18))
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .padding(.top, Theme.Spacing.sm)
             Text(deviceCode?.userCode ?? "————")
-                .font(.appFont(64, weight: .heavy, design: .monospaced))
+                .font(.appFont(56, weight: .heavy, design: .monospaced))
                 .foregroundStyle(Theme.Colors.textPrimary)
                 .tracking(8)
+
+            // Primary path: open Trakt's activation page directly so the user logs in
+            // and approves in the browser, rather than typing a code on another device.
+            FocusableButton(title: "Open Trakt to Sign In", systemImage: "arrow.up.right.square", prominent: true) {
+                openTraktAuthorization()
+            }
+            .frame(maxWidth: Theme.isCompact ? .infinity : 320)
+            .padding(.top, Theme.Spacing.sm)
+
+            Text("After you approve in Trakt, come back here — it connects automatically.")
+                .font(.appFont(15))
+                .foregroundStyle(Theme.Colors.textTertiary)
 
             HStack(spacing: Theme.Spacing.sm) {
                 ProgressView().tint(Theme.Colors.accent)
@@ -114,6 +124,18 @@ struct TraktConnectView: View {
             }
             .padding(.top, Theme.Spacing.md)
         }
+    }
+
+    private func openTraktAuthorization() {
+        // Trakt's activation URL; appending the code pre-fills it where supported.
+        let base = deviceCode?.verificationUrl ?? "https://trakt.tv/activate"
+        var urlString = base
+        if let code = deviceCode?.userCode {
+            // trakt.tv/activate accepts the code; many flows pre-fill via this path.
+            urlString = base.contains("?") ? "\(base)&code=\(code)" : "\(base)/\(code)"
+        }
+        guard let url = URL(string: urlString) ?? URL(string: base) else { return }
+        openURL(url)
     }
 
     private var failedView: some View {
@@ -163,7 +185,11 @@ struct TraktConnectView: View {
             while !Task.isCancelled && Date() < deadline {
                 try? await Task.sleep(nanoseconds: interval)
                 if Task.isCancelled { return }
-                if let token = try? await env.trakt.pollForToken(deviceCode: code.deviceCode), token != nil {
+                // pollForToken returns nil while the user hasn't authorized yet, or a
+                // token once they have. With `try?` flattening, `polled` is a single
+                // optional, so binding it means we have a real token.
+                let polled = try? await env.trakt.pollForToken(deviceCode: code.deviceCode)
+                if polled != nil {
                     let name = (try? await env.trakt.currentUser())?.username
                     await MainActor.run {
                         username = name

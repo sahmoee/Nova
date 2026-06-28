@@ -10,12 +10,31 @@ import SwiftUI
 struct MediaCard: View {
     let item: MediaItem
     var wide: Bool = false
+    /// When true, an episode is shown as its season entry (series name + "Season N").
+    var seasonGrouped: Bool = false
     let action: () -> Void
 
     @FocusState private var focused: Bool
+    @Environment(\.dynamicAccent) private var accent
 
     private var width: CGFloat { wide ? Theme.CardSize.wideWidth : Theme.CardSize.posterWidth }
     private var height: CGFloat { wide ? Theme.CardSize.wideHeight : Theme.CardSize.posterHeight }
+
+    private var titleText: String {
+        if seasonGrouped, item.episode != nil, let series = item.seriesTitle {
+            return series
+        }
+        return item.title
+    }
+
+    private var subtitleText: String {
+        if seasonGrouped, let ep = item.episode {
+            var parts = ["Season \(ep.season)"]
+            if let year = item.metadata.year { parts.append(String(year)) }
+            return parts.joined(separator: " · ")
+        }
+        return item.subtitleLine
+    }
 
     /// A spoken label combining the title with watched/progress context.
     private var accessibilityText: String {
@@ -43,10 +62,17 @@ struct MediaCard: View {
         .accessibilityLabel(accessibilityText)
         .accessibilityAddTraits(.isButton)
         .scaleEffect(focused ? Theme.CardSize.focusScale : 1.0)
-        .shadow(color: .black.opacity(focused ? 0.6 : 0.0),
-                radius: focused ? 24 : 0, x: 0, y: 12)
-        .animation(.easeOut(duration: 0.16), value: focused)
+        // Apple TV style: a soft black drop plus a colored glow in the artwork's accent.
+        .shadow(color: .black.opacity(focused ? 0.65 : 0.0),
+                radius: focused ? 28 : 0, x: 0, y: 14)
+        .shadow(color: focused ? accent.opacity(0.5) : .clear,
+                radius: focused ? 30 : 0, x: 0, y: 0)
+        .animation(.easeOut(duration: 0.18), value: focused)
         .zIndex(focused ? 1 : 0)
+        .onChange(of: focused) { _, isFocused in
+            // When a card gains focus, tint the UI with its artwork color.
+            if isFocused { AccentManager.shared.deriveAccent(from: item.posterURL) }
+        }
     }
 
     // MARK: - Artwork
@@ -59,7 +85,7 @@ struct MediaCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .stroke(focused ? Theme.Colors.accent : Theme.Colors.separator,
+                        .stroke(focused ? accent : Theme.Colors.separator,
                                 lineWidth: focused ? 4 : 1)
                 )
 
@@ -126,12 +152,12 @@ struct MediaCard: View {
 
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(item.title)
+            Text(titleText)
                 .font(Theme.Font.cardTitle())
                 .foregroundStyle(focused ? Theme.Colors.textPrimary : Theme.Colors.textSecondary)
                 .lineLimit(1)
-            if !item.subtitleLine.isEmpty {
-                Text(item.subtitleLine)
+            if !subtitleText.isEmpty {
+                Text(subtitleText)
                     .font(.appFont(16))
                     .foregroundStyle(Theme.Colors.textTertiary)
                     .lineLimit(1)

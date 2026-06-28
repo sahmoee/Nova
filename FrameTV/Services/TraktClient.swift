@@ -45,7 +45,7 @@ actor TraktClient {
     private let config = AppConfig.shared
     private let keychain = KeychainStore.shared
 
-    init(session: URLSession = .shared) {
+    init(session: URLSession = AppNetworking.shared) {
         self.session = session
     }
 
@@ -139,19 +139,19 @@ actor TraktClient {
 
     /// The user's watchlist as catalog items.
     func watchlist() async throws -> [CatalogItem] {
-        let items: [TraktListItem] = try await authedGet("users/me/watchlist")
+        let items: [TraktListItem] = try await authedGet("users/me/watchlist", extended: true)
         return items.compactMap { catalogItem(from: $0) }
     }
 
     /// A user's custom list by slug.
     func list(slug: String) async throws -> [CatalogItem] {
-        let items: [TraktListItem] = try await authedGet("users/me/lists/\(slug)/items")
+        let items: [TraktListItem] = try await authedGet("users/me/lists/\(slug)/items", extended: true)
         return items.compactMap { catalogItem(from: $0) }
     }
 
     /// Trending shows (works without auth; useful for a discovery row).
     func trendingShows() async throws -> [CatalogItem] {
-        let items: [TraktListItem] = try await get("shows/trending", authed: false)
+        let items: [TraktListItem] = try await get("shows/trending", authed: false, extended: true)
         return items.compactMap { catalogItem(from: $0) }
     }
 
@@ -227,20 +227,27 @@ actor TraktClient {
         return h
     }
 
-    private func authedGet<T: Decodable>(_ path: String) async throws -> T {
+    private func authedGet<T: Decodable>(_ path: String, extended: Bool = false) async throws -> T {
         guard isAuthenticated else { throw TraktError.notAuthenticated }
         do {
-            return try await get(path, authed: true)
+            return try await get(path, authed: true, extended: extended)
         } catch TraktError.http(401) {
             if await refreshTokenIfPossible() {
-                return try await get(path, authed: true)
+                return try await get(path, authed: true, extended: extended)
             }
             throw TraktError.notAuthenticated
         }
     }
 
-    private func get<T: Decodable>(_ path: String, authed: Bool) async throws -> T {
-        let url = Self.base.appendingPathComponent(path)
+    private func get<T: Decodable>(_ path: String, authed: Bool, extended: Bool = false) async throws -> T {
+        // Trakt only includes full IDs (notably the TMDB id we need for artwork) when
+        // the request asks for extended=full. Append it when requested.
+        var url = Self.base.appendingPathComponent(path)
+        if extended {
+            var comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            comps?.queryItems = [URLQueryItem(name: "extended", value: "full")]
+            if let u = comps?.url { url = u }
+        }
         var req = URLRequest(url: url)
         req.timeoutInterval = 25
         for (k, v) in baseHeaders(authed: authed) { req.setValue(v, forHTTPHeaderField: k) }

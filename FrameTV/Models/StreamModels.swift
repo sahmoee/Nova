@@ -29,6 +29,14 @@ struct StreamOption: Identifiable, Codable, Hashable {
     var seeders: Int?
     var isCached: Bool             // true if resolvable instantly (debrid-cached / direct)
 
+    // Rich media signals parsed from the title (for badges + smart ranking).
+    var hdr: HDRFormat = .none
+    var videoCodec: VideoCodec = .unknown
+    var audioFormat: AudioFormat = .unknown
+    var audioChannels: String?     // e.g. "5.1", "7.1", "Atmos"
+    var languages: [String] = []   // detected audio language tags, e.g. ["EN", "ES"]
+    var sourceKind: SourceKind = .unknown   // where the stream comes from
+
     init(
         addonName: String,
         name: String? = nil,
@@ -40,7 +48,13 @@ struct StreamOption: Identifiable, Codable, Hashable {
         quality: StreamQuality = .unknown,
         sizeBytes: Int64? = nil,
         seeders: Int? = nil,
-        isCached: Bool = false
+        isCached: Bool = false,
+        hdr: HDRFormat = .none,
+        videoCodec: VideoCodec = .unknown,
+        audioFormat: AudioFormat = .unknown,
+        audioChannels: String? = nil,
+        languages: [String] = [],
+        sourceKind: SourceKind = .unknown
     ) {
         self.addonName = addonName
         self.name = name
@@ -53,6 +67,12 @@ struct StreamOption: Identifiable, Codable, Hashable {
         self.sizeBytes = sizeBytes
         self.seeders = seeders
         self.isCached = isCached
+        self.hdr = hdr
+        self.videoCodec = videoCodec
+        self.audioFormat = audioFormat
+        self.audioChannels = audioChannels
+        self.languages = languages
+        self.sourceKind = sourceKind
     }
 
     /// True if this stream can be played without first resolving a magnet through
@@ -91,6 +111,131 @@ enum StreamQuality: String, Codable, CaseIterable, Hashable {
         case .cam:     return 1
         case .unknown: return 0
         }
+    }
+}
+
+// MARK: - Rich media signals
+
+enum HDRFormat: String, Codable, Hashable {
+    case dolbyVision = "Dolby Vision"
+    case hdr10Plus = "HDR10+"
+    case hdr10 = "HDR10"
+    case hdr = "HDR"
+    case none = ""
+
+    var rank: Int {
+        switch self {
+        case .dolbyVision: return 4
+        case .hdr10Plus:   return 3
+        case .hdr10:       return 2
+        case .hdr:         return 1
+        case .none:        return 0
+        }
+    }
+}
+
+enum VideoCodec: String, Codable, Hashable {
+    case av1 = "AV1"
+    case hevc = "HEVC"          // h.265 / x265
+    case avc = "H.264"          // h.264 / x264
+    case unknown = ""
+
+    /// Preference: HEVC/AV1 are more efficient (smaller for same quality).
+    var rank: Int {
+        switch self {
+        case .av1:     return 3
+        case .hevc:    return 3
+        case .avc:     return 1
+        case .unknown: return 0
+        }
+    }
+}
+
+enum AudioFormat: String, Codable, Hashable {
+    case atmos = "Atmos"
+    case trueHD = "TrueHD"
+    case dtsHD = "DTS-HD"
+    case dts = "DTS"
+    case eac3 = "EAC3"          // Dolby Digital Plus
+    case ac3 = "AC3"            // Dolby Digital
+    case aac = "AAC"
+    case unknown = ""
+
+    var rank: Int {
+        switch self {
+        case .atmos:   return 6
+        case .trueHD:  return 5
+        case .dtsHD:   return 4
+        case .dts:     return 3
+        case .eac3:    return 2
+        case .ac3:     return 1
+        case .aac:     return 1
+        case .unknown: return 0
+        }
+    }
+}
+
+/// Where a stream physically comes from — drives the source-kind badge.
+enum SourceKind: String, Codable, Hashable {
+    case localSMB = "Local SMB"
+    case cloud = "Cloud"           // debrid / direct cloud URL
+    case torrent = "Torrent"
+    case directURL = "Direct"
+    case liveTV = "Live"
+    case unknown = ""
+}
+
+// MARK: - Source health badges
+
+/// A small descriptive badge shown on a stream row.
+struct SourceBadge: Identifiable, Hashable {
+    enum Tone: Hashable { case good, info, warn, premium }
+    var id: String { label }
+    var label: String
+    var systemImage: String
+    var tone: Tone
+}
+
+extension StreamOption {
+    /// The set of health/quality badges to display for this stream, ordered by
+    /// importance: availability, then video tier, then audio, then source/risk.
+    var badges: [SourceBadge] {
+        var out: [SourceBadge] = []
+
+        if isCached {
+            out.append(.init(label: "Cached", systemImage: "bolt.fill", tone: .good))
+        }
+        // "Fast" — cached or very high seed count means quick to start.
+        if isCached || (seeders ?? 0) >= 50 {
+            out.append(.init(label: "Fast", systemImage: "hare.fill", tone: .good))
+        }
+        if quality == .uhd4k {
+            out.append(.init(label: "4K", systemImage: "4k.tv", tone: .premium))
+        }
+        switch hdr {
+        case .dolbyVision:
+            out.append(.init(label: "Dolby Vision", systemImage: "sparkles.tv", tone: .premium))
+        case .hdr10Plus, .hdr10, .hdr:
+            out.append(.init(label: hdr.rawValue, systemImage: "sparkles", tone: .premium))
+        case .none:
+            break
+        }
+        if audioFormat == .atmos {
+            out.append(.init(label: "Dolby Atmos", systemImage: "hifispeaker.fill", tone: .premium))
+        }
+        // Low-seed risk for non-cached torrents with few seeders.
+        if !isCached, let s = seeders, s > 0, s < 5 {
+            out.append(.init(label: "Low Seed Risk", systemImage: "exclamationmark.triangle.fill", tone: .warn))
+        }
+        switch sourceKind {
+        case .localSMB:
+            out.append(.init(label: "Local SMB", systemImage: "externaldrive.connected.to.line.below", tone: .info))
+        case .cloud:
+            out.append(.init(label: "Cloud", systemImage: "cloud.fill", tone: .info))
+        default:
+            break
+        }
+        return out
     }
 }
 

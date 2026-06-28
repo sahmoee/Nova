@@ -29,7 +29,11 @@ actor SMBStreamServer {
     func serve(client: SMB2Manager, smbPath: String, fileName: String, shareID: UUID) async throws -> URL {
         // Resolve the file size up front (needed for range responses).
         let attrs = try await client.attributesOfItem(atPath: smbPath)
-        let size = (attrs[.fileSizeKey] as? NSNumber)?.int64Value ?? 0
+        let size: Int64
+        if let n = attrs[.fileSizeKey] as? Int64 { size = n }
+        else if let n = attrs[.fileSizeKey] as? Int { size = Int64(n) }
+        else if let n = attrs[.fileSizeKey] as? NSNumber { size = n.int64Value }
+        else { size = 0 }
         guard size > 0 else { throw SMBError.streamingUnavailable }
 
         self.client = client
@@ -136,21 +140,17 @@ actor SMBStreamServer {
         """
         conn.send(content: header.data(using: .utf8), completion: .contentProcessed { _ in })
 
-        // Stream the body in chunks read from SMB.
-        let chunkSize: Int64 = 1_048_576   // 1 MB
-        var offset = start
-        while offset <= end {
-            let thisLen = min(chunkSize, end - offset + 1)
-            do {
-                let range = offset..<(offset + thisLen)
-                let data = try await client.contents(atPath: smbPath, range: range) { _, _ in true }
-                await sendData(conn, data)
-                offset += Int64(data.count)
-                if data.isEmpty { break }
-            } catch {
-                FrameLog.network.error("SMB stream read failed: \(error.localizedDescription, privacy: .public)")
-                break
+        // Stream the requested byte range from SMB. AMSMB2 returns an async stream
+        // of Data chunks; forward each chunk to the HTTP connection as it arrives.
+        let upperExclusive = end + 1
+        let byteRange = Int64(start)..<Int64(upperExclusive)
+        do {
+            for try await chunk in client.contents(atPath: smbPath, range: byteRange) {
+                if chunk.isEmpty { continue }
+                await sendData(conn, chunk)
             }
+        } catch {
+            FrameLog.network.error("SMB stream read failed: \(error.localizedDescription, privacy: .public)")
         }
         conn.cancel()
     }

@@ -17,8 +17,9 @@ enum SMBURLParser {
         var path: String?
     }
 
-    /// Parses a raw server string. Returns nil when there's nothing to split
-    /// beyond a plain host (the caller can leave the field as typed).
+    /// Parses a raw server string into host / share / path. Accepts a bare host,
+    /// a host with a scheme (smb://host), and a full path (smb://host/share/sub).
+    /// Returns nil only when there's no usable host at all.
     static func parse(_ raw: String) -> Parsed? {
         var s = raw.trimmingCharacters(in: .whitespaces)
         guard !s.isEmpty else { return nil }
@@ -31,13 +32,18 @@ enum SMBURLParser {
             }
         }
 
+        // Trim any leading/trailing slashes left over (e.g. "smb://host/").
+        while s.hasPrefix("/") { s.removeFirst() }
+        while s.hasSuffix("/") { s.removeLast() }
+        guard !s.isEmpty else { return nil }
+
         guard s.contains("/") else {
-            // Only a host (possibly after stripping a scheme).
-            return s == raw ? nil : Parsed(host: s, share: nil, path: nil)
+            // Host only — always return it (the scheme/slashes are stripped).
+            return Parsed(host: s, share: nil, path: nil)
         }
 
         let parts = s.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
-        guard let server = parts.first else { return nil }
+        guard let server = parts.first, !server.isEmpty else { return nil }
         let share = parts.count >= 2 ? parts[1] : nil
         let path = parts.count >= 3 ? "/" + parts[2...].joined(separator: "/") : nil
         return Parsed(host: server, share: share, path: path)

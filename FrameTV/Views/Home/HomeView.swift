@@ -2,7 +2,7 @@
 //  HomeView.swift
 //  FrameTV
 //
-//  Apple TV-style dashboard: hero header, Continue Watching, Sources shortcut row,
+//  Apple TV-style dashboard: hero header, Continue Watching, Recently Added,
 //  Recently Added, and Favorites.
 //
 
@@ -11,107 +11,141 @@ import SwiftUI
 struct HomeView: View {
     @Binding var path: NavigationPath
     @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var nav: NavigationCoordinator
+    @StateObject private var shelfStore = HomeShelfStore.shared
     @State private var selectedItem: MediaItem?
+    @State private var showCustomize = false
 
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
                 Theme.Colors.background.ignoresSafeArea()
 
-                if library.items.isEmpty {
+                if library.items.isEmpty && shelfStore.enabledShelves.isEmpty {
                     EmptyStateView(
                         systemImage: "play.tv",
                         title: "Welcome to FrameTV",
-                        message: "Add a source or a direct link to start building your library.",
-                        actionTitle: "Go to Sources",
-                        action: { /* handled by tab switch in real nav; placeholder */ }
+                        message: "Add a source or a direct link in Settings to start building your library.",
+                        actionTitle: "Set Up Sources",
+                        action: { nav.selection = .settings }
                     )
                 } else {
                     ScrollView {
                         VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
-                            header
+                            // Cinematic featured hero spotlighting one item, with a
+                            // compact title bar overlaid for branding + customize.
+                            if let hero = featuredItem {
+                                FeaturedHero(item: hero) { play($0) }
+                                    .overlay(alignment: .topTrailing) { customizeButton }
+                                    .overlay(alignment: .topLeading) { brandMark }
+                            } else {
+                                header
+                            }
 
-                            MediaRow(title: "Continue Watching",
-                                     items: library.continueWatching,
-                                     wide: true) { play($0) }
+                            if !library.continueWatching.isEmpty {
+                                MediaRow(title: "Continue Watching",
+                                         items: library.continueWatching,
+                                         wide: true) { play($0) }
+                            }
 
-                            sourcesShortcutRow
+                            // User-configured catalog shelves (Trakt, TMDB, addons).
+                            ForEach(shelfStore.enabledShelves) { shelf in
+                                CatalogShelfRow(shelf: shelf)
+                            }
 
-                            MediaRow(title: "Recently Added",
-                                     items: library.recentlyAdded) { play($0) }
+                            if !library.recentlyAdded.isEmpty {
+                                MediaRow(title: "Recently Added",
+                                         items: library.recentlyAdded) { play($0) }
+                            }
 
-                            MediaRow(title: "Favorites",
-                                     items: library.favorites) { play($0) }
+                            if !library.favorites.isEmpty {
+                                MediaRow(title: "Favorites",
+                                         items: library.favorites) { play($0) }
+                            }
                         }
-                        .padding(.vertical, Theme.Spacing.lg)
+                        .padding(.bottom, Theme.Spacing.lg)
                     }
+                    // Only let the hero image bleed under the status bar. With the text
+                    // fallback header (empty library), keep the normal safe area so the
+                    // title never collides with the clock/battery.
+                    .ignoresSafeArea(edges: featuredItem != nil ? .top : [])
                 }
             }
             .navigationDestination(item: $selectedItem) { item in
                 PlayerView(item: item)
             }
-        }
-    }
-
-    // MARK: - Header
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Text("FrameTV")
-                .font(Theme.Font.screenTitle())
-                .screenTitleStyle()
-                .foregroundStyle(Theme.Colors.textPrimary)
-            Text("Your personal media hub")
-                .font(.appFont(24))
-                .foregroundStyle(Theme.Colors.textSecondary)
-        }
-        .padding(.horizontal, Theme.Spacing.edge)
-    }
-
-    // MARK: - Sources shortcut row
-
-    private var sourcesShortcutRow: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text("Sources")
-                .font(Theme.Font.sectionTitle())
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .padding(.leading, Theme.Spacing.edge)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Theme.Spacing.md) {
-                    NavigationLink { SMBListView() } label: {
-                        sourceTile("SMB Shares", "externaldrive.connected.to.line.below")
-                    }.buttonStyle(.plain)
-
-                    NavigationLink { RealDebridView() } label: {
-                        sourceTile("Real-Debrid", "arrow.down.circle")
-                    }.buttonStyle(.plain)
-
-                    NavigationLink { DirectURLView() } label: {
-                        sourceTile("Direct URL", "link")
-                    }.buttonStyle(.plain)
-
-                    NavigationLink { MagnetView() } label: {
-                        sourceTile("Magnet Link", "scope")
-                    }.buttonStyle(.plain)
-                }
-                .padding(.horizontal, Theme.Spacing.edge)
-                .padding(.vertical, Theme.Spacing.md)
+            .navigationDestination(for: CatalogItem.self) { item in
+                ContentDetailView(item: item)
+            }
+            .sheet(isPresented: $showCustomize) {
+                HomeCustomizeView()
             }
         }
     }
 
-    private func sourceTile(_ title: String, _ symbol: String) -> some View {
-        VStack(spacing: Theme.Spacing.sm) {
-            Image(systemName: symbol)
-                .font(.appFont(40, weight: .semibold))
-                .foregroundStyle(Theme.Colors.accent)
-            Text(title)
-                .font(.appFont(20, weight: .semibold))
-                .foregroundStyle(Theme.Colors.textPrimary)
+    // MARK: - Featured hero selection
+
+    /// The item to spotlight at the top: prefer the most recent Continue Watching,
+    /// then the newest Recently Added, then the first favorite.
+    private var featuredItem: MediaItem? {
+        library.continueWatching.first
+            ?? library.recentlyAdded.first
+            ?? library.favorites.first
+    }
+
+    private var brandMark: some View {
+        Text("FrameTV")
+            .font(.appFont(28, weight: .heavy))
+            .foregroundStyle(.white)
+            .shadow(color: .black.opacity(0.5), radius: 6, y: 1)
+            .padding(.horizontal, Theme.Spacing.edge)
+            .padding(.top, Theme.Spacing.sm)
+            .safeAreaPadding(.top)
+    }
+
+    private var customizeButton: some View {
+        Button {
+            showCustomize = true
+        } label: {
+            Image(systemName: "slider.horizontal.3")
+                .font(.appFont(22, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(Theme.Spacing.sm)
+                .background(.ultraThinMaterial, in: Circle())
         }
-        .frame(width: Theme.CardSize.sourceWidth * 0.87, height: Theme.CardSize.sourceHeight * 0.75)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous))
+        .frameIconStyle()
+        .padding(.horizontal, Theme.Spacing.edge)
+        .padding(.top, Theme.Spacing.sm)
+        .safeAreaPadding(.top)
+    }
+
+    // MARK: - Fallback header (no content yet)
+
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text("FrameTV")
+                    .font(Theme.Font.screenTitle())
+                    .screenTitleStyle()
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Text("Your personal media hub")
+                    .font(.appFont(24))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+            Spacer()
+            Button {
+                showCustomize = true
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.appFont(22, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .padding(Theme.Spacing.sm)
+                    .background(Theme.Colors.card, in: Circle())
+            }
+            .frameIconStyle()
+        }
+        .padding(.horizontal, Theme.Spacing.edge)
+        .padding(.top, Theme.Spacing.lg)
     }
 
     // MARK: - Actions

@@ -16,7 +16,7 @@ import AVKit
 import Combine
 
 @MainActor
-final class PlayerModel: ObservableObject {
+final class PlayerModel: ObservableObject, StoppablePlayer {
 
     enum State: Equatable {
         case loading
@@ -70,6 +70,8 @@ final class PlayerModel: ObservableObject {
     // MARK: - Lifecycle
 
     func start() {
+        // Ensure any other player is stopped — only one plays at a time.
+        PlaybackCoordinator.shared.activate(self)
         state = .loading
         didFinish = false
         hasScrobbledStart = false
@@ -107,8 +109,11 @@ final class PlayerModel: ObservableObject {
         let dur = player.currentItem?.duration.seconds ?? 0
         duration = dur.isFinite ? dur : (item.duration ?? 0)
 
-        // Resume.
-        if (settings?.resumePlaybackEnabled ?? true),
+        let isLive = (item.sourceType == .liveTV)
+
+        // Resume (never for live channels — there's no fixed timeline).
+        if !isLive,
+           (settings?.resumePlaybackEnabled ?? true),
            let resume = progressStore?.resumePosition(for: item.id) {
             player.seek(to: CMTime(seconds: resume, preferredTimescale: 600)) { [weak self] _ in
                 self?.player.play()
@@ -118,8 +123,11 @@ final class PlayerModel: ObservableObject {
         }
 
         installTimeObserver()
-        startSaveLoop()
-        scrobble(.start)
+        if !isLive {
+            startSaveLoop()
+            scrobble(.start)
+        }
+        NowPlayingStore.shared.begin(item)
 
         // Auto-load preferred subtitle if enabled.
         if settings?.subtitlesEnabled == true {
@@ -131,12 +139,19 @@ final class PlayerModel: ObservableObject {
 
     private func installTimeObserver() {
         let interval = CMTime(seconds: 0.5, preferredTimescale: 600)
+        // The observer is delivered on .main, but the closure isn't statically
+        // main-actor isolated, so hop explicitly to mutate main-actor state safely.
         timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            guard let self else { return }
             let t = time.seconds
             guard t.isFinite else { return }
-            self.currentTime = t
-            self.updateActiveSkip(at: t)
+            Task { @MainActor in
+                guard let self else { return }
+                self.currentTime = t
+                self.updateActiveSkip(at: t)
+                let frac = self.duration > 0 ? t / self.duration : 0
+                NowPlayingStore.shared.update(progress: frac,
+                                              isPlaying: self.player.timeControlStatus == .playing)
+            }
         }
 
         // Track buffering vs playing for a mid-stream stall indicator.
@@ -241,10 +256,14 @@ final class PlayerModel: ObservableObject {
     // MARK: - Completion
 
     private func handleDidFinish() {
-        // Mark as watched in progress store (>=90% logic handled there on save).
-        if let dur = player.currentItem?.duration.seconds, dur.isFinite {
-            progressStore?.save(position: dur, duration: dur, for: item.id)
-        }
+        // Guard against spurious end events on very short or failed items: only treat
+        // as a real finish if the item had a sensible duration and we actually played
+        // most of it. This prevents auto-play-next from hijacking when an item reports
+        // end immediately at position zero.
+        let dur = player.currentItem?.duration.seconds ?? 0
+        let pos = player.currentTime().seconds
+        guard dur.isFinite, dur > 1, pos >= dur * 0.85 else { return }
+        progressStore?.save(position: dur, duration: dur, for: item.id)
         scrobble(.stop)
         didFinish = true
     }
@@ -431,10 +450,12 @@ final class PlayerModel: ObservableObject {
     func pause() { player.pause(); scrobble(.pause) }
 
     func stopAndSave() {
+        PlaybackCoordinator.shared.resign(self)
         saveTask?.cancel(); saveTask = nil
         Task { await saveProgress() }
         scrobble(.stop)
         player.pause()
+        NowPlayingStore.shared.clear()
         teardownObservers()
     }
 

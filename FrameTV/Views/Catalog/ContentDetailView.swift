@@ -13,10 +13,12 @@ struct ContentDetailView: View {
     let initialItem: CatalogItem
 
     @EnvironmentObject private var env: AppEnvironment
+    @Environment(\.dynamicAccent) private var accent
     @State private var item: CatalogItem
     @State private var isHydrating = false
     @State private var selectedSeason: Int?
     @State private var streamTarget: StreamTarget?
+    @State private var favoriteRefresh = false   // toggles to re-read favorite state
 
     init(item: CatalogItem) {
         self.initialItem = item
@@ -51,6 +53,8 @@ struct ContentDetailView: View {
             StreamPickerView(catalog: target.catalog, episode: target.episode)
         }
         .task { await hydrate() }
+        .onAppear { AccentManager.shared.deriveAccent(from: item.posterURL ?? item.backdropURL) }
+        .onDisappear { AccentManager.shared.reset() }
     }
 
     // MARK: - Backdrop hero
@@ -67,14 +71,23 @@ struct ContentDetailView: View {
             .frame(maxWidth: .infinity)
             .clipped()
             .overlay(
-                LinearGradient(
-                    colors: [
-                        Theme.Colors.background.opacity(0.2),
-                        Theme.Colors.background.opacity(0.7),
-                        Theme.Colors.background
-                    ],
-                    startPoint: .top, endPoint: .bottom
-                )
+                // Vertical fade to the background, plus a subtle accent wash from the
+                // artwork color along the leading edge for an Apple TV cinematic feel.
+                ZStack {
+                    LinearGradient(
+                        colors: [
+                            Theme.Colors.background.opacity(0.15),
+                            Theme.Colors.background.opacity(0.7),
+                            Theme.Colors.background
+                        ],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                    LinearGradient(
+                        colors: [accent.opacity(0.28), .clear],
+                        startPoint: .bottomLeading, endPoint: .topTrailing
+                    )
+                    .blendMode(.plusLighter)
+                }
             )
             .ignoresSafeArea(edges: .top)
         }
@@ -131,12 +144,58 @@ struct ContentDetailView: View {
                     .padding(.top, Theme.Spacing.md)
                 }
 
+                // Favorite this title (adds it to the library and marks it favorite).
+                FocusableButton(title: isFavorited ? "Favorited" : "Add to Favorites",
+                                systemImage: isFavorited ? "star.fill" : "star") {
+                    toggleFavorite()
+                }
+                .frame(maxWidth: Theme.isCompact ? .infinity : 320)
+                .padding(.top, Theme.Spacing.sm)
+
                 if isHydrating {
                     ProgressView().tint(Theme.Colors.accent).padding(.top, Theme.Spacing.sm)
                 }
             }
             Spacer(minLength: 0)
         }
+    }
+
+    // MARK: - Favorites
+
+    /// Whether this title is currently in the library as a favorite.
+    private var isFavorited: Bool {
+        _ = favoriteRefresh   // dependency so toggling re-evaluates
+        let key = catalogAsMediaItem().contentKey
+        return env.library.items.first(where: { $0.contentKey == key })?.isFavorite ?? false
+    }
+
+    private func toggleFavorite() {
+        let probe = catalogAsMediaItem()
+        if let existing = env.library.items.first(where: { $0.contentKey == probe.contentKey }) {
+            env.library.toggleFavorite(existing)
+        } else {
+            // Not in the library yet: add it as a favorite.
+            var item = probe
+            item.isFavorite = true
+            env.library.add(item)
+        }
+        favoriteRefresh.toggle()
+    }
+
+    /// A MediaItem standing in for this catalog title, used for library membership.
+    /// It carries no playback URL (favoriting isn't playback); contentKey identifies it.
+    private func catalogAsMediaItem() -> MediaItem {
+        MediaItem(
+            title: item.title,
+            sourceType: item.isSeries ? .addon : .addon,
+            playbackURL: URL(string: "frametv://catalog/\(item.contentID.stableKey)")!,
+            posterURL: item.posterURL,
+            backdropURL: item.backdropURL,
+            legalAccessConfirmed: true,
+            metadata: MediaMetadata(year: item.year),
+            contentID: item.contentID,
+            seriesTitle: item.isSeries ? item.title : nil
+        )
     }
 
     /// First episode (in season/number order) that hasn't been watched yet. If the
@@ -263,10 +322,10 @@ struct ContentDetailView: View {
                     .font(.appFont(30))
                     .foregroundStyle(Theme.Colors.accent)
             }
-            .padding(Theme.Spacing.md)
-            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .padding(.vertical, Theme.Spacing.xs)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .frameRowStyle()
     }
 
     /// Builds a "42 min · Aired Jan 3, 2024" style line from available episode data.

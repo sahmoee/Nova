@@ -218,13 +218,54 @@ final class CatalogService: ObservableObject {
             seriesTitle: catalog.isSeries ? catalog.title : nil
         )
 
-        // Subtitles.
-        item.subtitles = await subtitles(for: catalog.contentID, episode: epRef)
-
-        // Skip segments.
-        item.skipSegments = await skipProvider.segments(for: item, duration: item.duration)
+        // Fetch subtitles and skip segments concurrently rather than one after the
+        // other, so playback can start sooner (both must be on the item before return).
+        let itemForSkip = item
+        async let subs = subtitles(for: catalog.contentID, episode: epRef)
+        async let skips = skipProvider.segments(for: itemForSkip, duration: itemForSkip.duration)
+        item.subtitles = await subs
+        item.skipSegments = await skips
 
         return item
+    }
+
+    // MARK: - Live TV
+
+    /// Loads channels for a live-TV addon catalog.
+    func liveChannels(addon: InstalledAddon, catalog: AddonCatalogRef) async -> [CatalogItem] {
+        (try? await addonClient.catalog(from: addon, type: catalog.type,
+                                        catalogID: catalog.catalogID)) ?? []
+    }
+
+    /// Resolves a live channel into a playable MediaItem. Live streams are usually a
+    /// direct HLS URL the addon returns, so we take the first resolvable stream.
+    func makeLiveChannelPlayable(channel: CatalogItem) async throws -> MediaItem {
+        guard let channelID = channel.contentID.stremioBaseID else {
+            throw StreamResolveError.noPlayableURL
+        }
+        // Gather streams across enabled addons that serve tv.
+        var found: [StreamOption] = []
+        for addon in addonStore.addons where addon.isEnabled && addon.supports(resource: "stream") {
+            if let s = try? await addonClient.channelStreams(from: addon, channelID: channelID) {
+                found.append(contentsOf: s)
+            }
+        }
+        guard !found.isEmpty else { throw StreamResolveError.noPlayableURL }
+
+        // Prefer a directly-playable URL; resolve through the resolver otherwise.
+        let best = found.first(where: { $0.url != nil }) ?? found[0]
+        let url = try await resolver.resolve(best, hasDebridToken: hasDebridToken())
+
+        return MediaItem(
+            title: channel.title,
+            sourceType: .liveTV,
+            playbackURL: url,
+            posterURL: channel.posterURL,
+            backdropURL: channel.backdropURL,
+            legalAccessConfirmed: true,
+            metadata: MediaMetadata(),
+            contentID: channel.contentID
+        )
     }
 
     // MARK: - Next episode

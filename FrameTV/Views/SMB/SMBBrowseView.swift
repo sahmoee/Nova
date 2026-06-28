@@ -19,12 +19,15 @@ struct SMBBrowseView: View {
     @State private var items: [RemoteFileItem] = []
     @State private var state: ViewState = .loading
     @State private var selectedItem: MediaItem?
+    @State private var shares: [String] = []          // server's shares when none chosen yet
+    @State private var activeShareName: String        // the share we're browsing
 
     enum ViewState: Equatable { case loading, loaded, error(String) }
 
     init(share: SMBShare) {
         self.share = share
         _path = State(initialValue: share.path ?? "/")
+        _activeShareName = State(initialValue: share.shareName)
     }
 
     var body: some View {
@@ -33,7 +36,9 @@ struct SMBBrowseView: View {
 
             switch state {
             case .loading:
-                LoadingView(message: "Connecting to \(share.displayName)…")
+                LoadingView(message: activeShareName.isEmpty
+                            ? "Connecting to \(share.host)…"
+                            : "Loading \(activeShareName)…")
             case .error(let message):
                 ErrorStateView(message: message, onRetry: { Task { await load() } }, onBack: { dismiss() })
             case .loaded:
@@ -53,34 +58,51 @@ struct SMBBrowseView: View {
                     .font(Theme.Font.screenTitle())
                     .screenTitleStyle()
                     .foregroundStyle(Theme.Colors.textPrimary)
-                Text(path)
+                Text(activeShareName.isEmpty ? "smb://\(share.host)" : path)
                     .font(.appFont(20))
                     .foregroundStyle(Theme.Colors.textSecondary)
 
-                let folders = items.filter { $0.isDirectory }
-                let files = items.filter { !$0.isDirectory && $0.isPlayableVideo }
-
-                if !folders.isEmpty {
-                    sectionHeader("Folders")
-                    ForEach(folders) { folder in
-                        Button { Task { await open(folder) } } label: {
-                            row(icon: "folder.fill", title: folder.name, accent: Theme.Colors.accent)
-                        }.buttonStyle(.plain)
+                // Browsing the server's shares (no share chosen yet).
+                if activeShareName.isEmpty {
+                    if shares.isEmpty {
+                        Text("No shared folders found on this server.")
+                            .font(.appFont(20))
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                            .padding(.top, Theme.Spacing.lg)
+                    } else {
+                        sectionHeader("Shared Folders")
+                        ForEach(shares, id: \.self) { name in
+                            Button { Task { await selectShare(name) } } label: {
+                                row(icon: "externaldrive.fill", title: name, accent: Theme.Colors.accent)
+                            }.buttonStyle(.plain)
+                        }
                     }
-                }
+                } else {
+                    let folders = items.filter { $0.isDirectory }
+                    let files = items.filter { !$0.isDirectory && $0.isPlayableVideo }
 
-                if !files.isEmpty {
-                    sectionHeader("Videos")
-                    ForEach(files) { file in
-                        fileRow(file)
+                    if !folders.isEmpty {
+                        sectionHeader("Folders")
+                        ForEach(folders) { folder in
+                            Button { Task { await open(folder) } } label: {
+                                row(icon: "folder.fill", title: folder.name, accent: Theme.Colors.accent)
+                            }.buttonStyle(.plain)
+                        }
                     }
-                }
 
-                if folders.isEmpty && files.isEmpty {
-                    Text("No playable videos in this folder.")
-                        .font(.appFont(20))
-                        .foregroundStyle(Theme.Colors.textTertiary)
-                        .padding(.top, Theme.Spacing.lg)
+                    if !files.isEmpty {
+                        sectionHeader("Videos")
+                        ForEach(files) { file in
+                            fileRow(file)
+                        }
+                    }
+
+                    if folders.isEmpty && files.isEmpty {
+                        Text("No playable videos in this folder.")
+                            .font(.appFont(20))
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                            .padding(.top, Theme.Spacing.lg)
+                    }
                 }
             }
             .padding(Theme.Spacing.edge)
@@ -140,12 +162,37 @@ struct SMBBrowseView: View {
     private func load() async {
         state = .loading
         do {
-            try await environment.smb.connect(to: share)
+            // No share chosen yet -> list the server's shares to pick from.
+            if activeShareName.isEmpty {
+                shares = try await environment.smb.listShares(
+                    host: share.host,
+                    username: share.username,
+                    keychainAccount: share.keychainAccount
+                )
+                state = .loaded
+                return
+            }
+            // A share is active -> connect and browse its files.
+            let active = SMBShare(
+                id: share.id,
+                displayName: share.displayName,
+                host: share.host,
+                shareName: activeShareName,
+                username: share.username,
+                path: share.path
+            )
+            try await environment.smb.connect(to: active)
             items = try await environment.smb.listDirectory(path)
             state = .loaded
         } catch {
             state = .error((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
         }
+    }
+
+    private func selectShare(_ name: String) async {
+        activeShareName = name
+        path = "/"
+        await load()
     }
 
     private func open(_ folder: RemoteFileItem) async {

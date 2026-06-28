@@ -1,0 +1,154 @@
+//
+//  LiveTVView.swift
+//  FrameTV
+//
+//  Lists live channels from any installed addon that exposes a tv/channel catalog,
+//  and plays the selected channel. Channels stream as live HLS, so playback is not
+//  resumed or scrobbled. If no live-TV addon is installed, explains how to add one.
+//
+
+import SwiftUI
+
+struct LiveTVView: View {
+    @EnvironmentObject private var env: AppEnvironment
+    @State private var sources: [(addon: InstalledAddon, catalog: AddonCatalogRef)] = []
+    @State private var channels: [String: [CatalogItem]] = [:]   // keyed by catalog id
+    @State private var loadingKeys: Set<String> = []
+    @State private var playable: MediaItem?
+    @State private var resolving = false
+    @State private var errorMessage: String?
+
+    private let columns = [GridItem(.adaptive(minimum: 160), spacing: Theme.Spacing.md)]
+
+    var body: some View {
+        ZStack {
+            Theme.Colors.background.ignoresSafeArea()
+
+            if sources.isEmpty {
+                emptyState
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
+                        Text("Live TV")
+                            .font(Theme.Font.screenTitle())
+                            .screenTitleStyle()
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                            .padding(.horizontal, Theme.Spacing.edge)
+
+                        ForEach(sources, id: \.catalog.id) { source in
+                            channelSection(source)
+                        }
+                    }
+                    .padding(.vertical, Theme.Spacing.lg)
+                }
+            }
+
+            if resolving {
+                LoadingView(message: "Tuning in…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.black.opacity(0.5))
+            }
+        }
+        .navigationDestination(item: $playable) { item in
+            PlayerView(item: item)
+        }
+        .alert("Couldn't play channel", isPresented: .constant(errorMessage != nil)) {
+            Button("OK") { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "")
+        }
+        .onAppear(perform: loadSources)
+    }
+
+    private func channelSection(_ source: (addon: InstalledAddon, catalog: AddonCatalogRef)) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            HStack(spacing: Theme.Spacing.sm) {
+                Text(source.catalog.name)
+                    .font(Theme.Font.sectionTitle())
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Text(source.addon.name.uppercased())
+                    .font(.appFont(12, weight: .bold))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Color.white.opacity(0.08), in: Capsule())
+            }
+            .padding(.horizontal, Theme.Spacing.edge)
+
+            let key = source.catalog.id
+            if let list = channels[key] {
+                LazyVGrid(columns: columns, spacing: Theme.Spacing.md) {
+                    ForEach(list) { channel in
+                        Button { play(channel) } label: { channelCard(channel) }
+                            .buttonStyle(FrameListRowStyle())
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.edge)
+            } else {
+                ProgressView().tint(Theme.Colors.accent)
+                    .padding(.horizontal, Theme.Spacing.edge)
+                    .task { await loadChannels(source) }
+            }
+        }
+    }
+
+    private func channelCard(_ channel: CatalogItem) -> some View {
+        VStack(spacing: Theme.Spacing.xs) {
+            ZStack {
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                    .fill(Theme.Colors.card)
+                CachedAsyncImage(url: channel.posterURL) { image in
+                    image.resizable().aspectRatio(contentMode: .fit).padding(8)
+                } placeholder: {
+                    Image(systemName: "dot.radiowaves.left.and.right")
+                        .font(.appFont(34))
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                }
+            }
+            .frame(height: 110)
+            Text(channel.title)
+                .font(.appFont(15, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    private var emptyState: some View {
+        EmptyStateView(
+            systemImage: "dot.radiowaves.left.and.right",
+            title: "No Live TV addons yet",
+            message: "Add a Stremio addon that provides live channels (for example an IPTV M3U addon or a public channel list) in Settings ▸ Addons. Channels it exposes will appear here."
+        )
+    }
+
+    // MARK: - Loading
+
+    private func loadSources() {
+        sources = env.shelfLoader.liveTVCatalogs()
+    }
+
+    private func loadChannels(_ source: (addon: InstalledAddon, catalog: AddonCatalogRef)) async {
+        let key = source.catalog.id
+        guard channels[key] == nil, !loadingKeys.contains(key) else { return }
+        loadingKeys.insert(key)
+        let list = await env.catalog.liveChannels(addon: source.addon, catalog: source.catalog)
+        channels[key] = list
+        loadingKeys.remove(key)
+    }
+
+    private func play(_ channel: CatalogItem) {
+        resolving = true
+        Task {
+            do {
+                let item = try await env.catalog.makeLiveChannelPlayable(channel: channel)
+                await MainActor.run { resolving = false; playable = item }
+            } catch {
+                await MainActor.run {
+                    resolving = false
+                    errorMessage = (error as? LocalizedError)?.errorDescription
+                        ?? "This channel couldn't be opened."
+                }
+            }
+        }
+    }
+}

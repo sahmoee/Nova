@@ -20,6 +20,63 @@ struct DiscoverView: View {
     @State private var hasTMDBKey = false
     @State private var searchTask: Task<Void, Never>?
 
+    // Predictive search.
+    @State private var suggestions: [CatalogItem] = []
+    @State private var suggestTask: Task<Void, Never>?
+    @FocusState private var searchFocused: Bool
+    @AppStorage("discover.recentSearches") private var recentSearchesRaw = ""
+    @StateObject private var shelfStore = HomeShelfStore.shared
+    @State private var aiSearching = false
+    @State private var aiError: String?
+    /// Bumped each time Discover appears so its shelves reshuffle and refresh.
+    @State private var discoverRefreshToken = 0
+
+    @ViewBuilder
+    private var discoverShelves: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
+            NavigationLink(value: DiscoverRoute.liveTV) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Image(systemName: "dot.radiowaves.left.and.right")
+                        .font(.appFont(22, weight: .semibold))
+                    Text("Live TV")
+                        .font(.appFont(20, weight: .semibold))
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.appFont(16))
+                }
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .padding(.vertical, Theme.Spacing.xs)
+                .contentShape(Rectangle())
+            }
+            .frameRowStyle()
+
+            if shelfStore.enabledShelves.isEmpty {
+                hint
+            } else {
+                // Shelf rows manage their own horizontal insets, so offset them back
+                // out of this view's edge padding.
+                ForEach(shelfStore.enabledShelves) { shelf in
+                    CatalogShelfRow(shelf: shelf, showSourceLabel: true, variant: .discover)
+                        .id("\(shelf.id)-\(discoverRefreshToken)")
+                        .padding(.horizontal, -Theme.Spacing.edge)
+                }
+            }
+        }
+    }
+
+    enum DiscoverRoute: Hashable { case liveTV }
+
+    private var recentSearches: [String] {
+        recentSearchesRaw.split(separator: "\n").map(String.init)
+    }
+
+    private func rememberSearch(_ term: String) {
+        let t = term.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.count >= 2 else { return }
+        var list = recentSearches.filter { $0.lowercased() != t.lowercased() }
+        list.insert(t, at: 0)
+        recentSearchesRaw = list.prefix(8).joined(separator: "\n")
+    }
+
     enum ViewState: Equatable { case idle, searching, results, empty, noKey }
 
     private let columns = [GridItem(.adaptive(minimum: Theme.CardSize.posterWidth * 0.95),
@@ -36,10 +93,11 @@ struct DiscoverView: View {
 
                     searchField
 
+                    suggestionsView
+
                     switch state {
                     case .idle:
-                        if !watchlist.isEmpty { watchlistSection }
-                        else { hint }
+                        discoverShelves
                     case .searching:
                         skeletonGrid
                     case .results:
@@ -60,8 +118,20 @@ struct DiscoverView: View {
             .navigationDestination(for: CatalogItem.self) { item in
                 ContentDetailView(item: item)
             }
+            .navigationDestination(for: DiscoverRoute.self) { route in
+                switch route {
+                case .liveTV: LiveTVView()
+                }
+            }
+            .alert("AI Search", isPresented: .constant(aiError != nil)) {
+                Button("OK") { aiError = nil }
+            } message: {
+                Text(aiError ?? "")
+            }
         }
         .task { await onAppear() }
+        .onAppear { discoverRefreshToken += 1 }
+        .dismissKeyboardOnTap()
     }
 
     // MARK: - Search field
@@ -75,11 +145,112 @@ struct DiscoverView: View {
                 .textFieldStyle(.plain)
                 .font(.appFont(26))
                 .foregroundStyle(Theme.Colors.textPrimary)
+                .focused($searchFocused)
+                #if os(iOS)
+                .autocorrectionDisabled(false)
+                .textInputAutocapitalization(.words)
+                #endif
                 .onSubmit { triggerSearch() }
-                .onChange(of: query) { _, _ in debounceSearch() }
+                .onChange(of: query) { _, _ in debounceSearch(); debounceSuggest() }
+            if !query.isEmpty {
+                Button {
+                    query = ""; results = []; suggestions = []; state = .idle
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.appFont(22))
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                }
+                .frameIconStyle()
+            }
+            // AI (natural-language) search via the user's Worker.
+            Button {
+                Task { await runAISearch() }
+            } label: {
+                Image(systemName: "sparkles")
+                    .font(.appFont(22))
+                    .foregroundStyle(aiSearching ? Theme.Colors.textTertiary : Theme.Colors.accent)
+            }
+            .frameIconStyle()
+            .disabled(aiSearching || query.trimmingCharacters(in: .whitespaces).count < 2)
         }
         .padding(Theme.Spacing.md)
         .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+    }
+
+    /// Predictive suggestions: recent searches when empty/short, live title matches
+    /// as the user types. Tapping one fills the field and runs the search.
+    @ViewBuilder
+    private var suggestionsView: some View {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if searchFocused && q.count < 2 && !recentSearches.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Recent")
+                    .font(.appFont(15, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.top, Theme.Spacing.sm)
+                ForEach(recentSearches, id: \.self) { term in
+                    Button {
+                        query = term; searchFocused = false; triggerSearch()
+                    } label: {
+                        HStack {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .foregroundStyle(Theme.Colors.textTertiary)
+                            Text(term).foregroundStyle(Theme.Colors.textPrimary)
+                            Spacer()
+                        }
+                        .font(.appFont(19))
+                        .padding(Theme.Spacing.md)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(FrameListRowStyle())
+                }
+                if !recentSearches.isEmpty {
+                    Button("Clear recent searches") { recentSearchesRaw = "" }
+                        .font(.appFont(16))
+                        .foregroundStyle(Theme.Colors.accent)
+                        .padding(Theme.Spacing.md)
+                }
+            }
+            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        } else if !suggestions.isEmpty && q.count >= 2 {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(suggestions.prefix(6)) { item in
+                    Button {
+                        query = item.title; searchFocused = false; triggerSearch()
+                    } label: {
+                        HStack(spacing: Theme.Spacing.sm) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(Theme.Colors.textTertiary)
+                            Text(item.title).foregroundStyle(Theme.Colors.textPrimary).lineLimit(1)
+                            if let year = item.year {
+                                Text(String(year)).foregroundStyle(Theme.Colors.textTertiary)
+                            }
+                            Spacer()
+                        }
+                        .font(.appFont(19))
+                        .padding(Theme.Spacing.md)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(FrameListRowStyle())
+                }
+            }
+            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        }
+    }
+
+    private func debounceSuggest() {
+        suggestTask?.cancel()
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard q.count >= 2 else { suggestions = []; return }
+        suggestTask = Task {
+            // Shorter debounce than full search so suggestions feel instant.
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            guard !Task.isCancelled else { return }
+            let found = await env.catalog.search(q)
+            guard !Task.isCancelled else { return }
+            await MainActor.run { suggestions = found }
+        }
     }
 
     private var hint: some View {
@@ -117,8 +288,12 @@ struct DiscoverView: View {
                 NavigationLink(value: item) {
                     posterCard(item)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(FrameListRowStyle())
             }
+        }
+        // Warm poster images ahead of scroll so the grid stays smooth.
+        .onAppear {
+            ImageLoader.shared.prefetch(items.compactMap(\.posterURL))
         }
     }
 
@@ -185,7 +360,11 @@ struct DiscoverView: View {
 
     private func triggerSearch() {
         searchTask?.cancel()
-        Task { await runSearch(query.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        suggestTask?.cancel()
+        suggestions = []
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        rememberSearch(q)
+        Task { await runSearch(q) }
     }
 
     private func runSearch(_ q: String) async {
@@ -195,5 +374,28 @@ struct DiscoverView: View {
         let found = await env.catalog.search(q)
         results = found
         state = found.isEmpty ? .empty : .results
+    }
+
+    private func runAISearch() async {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard q.count >= 2 else { return }
+        guard AISearchService.isConfigured else {
+            aiError = "AI search isn't set up. Add your Cloudflare Worker URL in Settings ▸ AI Search."
+            return
+        }
+        searchTask?.cancel(); suggestTask?.cancel(); suggestions = []
+        searchFocused = false
+        aiSearching = true
+        state = .searching
+        rememberSearch(q)
+        do {
+            let found = try await env.aiSearch.search(q)
+            results = found
+            state = found.isEmpty ? .empty : .results
+        } catch {
+            aiError = (error as? LocalizedError)?.errorDescription ?? "AI search failed."
+            state = results.isEmpty ? .idle : .results
+        }
+        aiSearching = false
     }
 }
