@@ -208,8 +208,9 @@ struct AVPlayerContainer: UIViewControllerRepresentable {
         // Native transport UI (scrub bar, subtitle/audio menu, fullscreen button).
         vc.showsPlaybackControls = true
         vc.allowsPictureInPicturePlayback = true
-        vc.canStartPictureInPictureAutomaticallyFromInline = true
         #if os(iOS)
+        // Inline PiP only exists on iOS; tvOS has no inline video surface.
+        vc.canStartPictureInPictureAutomaticallyFromInline = true
         vc.videoGravity = .resizeAspect
         vc.entersFullScreenWhenPlaybackBegins = true
         vc.exitsFullScreenWhenPlaybackEnds = false

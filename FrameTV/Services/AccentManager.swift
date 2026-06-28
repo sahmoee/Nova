@@ -19,8 +19,9 @@ import UIKit
 final class AccentManager: ObservableObject {
     static let shared = AccentManager()
 
-    /// The brand fallback accent (matches Theme.Colors.accent).
-    static let fallback = Color(red: 0.49, green: 0.40, blue: 0.95)
+    /// The brand fallback accent (matches Theme.Colors.accent). Nonisolated so it can
+    /// be used as an EnvironmentKey default value (which runs outside the main actor).
+    nonisolated static let fallback = Color(red: 0.49, green: 0.40, blue: 0.95)
 
     /// The current accent color, animated when it changes.
     @Published private(set) var accent: Color = AccentManager.fallback
