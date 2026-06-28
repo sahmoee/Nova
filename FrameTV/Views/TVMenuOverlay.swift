@@ -82,32 +82,32 @@ struct TVMenuOverlay: View {
 private struct TVMenuButtonStyle: ButtonStyle {
     var isSelected: Bool
 
-    func makeBody(configuration: Configuration) -> some View {
-        Body(configuration: configuration, isSelected: isSelected)
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        TVMenuButtonBody(configuration: configuration, isSelected: isSelected)
     }
+}
 
-    private struct Body: View {
-        let configuration: Configuration
-        let isSelected: Bool
-        @Environment(\.isFocused) private var isFocused
-        @Environment(\.dynamicAccent) private var accent
+private struct TVMenuButtonBody: View {
+    let configuration: ButtonStyleConfiguration
+    let isSelected: Bool
+    @Environment(\.isFocused) private var isFocused
+    @Environment(\.dynamicAccent) private var accent
 
-        var body: some View {
-            configuration.label
-                .foregroundStyle(isFocused ? .white : (isSelected ? accent : Theme.Colors.textSecondary))
-                .background(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(isFocused ? accent : (isSelected ? accent.opacity(0.18) : Theme.Colors.card))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .strokeBorder(isSelected && !isFocused ? accent : .clear, lineWidth: 2)
-                )
-                .shadow(color: isFocused ? accent.opacity(0.45) : .clear,
-                        radius: isFocused ? 24 : 0, y: isFocused ? 10 : 0)
-                .scaleEffect(isFocused ? 1.07 : 1.0)
-                .animation(.easeOut(duration: 0.18), value: isFocused)
-        }
+    var body: some View {
+        configuration.label
+            .foregroundStyle(isFocused ? .white : (isSelected ? accent : Theme.Colors.textSecondary))
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(isFocused ? accent : (isSelected ? accent.opacity(0.18) : Theme.Colors.card))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(isSelected && !isFocused ? accent : .clear, lineWidth: 2)
+            )
+            .shadow(color: isFocused ? accent.opacity(0.45) : .clear,
+                    radius: isFocused ? 24 : 0, y: isFocused ? 10 : 0)
+            .scaleEffect(isFocused ? 1.07 : 1.0)
+            .animation(.easeOut(duration: 0.18), value: isFocused)
     }
 }
 #endif

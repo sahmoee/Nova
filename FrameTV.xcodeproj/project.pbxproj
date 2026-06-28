@@ -67,6 +67,7 @@
 		422E272C61B9C61EA8B43C72 /* RealDebridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B963B108E404576776FB5383 /* RealDebridView.swift */; };
 		434EB9B84E21C9A7B36511EC /* SMBShare.swift in Sources */ = {isa = PBXBuildFile; fileRef = C192BE7B4DF65820AA978983 /* SMBShare.swift */; };
 		436E8D72BE1C9F753D97304A /* PrivacyLegalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A659D99C45AB4145BEBEC3FF /* PrivacyLegalView.swift */; };
+		461E5E225F00C1107816A2BA /* TVMenuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E4179DF87A747B60F1ACC11 /* TVMenuOverlay.swift */; };
 		482D06AC4A4E0A6FEB079033 /* DirectURLView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0B45864E7DD91D45DA6D93 /* DirectURLView.swift */; };
 		4B803595345C09B16AEF8006 /* Assets-iOS.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C414BCD1EBD70925A4A75CB7 /* Assets-iOS.xcassets */; };
 		4FCC80430279E24B9ECDFD9C /* TraktClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AC62884E4EFB136668EDA67 /* TraktClient.swift */; };
@@ -110,6 +111,7 @@
 		7EF2C1B421BC895D8C00EC4B /* HomeShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44483A3741A3146721D8B9CC /* HomeShelf.swift */; };
 		80A9916B394F7F69D3889E2A /* StreamRanker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FDC1C7E9F7D7C4CE9065ECD /* StreamRanker.swift */; };
 		80E983EF6F086220424866AD /* SMBStreamServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B03807FF5A0213B684F13BA /* SMBStreamServer.swift */; };
+		816CB9F4A825F18C60D53BA7 /* TVMenuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E4179DF87A747B60F1ACC11 /* TVMenuOverlay.swift */; };
 		822ABC768797B2F3C293F1C0 /* AccountsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91B171DD6121F6DDC2FF67C /* AccountsView.swift */; };
 		827EF6B04218B4A1E2AA9227 /* PlaybackProgressStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8DDEC4592E90E4DF8676EBD /* PlaybackProgressStore.swift */; };
 		840624CE7FAEF93F7FD964A0 /* KeyboardDismiss.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC4024AFCF34AA9000C433D8 /* KeyboardDismiss.swift */; };
@@ -160,7 +162,6 @@
 		B3AB2DE1C16ED5D713F012AA /* VLCPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90E81E16AE7D320010F6DC7 /* VLCPlayerView.swift */; };
 		B4525BEFCBD56B13A3FE6472 /* HomeShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44483A3741A3146721D8B9CC /* HomeShelf.swift */; };
 		B5106F76484EE4EE3CE94440 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54DF98E49C2F8631D90C0346 /* RootView.swift */; };
-		461E5E225F00C1107816A2BA /* TVMenuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E4179DF87A747B60F1ACC11 /* TVMenuOverlay.swift */; };
 		B860740617DD0DA54CF10691 /* SMBListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C36E60012F8E3116210EC657 /* SMBListView.swift */; };
 		B979825A57CFF051A12F24FD /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE3ABE58915541F160C540E1 /* QRScannerView.swift */; };
 		BA04B98BD13A865FB18ADA56 /* CatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9A7C4E1AFA66F74900ABB30 /* CatalogService.swift */; };
@@ -193,7 +194,6 @@
 		DCCE4450B5B4C0E6637854B4 /* URLValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7875206D23EE5FCBE6D6A628 /* URLValidation.swift */; };
 		DF4E01B19535E44056C95650 /* PlaybackCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3EF3A6949DBE620FBC19616 /* PlaybackCoordinator.swift */; };
 		E05708A1F10187F58F19BBE5 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54DF98E49C2F8631D90C0346 /* RootView.swift */; };
-		816CB9F4A825F18C60D53BA7 /* TVMenuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E4179DF87A747B60F1ACC11 /* TVMenuOverlay.swift */; };
 		E378B5A10E4A3A3DDD8A5298 /* DiscoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5661074A0B5D89CA5246FD0C /* DiscoverView.swift */; };
 		E4423BAEEDE0626B0124775D /* AddonStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3113BC855DAFD76F714E502E /* AddonStore.swift */; };
 		E727E4C734429F74E0D8DADF /* SMBStreamServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B03807FF5A0213B684F13BA /* SMBStreamServer.swift */; };
@@ -274,7 +274,6 @@
 		4C12CF106AE8B2228CFDD644 /* RealDebridModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealDebridModels.swift; sourceTree = "<group>"; };
 		4DAED2A694E04D1F4DDAC46E /* MediaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailView.swift; sourceTree = "<group>"; };
 		54DF98E49C2F8631D90C0346 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
-		8E4179DF87A747B60F1ACC11 /* TVMenuOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVMenuOverlay.swift; sourceTree = "<group>"; };
 		5519B507B9E49505F005D45A /* StateViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateViews.swift; sourceTree = "<group>"; };
 		5661074A0B5D89CA5246FD0C /* DiscoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverView.swift; sourceTree = "<group>"; };
 		5AC62884E4EFB136668EDA67 /* TraktClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TraktClient.swift; sourceTree = "<group>"; };
@@ -295,6 +294,7 @@
 		8075DEF1D961A6A114567B88 /* WhatsNew.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNew.swift; sourceTree = "<group>"; };
 		8243FC1919BC503B71FAB073 /* MediaRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRow.swift; sourceTree = "<group>"; };
 		86F479B94958CAD981263A79 /* CodableFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableFileStore.swift; sourceTree = "<group>"; };
+		8E4179DF87A747B60F1ACC11 /* TVMenuOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVMenuOverlay.swift; sourceTree = "<group>"; };
 		8F16D56BBEF5E4054DEC43DE /* ShelfLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelfLoader.swift; sourceTree = "<group>"; };
 		8FC799C8FC202185F638B2DF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		8FDC1C7E9F7D7C4CE9065ECD /* StreamRanker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamRanker.swift; sourceTree = "<group>"; };
@@ -1026,8 +1026,9 @@
 				CURRENT_PROJECT_VERSION = 17;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "FrameTV/Resources/Info-tvOS.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Frame TV";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 2;
+				MARKETING_VERSION = 3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.tvos;
 				PRODUCT_NAME = FrameTV;
 				SDKROOT = appletvos;
@@ -1050,8 +1051,9 @@
 				CURRENT_PROJECT_VERSION = 17;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "FrameTV/Resources/Info-tvOS.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Frame TV";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 2;
+				MARKETING_VERSION = 3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.tvos;
 				PRODUCT_NAME = FrameTV;
 				SDKROOT = appletvos;
@@ -1074,9 +1076,10 @@
 				CURRENT_PROJECT_VERSION = 17;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "FrameTV/Resources/Info-iOS.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Frame TV";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 2;
+				MARKETING_VERSION = 3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.ios;
 				PRODUCT_NAME = FrameTV;
 				SDKROOT = iphoneos;
@@ -1098,9 +1101,10 @@
 				CURRENT_PROJECT_VERSION = 17;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "FrameTV/Resources/Info-iOS.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Frame TV";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 2;
+				MARKETING_VERSION = 3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.ios;
 				PRODUCT_NAME = FrameTV;
 				SDKROOT = iphoneos;
