@@ -33,6 +33,11 @@ struct VLCPlayerView: View {
     @State private var preparedNext: MediaItem?
     @State private var navigateNext: MediaItem?
 
+    // Drag/swipe-to-seek state. `scrubTarget` is the previewed time while a drag is
+    // in progress (nil when not scrubbing); committing applies it to the player.
+    @State private var scrubTarget: TimeInterval?
+    @State private var scrubStart: TimeInterval = 0
+
     private var hasNextEpisode: Bool { preparedNext != nil }
 
     #if os(iOS)
@@ -65,15 +70,34 @@ struct VLCPlayerView: View {
                 overlay
                     .opacity(controlsVisible ? 1 : 0)
                     .animation(.easeInOut(duration: 0.25), value: controlsVisible)
+
+                // Seek preview shown while dragging/swiping to scrub.
+                if let target = scrubTarget {
+                    seekPreview(target: target)
+                }
                 #if os(iOS)
+                // Horizontal drag anywhere on the video scrubs: drag right to go
+                // forward, left to rewind. A vertical-ish drag is ignored so it
+                // doesn't fight a tap. Tapping (no drag) reveals the controls.
                 Color.clear.contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 8)
+                            .onChanged { value in handleScrubChange(translation: value.translation.width, width: nil) }
+                            .onEnded { _ in commitScrub() }
+                    )
                     .onTapGesture { revealControls() }
-                    .allowsHitTesting(!controlsVisible)
                 #else
-                // tvOS: any remote swipe/select reveals the controls.
+                // tvOS: left/right swipes on the remote touchpad skip; up/down or
+                // select reveal the controls. Play/pause toggles playback.
                 Color.clear
                     .focusable(true)
-                    .onMoveCommand { _ in revealControls() }
+                    .onMoveCommand { direction in
+                        switch direction {
+                        case .left:  model.skipBackward(10); revealControls()
+                        case .right: model.skipForward(10); revealControls()
+                        default:     revealControls()
+                        }
+                    }
                     .onPlayPauseCommand { model.togglePlayPause(); revealControls() }
                 #endif
             case .failed(let message):
@@ -340,6 +364,56 @@ struct VLCPlayerView: View {
         let h = total / 3600, m = (total % 3600) / 60, s = total % 60
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, s)
                      : String(format: "%d:%02d", m, s)
+    }
+
+    // MARK: - Drag / swipe to seek
+
+    /// Updates the previewed scrub position from a horizontal drag translation.
+    /// `width` is the available width when known (for proportional scrubbing); when
+    /// nil we use a fixed sensitivity (about 90s of seek per full screen width).
+    private func handleScrubChange(translation: CGFloat, width: CGFloat?) {
+        guard model.duration > 0 else { return }
+        if scrubTarget == nil { scrubStart = model.currentTime }
+        let seconds: TimeInterval
+        if let width, width > 0 {
+            seconds = TimeInterval(translation / width) * model.duration
+        } else {
+            // Fixed sensitivity: ~0.25s per point of drag.
+            seconds = TimeInterval(translation) * 0.25
+        }
+        let target = max(0, min(scrubStart + seconds, model.duration))
+        scrubTarget = target
+        revealControls()
+    }
+
+    /// Commits the previewed scrub position to the player and ends scrubbing.
+    private func commitScrub() {
+        if let target = scrubTarget {
+            model.seek(to: target)
+        }
+        scrubTarget = nil
+        scheduleHideControls()
+    }
+
+    /// A large centered readout of the target time while scrubbing.
+    private func seekPreview(target: TimeInterval) -> some View {
+        let delta = target - scrubStart
+        let sign = delta >= 0 ? "+" : "−"
+        return VStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: delta >= 0 ? "goforward" : "gobackward")
+                .font(.appFont(40, weight: .semibold))
+            Text(timeString(target))
+                .font(.appFont(34, weight: .bold))
+                .monospacedDigit()
+            Text("\(sign)\(timeString(abs(delta)))")
+                .font(.appFont(20, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(Theme.Colors.textSecondary)
+        }
+        .foregroundStyle(.white)
+        .padding(Theme.Spacing.xl)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .transition(.scale.combined(with: .opacity))
     }
 }
 

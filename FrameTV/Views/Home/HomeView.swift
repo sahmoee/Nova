@@ -65,10 +65,13 @@ struct HomeView: View {
                         }
                         .padding(.bottom, Theme.Spacing.lg)
                     }
-                    // Only let the hero image bleed under the status bar. With the text
-                    // fallback header (empty library), keep the normal safe area so the
-                    // title never collides with the clock/battery.
+                    // On tvOS the hero image bleeds to the top edge for a cinematic
+                    // look (no status bar there). On iPhone/iPad we keep the normal
+                    // safe area so the brand header and all content stay below the
+                    // status bar and scroll beneath it.
+                    #if os(tvOS)
                     .ignoresSafeArea(edges: featuredItem != nil ? .top : [])
+                    #endif
                 }
             }
             .navigationDestination(item: $selectedItem) { item in
@@ -100,7 +103,9 @@ struct HomeView: View {
             .shadow(color: .black.opacity(0.5), radius: 6, y: 1)
             .padding(.horizontal, Theme.Spacing.edge)
             .padding(.top, Theme.Spacing.sm)
+            #if os(tvOS)
             .safeAreaPadding(.top)
+            #endif
     }
 
     private var customizeButton: some View {
@@ -116,7 +121,9 @@ struct HomeView: View {
         .frameIconStyle()
         .padding(.horizontal, Theme.Spacing.edge)
         .padding(.top, Theme.Spacing.sm)
+        #if os(tvOS)
         .safeAreaPadding(.top)
+        #endif
     }
 
     // MARK: - Fallback header (no content yet)

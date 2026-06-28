@@ -10,8 +10,28 @@
 import SwiftUI
 import Combine
 
-enum AppTab: Hashable {
+enum AppTab: Hashable, CaseIterable {
     case home, discover, library, settings
+
+    /// Display name used by the tvOS menu and the iOS tab bar.
+    var title: String {
+        switch self {
+        case .home:     return "Home"
+        case .discover: return "Discover"
+        case .library:  return "Library"
+        case .settings: return "Settings"
+        }
+    }
+
+    /// SF Symbol used by the tvOS menu and the iOS tab bar.
+    var systemImage: String {
+        switch self {
+        case .home:     return "house.fill"
+        case .discover: return "magnifyingglass"
+        case .library:  return "rectangle.stack.fill"
+        case .settings: return "gearshape.fill"
+        }
+    }
 }
 
 @MainActor
@@ -45,6 +65,18 @@ final class NavigationCoordinator: ObservableObject {
         case .discover: discoverPath = NavigationPath()
         case .library:  libraryPath = NavigationPath()
         case .settings: settingsPath = NavigationPath()
+        }
+    }
+
+    /// Whether the given tab's navigation stack is at its root (nothing pushed).
+    /// Used on tvOS so the Menu button pops a pushed detail screen before it
+    /// summons the section menu.
+    func isAtRoot(_ tab: AppTab) -> Bool {
+        switch tab {
+        case .home:     return homePath.isEmpty
+        case .discover: return discoverPath.isEmpty
+        case .library:  return libraryPath.isEmpty
+        case .settings: return settingsPath.isEmpty
         }
     }
 }

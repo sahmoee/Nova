@@ -18,67 +18,120 @@ struct RootView: View {
     @State private var offerRestore = false
     @State private var showWhatsNew = false
     @State private var reopenItem: MediaItem?
+    @State private var showTVMenu = false
 
     var body: some View {
+        rootContent
+            .environmentObject(nav)
+            .environment(\.dynamicAccent, accentManager.accent)
+            .tint(accentManager.accent)
+            .fullScreenCover(item: $reopenItem) { item in
+                PlayerView(item: item)
+                    .environmentObject(env)
+                    .environmentObject(nav)
+            }
+            .toastHost()
+            .onAppear(perform: maybeOfferRestore)
+            .onAppear(perform: maybeShowWhatsNew)
+            .sheet(isPresented: $showWhatsNew) {
+                WhatsNewView(note: WhatsNewTracker.shared.currentNote) {
+                    WhatsNewTracker.shared.markSeen()
+                    showWhatsNew = false
+                }
+                #if os(iOS)
+                .presentationDragIndicator(.visible)
+                #endif
+            }
+            .alert("Restore your setup?", isPresented: $offerRestore) {
+                Button("Restore from iCloud") {
+                    if BackupManager.shared.restoreFromCloud() {
+                        ToastCenter.shared.show("Restored from iCloud", systemImage: "checkmark.icloud.fill")
+                    }
+                }
+                Button("Not Now", role: .cancel) {}
+            } message: {
+                if let info = BackupManager.shared.availableSnapshotInfo() {
+                    Text("Found a backup from \(info.device). Restore your preferences, sources, addons, and logins onto this device?")
+                } else {
+                    Text("Found a backup in iCloud. Restore it onto this device?")
+                }
+            }
+    }
+
+    // MARK: - Platform root
+
+    #if os(tvOS)
+    /// tvOS: only the active screen is shown full-screen. Pressing the Menu / TV
+    /// button summons a menu overlay to switch sections, instead of an always-on
+    /// tab bar. While a video plays, Menu is handled by the player, not here.
+    @ViewBuilder
+    private var rootContent: some View {
+        ZStack {
+            Theme.Colors.background.ignoresSafeArea()
+
+            activeScreen
+                .ignoresSafeArea(.container, edges: .bottom)
+
+            if showTVMenu && !nowPlaying.playerPresented {
+                TVMenuOverlay(selection: nav.selectionBinding) {
+                    withAnimation(.easeOut(duration: 0.2)) { showTVMenu = false }
+                }
+                .transition(.opacity)
+                .zIndex(10)
+            }
+        }
+        // Capture the Menu / TV button to toggle the menu overlay. When the player
+        // is up it owns the button (to exit playback), so we don't intercept it.
+        // We also only summon the menu at a screen's root: if a detail screen is
+        // pushed, Menu should pop it (handled by the NavigationStack), and if the
+        // menu is already open, Menu closes it.
+        .onExitCommand {
+            if showTVMenu {
+                withAnimation(.easeOut(duration: 0.2)) { showTVMenu = false }
+            } else if !nowPlaying.playerPresented && nav.isAtRoot(nav.selection) {
+                withAnimation(.easeOut(duration: 0.2)) { showTVMenu = true }
+            }
+        }
+        .overlay(alignment: .bottom) { nowPlayingBar }
+    }
+
+    @ViewBuilder
+    private var activeScreen: some View {
+        switch nav.selection {
+        case .home:     HomeView(path: $nav.homePath)
+        case .discover: DiscoverView(path: $nav.discoverPath)
+        case .library:  LibraryView(path: $nav.libraryPath)
+        case .settings: SettingsView(path: $nav.settingsPath)
+        }
+    }
+    #else
+    /// iOS / iPadOS: standard bottom tab bar.
+    @ViewBuilder
+    private var rootContent: some View {
         TabView(selection: nav.selectionBinding) {
             HomeView(path: $nav.homePath)
-                .tabItem { Label("Home", systemImage: "house.fill") }
+                .tabItem { Label(AppTab.home.title, systemImage: AppTab.home.systemImage) }
                 .tag(AppTab.home)
 
             DiscoverView(path: $nav.discoverPath)
-                .tabItem { Label("Discover", systemImage: "magnifyingglass") }
+                .tabItem { Label(AppTab.discover.title, systemImage: AppTab.discover.systemImage) }
                 .tag(AppTab.discover)
 
             LibraryView(path: $nav.libraryPath)
-                .tabItem { Label("Library", systemImage: "rectangle.stack.fill") }
+                .tabItem { Label(AppTab.library.title, systemImage: AppTab.library.systemImage) }
                 .tag(AppTab.library)
 
             SettingsView(path: $nav.settingsPath)
-                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+                .tabItem { Label(AppTab.settings.title, systemImage: AppTab.settings.systemImage) }
                 .tag(AppTab.settings)
         }
         .background(Theme.Colors.background.ignoresSafeArea())
-        .environmentObject(nav)
-        .environment(\.dynamicAccent, accentManager.accent)
-        .tint(accentManager.accent)
-        // Hide the tab bar while a video is playing. Applied at the TabView root, which
-        // is where the tab bar actually lives, so tvOS honors it reliably.
         .toolbar(nowPlaying.playerPresented ? .hidden : .visible, for: .tabBar)
         .safeAreaInset(edge: .bottom) {
             nowPlayingBar
         }
-        .fullScreenCover(item: $reopenItem) { item in
-            PlayerView(item: item)
-                .environmentObject(env)
-                .environmentObject(nav)
-        }
-        .toastHost()
-        .onAppear(perform: maybeOfferRestore)
-        .onAppear(perform: maybeShowWhatsNew)
-        .sheet(isPresented: $showWhatsNew) {
-            WhatsNewView(note: WhatsNewTracker.shared.currentNote) {
-                WhatsNewTracker.shared.markSeen()
-                showWhatsNew = false
-            }
-            #if os(iOS)
-            .presentationDragIndicator(.visible)
-            #endif
-        }
-        .alert("Restore your setup?", isPresented: $offerRestore) {
-            Button("Restore from iCloud") {
-                if BackupManager.shared.restoreFromCloud() {
-                    ToastCenter.shared.show("Restored from iCloud", systemImage: "checkmark.icloud.fill")
-                }
-            }
-            Button("Not Now", role: .cancel) {}
-        } message: {
-            if let info = BackupManager.shared.availableSnapshotInfo() {
-                Text("Found a backup from \(info.device). Restore your preferences, sources, addons, and logins onto this device?")
-            } else {
-                Text("Found a backup in iCloud. Restore it onto this device?")
-            }
-        }
     }
+    #endif
 
     /// A "Now Playing" mini-bar shown above the tab bar while something is playing.
     /// Tapping it reopens the player. Only shows when there's a current item and the
