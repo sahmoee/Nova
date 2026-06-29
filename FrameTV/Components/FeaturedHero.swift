@@ -15,7 +15,6 @@ struct FeaturedHero: View {
     var onPlay: (MediaItem) -> Void
 
     @Environment(\.dynamicAccent) private var accent
-    @FocusState private var playFocused: Bool
 
     var body: some View {
         GeometryReader { geo in
@@ -87,22 +86,55 @@ struct FeaturedHero: View {
                     .font(.appFont(18))
                     .padding(.horizontal, Theme.Spacing.md)
                     .padding(.vertical, Theme.Spacing.xs)
-                    .background(playFocused ? accent : .white, in: Capsule())
-                    .foregroundStyle(playFocused ? .white : .black)
-                    .scaleEffect(playFocused ? 1.06 : 1.0)
-                    .shadow(color: playFocused ? accent.opacity(0.5) : .clear,
-                            radius: playFocused ? 20 : 0, y: 6)
-                    .animation(.easeOut(duration: 0.18), value: playFocused)
                 }
-                .buttonStyle(.plain)
-                .focused($playFocused)
+                .buttonStyle(HeroPlayButtonStyle(accent: accent))
                 .padding(.top, 2)
             }
             .padding(.horizontal, Theme.Spacing.edge)
             .padding(.bottom, Theme.Spacing.md)
+            // On tvOS the hero image bleeds into the overscan region; pad the text and
+            // Play button by the safe area so they stay fully on-screen and focusable.
+            #if os(tvOS)
+            .safeAreaPadding(.horizontal)
+            .safeAreaPadding(.bottom)
+            #endif
         }
         .frame(width: width, height: heroHeight)
         .clipped()
         .onAppear { AccentManager.shared.deriveAccent(from: item.posterURL ?? item.backdropURL) }
+    }
+}
+
+/// The hero Play/Resume button style. Implemented as a ButtonStyle reading isFocused
+/// so on tvOS it fully replaces the system white focus card with an accent capsule.
+private struct HeroPlayButtonStyle: ButtonStyle {
+    let accent: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        Body(configuration: configuration, accent: accent)
+    }
+
+    private struct Body: View {
+        let configuration: ButtonStyleConfiguration
+        let accent: Color
+        @Environment(\.isFocused) private var isFocused
+
+        private var active: Bool {
+            #if os(tvOS)
+            return isFocused
+            #else
+            return configuration.isPressed
+            #endif
+        }
+
+        var body: some View {
+            configuration.label
+                .background(active ? accent : .white, in: Capsule())
+                .foregroundStyle(active ? .white : .black)
+                .scaleEffect(active ? 1.06 : 1.0)
+                .shadow(color: active ? accent.opacity(0.5) : .clear,
+                        radius: active ? 20 : 0, y: 6)
+                .animation(.easeOut(duration: 0.18), value: active)
+        }
     }
 }

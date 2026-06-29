@@ -79,4 +79,14 @@ final class NavigationCoordinator: ObservableObject {
         case .settings: return settingsPath.isEmpty
         }
     }
+
+    /// Pops a single level from the given tab's navigation stack (tvOS back).
+    func popOne(_ tab: AppTab) {
+        switch tab {
+        case .home:     if !homePath.isEmpty { homePath.removeLast() }
+        case .discover: if !discoverPath.isEmpty { discoverPath.removeLast() }
+        case .library:  if !libraryPath.isEmpty { libraryPath.removeLast() }
+        case .settings: if !settingsPath.isEmpty { settingsPath.removeLast() }
+        }
+    }
 }

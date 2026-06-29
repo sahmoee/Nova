@@ -105,6 +105,7 @@ struct HomeView: View {
             .padding(.top, Theme.Spacing.sm)
             #if os(tvOS)
             .safeAreaPadding(.top)
+            .safeAreaPadding(.leading)
             #endif
     }
 
@@ -123,6 +124,7 @@ struct HomeView: View {
         .padding(.top, Theme.Spacing.sm)
         #if os(tvOS)
         .safeAreaPadding(.top)
+        .safeAreaPadding(.trailing)
         #endif
     }
 

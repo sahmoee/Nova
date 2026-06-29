@@ -95,12 +95,24 @@ struct LibraryView: View {
             .navigationDestination(item: $selectedItem) { item in
                 PlayerView(item: item)
             }
+            #if os(tvOS)
+            // tvOS sheets render as a hard-to-see partial card with unreliable focus,
+            // so present the library item detail as a full navigation push instead.
+            // Play pushes the player on top (don't pop detail first — popping and
+            // pushing at once in one stack conflicts); backing out returns to detail.
+            .navigationDestination(item: $detailItem) { item in
+                MediaDetailView(item: item) {
+                    selectedItem = item
+                }
+            }
+            #else
             .sheet(item: $detailItem) { item in
                 MediaDetailView(item: item) {
                     detailItem = nil
                     selectedItem = item
                 }
             }
+            #endif
         }
     }
 

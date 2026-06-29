@@ -84,15 +84,17 @@ struct RootView: View {
                 .zIndex(10)
             }
         }
-        // Capture the Menu / TV button to toggle the menu overlay. When the player
-        // is up it owns the button (to exit playback), so we don't intercept it.
-        // We also only summon the menu at a screen's root: if a detail screen is
-        // pushed, Menu should pop it (handled by the NavigationStack), and if the
-        // menu is already open, Menu closes it.
+        // Capture the Menu / TV button. Priority: if the menu overlay is open, close
+        // it; if a detail screen is pushed, go back one level; otherwise (at a screen
+        // root) summon the section menu. The player owns the button while playing.
         .onExitCommand {
             if showTVMenu {
                 withAnimation(.easeOut(duration: 0.2)) { showTVMenu = false }
-            } else if !nowPlaying.playerPresented && nav.isAtRoot(nav.selection) {
+            } else if nowPlaying.playerPresented {
+                // Player handles its own exit; do nothing here.
+            } else if !nav.isAtRoot(nav.selection) {
+                nav.popOne(nav.selection)
+            } else {
                 withAnimation(.easeOut(duration: 0.2)) { showTVMenu = true }
             }
         }
