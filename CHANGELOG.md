@@ -1,3 +1,9 @@
+06:28:26 23:38 — v3 (build 18) — Build
+Big change
+
+06:28:26 23:37 — v3 (build 17) — Version
+Small change or fix
+
 06:28:26 22:36 — v1.0 (build 1) — Standardize
 Standardized to the shared version and build scheme
 
