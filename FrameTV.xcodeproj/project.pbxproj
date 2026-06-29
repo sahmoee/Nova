@@ -160,6 +160,7 @@
 		B3AB2DE1C16ED5D713F012AA /* VLCPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90E81E16AE7D320010F6DC7 /* VLCPlayerView.swift */; };
 		B4525BEFCBD56B13A3FE6472 /* HomeShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44483A3741A3146721D8B9CC /* HomeShelf.swift */; };
 		B5106F76484EE4EE3CE94440 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54DF98E49C2F8631D90C0346 /* RootView.swift */; };
+		01C7A4EA1C34CC9696E7DB84 /* DuplicatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4974EDA4C5B58142AA007C8D /* DuplicatesView.swift */; };
 		2FBA2AE3B71570960E2AA182 /* CollectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD28AB0F57F8C90396EEF8DA /* CollectionsView.swift */; };
 		673EA94B81D9799BBB024FAD /* MediaCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30C308E6D55B3F1AE4525CB6 /* MediaCollection.swift */; };
 		72348762ABFE40B6285D2B9B /* GeneratedPoster.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5CE7EFB7472D11354238143 /* GeneratedPoster.swift */; };
@@ -204,6 +205,7 @@
 		DCCE4450B5B4C0E6637854B4 /* URLValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7875206D23EE5FCBE6D6A628 /* URLValidation.swift */; };
 		DF4E01B19535E44056C95650 /* PlaybackCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3EF3A6949DBE620FBC19616 /* PlaybackCoordinator.swift */; };
 		E05708A1F10187F58F19BBE5 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54DF98E49C2F8631D90C0346 /* RootView.swift */; };
+		0DE2109D8EC8761B076B2490 /* DuplicatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4974EDA4C5B58142AA007C8D /* DuplicatesView.swift */; };
 		9B1BC7CC9FBA6370EA7CBDD6 /* CollectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD28AB0F57F8C90396EEF8DA /* CollectionsView.swift */; };
 		B9F9DD6F8B27BE824515A971 /* MediaCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30C308E6D55B3F1AE4525CB6 /* MediaCollection.swift */; };
 		E73E83401B07485CB7A16EDC /* GeneratedPoster.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5CE7EFB7472D11354238143 /* GeneratedPoster.swift */; };
@@ -292,6 +294,7 @@
 		44483A3741A3146721D8B9CC /* HomeShelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeShelf.swift; sourceTree = "<group>"; };
 		47F79402BB28EE3F82626E35 /* FrameTV.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FrameTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		48C23B60F65D2B45B9C58BB8 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		4974EDA4C5B58142AA007C8D /* DuplicatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuplicatesView.swift; sourceTree = "<group>"; };
 		FD28AB0F57F8C90396EEF8DA /* CollectionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionsView.swift; sourceTree = "<group>"; };
 		4A0B45864E7DD91D45DA6D93 /* DirectURLView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectURLView.swift; sourceTree = "<group>"; };
 		4C12CF106AE8B2228CFDD644 /* RealDebridModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealDebridModels.swift; sourceTree = "<group>"; };
@@ -606,6 +609,7 @@
 			isa = PBXGroup;
 			children = (
 				48C23B60F65D2B45B9C58BB8 /* LibraryView.swift */,
+				4974EDA4C5B58142AA007C8D /* DuplicatesView.swift */,
 				FD28AB0F57F8C90396EEF8DA /* CollectionsView.swift */,
 				4DAED2A694E04D1F4DDAC46E /* MediaDetailView.swift */,
 			);
@@ -882,6 +886,7 @@
 				B3AB2DE1C16ED5D713F012AA /* VLCPlayerView.swift in Sources */,
 				422E272C61B9C61EA8B43C72 /* RealDebridView.swift in Sources */,
 				E05708A1F10187F58F19BBE5 /* RootView.swift in Sources */,
+				0DE2109D8EC8761B076B2490 /* DuplicatesView.swift in Sources */,
 				9B1BC7CC9FBA6370EA7CBDD6 /* CollectionsView.swift in Sources */,
 				B9F9DD6F8B27BE824515A971 /* MediaCollection.swift in Sources */,
 				E73E83401B07485CB7A16EDC /* GeneratedPoster.swift in Sources */,
@@ -1000,6 +1005,7 @@
 				1F1481FC0213B8203BEF8292 /* VLCPlayerView.swift in Sources */,
 				8623F8CB9AA2D4D15153872F /* RealDebridView.swift in Sources */,
 				B5106F76484EE4EE3CE94440 /* RootView.swift in Sources */,
+				01C7A4EA1C34CC9696E7DB84 /* DuplicatesView.swift in Sources */,
 				2FBA2AE3B71570960E2AA182 /* CollectionsView.swift in Sources */,
 				673EA94B81D9799BBB024FAD /* MediaCollection.swift in Sources */,
 				72348762ABFE40B6285D2B9B /* GeneratedPoster.swift in Sources */,

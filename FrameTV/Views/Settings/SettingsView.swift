@@ -267,11 +267,21 @@ struct SettingsView: View {
 
     private var librarySection: some View {
         section("Library") {
+            NavigationLink { DuplicatesView() } label: {
+                settingRow("Duplicate Cleanup", systemImage: "arrow.triangle.merge",
+                           detail: duplicateCountDetail)
+            }.frameRowStyle()
             actionRow("Clear Watch History", systemImage: "clock.arrow.circlepath",
                       tint: Theme.Colors.warning) { confirmClearHistory = true }
             actionRow("Clear Library", systemImage: "trash",
                       tint: Theme.Colors.error) { confirmClearLibrary = true }
         }
+    }
+
+    /// Detail string for the Duplicate Cleanup row.
+    private var duplicateCountDetail: String {
+        let n = library.duplicateGroups().count
+        return n == 0 ? "None found" : "\(n) to review"
     }
 
     private var privacyLegalSection: some View {
