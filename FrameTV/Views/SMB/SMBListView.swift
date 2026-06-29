@@ -76,6 +76,13 @@ struct SMBListView: View {
                     .foregroundStyle(Theme.Colors.textSecondary)
             }
             Spacer()
+            NavigationLink {
+                SMBCheckerView(share: share)
+            } label: {
+                Image(systemName: "stethoscope")
+                    .foregroundStyle(Theme.Colors.accent)
+            }
+            .buttonStyle(.plain)
             Button {
                 model.remove(share)
             } label: {

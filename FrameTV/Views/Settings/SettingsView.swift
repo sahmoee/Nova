@@ -16,6 +16,16 @@ struct SettingsView: View {
     @State private var confirmClearLibrary = false
     @State private var confirmClearHistory = false
     @State private var expandedSections: [String: Bool] = [:]
+    @State private var sourcesPath = NavigationPath()
+
+    /// Summary detail for the Sources & Health row, e.g. "All connected" or
+    /// "2 need attention".
+    private var sourcesHealthDetail: String {
+        let items = SourceHealth.all(addonStore: env.addonStore, smbShareCount: 0)
+        let s = SourceHealth.summary(items)
+        if s.needsAttention == 0 { return "All connected" }
+        return "\(s.needsAttention) need attention"
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -66,6 +76,11 @@ struct SettingsView: View {
 
     private var accountsSection: some View {
         section("Accounts & Sources") {
+            NavigationLink { SourcesView(path: $sourcesPath) } label: {
+                settingRow("Sources & Health", systemImage: "point.3.connected.trianglepath.dotted",
+                           detail: sourcesHealthDetail)
+            }.frameRowStyle()
+
             NavigationLink { RealDebridView() } label: {
                 settingRow("Real-Debrid Account", systemImage: "arrow.down.circle",
                            detail: KeychainStore.shared.realDebridToken == nil ? "Not connected" : "Connected")

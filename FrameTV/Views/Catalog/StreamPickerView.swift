@@ -29,6 +29,10 @@ struct StreamPickerView: View {
     @State private var cachedOnly = false
     @State private var showFilters = false
 
+    // Smart (natural-language) filter, e.g. "cached 1080p under 8GB english".
+    @State private var smartFilterText = ""
+    @State private var smartFilter = ParsedStreamFilter()
+
     enum ViewState: Equatable { case loading, loaded, empty, error(String) }
 
     private var epRef: EpisodeRef? {
@@ -99,7 +103,7 @@ struct StreamPickerView: View {
                 if showFilters { filterBar }
 
                 ForEach(filteredStreams) { stream in
-                    streamRow(stream)
+                    streamRow(stream, labels: streamLabels[stream.id] ?? [])
                 }
 
                 if filteredStreams.isEmpty {
@@ -116,17 +120,35 @@ struct StreamPickerView: View {
 
     // MARK: - Filtering
 
-    /// Streams after applying the active filters, preserving rank order.
+    /// Streams after applying the active filters, preserving rank order. Combines the
+    /// chip filters with any active smart (natural-language) filter.
     private var filteredStreams: [StreamOption] {
         streams.filter { s in
+            // Chip filters.
             if let minQuality, s.quality.rank < minQuality.rank { return false }
             if let selectedSource, s.addonName != selectedSource { return false }
             if cachedOnly, !s.isCached { return false }
             if let maxSizeGB, let bytes = s.sizeBytes {
                 if Double(bytes) > maxSizeGB * 1_073_741_824 { return false }
             }
+            // Smart filter (natural language).
+            if let q = smartFilter.minQuality, s.quality.rank < q.rank { return false }
+            if smartFilter.cachedOnly, !s.isCached { return false }
+            if let gb = smartFilter.maxSizeGB, let bytes = s.sizeBytes {
+                if Double(bytes) > gb * 1_073_741_824 { return false }
+            }
+            if let lang = smartFilter.language,
+               !s.languages.contains(where: { $0.uppercased() == lang }) { return false }
+            if smartFilter.codecPreferred, s.videoCodec == .avc || s.videoCodec == .unknown { return false }
+            if smartFilter.hdrOnly, s.hdr.rank == 0 { return false }
             return true
         }
+    }
+
+    /// "Best Match" superlative labels (Best Overall, Fastest Start, etc.), computed
+    /// across the full stream set using the user's preferences and keyed by stream id.
+    private var streamLabels: [String: [StreamRanker.StreamLabel]] {
+        StreamRanker.labels(for: streams, preferences: settings.streamPreferences)
     }
 
     private var availableSources: [String] {
@@ -135,6 +157,7 @@ struct StreamPickerView: View {
 
     private var anyFilterActive: Bool {
         minQuality != nil || selectedSource != nil || maxSizeGB != nil || cachedOnly
+            || !smartFilter.isEmpty
     }
 
     private var filterSummary: String {
@@ -145,6 +168,42 @@ struct StreamPickerView: View {
 
     private var filterBar: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            // Smart (natural-language) filter.
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Smart Filter")
+                    .font(.appFont(16, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                HStack(spacing: Theme.Spacing.sm) {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(Theme.Colors.accent)
+                    TextField("e.g. cached 1080p under 8GB english", text: $smartFilterText)
+                        .font(.appFont(18))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .submitLabel(.search)
+                        #endif
+                        .onSubmit { smartFilter = StreamFilterParser.parse(smartFilterText) }
+                    if !smartFilterText.isEmpty {
+                        Button {
+                            smartFilterText = ""
+                            smartFilter = ParsedStreamFilter()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(Theme.Colors.textTertiary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(Theme.Spacing.sm)
+                .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                // Re-parse as the user types so the list updates live.
+                .onChange(of: smartFilterText) { _, new in
+                    smartFilter = StreamFilterParser.parse(new)
+                }
+            }
+
             // Quality.
             filterGroup("Minimum Quality") {
                 chip("Any", active: minQuality == nil) { minQuality = nil }
@@ -174,6 +233,7 @@ struct StreamPickerView: View {
             if anyFilterActive {
                 Button("Clear filters") {
                     minQuality = nil; selectedSource = nil; maxSizeGB = nil; cachedOnly = false
+                    smartFilterText = ""; smartFilter = ParsedStreamFilter()
                 }
                 .font(.appFont(17, weight: .semibold))
                 .foregroundStyle(Theme.Colors.accent)
@@ -206,7 +266,7 @@ struct StreamPickerView: View {
         .buttonStyle(.plain)
     }
 
-    private func streamRow(_ stream: StreamOption) -> some View {
+    private func streamRow(_ stream: StreamOption, labels: [StreamRanker.StreamLabel]) -> some View {
         Button { Task { await play(stream) } } label: {
             HStack(spacing: Theme.Spacing.md) {
                 // Quality chip.
@@ -218,6 +278,14 @@ struct StreamPickerView: View {
                     .foregroundStyle(.white)
 
                 VStack(alignment: .leading, spacing: 6) {
+                    // Best-match labels (Best Overall, Fastest Start, etc.).
+                    if !labels.isEmpty {
+                        HStack(spacing: 6) {
+                            ForEach(labels, id: \.rawValue) { label in
+                                matchLabel(label)
+                            }
+                        }
+                    }
                     Text(stream.rawTitle)
                         .font(.appFont(20, weight: .medium))
                         .foregroundStyle(Theme.Colors.textPrimary)
@@ -254,6 +322,22 @@ struct StreamPickerView: View {
         .disabled(resolvingStreamID != nil)
     }
 
+    /// A single "Best Match" badge. Positive labels use the accent; the low-seeders
+    /// warning uses a cautionary orange.
+    private func matchLabel(_ label: StreamRanker.StreamLabel) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: label.systemImage)
+            Text(label.rawValue)
+        }
+        .font(.appFont(13, weight: .bold))
+        .padding(.horizontal, 8).padding(.vertical, 3)
+        .background(
+            (label.isWarning ? Color.orange : Theme.Colors.accent).opacity(0.18),
+            in: Capsule()
+        )
+        .foregroundStyle(label.isWarning ? Color.orange : Theme.Colors.accent)
+    }
+
     private func qualityColor(_ q: StreamQuality) -> Color {
         switch q {
         case .uhd4k:   return Theme.Colors.accent
@@ -282,7 +366,10 @@ struct StreamPickerView: View {
                 }
             }
         )
-        streams = found
+        // Re-rank the complete set using the user's full streaming preferences so the
+        // manual list order respects source, size, seeders, language, codec, and HDR,
+        // not just quality.
+        streams = StreamRanker.rank(found, preferences: settings.streamPreferences)
         if found.isEmpty { state = .empty; return }
 
         // Auto-select path.

@@ -302,4 +302,89 @@ enum StreamRanker {
         }
         return found
     }
+
+    // MARK: - Best-match labels
+
+    /// A human-friendly superlative for a stream, shown as a badge in the picker so
+    /// the user can choose by intent rather than reading raw titles.
+    enum StreamLabel: String {
+        case bestOverall   = "Best Overall"
+        case fastestStart  = "Fastest Start"
+        case smallestFile  = "Smallest File"
+        case bestAudio     = "Best Audio"
+        case bestHDR       = "Best HDR"
+        case mostReliable  = "Most Reliable"
+        case lowSeeders    = "Avoid — Low Seeders"
+
+        /// SF Symbol for the badge.
+        var systemImage: String {
+            switch self {
+            case .bestOverall:  return "star.fill"
+            case .fastestStart: return "bolt.fill"
+            case .smallestFile: return "arrow.down.circle.fill"
+            case .bestAudio:    return "hifispeaker.fill"
+            case .bestHDR:      return "sparkles.tv.fill"
+            case .mostReliable: return "checkmark.seal.fill"
+            case .lowSeeders:   return "exclamationmark.triangle.fill"
+            }
+        }
+
+        /// Whether this is a warning (rendered in a cautionary color) vs. a positive.
+        var isWarning: Bool { self == .lowSeeders }
+    }
+
+    /// Computes superlative labels for a set of streams, given the user's preferences.
+    /// Each "best" label is awarded to at most one stream; the low-seeders warning can
+    /// apply to several. Returns a map keyed by `StreamOption.id`. A stream may earn
+    /// more than one label.
+    static func labels(for streams: [StreamOption],
+                       preferences p: StreamPreferences = .init()) -> [String: [StreamLabel]] {
+        guard !streams.isEmpty else { return [:] }
+        var out: [String: [StreamLabel]] = [:]
+        func add(_ id: String, _ label: StreamLabel) {
+            out[id, default: []].append(label)
+        }
+
+        // Best Overall: highest weighted score under the user's preferences.
+        if let best = rank(streams, preferences: p).first {
+            add(best.id, .bestOverall)
+        }
+        // Fastest Start: a cached/instant stream, highest quality among those.
+        if let fastest = streams.filter({ $0.isCached })
+            .max(by: { $0.quality.rank < $1.quality.rank }) {
+            add(fastest.id, .fastestStart)
+        }
+        // Smallest File: smallest known size that is still at least 720p (avoid junk).
+        if let smallest = streams
+            .filter({ ($0.sizeBytes ?? 0) > 0 && $0.quality.rank >= StreamQuality.hd720.rank })
+            .min(by: { ($0.sizeBytes ?? .max) < ($1.sizeBytes ?? .max) }) {
+            add(smallest.id, .smallestFile)
+        }
+        // Best Audio: highest audio-format rank (Atmos/TrueHD/DTS-HD ...).
+        if let bestAudio = streams.max(by: { $0.audioFormat.rank < $1.audioFormat.rank }),
+           bestAudio.audioFormat.rank > 0 {
+            add(bestAudio.id, .bestAudio)
+        }
+        // Best HDR: highest HDR tier (Dolby Vision > HDR10+ > HDR10 > HDR).
+        if let bestHDR = streams.max(by: { $0.hdr.rank < $1.hdr.rank }),
+           bestHDR.hdr.rank > 0 {
+            add(bestHDR.id, .bestHDR)
+        }
+        // Most Reliable: cached, or the highest-seeded torrent.
+        if let reliable = streams.max(by: { reliabilityScore($0) < reliabilityScore($1) }),
+           reliabilityScore(reliable) > 0 {
+            add(reliable.id, .mostReliable)
+        }
+        // Low-seeders warning: non-cached torrents with few seeders.
+        for s in streams where !s.isCached && s.sourceKind == .torrent {
+            if (s.seeders ?? 0) < 5 { add(s.id, .lowSeeders) }
+        }
+        return out
+    }
+
+    /// A reliability proxy: cached sources are most reliable, otherwise seeder count.
+    private static func reliabilityScore(_ s: StreamOption) -> Int {
+        if s.isCached { return 10_000 }
+        return s.seeders ?? 0
+    }
 }
