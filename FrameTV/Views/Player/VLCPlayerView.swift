@@ -27,6 +27,8 @@ struct VLCPlayerView: View {
 
     @StateObject private var model: VLCPlayerModel
     @State private var controlsVisible = false
+    @State private var showDiagnostics = false
+    @State private var minimalControls = false
     @State private var hideControlsTask: Task<Void, Never>?
     @State private var hasStarted = false
     @State private var showSubtitleImporter = false
@@ -70,6 +72,26 @@ struct VLCPlayerView: View {
                 overlay
                     .opacity(controlsVisible ? 1 : 0)
                     .animation(.easeInOut(duration: 0.25), value: controlsVisible)
+
+                // Diagnostics panel (toggled from the controls).
+                if showDiagnostics {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            PlaybackDiagnostics(
+                                item: model.item,
+                                engine: .vlc,
+                                currentTime: model.currentTime,
+                                duration: model.duration,
+                                isBuffering: model.isBuffering,
+                                onClose: { showDiagnostics = false }
+                            )
+                            .padding(Theme.Spacing.lg)
+                        }
+                        Spacer()
+                    }
+                    .transition(.opacity)
+                }
 
                 // Seek preview shown while dragging/swiping to scrub.
                 if let target = scrubTarget {
@@ -188,28 +210,52 @@ struct VLCPlayerView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Stop")
                 Spacer()
-                // Fill vs fit (the player already covers the screen; this toggles
-                // whether the video is cropped to fill or letterboxed to fit).
-                Button {
-                    model.fillScreen.toggle(); revealControls()
-                } label: {
-                    Image(systemName: model.fillScreen
-                          ? "arrow.down.right.and.arrow.up.left"
-                          : "arrow.up.left.and.arrow.down.right")
+                // Overlay density toggle: minimal hides the secondary controls for a
+                // cleaner view; full shows everything.
+                Button { minimalControls.toggle(); revealControls() } label: {
+                    Image(systemName: minimalControls ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
                         .font(.appFont(22, weight: .semibold))
                         .foregroundStyle(.white)
                         .padding(Theme.Spacing.md)
                         .background(.ultraThinMaterial, in: Circle())
                 }
                 .buttonStyle(.plain)
-                Button { model.showSubtitlePicker = true } label: {
-                    Image(systemName: "captions.bubble")
-                        .font(.appFont(22, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(Theme.Spacing.md)
-                        .background(.ultraThinMaterial, in: Circle())
+                .accessibilityLabel(minimalControls ? "Show all controls" : "Minimal controls")
+
+                if !minimalControls {
+                    // Fill vs fit (the player already covers the screen; this toggles
+                    // whether the video is cropped to fill or letterboxed to fit).
+                    Button {
+                        model.fillScreen.toggle(); revealControls()
+                    } label: {
+                        Image(systemName: model.fillScreen
+                              ? "arrow.down.right.and.arrow.up.left"
+                              : "arrow.up.left.and.arrow.down.right")
+                            .font(.appFont(22, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(Theme.Spacing.md)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    Button { model.showSubtitlePicker = true } label: {
+                        Image(systemName: "captions.bubble")
+                            .font(.appFont(22, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(Theme.Spacing.md)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    // Diagnostics (engine, source, format, buffer health).
+                    Button { showDiagnostics.toggle(); revealControls() } label: {
+                        Image(systemName: "waveform.path.ecg")
+                            .font(.appFont(22, weight: .semibold))
+                            .foregroundStyle(showDiagnostics ? Theme.Colors.accent : .white)
+                            .padding(Theme.Spacing.md)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Diagnostics")
                 }
-                .buttonStyle(.plain)
             }
             .padding(Theme.Spacing.lg)
 
@@ -242,13 +288,17 @@ struct VLCPlayerView: View {
                 }
 
                 HStack(spacing: Theme.Spacing.xl) {
-                    controlButton("gobackward.15") { model.skipBackward() }
+                    if !minimalControls {
+                        controlButton("gobackward.15") { model.skipBackward() }
+                    }
                     controlButton(model.isPlaying ? "pause.fill" : "play.fill", large: true) {
                         model.togglePlayPause(); revealControls()
                     }
-                    controlButton("goforward.15") { model.skipForward() }
-                    if hasNextEpisode {
-                        controlButton("forward.end.fill") { playNextEpisode() }
+                    if !minimalControls {
+                        controlButton("goforward.15") { model.skipForward() }
+                        if hasNextEpisode {
+                            controlButton("forward.end.fill") { playNextEpisode() }
+                        }
                     }
                 }
             }

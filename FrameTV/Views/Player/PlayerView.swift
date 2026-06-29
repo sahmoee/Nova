@@ -29,6 +29,10 @@ struct PlayerView: View {
     @State private var resumePromptPosition: TimeInterval?
     @State private var didChooseResume = false
 
+    // One-tap recovery: when set, forces a specific engine for this session,
+    // overriding the automatic/preference routing (used by "Try other player").
+    @State private var engineOverride: PlaybackEngine?
+
     init(item: MediaItem, series: CatalogItem? = nil) {
         self.item = item
         self.series = series
@@ -110,16 +114,92 @@ struct PlayerView: View {
                      : String(format: "%d:%02d", m, s)
     }
 
+    /// Smart recovery when playback fails: classifies the failure, suggests the most
+    /// likely fix first (other engine vs. different stream), and offers one-tap retry,
+    /// switching engine, opening externally, or going back to pick another stream.
+    private func playbackRecovery(message: String) -> some View {
+        let reason = PlaybackFailureReason.classify(message)
+        // This engine failed for this title — clear the remembered choice so the app
+        // doesn't keep routing here next time.
+        PlayerMemory.forget(for: item)
+
+        return ZStack {
+            Color.black.opacity(0.92).ignoresSafeArea()
+            VStack(spacing: Theme.Spacing.lg) {
+                Image(systemName: reason.systemImage)
+                    .font(.appFont(52, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.error)
+                Text("Playback failed")
+                    .font(.appFont(28, weight: .bold))
+                    .foregroundStyle(.white)
+                Text(reason.message)
+                    .font(.appFont(19))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 640)
+
+                VStack(spacing: Theme.Spacing.sm) {
+                    // Try the other engine — surfaced first when a codec/engine issue.
+                    // Setting the override re-routes the view to the other player, which
+                    // builds a fresh model; no need to restart the failed one.
+                    FocusableButton(title: "Try \(useVLCEngine ? "Apple Player" : "VLC Player")",
+                                    systemImage: "arrow.triangle.2.circlepath",
+                                    prominent: reason.suggestsOtherEngine) {
+                        engineOverride = useVLCEngine ? .avPlayer : .vlc
+                    }
+                    .frame(maxWidth: 460)
+
+                    // Retry the same stream/engine.
+                    FocusableButton(title: "Retry", systemImage: "gobackward") {
+                        model.retry()
+                    }
+                    .frame(maxWidth: 460)
+
+                    #if os(iOS)
+                    FocusableButton(title: "Open in \(settings.preferredExternalPlayer.title)",
+                                    systemImage: "arrow.up.forward.app") {
+                        _ = settings.preferredExternalPlayer.open(item.playbackURL)
+                    }
+                    .frame(maxWidth: 460)
+                    #endif
+
+                    // Go back to pick a different stream — surfaced first when the
+                    // issue is the stream itself (expired/timeout/no-stream).
+                    FocusableButton(title: "Choose a different stream",
+                                    systemImage: "list.bullet",
+                                    prominent: reason.suggestsDifferentStream) {
+                        dismiss()
+                    }
+                    .frame(maxWidth: 460)
+                }
+            }
+            .padding(Theme.Spacing.xl)
+        }
+    }
+
     @ViewBuilder
     private var inAppBody: some View {
         // AVPlayer can only open MP4/M4V/MOV/HLS. For anything else (MKV, AVI,
         // WebM, or unknown), use the VLC-backed player which handles all formats.
-        // The user's preferred built-in player can force one engine.
-        if PlaybackEngineRouter.shouldUseVLC(for: item, preference: settings.builtInPlayer) {
+        // The user's preferred built-in player can force one engine, and a recovery
+        // override (from "Try other player") forces a specific engine for retry.
+        if useVLCEngine {
             VLCPlayerView(item: item, series: series)
         } else {
             avPlayerBody
         }
+    }
+
+    /// Whether to use the VLC engine, honoring any recovery override first, then the
+    /// normal routing. AVPlayer is never forced for a format it can't open.
+    private var useVLCEngine: Bool {
+        if let override = engineOverride {
+            switch override {
+            case .vlc:      return true
+            case .avPlayer: return PlaybackEngineRouter.isAVPlayerCompatible(for: item) ? false : true
+            }
+        }
+        return PlaybackEngineRouter.shouldUseVLC(for: item, preference: settings.builtInPlayer)
     }
 
     #if os(iOS)
@@ -169,13 +249,7 @@ struct PlayerView: View {
                 AVPlayerContainer(player: model.player, onExitFullscreen: { dismiss() })
                     .ignoresSafeArea()
             case .failed(let message):
-                ErrorStateView(
-                    title: "Playback failed",
-                    message: message,
-                    retryTitle: "Retry",
-                    onRetry: { model.retry() },
-                    onBack: { dismiss() }
-                )
+                playbackRecovery(message: message)
             }
         }
         .onAppear {

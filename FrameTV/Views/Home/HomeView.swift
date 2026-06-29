@@ -43,9 +43,7 @@ struct HomeView: View {
                             }
 
                             if !library.continueWatching.isEmpty {
-                                MediaRow(title: "Continue Watching",
-                                         items: library.continueWatching,
-                                         wide: true) { play($0) }
+                                continueWatchingRow
                             }
 
                             // User-configured catalog shelves (Trakt, TMDB, addons).
@@ -161,5 +159,36 @@ struct HomeView: View {
 
     private func play(_ item: MediaItem) {
         selectedItem = item
+    }
+
+    /// Restarts an item from the beginning: clears its saved progress, then plays.
+    private func restart(_ item: MediaItem) {
+        library.clearProgress(for: item.id)
+        var fresh = item
+        fresh.lastPlayedPosition = 0
+        selectedItem = fresh
+    }
+
+    /// The Continue Watching shelf with resume badges and per-item Restart/Remove.
+    private var continueWatchingRow: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text("Continue Watching")
+                .font(Theme.Font.sectionTitle())
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .padding(.horizontal, Theme.Spacing.edge)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.lg) {
+                    ForEach(library.continueWatching) { item in
+                        ContinueWatchingCard(
+                            item: item,
+                            onPlay: { play(item) },
+                            onRestart: { restart(item) },
+                            onRemove: { withAnimation { library.clearProgress(for: item.id) } }
+                        )
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.edge)
+            }
+        }
     }
 }
