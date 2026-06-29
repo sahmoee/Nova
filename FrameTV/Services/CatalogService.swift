@@ -80,6 +80,15 @@ final class CatalogService: ObservableObject {
         // Cache only meaningful results.
         if hydrated.contentID.imdb != nil || !hydrated.seasons.isEmpty {
             await CatalogCaches.metadata.set(hydrated, for: key)
+            // Persist so the title's details/episodes are available offline next time.
+            await OfflineMetadataCache.shared.store(hydrated, for: key)
+            return hydrated
+        }
+        // Hydration produced nothing useful (likely offline) — try the disk cache so
+        // an already-seen title still shows its episodes/description.
+        if item.isSeries, item.seasons.isEmpty,
+           let offline = await OfflineMetadataCache.shared.item(for: key) {
+            return offline
         }
         return hydrated
     }

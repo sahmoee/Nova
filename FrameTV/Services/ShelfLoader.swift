@@ -43,8 +43,18 @@ final class ShelfLoader {
             pool = cached
         } else {
             let result = await load(shelf.kind)
-            if !result.isEmpty { await cache.set(result, for: key) }
-            pool = result
+            if !result.isEmpty {
+                await cache.set(result, for: key)
+                // Persist to disk so this shelf survives a restart and shows offline.
+                await OfflineCatalogCache.shared.store(result, for: key)
+                pool = result
+            } else if let offline = await OfflineCatalogCache.shared.items(for: key) {
+                // Network/source returned nothing (slow or offline) — fall back to the
+                // last-known contents from disk so the screen isn't empty.
+                pool = offline
+            } else {
+                pool = result
+            }
         }
 
         switch variant {
