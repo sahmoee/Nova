@@ -124,12 +124,7 @@ struct MediaCard: View {
     }
 
     private var placeholder: some View {
-        ZStack {
-            Theme.Colors.card
-            Image(systemName: "film")
-                .font(.appFont(44))
-                .foregroundStyle(Theme.Colors.textTertiary)
-        }
+        GeneratedPoster(title: titleText, year: item.metadata.year)
     }
 
     private var progressBar: some View {
