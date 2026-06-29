@@ -21,6 +21,9 @@ struct SMBBrowseView: View {
     @State private var selectedItem: MediaItem?
     @State private var shares: [String] = []          // server's shares when none chosen yet
     @State private var activeShareName: String        // the share we're browsing
+    @State private var importing = false              // Add All in progress
+    @State private var pathInput = ""                 // quick path-jump field
+    @FocusState private var pathFieldFocused: Bool
 
     enum ViewState: Equatable { case loading, loaded, error(String) }
 
@@ -81,6 +84,10 @@ struct SMBBrowseView: View {
                     let folders = items.filter { $0.isDirectory }
                     let files = items.filter { !$0.isDirectory && $0.isPlayableVideo }
 
+                    // Quick path jump: type or paste a folder path and go straight there,
+                    // instead of clicking through each folder.
+                    pathJumpField
+
                     if !folders.isEmpty {
                         sectionHeader("Folders")
                         ForEach(folders) { folder in
@@ -91,7 +98,17 @@ struct SMBBrowseView: View {
                     }
 
                     if !files.isEmpty {
-                        sectionHeader("Videos")
+                        HStack {
+                            sectionHeader("Videos")
+                            Spacer()
+                            // Add every video in this folder to the library in one tap.
+                            FocusableButton(title: importing ? "Adding…" : "Add All (\(files.count))",
+                                            systemImage: "plus.rectangle.on.folder") {
+                                Task { await addAll(files) }
+                            }
+                            .frame(maxWidth: 260)
+                            .disabled(importing)
+                        }
                         ForEach(files) { file in
                             fileRow(file)
                         }
@@ -107,6 +124,44 @@ struct SMBBrowseView: View {
             }
             .padding(Theme.Spacing.edge)
         }
+    }
+
+    private var pathJumpField: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            Text("Go to folder path")
+                .font(.appFont(16, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textSecondary)
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: "arrow.turn.down.right")
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                TextField("/Movies/Action", text: $pathInput)
+                    .textFieldStyle(.plain)
+                    .focused($pathFieldFocused)
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled(true)
+                    #endif
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .onSubmit { Task { await jumpToPath() } }
+                if !pathInput.isEmpty {
+                    Button { pathInput = "" } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.Colors.textTertiary)
+                    }.buttonStyle(.plain)
+                }
+                Button { Task { await jumpToPath() } } label: {
+                    Text("Go").font(.appFont(16, weight: .bold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.Colors.accent)
+                .disabled(pathInput.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            .padding(Theme.Spacing.md)
+            .frame(maxWidth: .infinity)
+            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+            .contentShape(Rectangle())
+            .onTapGesture { pathFieldFocused = true }
+        }
+        .padding(.bottom, Theme.Spacing.sm)
     }
 
     private func sectionHeader(_ text: String) -> some View {
@@ -229,5 +284,53 @@ struct SMBBrowseView: View {
         } catch {
             state = .error((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
         }
+    }
+
+    /// Adds every playable video in the current folder to the library at once.
+    /// Skips files already present (by stable content key) so re-running is safe.
+    private func addAll(_ files: [RemoteFileItem]) async {
+        guard !importing else { return }
+        importing = true
+        defer { importing = false }
+
+        var added = 0
+        for file in files {
+            do {
+                let item = try await makeItem(for: file)
+                let key = item.contentKey
+                if !library.items.contains(where: { $0.contentKey == key }) {
+                    library.add(item)
+                    added += 1
+                }
+            } catch {
+                // Skip a file that can't be resolved; keep importing the rest.
+                continue
+            }
+        }
+        ToastCenter.shared.show(
+            added > 0 ? "Added \(added) video\(added == 1 ? "" : "s") to your library"
+                      : "Everything here is already in your library",
+            systemImage: "checkmark.circle.fill"
+        )
+    }
+
+    /// Jumps directly to a typed/pasted folder path within the active share.
+    private func jumpToPath() async {
+        let raw = pathInput.trimmingCharacters(in: .whitespaces)
+        guard !raw.isEmpty else { return }
+        // Accept "Movies/Action", "/Movies/Action", or a full
+        // "smb://host/share/Movies/Action" and reduce to a share-relative path.
+        var p = raw
+        if let range = p.range(of: "smb://", options: .caseInsensitive) {
+            p.removeSubrange(p.startIndex..<range.upperBound)
+            // Drop host and share segments if a full URL was pasted.
+            let parts = p.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+            if parts.count >= 2 { p = "/" + parts.dropFirst(2).joined(separator: "/") }
+            else { p = "/" }
+        }
+        if !p.hasPrefix("/") { p = "/" + p }
+        pathFieldFocused = false
+        path = p
+        await load()
     }
 }
