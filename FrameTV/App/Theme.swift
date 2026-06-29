@@ -8,6 +8,9 @@
 //
 
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 enum Theme {
 
@@ -22,9 +25,18 @@ enum Theme {
     /// On tvOS, keep the full living-room scale.
     static let isCompact = false
     static let uiScale: CGFloat = 1.0
+    #elseif os(iOS)
+    /// On iPad we render a roomier, "regular" layout closer to the tvOS scale so the
+    /// large screen isn't wasted on iPhone-sized cards; on iPhone we keep the compact
+    /// handheld scale. Determined once at launch from the device idiom.
+    static let isPad: Bool = UIDevice.current.userInterfaceIdiom == .pad
+    /// iPad is treated as "regular" width (false) so the many `isCompact ? a : b`
+    /// branches across the app give iPad the wider treatment automatically.
+    static let isCompact: Bool = !isPad
+    /// iPhone stays at a tight 0.52; iPad uses a larger 0.72 so posters, type, and
+    /// spacing scale up for the bigger canvas without reaching full tvOS size.
+    static let uiScale: CGFloat = isPad ? 0.72 : 0.52
     #else
-    /// On iOS/iPadOS, shrink to a comfortable handheld scale. Tuned so poster rows
-    /// show roughly three cards across on a typical iPhone without feeling cramped.
     static let isCompact = true
     static let uiScale: CGFloat = 0.52
     #endif

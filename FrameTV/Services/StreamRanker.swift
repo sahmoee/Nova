@@ -67,47 +67,88 @@ enum StreamRanker {
 
     // MARK: - Ranking
 
+    /// A bundle of the user's streaming preferences from Settings, used to bias and
+    /// filter the stream list. All fields are optional/zero-defaulted so existing
+    /// callers can pass `.init()` for "no extra preference".
+    struct StreamPreferences {
+        var preferredQuality: StreamQuality? = nil
+        var preferredLanguage: String? = nil
+        var maxSizeGB: Int = 0                       // 0 = no limit
+        var preferredSource: SourceKind? = nil        // nil = any
+        var minSeeders: Int = 0                       // 0 = no minimum
+        var preferEfficientCodec: Bool = false
+    }
+
     /// Sorts streams best-first using a weighted score across all signals:
     /// availability, resolution, HDR tier, codec efficiency, audio format, seeders,
-    /// and a sane file-size sweet spot. A preferred quality and language can bias the
-    /// result toward the user's settings.
+    /// and a sane file-size sweet spot. The user's preferences bias the result.
     static func rank(_ streams: [StreamOption],
                      preferredQuality: StreamQuality? = nil,
                      preferredLanguage: String? = nil) -> [StreamOption] {
+        rank(streams, preferences: StreamPreferences(preferredQuality: preferredQuality,
+                                                     preferredLanguage: preferredLanguage))
+    }
+
+    /// Preference-aware ranking. Streams over the size cap or under the seeder floor
+    /// are kept but pushed to the bottom (so the list is never empty), then the rest
+    /// are ordered by weighted score.
+    static func rank(_ streams: [StreamOption], preferences p: StreamPreferences) -> [StreamOption] {
         streams.sorted { a, b in
-            let sa = score(a, preferredQuality: preferredQuality, preferredLanguage: preferredLanguage)
-            let sb = score(b, preferredQuality: preferredQuality, preferredLanguage: preferredLanguage)
+            let pa = passesHardPreferences(a, p)
+            let pb = passesHardPreferences(b, p)
+            if pa != pb { return pa }   // passing streams sort above failing ones
+            let sa = score(a, preferences: p)
+            let sb = score(b, preferences: p)
             if sa != sb { return sa > sb }
-            // Tie-break on raw size (proxy for bitrate).
             return (a.sizeBytes ?? 0) > (b.sizeBytes ?? 0)
         }
+    }
+
+    /// Whether a stream satisfies the user's hard caps (size, min seeders). Cached
+    /// sources are exempt from the seeder floor (they don't rely on seeders).
+    private static func passesHardPreferences(_ s: StreamOption, _ p: StreamPreferences) -> Bool {
+        if p.maxSizeGB > 0, let bytes = s.sizeBytes {
+            let gb = Double(bytes) / 1_073_741_824.0
+            if gb > Double(p.maxSizeGB) { return false }
+        }
+        if p.minSeeders > 0, !s.isCached, s.sourceKind == .torrent {
+            if (s.seeders ?? 0) < p.minSeeders { return false }
+        }
+        return true
+    }
+
+    static func score(_ s: StreamOption,
+                      preferredQuality: StreamQuality?,
+                      preferredLanguage: String?) -> Int {
+        score(s, preferences: StreamPreferences(preferredQuality: preferredQuality,
+                                                preferredLanguage: preferredLanguage))
     }
 
     /// Computes a single comparable score for a stream. Weights are tuned so that
     /// instant availability and resolution dominate, with HDR/codec/audio refining
     /// between otherwise-similar options.
-    static func score(_ s: StreamOption,
-                      preferredQuality: StreamQuality?,
-                      preferredLanguage: String?) -> Int {
+    static func score(_ s: StreamOption, preferences p: StreamPreferences) -> Int {
         var score = 0
         // Availability is paramount: a cached/instant source beats a faster-on-paper
         // torrent the user has to wait for.
         if s.isCached { score += 1000 }
         // Honor an explicit quality preference strongly.
-        if let pq = preferredQuality, s.quality == pq { score += 400 }
+        if let pq = p.preferredQuality, s.quality == pq { score += 400 }
+        // Preferred source kind.
+        if let ps = p.preferredSource, s.sourceKind == ps { score += 200 }
         // Resolution.
         score += s.quality.rank * 100
         // HDR tier (Dolby Vision > HDR10+ > HDR10 > HDR).
         score += s.hdr.rank * 40
         // Audio format (Atmos/TrueHD/DTS-HD ... ).
         score += s.audioFormat.rank * 12
-        // Codec efficiency (HEVC/AV1 preferred).
-        score += s.videoCodec.rank * 10
+        // Codec efficiency (HEVC/AV1 preferred), boosted when the user opts in.
+        score += s.videoCodec.rank * (p.preferEfficientCodec ? 30 : 10)
         // Seeders give confidence for non-cached torrents (diminishing).
         let seed = s.seeders ?? 0
         score += min(seed, 200) / 10
         // Preferred language match.
-        if let pl = preferredLanguage?.uppercased(),
+        if let pl = p.preferredLanguage?.uppercased(), !pl.isEmpty,
            s.languages.contains(where: { $0.uppercased() == pl }) {
             score += 60
         }
@@ -133,10 +174,25 @@ enum StreamRanker {
                            preferredQuality: StreamQuality?,
                            requireCached: Bool,
                            preferredLanguage: String? = nil) -> StreamOption? {
+        autoSelect(streams,
+                   preferences: StreamPreferences(preferredQuality: preferredQuality,
+                                                  preferredLanguage: preferredLanguage),
+                   requireCached: requireCached)
+    }
+
+    /// Preference-aware auto-select. Applies the cached requirement, then ranks with
+    /// the full preference set, falling back to the unfiltered best if nothing
+    /// passes the hard caps.
+    static func autoSelect(_ streams: [StreamOption],
+                           preferences p: StreamPreferences,
+                           requireCached: Bool) -> StreamOption? {
         var pool = streams
         if requireCached { pool = pool.filter { $0.isCached } }
-        return rank(pool, preferredQuality: preferredQuality, preferredLanguage: preferredLanguage).first
-            ?? rank(streams, preferredQuality: preferredQuality, preferredLanguage: preferredLanguage).first
+        let ranked = rank(pool, preferences: p)
+        // Prefer the best stream that passes the hard caps; otherwise best overall.
+        return ranked.first(where: { passesHardPreferences($0, p) })
+            ?? ranked.first
+            ?? rank(streams, preferences: p).first
     }
 
     // MARK: - Parsing helpers

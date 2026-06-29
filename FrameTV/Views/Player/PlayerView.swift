@@ -152,7 +152,7 @@ struct PlayerView: View {
             if Task.isCancelled { return }
             guard let best = StreamRanker.autoSelect(
                 streams,
-                preferredQuality: settings.preferredStreamQuality,
+                preferences: settings.streamPreferences,
                 requireCached: settings.requireCachedStreams
             ) else { return }
 

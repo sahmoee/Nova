@@ -28,6 +28,11 @@ final class SettingsStore: ObservableObject {
         static let autoSelectStream = "settings.autoSelectStream"
         static let requireCachedStreams = "settings.requireCachedStreams"
         static let preferredStreamQuality = "settings.preferredStreamQuality"
+        static let maxStreamSizeGB = "settings.maxStreamSizeGB"
+        static let preferredSourceKind = "settings.preferredSourceKind"
+        static let minSeeders = "settings.minSeeders"
+        static let preferEfficientCodec = "settings.preferEfficientCodec"
+        static let preferredAudioLanguage = "settings.preferredAudioLanguage"
         static let subtitleLanguage = "settings.subtitleLanguage"
         static let subtitlesEnabled = "settings.subtitlesEnabled"
         static let traktScrobbling = "settings.traktScrobbling"
@@ -96,6 +101,35 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(preferredStreamQuality.rawValue, forKey: Key.preferredStreamQuality); CloudSync.shared.setString(preferredStreamQuality.rawValue, forKey: Key.preferredStreamQuality) }
     }
 
+    /// Maximum stream size in GB. 0 means no limit. Streams larger than this are
+    /// pushed down the list (and excluded from auto-select).
+    @Published var maxStreamSizeGB: Int {
+        didSet { defaults.set(maxStreamSizeGB, forKey: Key.maxStreamSizeGB); CloudSync.shared.setDouble(Double(maxStreamSizeGB), forKey: Key.maxStreamSizeGB) }
+    }
+
+    /// Preferred source kind (Any, Cloud/Debrid, Torrent, Local SMB, Direct). A
+    /// matching source is boosted in ranking.
+    @Published var preferredSourceKind: SourceKindPreference {
+        didSet { defaults.set(preferredSourceKind.rawValue, forKey: Key.preferredSourceKind); CloudSync.shared.setString(preferredSourceKind.rawValue, forKey: Key.preferredSourceKind) }
+    }
+
+    /// Minimum seeders for non-cached torrents. Torrents below this are pushed down
+    /// (cached sources are unaffected). 0 means no minimum.
+    @Published var minSeeders: Int {
+        didSet { defaults.set(minSeeders, forKey: Key.minSeeders); CloudSync.shared.setDouble(Double(minSeeders), forKey: Key.minSeeders) }
+    }
+
+    /// Prefer efficient codecs (HEVC / AV1) when otherwise similar.
+    @Published var preferEfficientCodec: Bool {
+        didSet { defaults.set(preferEfficientCodec, forKey: Key.preferEfficientCodec); CloudSync.shared.setBool(preferEfficientCodec, forKey: Key.preferEfficientCodec) }
+    }
+
+    /// Preferred audio language tag (e.g. "EN"). Empty means no preference. A stream
+    /// offering this language is boosted.
+    @Published var preferredAudioLanguage: String {
+        didSet { defaults.set(preferredAudioLanguage, forKey: Key.preferredAudioLanguage); CloudSync.shared.setString(preferredAudioLanguage, forKey: Key.preferredAudioLanguage) }
+    }
+
     // MARK: - Subtitles
 
     @Published var subtitlesEnabled: Bool {
@@ -160,6 +194,13 @@ final class SettingsStore: ObservableObject {
         self.preferredStreamQuality = StreamQuality(
             rawValue: defaults.string(forKey: Key.preferredStreamQuality) ?? StreamQuality.fhd1080.rawValue
         ) ?? .fhd1080
+        self.maxStreamSizeGB = defaults.integer(forKey: Key.maxStreamSizeGB)   // 0 = no limit
+        self.preferredSourceKind = SourceKindPreference(
+            rawValue: defaults.string(forKey: Key.preferredSourceKind) ?? SourceKindPreference.any.rawValue
+        ) ?? .any
+        self.minSeeders = defaults.integer(forKey: Key.minSeeders)             // 0 = no minimum
+        self.preferEfficientCodec = defaults.bool(forKey: Key.preferEfficientCodec)
+        self.preferredAudioLanguage = defaults.string(forKey: Key.preferredAudioLanguage) ?? ""
         self.subtitlesEnabled = defaults.bool(forKey: Key.subtitlesEnabled)
         self.subtitleLanguage = defaults.string(forKey: Key.subtitleLanguage) ?? "en"
         self.traktScrobblingEnabled = defaults.bool(forKey: Key.traktScrobbling)
@@ -218,6 +259,74 @@ final class SettingsStore: ObservableObject {
            let p = BuiltInPlayer(rawValue: v), builtInPlayer != p { builtInPlayer = p }
         if let v = cloud.string(forKey: Key.preferredExternalPlayer),
            let p = ExternalPlayer(rawValue: v), preferredExternalPlayer != p { preferredExternalPlayer = p }
+
+        applyBool(Key.preferEfficientCodec, \.preferEfficientCodec)
+        if let v = cloud.double(forKey: Key.maxStreamSizeGB), maxStreamSizeGB != Int(v) {
+            maxStreamSizeGB = Int(v)
+        }
+        if let v = cloud.double(forKey: Key.minSeeders), minSeeders != Int(v) {
+            minSeeders = Int(v)
+        }
+        if let v = cloud.string(forKey: Key.preferredSourceKind),
+           let p = SourceKindPreference(rawValue: v), preferredSourceKind != p { preferredSourceKind = p }
+        if let v = cloud.string(forKey: Key.preferredAudioLanguage), preferredAudioLanguage != v {
+            preferredAudioLanguage = v
+        }
+    }
+
+    /// Builds the ranking preferences bundle from the current streaming settings,
+    /// for use by StreamRanker.
+    var streamPreferences: StreamRanker.StreamPreferences {
+        StreamRanker.StreamPreferences(
+            preferredQuality: preferredStreamQuality == .unknown ? nil : preferredStreamQuality,
+            preferredLanguage: preferredAudioLanguage.isEmpty ? nil : preferredAudioLanguage,
+            maxSizeGB: maxStreamSizeGB,
+            preferredSource: preferredSourceKind.sourceKind,
+            minSeeders: minSeeders,
+            preferEfficientCodec: preferEfficientCodec
+        )
+    }
+}
+
+/// User-facing source preference. Maps to SourceKind, with an "Any" option.
+enum SourceKindPreference: String, CaseIterable, Identifiable {
+    case any
+    case cloud        // debrid / direct cloud
+    case torrent
+    case localSMB
+    case directURL
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .any:       return "Any Source"
+        case .cloud:     return "Cloud / Debrid"
+        case .torrent:   return "Torrent"
+        case .localSMB:  return "Local SMB"
+        case .directURL: return "Direct URL"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .any:       return "square.stack.3d.up"
+        case .cloud:     return "cloud"
+        case .torrent:   return "arrow.down.circle"
+        case .localSMB:  return "externaldrive.connected.to.line.below"
+        case .directURL: return "link"
+        }
+    }
+
+    /// The matching SourceKind, or nil for "Any".
+    var sourceKind: SourceKind? {
+        switch self {
+        case .any:       return nil
+        case .cloud:     return .cloud
+        case .torrent:   return .torrent
+        case .localSMB:  return .localSMB
+        case .directURL: return .directURL
+        }
     }
 }
 

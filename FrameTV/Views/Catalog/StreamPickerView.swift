@@ -288,7 +288,7 @@ struct StreamPickerView: View {
         // Auto-select path.
         if settings.autoSelectStream,
            let best = StreamRanker.autoSelect(found,
-                                              preferredQuality: settings.preferredStreamQuality,
+                                              preferences: settings.streamPreferences,
                                               requireCached: settings.requireCachedStreams) {
             state = .loaded
             await play(best)

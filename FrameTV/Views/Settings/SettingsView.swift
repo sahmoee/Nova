@@ -130,22 +130,68 @@ struct SettingsView: View {
                       isOn: $settings.autoSelectStream)
             toggleRow("Prefer Cached / Instant Streams", systemImage: "bolt",
                       isOn: $settings.requireCachedStreams)
-            HStack {
-                Label("Preferred Quality", systemImage: "4k.tv")
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .font(.appFont(22))
-                Spacer()
-                Picker("", selection: $settings.preferredStreamQuality) {
-                    ForEach(StreamQuality.allCases.filter { $0 != .unknown && $0 != .cam }, id: \.self) { q in
-                        Text(q.rawValue).tag(q)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(maxWidth: Theme.isCompact ? .infinity : 200)
-            }
-            .padding(Theme.Spacing.md)
-            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            toggleRow("Prefer Efficient Codecs (HEVC / AV1)", systemImage: "square.stack.3d.down.right",
+                      isOn: $settings.preferEfficientCodec)
+
+            pickerRow("Preferred Quality", systemImage: "4k.tv",
+                      selection: $settings.preferredStreamQuality,
+                      options: StreamQuality.allCases.filter { $0 != .unknown && $0 != .cam },
+                      label: { $0.rawValue })
+
+            pickerRow("Preferred Source", systemImage: "point.3.connected.trianglepath.dotted",
+                      selection: $settings.preferredSourceKind,
+                      options: SourceKindPreference.allCases,
+                      label: { $0.displayName })
+
+            pickerRow("Max File Size", systemImage: "internaldrive",
+                      selection: $settings.maxStreamSizeGB,
+                      options: [0, 5, 10, 15, 20, 30, 50, 80],
+                      label: { $0 == 0 ? "No Limit" : "\($0) GB" })
+
+            pickerRow("Minimum Seeders", systemImage: "person.3",
+                      selection: $settings.minSeeders,
+                      options: [0, 1, 3, 5, 10, 20, 50],
+                      label: { $0 == 0 ? "No Minimum" : "\($0)+" })
+
+            pickerRow("Preferred Audio Language", systemImage: "waveform",
+                      selection: $settings.preferredAudioLanguage,
+                      options: audioLanguageOptions,
+                      label: { audioLanguageLabel($0) })
         }
+    }
+
+    /// Language tag options for the preferred-audio picker. Empty string = "Any".
+    private var audioLanguageOptions: [String] {
+        ["", "EN", "ES", "FR", "DE", "IT", "PT", "JA", "KO", "ZH", "HI", "RU"]
+    }
+
+    private func audioLanguageLabel(_ tag: String) -> String {
+        guard !tag.isEmpty else { return "Any" }
+        let names = ["EN": "English", "ES": "Spanish", "FR": "French", "DE": "German",
+                     "IT": "Italian", "PT": "Portuguese", "JA": "Japanese", "KO": "Korean",
+                     "ZH": "Chinese", "HI": "Hindi", "RU": "Russian"]
+        return names[tag] ?? tag
+    }
+
+    /// A labeled menu picker row matching the streaming section styling.
+    private func pickerRow<T: Hashable>(_ title: String, systemImage: String,
+                                        selection: Binding<T>, options: [T],
+                                        label: @escaping (T) -> String) -> some View {
+        HStack {
+            Label(title, systemImage: systemImage)
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .font(.appFont(22))
+            Spacer()
+            Picker("", selection: selection) {
+                ForEach(options, id: \.self) { opt in
+                    Text(label(opt)).tag(opt)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(maxWidth: Theme.isCompact ? .infinity : 220)
+        }
+        .padding(Theme.Spacing.md)
+        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
     }
 
     private var playbackSection: some View {
