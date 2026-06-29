@@ -24,6 +24,7 @@ struct StreamPickerView: View {
     @State private var state: ViewState = .loading
     @State private var resolvingStreamID: String?
     @State private var playable: MediaItem?
+    @State private var showAddonsSetup = false
 
     // Result filters.
     @State private var minQuality: StreamQuality? = nil      // nil = any
@@ -54,9 +55,11 @@ struct StreamPickerView: View {
                 LoadingView(message: "Finding streams…")
             case .empty:
                 EmptyStateView(
-                    systemImage: "magnifyingglass",
-                    title: "No streams found",
-                    message: emptyMessage
+                    systemImage: emptyIcon,
+                    title: emptyTitle,
+                    message: emptyMessage,
+                    actionTitle: emptyActionTitle,
+                    action: emptyAction
                 )
             case .error(let m):
                 ErrorStateView(message: m, onRetry: { Task { await load() } }, onBack: { dismiss() })
@@ -67,6 +70,9 @@ struct StreamPickerView: View {
         .navigationDestination(item: $playable) { item in
             PlayerView(item: item, series: catalog.isSeries ? catalog : nil)
         }
+        .navigationDestination(isPresented: $showAddonsSetup) {
+            AddonsView()
+        }
         .task { await load() }
     }
 
@@ -75,11 +81,56 @@ struct StreamPickerView: View {
         return catalog.title
     }
 
-    private var emptyMessage: String {
-        if env.addonStore.streamAddons.isEmpty {
-            return "Add a stream addon (Sources ▸ Addons) to find streams. AIOStreams and Comet are supported."
+    /// The cause of an empty result drives the icon, message, and suggested action.
+    private enum EmptyCause { case safeMode, noAddons, noResults }
+    private var emptyCause: EmptyCause {
+        if SafeMode.isOn { return .safeMode }
+        if env.addonStore.streamAddons.isEmpty { return .noAddons }
+        return .noResults
+    }
+
+    private var emptyIcon: String {
+        switch emptyCause {
+        case .safeMode:  return "exclamationmark.shield"
+        case .noAddons:  return "puzzlepiece.extension"
+        case .noResults: return "magnifyingglass"
         }
-        return "No addon returned a stream for this title. Try another quality or check your addons."
+    }
+
+    private var emptyTitle: String {
+        switch emptyCause {
+        case .safeMode:  return "Safe Mode is on"
+        case .noAddons:  return "No stream sources yet"
+        case .noResults: return "No streams found"
+        }
+    }
+
+    private var emptyMessage: String {
+        switch emptyCause {
+        case .safeMode:
+            return "Addons are disabled while Safe Mode is on, so no streams can be found. Turn off Safe Mode to use your addons again."
+        case .noAddons:
+            return "Install a stream addon to find streams for this title. AIOStreams and Comet are supported."
+        case .noResults:
+            return "No addon returned a stream for this title. Try a different quality, or check that your addons are working."
+        }
+    }
+
+    private var emptyActionTitle: String? {
+        switch emptyCause {
+        case .safeMode:  return "Turn Off Safe Mode"
+        case .noAddons:  return "Set Up Addons"
+        case .noResults: return "Check Addons"
+        }
+    }
+
+    private var emptyAction: (() -> Void)? {
+        switch emptyCause {
+        case .safeMode:
+            return { settings.safeMode = false; Task { await load() } }
+        case .noAddons, .noResults:
+            return { showAddonsSetup = true }
+        }
     }
 
     private var content: some View {
