@@ -22,6 +22,16 @@ enum PlaybackEngineRouter {
         // support — in that case fall back to VLC regardless.
         if preference.forcesVLC { return true }
         if preference.forcesAVPlayer { return !isAVPlayerCompatible(item) ? true : false }
+
+        // If we've seen an engine succeed for this exact title before, prefer it — but
+        // never route to AVPlayer for a format it can't open.
+        if let remembered = PlayerMemory.engine(for: item) {
+            switch remembered {
+            case .vlc:      return true
+            case .avPlayer: return isAVPlayerCompatible(item) ? false : true
+            }
+        }
+
         return !isAVPlayerCompatible(item)
     }
 

@@ -25,6 +25,10 @@ struct PlayerView: View {
     @State private var navigateNext: MediaItem?      // bound to navigationDestination
     @State private var prepareTask: Task<Void, Never>?
 
+    // Resume-or-restart prompt state.
+    @State private var resumePromptPosition: TimeInterval?
+    @State private var didChooseResume = false
+
     init(item: MediaItem, series: CatalogItem? = nil) {
         self.item = item
         self.series = series
@@ -44,6 +48,66 @@ struct PlayerView: View {
             inAppBody
             #endif
         }
+        .overlay {
+            if let pos = resumePromptPosition {
+                resumeRestartPrompt(position: pos)
+            }
+        }
+    }
+
+    /// Asks the user whether to resume from their saved position or start over.
+    private func resumeRestartPrompt(position: TimeInterval) -> some View {
+        ZStack {
+            Color.black.opacity(0.85).ignoresSafeArea()
+            VStack(spacing: Theme.Spacing.lg) {
+                Image(systemName: "play.circle")
+                    .font(.appFont(56, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accent)
+                Text(item.title)
+                    .font(.appFont(28, weight: .bold))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                Text("You left off at \(timeLabel(position)).")
+                    .font(.appFont(20))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+
+                VStack(spacing: Theme.Spacing.sm) {
+                    FocusableButton(title: "Resume from \(timeLabel(position))",
+                                    systemImage: "play.fill", prominent: true) {
+                        didChooseResume = true
+                        resumePromptPosition = nil
+                        model.forceRestart = false
+                        model.start()
+                        prepareNextEpisode()
+                    }
+                    .frame(maxWidth: 420)
+
+                    FocusableButton(title: "Start from beginning",
+                                    systemImage: "backward.end.fill") {
+                        didChooseResume = true
+                        resumePromptPosition = nil
+                        model.forceRestart = true
+                        model.start()
+                        prepareNextEpisode()
+                    }
+                    .frame(maxWidth: 420)
+
+                    FocusableButton(title: "Cancel", systemImage: "xmark") {
+                        resumePromptPosition = nil
+                        dismiss()
+                    }
+                    .frame(maxWidth: 420)
+                }
+            }
+            .padding(Theme.Spacing.xl)
+        }
+    }
+
+    private func timeLabel(_ t: TimeInterval) -> String {
+        let total = Int(t)
+        let h = total / 3600, m = (total % 3600) / 60, s = total % 60
+        return h > 0 ? String(format: "%d:%02d:%02d", h, m, s)
+                     : String(format: "%d:%02d", m, s)
     }
 
     @ViewBuilder
@@ -119,8 +183,13 @@ struct PlayerView: View {
                             settings: settings,
                             trakt: env.trakt,
                             openSubtitles: env.openSubtitles)
-            model.start()
-            prepareNextEpisode()
+            // If there's saved progress, ask Resume or Restart before starting.
+            if let pos = progress.resumePosition(for: item.id), pos > 30, !didChooseResume {
+                resumePromptPosition = pos
+            } else {
+                model.start()
+                prepareNextEpisode()
+            }
         }
         .onDisappear { model.stopAndSave(); prepareTask?.cancel() }
         #if os(iOS)

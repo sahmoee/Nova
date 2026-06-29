@@ -36,6 +36,9 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
 
     let player = AVPlayer()
     private(set) var item: MediaItem
+    /// When true, playback starts from the beginning even if a resume position exists
+    /// (set by the resume-or-restart prompt).
+    var forceRestart = false
 
     // Injected dependencies.
     private weak var progressStore: PlaybackProgressStore?
@@ -105,14 +108,17 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
 
     private func handleReady() {
         state = .ready
+        // This engine successfully opened the file — remember it for next time.
+        PlayerMemory.remember(.avPlayer, for: item)
 
         let dur = player.currentItem?.duration.seconds ?? 0
         duration = dur.isFinite ? dur : (item.duration ?? 0)
 
         let isLive = (item.sourceType == .liveTV)
 
-        // Resume (never for live channels — there's no fixed timeline).
-        if !isLive,
+        // Resume (never for live channels — there's no fixed timeline). If the user
+        // chose Restart at the prompt, forceRestart skips the resume seek.
+        if !isLive, !forceRestart,
            (settings?.resumePlaybackEnabled ?? true),
            let resume = progressStore?.resumePosition(for: item.id) {
             player.seek(to: CMTime(seconds: resume, preferredTimescale: 600)) { [weak self] _ in

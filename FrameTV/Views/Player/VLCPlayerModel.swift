@@ -311,6 +311,8 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
                     self.state = .ready
                     self.markReady()
                 }
+                // This engine successfully opened the file — remember it for next time.
+                PlayerMemory.remember(.vlc, for: self.item)
                 self.refreshTracks()
             case .paused:
                 self.isBuffering = false
