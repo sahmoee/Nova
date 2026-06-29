@@ -111,10 +111,10 @@ private struct HeroPlayButtonStyle: ButtonStyle {
     let accent: Color
 
     func makeBody(configuration: Configuration) -> some View {
-        Body(configuration: configuration, accent: accent)
+        HeroPlayBody(configuration: configuration, accent: accent)
     }
 
-    private struct Body: View {
+    private struct HeroPlayBody: View {
         let configuration: ButtonStyleConfiguration
         let accent: Color
         @Environment(\.isFocused) private var isFocused
