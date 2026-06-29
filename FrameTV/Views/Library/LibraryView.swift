@@ -17,8 +17,7 @@ struct LibraryView: View {
     @State private var selectedItem: MediaItem?
     @State private var detailItem: MediaItem?
 
-    private let columns = [GridItem(.adaptive(minimum: Theme.CardSize.posterWidth),
-                                    spacing: Theme.Spacing.md)]
+    private var columns: [GridItem] { Theme.posterGridColumns }
 
     var body: some View {
         NavigationStack(path: $path) {

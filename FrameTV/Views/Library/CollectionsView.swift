@@ -134,7 +134,7 @@ struct CollectionDetailView: View {
     @EnvironmentObject private var library: LibraryStore
 
     private var columns: [GridItem] {
-        [GridItem(.adaptive(minimum: Theme.isCompact ? 120 : 180), spacing: Theme.Spacing.lg)]
+        Theme.posterGridColumns
     }
 
     private var items: [MediaItem] {

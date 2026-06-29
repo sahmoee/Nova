@@ -15,6 +15,8 @@ struct DiscoverView: View {
 
     @State private var query = ""
     @State private var results: [CatalogItem] = []
+    /// Set when results came from an auto-corrected spelling, to show a note.
+    @State private var correctedQuery: String?
     @State private var watchlist: [CatalogItem] = []
     @State private var state: ViewState = .idle
     @State private var hasTMDBKey = false
@@ -101,7 +103,18 @@ struct DiscoverView: View {
                     case .searching:
                         skeletonGrid
                     case .results:
-                        grid(results)
+                        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                            if let corrected = correctedQuery {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "sparkle.magnifyingglass")
+                                        .foregroundStyle(Theme.Colors.accent)
+                                    Text("Showing results for “\(corrected)”")
+                                        .font(.appFont(17))
+                                        .foregroundStyle(Theme.Colors.textSecondary)
+                                }
+                            }
+                            grid(results)
+                        }
                     case .empty:
                         EmptyStateView(systemImage: "magnifyingglass",
                                        title: "No results",
@@ -371,9 +384,25 @@ struct DiscoverView: View {
         guard !q.isEmpty else { state = .idle; return }
         if !(await env.tmdb.hasKey) { state = .noKey; return }
         state = .searching
+        correctedQuery = nil
         let found = await env.catalog.search(q)
-        results = found
-        state = found.isEmpty ? .empty : .results
+        if !found.isEmpty {
+            results = found
+            state = .results
+            return
+        }
+        // No results — try typo-tolerant corrections before giving up.
+        for candidate in SearchCorrector.corrections(for: q) {
+            let retry = await env.catalog.search(candidate)
+            if !retry.isEmpty {
+                results = retry
+                correctedQuery = candidate
+                state = .results
+                return
+            }
+        }
+        results = []
+        state = .empty
     }
 
     private func runAISearch() async {

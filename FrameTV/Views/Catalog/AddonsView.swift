@@ -66,7 +66,7 @@ struct AddonsView: View {
                 Text(addon.name)
                     .font(.appFont(24, weight: .semibold))
                     .foregroundStyle(Theme.Colors.textPrimary)
-                Text(addon.resources.joined(separator: " · "))
+                Text(capabilityText(for: addon))
                     .font(.appFont(16))
                     .foregroundStyle(Theme.Colors.textTertiary)
                 if let desc = addon.description, !desc.isEmpty {
@@ -131,6 +131,25 @@ struct AddonsView: View {
             }
         }
         .padding(.top, Theme.Spacing.md)
+    }
+
+    /// Translates an addon's technical resource list into a plain-language summary of
+    /// what it does for the user, e.g. "Provides catalogs, streams, and subtitles".
+    private func capabilityText(for addon: InstalledAddon) -> String {
+        var parts: [String] = []
+        if addon.resources.contains("catalog") { parts.append("catalogs") }
+        if addon.resources.contains("stream")  { parts.append("streams") }
+        if addon.resources.contains("meta")    { parts.append("info") }
+        if addon.resources.contains("subtitles") { parts.append("subtitles") }
+        guard !parts.isEmpty else { return "No content types reported" }
+        let list: String
+        switch parts.count {
+        case 1: list = parts[0]
+        case 2: list = "\(parts[0]) and \(parts[1])"
+        default:
+            list = parts.dropLast().joined(separator: ", ") + ", and " + parts.last!
+        }
+        return "Provides " + list
     }
 }
 

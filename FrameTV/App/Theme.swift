@@ -140,6 +140,23 @@ enum Theme {
         static var focusScale: CGFloat { Theme.isCompact ? 1.0 : 1.08 }
     }
 
+    // MARK: - Adaptive grids
+
+    /// Poster-grid columns tuned per device. iPad gets a fixed, comfortable multi-column
+    /// layout instead of an adaptive count that can look sparse; iPhone stays adaptive
+    /// so it fills narrow widths; tvOS uses a wide adaptive grid.
+    static var posterGridColumns: [GridItem] {
+        #if os(tvOS)
+        return [GridItem(.adaptive(minimum: CardSize.posterWidth), spacing: Spacing.lg)]
+        #else
+        if isPad {
+            return Array(repeating: GridItem(.flexible(), spacing: Spacing.lg), count: 4)
+        } else {
+            return [GridItem(.adaptive(minimum: CardSize.posterWidth), spacing: Spacing.lg)]
+        }
+        #endif
+    }
+
     // MARK: - Typography helpers
 
     enum Font {
