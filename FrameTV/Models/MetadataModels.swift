@@ -120,6 +120,30 @@ struct TMDBArtworkDetail: Codable {
     }
 }
 
+/// TMDB /videos response, used to find a trailer for the detail screen.
+struct TMDBVideosResponse: Codable {
+    let results: [TMDBVideo]
+}
+
+struct TMDBVideo: Codable {
+    let key: String        // YouTube/Vimeo key
+    let site: String       // "YouTube", "Vimeo"
+    let type: String       // "Trailer", "Teaser", "Clip", ...
+    let official: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case key, site, type, official
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        key = try c.decode(String.self, forKey: .key)
+        site = (try? c.decode(String.self, forKey: .site)) ?? ""
+        type = (try? c.decode(String.self, forKey: .type)) ?? ""
+        official = (try? c.decode(Bool.self, forKey: .official)) ?? false
+    }
+}
+
 /// Helpers for building TMDB image URLs.
 enum TMDBImage {
     static let base = "https://image.tmdb.org/t/p/"

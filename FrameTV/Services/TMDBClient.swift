@@ -157,6 +157,22 @@ actor TMDBClient {
         return (TMDBImage.poster(detail.posterPath), TMDBImage.backdrop(detail.backdropPath))
     }
 
+    /// Returns a YouTube URL for the best trailer for a TMDB id, or nil if none.
+    /// Prefers an official "Trailer" of type YouTube; falls back to any YouTube
+    /// teaser/clip. Used by the detail screen's Play Trailer button.
+    func trailerURL(tmdbID: Int, isMovie: Bool) async throws -> URL? {
+        let path = isMovie ? "movie/\(tmdbID)/videos" : "tv/\(tmdbID)/videos"
+        let response: TMDBVideosResponse = try await get(path)
+        let youtube = response.results.filter { $0.site.lowercased() == "youtube" }
+        // Prefer an official trailer, then any trailer, then any teaser/clip.
+        let best = youtube.first(where: { $0.type == "Trailer" && $0.official })
+            ?? youtube.first(where: { $0.type == "Trailer" })
+            ?? youtube.first(where: { $0.type == "Teaser" })
+            ?? youtube.first
+        guard let key = best?.key else { return nil }
+        return URL(string: "https://www.youtube.com/watch?v=\(key)")
+    }
+
     /// Enriches a list of CatalogItems (e.g. from Trakt) that have TMDB ids but no
     /// artwork. Runs lookups concurrently and leaves items without a TMDB id untouched.
     func enrichArtwork(_ items: [CatalogItem]) async -> [CatalogItem] {

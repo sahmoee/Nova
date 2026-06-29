@@ -8,6 +8,9 @@
 //
 
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 struct ContentDetailView: View {
     let initialItem: CatalogItem
@@ -19,17 +22,20 @@ struct ContentDetailView: View {
     @State private var selectedSeason: Int?
     @State private var streamTarget: StreamTarget?
     @State private var favoriteRefresh = false   // toggles to re-read favorite state
+    @State private var trailerURL: URL?          // fetched from TMDB if available
 
     init(item: CatalogItem) {
         self.initialItem = item
         _item = State(initialValue: item)
     }
 
-    /// Identifies what the stream picker should look for.
+    /// Identifies what the stream picker should look for. `forceManual` makes the
+    /// picker show the list even when auto-select is enabled (for "Choose Stream").
     struct StreamTarget: Identifiable, Hashable {
         let id = UUID()
         let catalog: CatalogItem
         let episode: EpisodeInfo?
+        var forceManual: Bool = false
     }
 
     var body: some View {
@@ -50,9 +56,11 @@ struct ContentDetailView: View {
         }
         .background(Theme.Colors.background.ignoresSafeArea())
         .navigationDestination(item: $streamTarget) { target in
-            StreamPickerView(catalog: target.catalog, episode: target.episode)
+            StreamPickerView(catalog: target.catalog, episode: target.episode,
+                             forceManual: target.forceManual)
         }
         .task { await hydrate() }
+        .task { await fetchTrailer() }
         .onAppear { AccentManager.shared.deriveAccent(from: item.posterURL ?? item.backdropURL) }
         .onDisappear { AccentManager.shared.reset() }
     }
@@ -127,11 +135,19 @@ struct ContentDetailView: View {
                 }
 
                 if !item.isSeries {
-                    FocusableButton(title: "Find Streams", systemImage: "play.fill", prominent: true) {
+                    FocusableButton(title: playButtonTitle, systemImage: "play.fill", prominent: true) {
                         streamTarget = StreamTarget(catalog: item, episode: nil)
                     }
                     .frame(maxWidth: Theme.isCompact ? .infinity : 320)
                     .padding(.top, Theme.Spacing.md)
+
+                    // Secondary: always open the manual stream list, even with
+                    // auto-select on, so the user can pick a specific stream.
+                    FocusableButton(title: "Choose Stream", systemImage: "list.bullet") {
+                        streamTarget = StreamTarget(catalog: item, episode: nil, forceManual: true)
+                    }
+                    .frame(maxWidth: Theme.isCompact ? .infinity : 320)
+                    .padding(.top, Theme.Spacing.xs)
                 }
 
                 // Series: jump straight to the next unwatched episode.
@@ -143,6 +159,19 @@ struct ContentDetailView: View {
                     .frame(maxWidth: Theme.isCompact ? .infinity : 360)
                     .padding(.top, Theme.Spacing.md)
                 }
+
+                // Play Trailer (when TMDB has one). Opens the trailer; on tvOS this
+                // requires a browser-capable target, so it's offered on iOS where the
+                // system can open YouTube/Safari.
+                #if os(iOS)
+                if let trailer = trailerURL {
+                    FocusableButton(title: "Play Trailer", systemImage: "film") {
+                        UIApplication.shared.open(trailer)
+                    }
+                    .frame(maxWidth: Theme.isCompact ? .infinity : 320)
+                    .padding(.top, Theme.Spacing.sm)
+                }
+                #endif
 
                 // Favorite this title (adds it to the library and marks it favorite).
                 FocusableButton(title: isFavorited ? "Favorited" : "Add to Favorites",
@@ -221,6 +250,12 @@ struct ContentDetailView: View {
         let inProgress = env.library.isEpisodeInProgress(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
                                                          season: ep.season, number: ep.number)
         return "\(inProgress ? "Resume" : "Play") \(ep.label)"
+    }
+
+    /// The primary movie button reads "Play" when auto-select is on (it goes straight
+    /// to playback), or "Find Streams" when the user picks manually by default.
+    private var playButtonTitle: String {
+        env.settings.autoSelectStream ? "Play" : "Find Streams"
     }
 
     // MARK: - Movie
@@ -344,6 +379,16 @@ struct ContentDetailView: View {
     }
 
     // MARK: - Hydration
+
+    /// Looks up a trailer URL from TMDB when the item has a TMDB id. Best-effort;
+    /// failures leave the button hidden.
+    private func fetchTrailer() async {
+        guard env.tmdb.hasKey, let tmdb = item.contentID.tmdb else { return }
+        let isMovie = item.contentID.type == .movie
+        if let url = try? await env.tmdb.trailerURL(tmdbID: tmdb, isMovie: isMovie) {
+            trailerURL = url
+        }
+    }
 
     private func hydrate() async {
         guard item.contentID.imdb == nil || (item.isSeries && item.seasons.isEmpty) else { return }

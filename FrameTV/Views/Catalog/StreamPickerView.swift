@@ -12,6 +12,9 @@ import SwiftUI
 struct StreamPickerView: View {
     let catalog: CatalogItem
     let episode: EpisodeInfo?
+    /// When true, the auto-select shortcut is skipped and the list is always shown,
+    /// even if the user has auto-select enabled (used by the "Choose Stream" button).
+    var forceManual: Bool = false
 
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var settings: SettingsStore
@@ -32,6 +35,9 @@ struct StreamPickerView: View {
     // Smart (natural-language) filter, e.g. "cached 1080p under 8GB english".
     @State private var smartFilterText = ""
     @State private var smartFilter = ParsedStreamFilter()
+
+    // Group the list by source kind (Cloud, Torrent, SMB, Direct, Addon).
+    @State private var groupBySource = false
 
     enum ViewState: Equatable { case loading, loaded, empty, error(String) }
 
@@ -89,6 +95,15 @@ struct StreamPickerView: View {
                         .font(.appFont(20))
                         .foregroundStyle(Theme.Colors.textSecondary)
                     Spacer()
+                    Button { withAnimation { groupBySource.toggle() } } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: groupBySource ? "square.stack.3d.up.fill" : "square.stack.3d.up")
+                            Text("Group")
+                        }
+                        .font(.appFont(18, weight: .semibold))
+                        .foregroundStyle(groupBySource ? Theme.Colors.accent : Theme.Colors.textSecondary)
+                    }
+                    .frameRowStyle()
                     Button { withAnimation { showFilters.toggle() } } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "line.3.horizontal.decrease.circle\(anyFilterActive ? ".fill" : "")")
@@ -102,8 +117,17 @@ struct StreamPickerView: View {
 
                 if showFilters { filterBar }
 
-                ForEach(filteredStreams) { stream in
-                    streamRow(stream, labels: streamLabels[stream.id] ?? [])
+                if groupBySource {
+                    ForEach(groupedStreams, id: \.0) { group in
+                        sourceGroupHeader(group.0, count: group.1.count)
+                        ForEach(group.1) { stream in
+                            streamRow(stream, labels: streamLabels[stream.id] ?? [])
+                        }
+                    }
+                } else {
+                    ForEach(filteredStreams) { stream in
+                        streamRow(stream, labels: streamLabels[stream.id] ?? [])
+                    }
                 }
 
                 if filteredStreams.isEmpty {
@@ -149,6 +173,44 @@ struct StreamPickerView: View {
     /// across the full stream set using the user's preferences and keyed by stream id.
     private var streamLabels: [String: [StreamRanker.StreamLabel]] {
         StreamRanker.labels(for: streams, preferences: settings.streamPreferences)
+    }
+
+    /// Streams grouped by source kind, in a sensible order (Cloud, Torrent, SMB,
+    /// Direct, then anything else), preserving rank order within each group. Returns
+    /// pairs of (group title, streams).
+    private var groupedStreams: [(String, [StreamOption])] {
+        let order: [SourceKind] = [.cloud, .torrent, .localSMB, .directURL, .liveTV, .unknown]
+        let grouped = Dictionary(grouping: filteredStreams, by: { $0.sourceKind })
+        return order.compactMap { kind in
+            guard let items = grouped[kind], !items.isEmpty else { return nil }
+            return (sourceGroupTitle(kind), items)
+        }
+    }
+
+    private func sourceGroupTitle(_ kind: SourceKind) -> String {
+        switch kind {
+        case .cloud:     return "Cloud / Debrid"
+        case .torrent:   return "Torrents"
+        case .localSMB:  return "Local SMB"
+        case .directURL: return "Direct URLs"
+        case .liveTV:    return "Live TV"
+        case .unknown:   return "Other"
+        }
+    }
+
+    private func sourceGroupHeader(_ title: String, count: Int) -> some View {
+        HStack {
+            Text(title)
+                .font(.appFont(20, weight: .bold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+            Text("\(count)")
+                .font(.appFont(15, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textTertiary)
+                .padding(.horizontal, 8).padding(.vertical, 2)
+                .background(Color.white.opacity(0.08), in: Capsule())
+            Spacer()
+        }
+        .padding(.top, Theme.Spacing.md)
     }
 
     private var availableSources: [String] {
@@ -380,8 +442,8 @@ struct StreamPickerView: View {
         streams = StreamRanker.rank(found, preferences: settings.streamPreferences)
         if found.isEmpty { state = .empty; return }
 
-        // Auto-select path.
-        if settings.autoSelectStream,
+        // Auto-select path (skipped when the user explicitly chose to pick manually).
+        if settings.autoSelectStream, !forceManual,
            let best = StreamRanker.autoSelect(found,
                                               preferences: settings.streamPreferences,
                                               requireCached: settings.requireCachedStreams) {
