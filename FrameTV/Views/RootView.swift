@@ -106,6 +106,7 @@ struct RootView: View {
         switch nav.selection {
         case .home:     HomeView(path: $nav.homePath)
         case .discover: DiscoverView(path: $nav.discoverPath)
+        case .ai:       AIView(path: $nav.aiPath)
         case .library:  LibraryView(path: $nav.libraryPath)
         case .settings: SettingsView(path: $nav.settingsPath)
         }
@@ -122,6 +123,10 @@ struct RootView: View {
             DiscoverView(path: $nav.discoverPath)
                 .tabItem { Label(AppTab.discover.title, systemImage: AppTab.discover.systemImage) }
                 .tag(AppTab.discover)
+
+            AIView(path: $nav.aiPath)
+                .tabItem { Label(AppTab.ai.title, systemImage: AppTab.ai.systemImage) }
+                .tag(AppTab.ai)
 
             LibraryView(path: $nav.libraryPath)
                 .tabItem { Label(AppTab.library.title, systemImage: AppTab.library.systemImage) }

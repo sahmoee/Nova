@@ -109,6 +109,94 @@ final class AISearchService: ObservableObject {
         }
         return results
     }
+
+    /// Like `search`, but resolves up to `limit` titles — used by the shelf and
+    /// playlist builders, which may want a specific count (e.g. a 5-movie lineup).
+    func resolveTitles(for prompt: String, limit: Int = 20) async throws -> [CatalogItem] {
+        guard let url = Self.workerURL else { throw AISearchError.notConfigured }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONEncoder().encode(["query": prompt])
+        req.timeoutInterval = 30
+
+        let titles: [String]
+        do {
+            let (data, response) = try await session.data(for: req)
+            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                throw AISearchError.requestFailed
+            }
+            titles = try JSONDecoder().decode(AIWorkerResponse.self, from: data).titles
+        } catch let e as AISearchError {
+            throw e
+        } catch {
+            throw AISearchError.requestFailed
+        }
+        guard !titles.isEmpty else { throw AISearchError.emptyResponse }
+
+        var results: [CatalogItem] = []
+        var seen = Set<String>()
+        for title in titles.prefix(limit) {
+            if let matches = try? await tmdb.search(title), let first = matches.first {
+                if seen.insert(first.id).inserted { results.append(first) }
+            }
+        }
+        return results
+    }
+
+    /// Natural-language search over the user's own library. Asks the Worker to turn the
+    /// description into candidate titles, then fuzzy-matches them against library items
+    /// by title. Falls back to a local keyword match if the Worker isn't configured, so
+    /// vague library search still does something useful offline.
+    func searchLibrary(_ query: String, in items: [MediaItem]) async -> [MediaItem] {
+        // Try the Worker first for "vibe"/description queries.
+        if Self.isConfigured, let url = Self.workerURL {
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            if let body = try? JSONEncoder().encode(["query": query]) {
+                req.httpBody = body
+                req.timeoutInterval = 30
+                if let (data, response) = try? await session.data(for: req),
+                   let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+                   let decoded = try? JSONDecoder().decode(AIWorkerResponse.self, from: data) {
+                    let matched = matchTitles(decoded.titles, against: items)
+                    if !matched.isEmpty { return matched }
+                }
+            }
+        }
+        // Fallback: local keyword match against title/series.
+        return localKeywordMatch(query, in: items)
+    }
+
+    /// Matches AI-suggested title strings against library items (case-insensitive
+    /// substring, either direction).
+    private func matchTitles(_ titles: [String], against items: [MediaItem]) -> [MediaItem] {
+        var out: [MediaItem] = []
+        var seen = Set<UUID>()
+        for title in titles {
+            let needle = title.lowercased()
+            for item in items {
+                let hay = (item.seriesTitle ?? item.title).lowercased()
+                if (hay.contains(needle) || needle.contains(hay)), seen.insert(item.id).inserted {
+                    out.append(item)
+                }
+            }
+        }
+        return out
+    }
+
+    /// A simple offline keyword match used when the Worker isn't available.
+    private func localKeywordMatch(_ query: String, in items: [MediaItem]) -> [MediaItem] {
+        let words = query.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { $0.count > 2 }
+        guard !words.isEmpty else { return [] }
+        return items.filter { item in
+            let hay = (item.seriesTitle ?? item.title).lowercased()
+            return words.contains { hay.contains($0) }
+        }
+    }
 }
 
 private struct AIWorkerResponse: Codable {

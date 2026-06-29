@@ -160,6 +160,7 @@
 		B3AB2DE1C16ED5D713F012AA /* VLCPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90E81E16AE7D320010F6DC7 /* VLCPlayerView.swift */; };
 		B4525BEFCBD56B13A3FE6472 /* HomeShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44483A3741A3146721D8B9CC /* HomeShelf.swift */; };
 		B5106F76484EE4EE3CE94440 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54DF98E49C2F8631D90C0346 /* RootView.swift */; };
+		82263ED3CE76B98BA37E0762 /* AIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BBA535D3FA0EA37713AD2EA /* AIView.swift */; };
 		B29177D5A3E7491EB78A8D53 /* SearchCorrector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EDD6180A9BFFE16D7194EAC /* SearchCorrector.swift */; };
 		31B0CB7D474392BBD6EE8BDD /* SetupChecklistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06B9BFD55EBC9B683B9709 /* SetupChecklistView.swift */; };
 		AFB2759F487DC679F4DAEC85 /* OfflineCatalogCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B84344A81473E3B6324AE67 /* OfflineCatalogCache.swift */; };
@@ -209,6 +210,7 @@
 		DCCE4450B5B4C0E6637854B4 /* URLValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7875206D23EE5FCBE6D6A628 /* URLValidation.swift */; };
 		DF4E01B19535E44056C95650 /* PlaybackCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3EF3A6949DBE620FBC19616 /* PlaybackCoordinator.swift */; };
 		E05708A1F10187F58F19BBE5 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54DF98E49C2F8631D90C0346 /* RootView.swift */; };
+		809778998CB96C1207C3D54C /* AIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BBA535D3FA0EA37713AD2EA /* AIView.swift */; };
 		66DFC1FD3D4F47542A0597C2 /* SearchCorrector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EDD6180A9BFFE16D7194EAC /* SearchCorrector.swift */; };
 		F7DF39910E8C83C5603D6C62 /* SetupChecklistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06B9BFD55EBC9B683B9709 /* SetupChecklistView.swift */; };
 		AD65D92EF5E8D5BC71C29B11 /* OfflineCatalogCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B84344A81473E3B6324AE67 /* OfflineCatalogCache.swift */; };
@@ -308,6 +310,7 @@
 		4C12CF106AE8B2228CFDD644 /* RealDebridModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealDebridModels.swift; sourceTree = "<group>"; };
 		4DAED2A694E04D1F4DDAC46E /* MediaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailView.swift; sourceTree = "<group>"; };
 		54DF98E49C2F8631D90C0346 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		4BBA535D3FA0EA37713AD2EA /* AIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIView.swift; sourceTree = "<group>"; };
 		E739E2597C4A8700F5D8AA04 /* SourcesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/SourcesView.swift; sourceTree = "<group>"; };
 		8E4179DF87A747B60F1ACC11 /* TVMenuOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVMenuOverlay.swift; sourceTree = "<group>"; };
 		5519B507B9E49505F005D45A /* StateViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateViews.swift; sourceTree = "<group>"; };
@@ -645,6 +648,7 @@
 				8126DDC0DE1B3A9785FECF68 /* SMB */,
 				FEC1870B6EC250A1AB99477B /* Settings */,
 				54DF98E49C2F8631D90C0346 /* RootView.swift */,
+				4BBA535D3FA0EA37713AD2EA /* AIView.swift */,
 				E739E2597C4A8700F5D8AA04 /* SourcesView.swift */,
 				8E4179DF87A747B60F1ACC11 /* TVMenuOverlay.swift */,
 			);
@@ -902,6 +906,7 @@
 				B3AB2DE1C16ED5D713F012AA /* VLCPlayerView.swift in Sources */,
 				422E272C61B9C61EA8B43C72 /* RealDebridView.swift in Sources */,
 				E05708A1F10187F58F19BBE5 /* RootView.swift in Sources */,
+				809778998CB96C1207C3D54C /* AIView.swift in Sources */,
 				66DFC1FD3D4F47542A0597C2 /* SearchCorrector.swift in Sources */,
 				F7DF39910E8C83C5603D6C62 /* SetupChecklistView.swift in Sources */,
 				AD65D92EF5E8D5BC71C29B11 /* OfflineCatalogCache.swift in Sources */,
@@ -1025,6 +1030,7 @@
 				1F1481FC0213B8203BEF8292 /* VLCPlayerView.swift in Sources */,
 				8623F8CB9AA2D4D15153872F /* RealDebridView.swift in Sources */,
 				B5106F76484EE4EE3CE94440 /* RootView.swift in Sources */,
+				82263ED3CE76B98BA37E0762 /* AIView.swift in Sources */,
 				B29177D5A3E7491EB78A8D53 /* SearchCorrector.swift in Sources */,
 				31B0CB7D474392BBD6EE8BDD /* SetupChecklistView.swift in Sources */,
 				AFB2759F487DC679F4DAEC85 /* OfflineCatalogCache.swift in Sources */,

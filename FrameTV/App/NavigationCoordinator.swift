@@ -11,13 +11,14 @@ import SwiftUI
 import Combine
 
 enum AppTab: Hashable, CaseIterable {
-    case home, discover, library, settings
+    case home, discover, ai, library, settings
 
     /// Display name used by the tvOS menu and the iOS tab bar.
     var title: String {
         switch self {
         case .home:     return "Home"
         case .discover: return "Discover"
+        case .ai:       return "AI"
         case .library:  return "Library"
         case .settings: return "Settings"
         }
@@ -28,6 +29,7 @@ enum AppTab: Hashable, CaseIterable {
         switch self {
         case .home:     return "house.fill"
         case .discover: return "magnifyingglass"
+        case .ai:       return "sparkles"
         case .library:  return "rectangle.stack.fill"
         case .settings: return "gearshape.fill"
         }
@@ -41,6 +43,7 @@ final class NavigationCoordinator: ObservableObject {
     // One navigation path per tab.
     @Published var homePath = NavigationPath()
     @Published var discoverPath = NavigationPath()
+    @Published var aiPath = NavigationPath()
     @Published var libraryPath = NavigationPath()
     @Published var settingsPath = NavigationPath()
 
@@ -63,6 +66,7 @@ final class NavigationCoordinator: ObservableObject {
         switch tab {
         case .home:     homePath = NavigationPath()
         case .discover: discoverPath = NavigationPath()
+        case .ai:       aiPath = NavigationPath()
         case .library:  libraryPath = NavigationPath()
         case .settings: settingsPath = NavigationPath()
         }
@@ -75,6 +79,7 @@ final class NavigationCoordinator: ObservableObject {
         switch tab {
         case .home:     return homePath.isEmpty
         case .discover: return discoverPath.isEmpty
+        case .ai:       return aiPath.isEmpty
         case .library:  return libraryPath.isEmpty
         case .settings: return settingsPath.isEmpty
         }
@@ -85,6 +90,7 @@ final class NavigationCoordinator: ObservableObject {
         switch tab {
         case .home:     if !homePath.isEmpty { homePath.removeLast() }
         case .discover: if !discoverPath.isEmpty { discoverPath.removeLast() }
+        case .ai:       if !aiPath.isEmpty { aiPath.removeLast() }
         case .library:  if !libraryPath.isEmpty { libraryPath.removeLast() }
         case .settings: if !settingsPath.isEmpty { settingsPath.removeLast() }
         }
