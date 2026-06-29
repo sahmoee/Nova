@@ -387,4 +387,35 @@ enum StreamRanker {
         if s.isCached { return 10_000 }
         return s.seeders ?? 0
     }
+
+    /// A short, plain-language explanation of why a stream is a good pick, given the
+    /// user's preferences. Used for the "Why this stream?" detail. Returns a list of
+    /// positive reasons (e.g. "Cached / instant", "1080p", "Efficient codec").
+    static func explain(_ s: StreamOption, preferences p: StreamPreferences = .init()) -> [String] {
+        var reasons: [String] = []
+        if s.isCached { reasons.append("Cached / instant start") }
+        if s.quality != .unknown { reasons.append(s.quality.rawValue) }
+        if s.hdr.rank > 0 { reasons.append(s.hdr.rawValue) }
+        if s.audioFormat.rank > 0 { reasons.append(s.audioFormat.rawValue) }
+        if s.videoCodec == .hevc || s.videoCodec == .av1 { reasons.append("Efficient codec (\(s.videoCodec.rawValue))") }
+        if let ps = p.preferredSource, s.sourceKind == ps { reasons.append("Preferred source") }
+        if let pl = p.preferredLanguage?.uppercased(), !pl.isEmpty,
+           s.languages.contains(where: { $0.uppercased() == pl }) {
+            reasons.append("\(pl) audio")
+        }
+        if !s.isCached, s.sourceKind == .torrent, let seeders = s.seeders, seeders >= 10 {
+            reasons.append("\(seeders) seeders")
+        }
+        if let bytes = s.sizeBytes {
+            let gb = Double(bytes) / 1_073_741_824.0
+            // Mention a sensible size for the quality.
+            switch s.quality {
+            case .uhd4k where gb >= 8 && gb <= 60: reasons.append("Good 4K size")
+            case .fhd1080 where gb >= 2 && gb <= 20: reasons.append("Good 1080p size")
+            default: break
+            }
+        }
+        if reasons.isEmpty { reasons.append("Available stream") }
+        return reasons
+    }
 }

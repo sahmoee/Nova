@@ -290,6 +290,14 @@ struct StreamPickerView: View {
                         .font(.appFont(20, weight: .medium))
                         .foregroundStyle(Theme.Colors.textPrimary)
                         .lineLimit(2)
+                    // "Why this stream?" — a plain-language reason line for the top pick.
+                    if labels.contains(.bestOverall) {
+                        let reasons = StreamRanker.explain(stream, preferences: settings.streamPreferences)
+                        Text("Why: " + reasons.prefix(4).joined(separator: " · "))
+                            .font(.appFont(14))
+                            .foregroundStyle(Theme.Colors.accent)
+                            .lineLimit(2)
+                    }
                     // Source health badges (Cached, Fast, 4K, HDR, Dolby, Low Seed
                     // Risk, Local SMB, Cloud), parsed from the stream's title.
                     if !stream.badges.isEmpty {
