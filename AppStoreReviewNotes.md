@@ -48,6 +48,20 @@ access to the content.
   passwords) are stored only in the system Keychain and are never transmitted anywhere except to the
   service the user configured them for.
 
+- **Optional AI features and data flow.** FrameTV includes optional AI search and AI shelf/playlist
+  building. These are disabled until the user supplies their own AI "Worker" URL (a small Cloudflare
+  Worker the user deploys to their own account, which calls the Anthropic API with the user's own key).
+  When enabled, the text the user types — and, for AI library search, the titles already in the user's
+  library — are sent to the user's own Worker to generate suggestions. FrameTV operates no AI service
+  itself, ships no default endpoint, and sends nothing for AI unless the user has configured a Worker.
+  With no Worker configured, AI library search falls back to an on-device keyword match and no data
+  leaves the device. The user can disable all AI data sharing by removing the Worker URL in Settings.
+  This is described in-app under Settings ▸ Privacy & Legal Info.
+
+- **Privacy manifest.** The app bundle includes a `PrivacyInfo.xcprivacy` manifest declaring no user
+  tracking, no developer data collection, and the required-reason APIs used (UserDefaults for app
+  settings; file-timestamp APIs for cache freshness within the app's own container).
+
 ## How to exercise the app during review
 
 1. Launch the **FrameTV-tvOS** scheme on an Apple TV simulator. The Home screen shows the seeded

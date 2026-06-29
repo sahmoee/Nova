@@ -69,6 +69,7 @@
 		436E8D72BE1C9F753D97304A /* PrivacyLegalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A659D99C45AB4145BEBEC3FF /* PrivacyLegalView.swift */; };
 		482D06AC4A4E0A6FEB079033 /* DirectURLView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0B45864E7DD91D45DA6D93 /* DirectURLView.swift */; };
 		4B803595345C09B16AEF8006 /* Assets-iOS.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C414BCD1EBD70925A4A75CB7 /* Assets-iOS.xcassets */; };
+		6D097346ADBDC27A4A967DCC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AF41B11CE4EBEC31FA17F6A8 /* PrivacyInfo.xcprivacy */; };
 		4FCC80430279E24B9ECDFD9C /* TraktClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AC62884E4EFB136668EDA67 /* TraktClient.swift */; };
 		5016CB58642BF28FE8597B76 /* AMSMB2 in Frameworks */ = {isa = PBXBuildFile; productRef = 7BB5FCE66E92A3B157284758 /* AMSMB2 */; };
 		5052DCFBF6CBB9AB693CC738 /* CatalogShelfRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF8BD9365E738C71B05EAF6E /* CatalogShelfRow.swift */; };
@@ -202,6 +203,7 @@
 		D01F610D15B2D2990D059FBE /* MediaItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E501EBDA1415CB797D128711 /* MediaItem.swift */; };
 		D0A3A638B8D080EB733B42A9 /* MediaCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6307E16A16FB54315B4AF2C /* MediaCard.swift */; };
 		D174DF935C079BD7E7423DDF /* Assets-tvOS.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DEFB4E40EEB8790716864FAA /* Assets-tvOS.xcassets */; };
+		4399DE2FBD0409F468E6EDBC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AF41B11CE4EBEC31FA17F6A8 /* PrivacyInfo.xcprivacy */; };
 		D27EAFF8318A869EC751579E /* AppNetworking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26D445A6AA8D3FF6F146B03E /* AppNetworking.swift */; };
 		D5ACD8FFC813541D11D054C6 /* CatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9A7C4E1AFA66F74900ABB30 /* CatalogService.swift */; };
 		D6376CA8AE6A8EBB2DAE049C /* RealDebridModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C12CF106AE8B2228CFDD644 /* RealDebridModels.swift */; };
@@ -370,6 +372,7 @@
 		EE0682914797AE3EA83CDB1A /* SMBCheckerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMBCheckerView.swift; sourceTree = "<group>"; };
 		C395EF218DEC8B735EC9069D /* SourceType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceType.swift; sourceTree = "<group>"; };
 		C414BCD1EBD70925A4A75CB7 /* Assets-iOS.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Assets-iOS.xcassets"; sourceTree = "<group>"; };
+		AF41B11CE4EBEC31FA17F6A8 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		C4B6B11C8B202C03CABA9905 /* CatalogCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogCache.swift; sourceTree = "<group>"; };
 		C5414ACC0FB76135E40B8DCB /* RealSMBProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealSMBProvider.swift; sourceTree = "<group>"; };
 		C55499A51559CA657E707F1E /* Polish.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Polish.swift; sourceTree = "<group>"; };
@@ -659,6 +662,7 @@
 			isa = PBXGroup;
 			children = (
 				C414BCD1EBD70925A4A75CB7 /* Assets-iOS.xcassets */,
+				AF41B11CE4EBEC31FA17F6A8 /* PrivacyInfo.xcprivacy */,
 				DEFB4E40EEB8790716864FAA /* Assets-tvOS.xcassets */,
 				38A55F7C58A22DE3D4D4422D /* FrameTV.entitlements */,
 				CBF62EC4C0977A9564D41FC8 /* Info-iOS.plist */,
@@ -801,6 +805,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4B803595345C09B16AEF8006 /* Assets-iOS.xcassets in Resources */,
+				6D097346ADBDC27A4A967DCC /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -809,6 +814,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D174DF935C079BD7E7423DDF /* Assets-tvOS.xcassets in Resources */,
+				4399DE2FBD0409F468E6EDBC /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
