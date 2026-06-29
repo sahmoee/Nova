@@ -178,7 +178,7 @@ final class LibraryStore: ObservableObject {
         let title = item.title.lowercased()
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .joined()
-        let year = item.year.map(String.init) ?? "?"
+        let year = item.metadata.year.map(String.init) ?? "?"
         return "title:\(title):\(year)"
     }
 
