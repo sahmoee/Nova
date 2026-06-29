@@ -71,6 +71,10 @@ struct RootView: View {
 
             activeScreen
                 .ignoresSafeArea(.container, edges: .bottom)
+                // While the menu overlay is up, take the underlying screen out of the
+                // focus engine entirely so remote swipes can't move items behind it.
+                .disabled(showTVMenu && !nowPlaying.playerPresented)
+                .accessibilityHidden(showTVMenu && !nowPlaying.playerPresented)
 
             if showTVMenu && !nowPlaying.playerPresented {
                 TVMenuOverlay(selection: nav.selectionBinding) {

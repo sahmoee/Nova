@@ -17,15 +17,15 @@ struct TVMenuOverlay: View {
     var onDismiss: () -> Void
 
     @Environment(\.dynamicAccent) private var accent
-    @Namespace private var focusNS
+    @Namespace private var menuScope
     @FocusState private var focusedTab: AppTab?
 
     var body: some View {
         ZStack {
-            // Dim the content behind the menu so it reads as a layer on top.
-            Color.black.opacity(0.55)
+            // Dim the content behind the menu so it reads as a layer on top. This
+            // also catches clicks outside the menu to dismiss it.
+            Color.black.opacity(0.6)
                 .ignoresSafeArea()
-                .onTapGesture { onDismiss() }
 
             VStack(spacing: Theme.Spacing.xl) {
                 HStack(spacing: Theme.Spacing.sm) {
@@ -37,11 +37,14 @@ struct TVMenuOverlay: View {
                         .foregroundStyle(Theme.Colors.textPrimary)
                 }
 
+                // The row of tiles is one focus section so left/right movement stays
+                // within it and wraps naturally across the four items.
                 HStack(spacing: Theme.Spacing.lg) {
                     ForEach(AppTab.allCases, id: \.self) { tab in
                         menuButton(tab)
                     }
                 }
+                .focusSection()
             }
             .padding(.horizontal, Theme.Spacing.xl)
             .padding(.vertical, Theme.Spacing.xl)
@@ -52,9 +55,17 @@ struct TVMenuOverlay: View {
             )
             .shadow(color: .black.opacity(0.5), radius: 40, y: 20)
         }
+        // Confine the tvOS focus engine to this overlay so the content behind it
+        // can't receive focus or remote movement.
+        .focusScope(menuScope)
         // Pressing Menu again while the overlay is up dismisses it.
         .onExitCommand { onDismiss() }
+        // Land focus on the current section as soon as the menu appears.
         .onAppear { focusedTab = selection }
+        // If focus ever escapes to nil while the menu is open, pull it back.
+        .onChange(of: focusedTab) { _, newValue in
+            if newValue == nil { focusedTab = selection }
+        }
     }
 
     private func menuButton(_ tab: AppTab) -> some View {
@@ -74,6 +85,8 @@ struct TVMenuOverlay: View {
         }
         .buttonStyle(TVMenuButtonStyle(isSelected: tab == selection))
         .focused($focusedTab, equals: tab)
+        // The current section is the default focus target when the menu opens.
+        .prefersDefaultFocus(tab == selection, in: menuScope)
     }
 }
 
