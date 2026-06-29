@@ -83,6 +83,9 @@ final class ShelfLoader {
         case .tmdbPopularShows:   return (try? await tmdb.popularShows()) ?? []
         case .tmdbAiringToday:    return (try? await tmdb.airingTodayShows()) ?? []
         case .addonCatalog(let addonID, let type, let catalogID):
+            // Safe Mode skips addon catalogs so a hanging addon can't stall the home
+            // screen; TMDB shelves still load.
+            if SafeMode.isOn { return [] }
             guard let addon = addonStore.addons.first(where: { $0.id == addonID }) else { return [] }
             return (try? await addonClient.catalog(from: addon, type: type, catalogID: catalogID)) ?? []
         }

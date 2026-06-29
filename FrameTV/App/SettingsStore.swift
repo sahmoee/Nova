@@ -26,6 +26,7 @@ final class SettingsStore: ObservableObject {
         static let autoSkipIntro = "settings.autoSkipIntro"
         static let skipOutro = "settings.skipOutro"
         static let autoSelectStream = "settings.autoSelectStream"
+        static let safeMode = "settings.safeMode"
         static let requireCachedStreams = "settings.requireCachedStreams"
         static let preferredStreamQuality = "settings.preferredStreamQuality"
         static let maxStreamSizeGB = "settings.maxStreamSizeGB"
@@ -89,6 +90,13 @@ final class SettingsStore: ObservableObject {
     /// Auto-select the best stream instead of always showing the picker.
     @Published var autoSelectStream: Bool {
         didSet { defaults.set(autoSelectStream, forKey: Key.autoSelectStream); CloudSync.shared.setBool(autoSelectStream, forKey: Key.autoSelectStream) }
+    }
+
+    /// Safe Mode: when on, addons, AI search, and external/network sources are
+    /// disabled so the app loads quickly even if a bad addon or source is hanging.
+    /// Local-only (not synced) since it's a per-device recovery switch.
+    @Published var safeMode: Bool {
+        didSet { defaults.set(safeMode, forKey: Key.safeMode) }
     }
 
     /// Prefer instantly-playable (cached/direct) streams when auto-selecting.
@@ -190,6 +198,7 @@ final class SettingsStore: ObservableObject {
         self.autoSkipIntro = defaults.bool(forKey: Key.autoSkipIntro)
         self.skipOutroEnabled = defaults.bool(forKey: Key.skipOutro)
         self.autoSelectStream = defaults.bool(forKey: Key.autoSelectStream)
+        self.safeMode = defaults.bool(forKey: Key.safeMode)
         self.requireCachedStreams = defaults.bool(forKey: Key.requireCachedStreams)
         self.preferredStreamQuality = StreamQuality(
             rawValue: defaults.string(forKey: Key.preferredStreamQuality) ?? StreamQuality.fhd1080.rawValue

@@ -63,7 +63,7 @@ final class AISearchService: ObservableObject {
         return URL(string: trimmed)
     }
 
-    static var isConfigured: Bool { workerURL != nil }
+    static var isConfigured: Bool { !SafeMode.isOn && workerURL != nil }
 
     private let tmdb: TMDBClient
     private let session = AppNetworking.shared

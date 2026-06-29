@@ -271,6 +271,15 @@ struct SettingsView: View {
                 settingRow("Duplicate Cleanup", systemImage: "arrow.triangle.merge",
                            detail: duplicateCountDetail)
             }.frameRowStyle()
+            toggleRow("Safe Mode", systemImage: "exclamationmark.shield",
+                      isOn: $settings.safeMode)
+            if settings.safeMode {
+                Text("Safe Mode is on. Addons, AI search, and external sources are disabled so the app loads quickly. Turn it off once things are stable.")
+                    .font(.appFont(15))
+                    .foregroundStyle(Theme.Colors.warning)
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.bottom, Theme.Spacing.sm)
+            }
             actionRow("Clear Watch History", systemImage: "clock.arrow.circlepath",
                       tint: Theme.Colors.warning) { confirmClearHistory = true }
             actionRow("Clear Library", systemImage: "trash",

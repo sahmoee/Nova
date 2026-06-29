@@ -77,7 +77,9 @@ final class AddonStore: ObservableObject {
 
     // MARK: - Queries
 
-    var enabled: [InstalledAddon] { addons.filter { $0.isEnabled } }
+    /// Enabled addons, unless Safe Mode is on (in which case none are active, so a
+    /// misbehaving addon can't stall catalogs, streams, or subtitles).
+    var enabled: [InstalledAddon] { SafeMode.isOn ? [] : addons.filter { $0.isEnabled } }
     var streamAddons: [InstalledAddon] { enabled.filter { $0.supports(resource: "stream") } }
     var subtitleAddons: [InstalledAddon] { enabled.filter { $0.supports(resource: "subtitles") } }
     var metaAddons: [InstalledAddon] { enabled.filter { $0.supports(resource: "meta") } }
