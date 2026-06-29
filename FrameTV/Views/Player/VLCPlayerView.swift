@@ -29,6 +29,7 @@ struct VLCPlayerView: View {
     @State private var controlsVisible = false
     @State private var showDiagnostics = false
     @State private var minimalControls = false
+    @State private var resumePromptPosition: TimeInterval?
     @State private var hideControlsTask: Task<Void, Never>?
     @State private var hasStarted = false
     @State private var showSubtitleImporter = false
@@ -136,12 +137,23 @@ struct VLCPlayerView: View {
             // a parent nav change), which would otherwise restart the video.
             if !hasStarted {
                 hasStarted = true
-                model.start()
+                // If there's saved progress, ask Resume or Start Over before starting;
+                // otherwise begin immediately.
+                if let pos = model.savedResumePosition {
+                    resumePromptPosition = pos
+                } else {
+                    model.start()
+                }
             }
             scheduleHideControls()
             Task { await prepareNextEpisode() }
         }
         .onDisappear { model.stopAndSave(); hideControlsTask?.cancel() }
+        .overlay {
+            if let pos = resumePromptPosition {
+                resumeRestartPrompt(position: pos)
+            }
+        }
         #if os(iOS)
         .statusBarHidden(true)
         .navigationBarBackButtonHidden(true)
@@ -314,6 +326,53 @@ struct VLCPlayerView: View {
                 .foregroundStyle(.white)
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Resume prompt
+
+    /// Asks whether to resume from the saved position or start over, mirroring the
+    /// Apple player's prompt. Shown before VLC playback begins when progress exists.
+    private func resumeRestartPrompt(position: TimeInterval) -> some View {
+        ZStack {
+            Color.black.opacity(0.85).ignoresSafeArea()
+            VStack(spacing: Theme.Spacing.lg) {
+                Image(systemName: "play.circle")
+                    .font(.appFont(56, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accent)
+                Text(model.item.title)
+                    .font(.appFont(28, weight: .bold))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                Text("You left off at \(timeString(position)).")
+                    .font(.appFont(20))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+
+                VStack(spacing: Theme.Spacing.sm) {
+                    FocusableButton(title: "Resume from \(timeString(position))",
+                                    systemImage: "play.fill", prominent: true) {
+                        model.forceRestart = false
+                        resumePromptPosition = nil
+                        model.start()
+                    }
+                    .frame(maxWidth: 420)
+
+                    FocusableButton(title: "Start from beginning",
+                                    systemImage: "backward.end.fill") {
+                        model.forceRestart = true
+                        resumePromptPosition = nil
+                        model.start()
+                    }
+                    .frame(maxWidth: 420)
+
+                    FocusableButton(title: "Cancel", systemImage: "xmark") {
+                        resumePromptPosition = nil
+                        dismiss()
+                    }
+                    .frame(maxWidth: 420)
+                }
+            }
+            .padding(Theme.Spacing.xl)
+        }
     }
 
     // MARK: - Track picker

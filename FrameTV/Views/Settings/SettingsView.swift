@@ -76,6 +76,10 @@ struct SettingsView: View {
 
     private var accountsSection: some View {
         section("Accounts & Sources") {
+            NavigationLink { SetupChecklistView() } label: {
+                settingRow("Setup Checklist", systemImage: "checklist",
+                           detail: "Get started")
+            }.frameRowStyle()
             NavigationLink { SourcesView(path: $sourcesPath) } label: {
                 settingRow("Sources & Health", systemImage: "point.3.connected.trianglepath.dotted",
                            detail: sourcesHealthDetail)

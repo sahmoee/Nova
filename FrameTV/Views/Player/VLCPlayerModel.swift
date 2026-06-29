@@ -54,6 +54,19 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     private var hasScrobbledStart = false
     private var lastScrobbleProgress: Double = 0
     private var didApplyResume = false
+    /// When true, the resume seek is skipped so playback starts from the beginning
+    /// (set by the "Start from beginning" choice in the resume prompt).
+    var forceRestart = false
+
+    /// The saved resume position for this item, if resume is enabled and it's past the
+    /// 30s threshold. Used by the view to decide whether to show the resume prompt.
+    var savedResumePosition: TimeInterval? {
+        guard item.sourceType != .liveTV,
+              (settings?.resumePlaybackEnabled ?? true),
+              let resume = progressStore?.resumePosition(for: item.id),
+              resume > 30 else { return nil }
+        return resume
+    }
 
     #if canImport(VLCKitSPM)
     let mediaPlayer = VLCMediaPlayer()
@@ -237,6 +250,8 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         didApplyResume = true
         // Live channels have no fixed timeline — never resume or save a position.
         guard item.sourceType != .liveTV else { return }
+        // If the user chose "Start from beginning" in the resume prompt, skip the seek.
+        guard !forceRestart else { return }
         if (settings?.resumePlaybackEnabled ?? true),
            let resume = progressStore?.resumePosition(for: item.id), resume > 30 {
             seek(to: resume)

@@ -12,6 +12,7 @@ struct HomeView: View {
     @Binding var path: NavigationPath
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var nav: NavigationCoordinator
+    @EnvironmentObject private var env: AppEnvironment
     @StateObject private var shelfStore = HomeShelfStore.shared
     @State private var selectedItem: MediaItem?
     @State private var showCustomize = false
@@ -32,6 +33,12 @@ struct HomeView: View {
                 } else {
                     ScrollView {
                         VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
+                            // Onboarding: if the movie database key is missing, nothing
+                            // loads — guide the user to the setup checklist first.
+                            if !env.tmdb.hasKey {
+                                setupBanner
+                            }
+
                             // Cinematic featured hero spotlighting one item, with a
                             // compact title bar overlaid for branding + customize.
                             if let hero = featuredItem {
@@ -167,6 +174,36 @@ struct HomeView: View {
         var fresh = item
         fresh.lastPlayedPosition = 0
         selectedItem = fresh
+    }
+
+    /// Shown when the movie database key is missing (nothing loads without it). Taps
+    /// through to Settings, where the setup checklist lives.
+    private var setupBanner: some View {
+        Button {
+            nav.selection = .settings
+        } label: {
+            HStack(spacing: Theme.Spacing.md) {
+                Image(systemName: "checklist")
+                    .font(.appFont(28, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accent)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Finish setting up FrameTV")
+                        .font(.appFont(22, weight: .bold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    Text("Add your movie database key to load posters and details, then connect your sources.")
+                        .font(.appFont(16))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .lineLimit(2)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(Theme.Colors.textTertiary)
+            }
+            .padding(Theme.Spacing.lg)
+            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .padding(.horizontal, Theme.Spacing.edge)
+        }
+        .frameRowStyle()
     }
 
     /// The Continue Watching shelf with resume badges and per-item Restart/Remove.
