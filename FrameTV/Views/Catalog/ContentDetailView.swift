@@ -23,6 +23,8 @@ struct ContentDetailView: View {
     @State private var streamTarget: StreamTarget?
     @State private var favoriteRefresh = false   // toggles to re-read favorite state
     @State private var trailerURL: URL?          // fetched from TMDB if available
+    @State private var showCollectionPicker = false
+    @State private var newCollectionName = ""
 
     init(item: CatalogItem) {
         self.initialItem = item
@@ -61,6 +63,9 @@ struct ContentDetailView: View {
         }
         .task { await hydrate() }
         .task { await fetchTrailer() }
+        .sheet(isPresented: $showCollectionPicker) {
+            collectionPickerSheet
+        }
         .onAppear { AccentManager.shared.deriveAccent(from: item.posterURL ?? item.backdropURL) }
         .onDisappear { AccentManager.shared.reset() }
     }
@@ -181,11 +186,71 @@ struct ContentDetailView: View {
                 .frame(maxWidth: Theme.isCompact ? .infinity : 320)
                 .padding(.top, Theme.Spacing.sm)
 
+                // Add this title to a collection.
+                FocusableButton(title: "Add to Collection", systemImage: "rectangle.stack.badge.plus") {
+                    showCollectionPicker = true
+                }
+                .frame(maxWidth: Theme.isCompact ? .infinity : 320)
+                .padding(.top, Theme.Spacing.xs)
+
                 if isHydrating {
                     ProgressView().tint(Theme.Colors.accent).padding(.top, Theme.Spacing.sm)
                 }
             }
             Spacer(minLength: 0)
+        }
+    }
+
+    // MARK: - Collection picker
+
+    @ViewBuilder
+    private var collectionPickerSheet: some View {
+        NavigationStack {
+            List {
+                if env.library.collections.isEmpty {
+                    Text("No collections yet. Create one below.")
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                }
+                ForEach(env.library.collections) { collection in
+                    let probe = catalogAsMediaItem()
+                    let inIt = env.library.isInCollection(collection.id, item: probe)
+                    Button {
+                        if inIt {
+                            env.library.removeFromCollection(collection.id, contentKey: probe.contentKey)
+                        } else {
+                            env.library.addToCollection(collection.id, item: probe)
+                            // Ensure the item exists in the library so it resolves later.
+                            if !env.library.items.contains(where: { $0.contentKey == probe.contentKey }) {
+                                env.library.add(probe)
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: collection.systemImage)
+                            Text(collection.name)
+                            Spacer()
+                            if inIt { Image(systemName: "checkmark").foregroundStyle(Theme.Colors.accent) }
+                        }
+                    }
+                }
+                Section("New Collection") {
+                    HStack {
+                        TextField("Name", text: $newCollectionName)
+                        Button("Create") {
+                            let trimmed = newCollectionName.trimmingCharacters(in: .whitespaces)
+                            guard !trimmed.isEmpty else { return }
+                            let c = env.library.createCollection(name: trimmed)
+                            env.library.addToCollection(c.id, item: catalogAsMediaItem())
+                            newCollectionName = ""
+                        }
+                        .disabled(newCollectionName.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+            }
+            .navigationTitle("Add to Collection")
+            .toolbar {
+                Button("Done") { showCollectionPicker = false }
+            }
         }
     }
 

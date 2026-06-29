@@ -26,12 +26,26 @@ struct LibraryView: View {
                 Theme.Colors.background.ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                    Text("Library")
-                        .font(Theme.Font.screenTitle())
-                        .screenTitleStyle()
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                        .padding(.horizontal, Theme.Spacing.edge)
-                        .padding(.top, Theme.Spacing.lg)
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Library")
+                            .font(Theme.Font.screenTitle())
+                            .screenTitleStyle()
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                        Spacer()
+                        NavigationLink {
+                            CollectionsView()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "rectangle.stack")
+                                Text("Collections")
+                            }
+                            .font(.appFont(18, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.accent)
+                        }
+                        .frameRowStyle()
+                    }
+                    .padding(.horizontal, Theme.Spacing.edge)
+                    .padding(.top, Theme.Spacing.lg)
 
                     HStack {
                         filterBar

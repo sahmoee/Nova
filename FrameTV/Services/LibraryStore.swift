@@ -15,8 +15,10 @@ import Combine
 final class LibraryStore: ObservableObject {
 
     @Published private(set) var items: [MediaItem] = []
+    @Published private(set) var collections: [MediaCollection] = []
 
     private let fileURL: URL
+    private let collectionsURL: URL
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
@@ -37,6 +39,7 @@ final class LibraryStore: ObservableObject {
             at: support, withIntermediateDirectories: true
         )
         self.fileURL = support.appendingPathComponent(filename)
+        self.collectionsURL = support.appendingPathComponent("collections.json")
 
         let enc = JSONEncoder()
         enc.dateEncodingStrategy = .iso8601
@@ -48,6 +51,7 @@ final class LibraryStore: ObservableObject {
         self.decoder = dec
 
         load()
+        loadCollections()
         startCloudSync()
     }
 
@@ -139,6 +143,81 @@ final class LibraryStore: ObservableObject {
             items = []
         }
     }
+
+    // MARK: - Collections
+
+    private let collectionsCloudKey = "cloud.collections.v1"
+
+    private func loadCollections() {
+        // Prefer local file; fall back to iCloud if present and local is empty.
+        if let data = try? Data(contentsOf: collectionsURL),
+           let decoded = try? decoder.decode([MediaCollection].self, from: data) {
+            collections = decoded
+        } else if let json = CloudSync.shared.string(forKey: collectionsCloudKey),
+                  let data = json.data(using: .utf8),
+                  let decoded = try? decoder.decode([MediaCollection].self, from: data) {
+            collections = decoded
+        }
+    }
+
+    private func persistCollections() {
+        if let data = try? encoder.encode(collections) {
+            try? data.write(to: collectionsURL, options: [.atomic])
+            if let json = String(data: data, encoding: .utf8) {
+                CloudSync.shared.setString(json, forKey: collectionsCloudKey)
+            }
+        }
+    }
+
+    /// Creates a new empty collection and returns it.
+    @discardableResult
+    func createCollection(name: String, systemImage: String = "rectangle.stack") -> MediaCollection {
+        let collection = MediaCollection(name: name, systemImage: systemImage)
+        collections.append(collection)
+        persistCollections()
+        return collection
+    }
+
+    func renameCollection(_ id: UUID, to name: String) {
+        guard let idx = collections.firstIndex(where: { $0.id == id }) else { return }
+        collections[idx].name = name
+        persistCollections()
+    }
+
+    func deleteCollection(_ id: UUID) {
+        collections.removeAll { $0.id == id }
+        persistCollections()
+    }
+
+    /// Adds an item to a collection (no-op if already present).
+    func addToCollection(_ collectionID: UUID, item: MediaItem) {
+        guard let idx = collections.firstIndex(where: { $0.id == collectionID }) else { return }
+        if !collections[idx].contentKeys.contains(item.contentKey) {
+            collections[idx].contentKeys.append(item.contentKey)
+            persistCollections()
+        }
+    }
+
+    func removeFromCollection(_ collectionID: UUID, contentKey: String) {
+        guard let idx = collections.firstIndex(where: { $0.id == collectionID }) else { return }
+        collections[idx].contentKeys.removeAll { $0 == contentKey }
+        persistCollections()
+    }
+
+    /// Whether an item is in a given collection.
+    func isInCollection(_ collectionID: UUID, item: MediaItem) -> Bool {
+        collections.first(where: { $0.id == collectionID })?
+            .contentKeys.contains(item.contentKey) ?? false
+    }
+
+    /// The library items that belong to a collection, in collection order.
+    func items(in collection: MediaCollection) -> [MediaItem] {
+        collection.contentKeys.compactMap { key in
+            items.first(where: { $0.contentKey == key })
+        }
+    }
+
+    // MARK: - Persistence
 
     private func persist() {
         persistLocalOnly()
