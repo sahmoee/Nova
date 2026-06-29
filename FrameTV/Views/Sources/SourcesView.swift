@@ -12,6 +12,8 @@ struct SourcesView: View {
     @Binding var path: NavigationPath
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var library: LibraryStore
+    /// Drives the SMB card's real status (configured vs not) from saved shares.
+    @StateObject private var smbModel = SMBSharesModel()
 
     // Flexible columns so cards stretch to fill the row: fewer, wider cards on
     // iPhone; more on iPad/tvOS. This avoids the narrow-cells-with-gaps look.
@@ -54,7 +56,7 @@ struct SourcesView: View {
                         NavigationLink { SMBListView() } label: {
                             SourceCard(title: "SMB Shares",
                                        systemImage: SourceType.smb.systemImage,
-                                       status: .notConfigured) {}
+                                       status: SourceHealth.smb(shareCount: smbModel.shares.count).status) {}
                                 .allowsHitTesting(false)
                         }.buttonStyle(.plain)
 

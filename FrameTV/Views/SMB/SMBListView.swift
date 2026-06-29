@@ -40,12 +40,7 @@ struct SMBListView: View {
                     ScrollView {
                         VStack(spacing: Theme.Spacing.md) {
                             ForEach(model.shares) { share in
-                                NavigationLink {
-                                    SMBBrowseView(share: share)
-                                } label: {
-                                    shareRow(share)
-                                }
-                                .buttonStyle(.plain)
+                                shareRow(share)
                             }
                         }
                         .padding(.horizontal, Theme.Spacing.edge)
@@ -64,34 +59,51 @@ struct SMBListView: View {
 
     private func shareRow(_ share: SMBShare) -> some View {
         HStack(spacing: Theme.Spacing.md) {
-            Image(systemName: "externaldrive.connected.to.line.below")
-                .font(.appFont(30))
-                .foregroundStyle(Theme.Colors.accent)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(share.displayName)
-                    .font(Theme.Font.cardTitle())
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                Text(share.shareName.isEmpty ? "smb://\(share.host)" : "\(share.host)/\(share.shareName)")
-                    .font(.appFont(18))
-                    .foregroundStyle(Theme.Colors.textSecondary)
+            // Tapping the main area browses the share. Kept as its own NavigationLink
+            // so it doesn't compete with the action buttons on the right.
+            NavigationLink {
+                SMBBrowseView(share: share)
+            } label: {
+                HStack(spacing: Theme.Spacing.md) {
+                    Image(systemName: "externaldrive.connected.to.line.below")
+                        .font(.appFont(30))
+                        .foregroundStyle(Theme.Colors.accent)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(share.displayName)
+                            .font(Theme.Font.cardTitle())
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                        Text(share.shareName.isEmpty ? "smb://\(share.host)" : "\(share.host)/\(share.shareName)")
+                            .font(.appFont(18))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
             }
-            Spacer()
+            .buttonStyle(.plain)
+
+            // Diagnostics (stethoscope) and delete — separate buttons, clear tap areas.
             NavigationLink {
                 SMBCheckerView(share: share)
             } label: {
                 Image(systemName: "stethoscope")
+                    .font(.appFont(22))
                     .foregroundStyle(Theme.Colors.accent)
+                    .padding(Theme.Spacing.sm)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+
             Button {
                 model.remove(share)
             } label: {
                 Image(systemName: "trash")
+                    .font(.appFont(22))
                     .foregroundStyle(Theme.Colors.error)
+                    .padding(Theme.Spacing.sm)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            Image(systemName: "chevron.right")
-                .foregroundStyle(Theme.Colors.textTertiary)
         }
         .padding(Theme.Spacing.md)
         .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
@@ -113,6 +125,11 @@ struct SMBAddView: View {
     @State private var password = ""
     @State private var displayName = ""
 
+    /// Lets a tap anywhere on a field's card focus the actual text field, instead of
+    /// only the small text region being tappable.
+    private enum Field: Hashable { case server, username, password, displayName }
+    @FocusState private var focusedField: Field?
+
     var body: some View {
         ZStack {
             Theme.Colors.background.ignoresSafeArea()
@@ -129,14 +146,18 @@ struct SMBAddView: View {
                             .foregroundStyle(Theme.Colors.textSecondary)
                         TextField("smb://yourcomputer.local", text: $server)
                             .textFieldStyle(.plain)
+                            .focused($focusedField, equals: .server)
                             #if os(iOS)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled(true)
                             .keyboardType(.URL)
                             #endif
                             .padding(Theme.Spacing.md)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
                             .foregroundStyle(Theme.Colors.textPrimary)
+                            .contentShape(Rectangle())
+                            .onTapGesture { focusedField = .server }
                         Text("Enter your computer's name or IP, e.g. smb://yourcomputer.local. You'll see its shared folders next. You can also go straight to one: smb://yourcomputer.local/Media.")
                             .font(.appFont(15))
                             .foregroundStyle(Theme.Colors.textTertiary)
@@ -167,6 +188,7 @@ struct SMBAddView: View {
                                     .frame(width: 110, alignment: .leading)
                                 TextField("Name", text: $username)
                                     .textFieldStyle(.plain)
+                                    .focused($focusedField, equals: .username)
                                     #if os(iOS)
                                     .textInputAutocapitalization(.never)
                                     .autocorrectionDisabled(true)
@@ -174,6 +196,9 @@ struct SMBAddView: View {
                                     .foregroundStyle(Theme.Colors.textPrimary)
                             }
                             .padding(Theme.Spacing.md)
+                            .frame(maxWidth: .infinity)
+                            .contentShape(Rectangle())
+                            .onTapGesture { focusedField = .username }
                             Divider().overlay(Theme.Colors.separator)
                             HStack {
                                 Text("Password").font(.appFont(19))
@@ -181,9 +206,13 @@ struct SMBAddView: View {
                                     .frame(width: 110, alignment: .leading)
                                 SecureField("Required", text: $password)
                                     .textFieldStyle(.plain)
+                                    .focused($focusedField, equals: .password)
                                     .foregroundStyle(Theme.Colors.textPrimary)
                             }
                             .padding(Theme.Spacing.md)
+                            .frame(maxWidth: .infinity)
+                            .contentShape(Rectangle())
+                            .onTapGesture { focusedField = .password }
                         }
                         .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
                     }
@@ -194,9 +223,13 @@ struct SMBAddView: View {
                             .foregroundStyle(Theme.Colors.textSecondary)
                         TextField("My Computer", text: $displayName)
                             .textFieldStyle(.plain)
+                            .focused($focusedField, equals: .displayName)
                             .padding(Theme.Spacing.md)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
                             .foregroundStyle(Theme.Colors.textPrimary)
+                            .contentShape(Rectangle())
+                            .onTapGesture { focusedField = .displayName }
                     }
 
                     FocusableButton(title: "Connect", systemImage: "checkmark", prominent: true) {
