@@ -127,6 +127,20 @@ struct LibraryView: View {
             }
             #endif
         }
+        .onChange(of: nav.pendingContentKey) { _, key in
+            openPendingContent(key)
+        }
+        .onAppear { openPendingContent(nav.pendingContentKey) }
+    }
+
+    /// Opens the library item matching a deep-link content key, then clears the
+    /// pending key so it doesn't re-fire.
+    private func openPendingContent(_ key: String?) {
+        guard let key, !key.isEmpty else { return }
+        if let match = library.items.first(where: { $0.contentKey == key || $0.contentID?.stableKey == key }) {
+            detailItem = match
+        }
+        nav.pendingContentKey = nil
     }
 
     // MARK: - Filter bar

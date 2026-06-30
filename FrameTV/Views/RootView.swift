@@ -25,6 +25,10 @@ struct RootView: View {
             .environmentObject(nav)
             .environment(\.dynamicAccent, accentManager.accent)
             .tint(accentManager.accent)
+            .onOpenURL { url in
+                // Route frametv:// deep links (Shortcuts, widgets, Top Shelf, QR setup).
+                nav.handle(url: url)
+            }
             .fullScreenCover(item: $reopenItem) { item in
                 PlayerView(item: item)
                     .environmentObject(env)

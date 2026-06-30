@@ -40,6 +40,10 @@ enum AppTab: Hashable, CaseIterable {
 final class NavigationCoordinator: ObservableObject {
     @Published var selection: AppTab = .home
 
+    /// Set when a deep link targets a specific library item; LibraryView observes this
+    /// and opens the matching item's detail, then clears it.
+    @Published var pendingContentKey: String?
+
     // One navigation path per tab.
     @Published var homePath = NavigationPath()
     @Published var discoverPath = NavigationPath()
@@ -94,5 +98,35 @@ final class NavigationCoordinator: ObservableObject {
         case .library:  if !libraryPath.isEmpty { libraryPath.removeLast() }
         case .settings: if !settingsPath.isEmpty { settingsPath.removeLast() }
         }
+    }
+
+    /// Routes a parsed deep link to the right place in the app.
+    func handle(_ link: DeepLink) {
+        switch link {
+        case .tab(let tab):
+            selection = tab
+            popToRoot(tab)
+        case .continueWatching:
+            selection = .library
+            popToRoot(.library)
+        case .settingsSources:
+            // Land on Settings; Sources is one tap away. (Auto-push would require
+            // refactoring Settings to value-based navigation; deferred.)
+            selection = .settings
+            popToRoot(.settings)
+        case .content(let key, _):
+            // Library holds the user's items; jump there and ask it to open the match.
+            selection = .library
+            popToRoot(.library)
+            pendingContentKey = key
+        }
+    }
+
+    /// Convenience: parse and handle a URL in one step. Returns true if handled.
+    @discardableResult
+    func handle(url: URL) -> Bool {
+        guard let link = DeepLink.parse(url) else { return false }
+        handle(link)
+        return true
     }
 }
