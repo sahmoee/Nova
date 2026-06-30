@@ -30,7 +30,7 @@ struct LibraryView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
-                Theme.Colors.background.ignoresSafeArea()
+                Theme.Colors.appBackground.ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                     HStack(alignment: .firstTextBaseline) {

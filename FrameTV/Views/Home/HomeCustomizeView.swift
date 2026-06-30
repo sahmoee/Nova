@@ -63,7 +63,7 @@ struct HomeCustomizeView: View {
             #if os(iOS)
             .scrollContentBackground(.hidden)
             #endif
-            .background(Theme.Colors.background.ignoresSafeArea())
+            .background(Theme.Colors.appBackground.ignoresSafeArea())
             .navigationTitle("Customize Home")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -153,7 +153,7 @@ struct AddShelfView: View {
             #if os(iOS)
             .scrollContentBackground(.hidden)
             #endif
-            .background(Theme.Colors.background.ignoresSafeArea())
+            .background(Theme.Colors.appBackground.ignoresSafeArea())
             .navigationTitle("Add a Shelf")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

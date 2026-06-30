@@ -22,7 +22,7 @@ struct LiveTVView: View {
 
     var body: some View {
         ZStack {
-            Theme.Colors.background.ignoresSafeArea()
+            Theme.Colors.appBackground.ignoresSafeArea()
 
             if sources.isEmpty {
                 emptyState

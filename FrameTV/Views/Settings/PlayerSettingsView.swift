@@ -105,7 +105,7 @@ struct PlayerSettingsView: View {
             .padding(.vertical, Theme.Spacing.xl)
             .frame(maxWidth: Theme.contentMaxWidth(1000), alignment: .leading)
         }
-        .background(Theme.Colors.background.ignoresSafeArea())
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
     }
 
     /// Formats a speed for display (e.g. 1.25 -> "1.25", 1.5 -> "1.5").

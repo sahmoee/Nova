@@ -103,7 +103,7 @@ struct AccountsView: View {
             .padding(Theme.Spacing.edge)
             .frame(maxWidth: Theme.contentMaxWidth(1100), alignment: .leading)
         }
-        .background(Theme.Colors.background.ignoresSafeArea())
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
         .onAppear(perform: loadExisting)
         .dismissKeyboardOnTap()
     }

@@ -73,7 +73,7 @@ struct BingeSettingsView: View {
             .padding(.vertical, Theme.Spacing.xl)
             .frame(maxWidth: Theme.contentMaxWidth(800), alignment: .leading)
         }
-        .background(Theme.Colors.background.ignoresSafeArea())
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
         .onAppear { settings = env.showSettings.settings(forSeries: seriesTitle) }
         .onChange(of: settings) { _, _ in save() }
     }

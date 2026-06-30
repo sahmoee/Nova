@@ -19,7 +19,7 @@ struct MediaDetailView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .bottomLeading) {
-                Theme.Colors.background.ignoresSafeArea()
+                Theme.Colors.appBackground.ignoresSafeArea()
                 backdrop(in: geo.size)
 
                 ScrollView {

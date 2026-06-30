@@ -40,7 +40,7 @@ struct AddonsView: View {
             .padding(Theme.Spacing.edge)
             .frame(maxWidth: Theme.contentMaxWidth(1200), alignment: .leading)
         }
-        .background(Theme.Colors.background.ignoresSafeArea())
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
         .sheet(isPresented: $showAdd) {
             AddAddonView()
         }
@@ -246,7 +246,7 @@ struct AddAddonView: View {
             .padding(Theme.Spacing.edge)
             .frame(maxWidth: Theme.contentMaxWidth(1000), alignment: .leading)
         }
-        .background(Theme.Colors.background.ignoresSafeArea())
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
     }
 
     private var normalizedURL: URL? {

@@ -53,7 +53,7 @@ struct TraktConnectView: View {
             .padding(Theme.Spacing.edge)
             .frame(maxWidth: Theme.contentMaxWidth(1000), alignment: .leading)
         }
-        .background(Theme.Colors.background.ignoresSafeArea())
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
         .task { await onAppear() }
         .onDisappear { pollTask?.cancel() }
     }

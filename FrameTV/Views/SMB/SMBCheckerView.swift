@@ -21,7 +21,7 @@ struct SMBCheckerView: View {
 
     var body: some View {
         ZStack {
-            Theme.Colors.background.ignoresSafeArea()
+            Theme.Colors.appBackground.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                     header

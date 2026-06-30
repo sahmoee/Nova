@@ -152,7 +152,7 @@ struct BackupView: View {
             .padding(.bottom, Theme.Spacing.xl)
             .frame(maxWidth: Theme.contentMaxWidth(1000), alignment: .leading)
         }
-        .background(Theme.Colors.background.ignoresSafeArea())
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
         // iCloud restore: pick what to restore.
         .sheet(isPresented: $showCloudRestorePicker) {
             BackupContentsPicker(mode: .restore,

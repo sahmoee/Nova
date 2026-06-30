@@ -16,7 +16,7 @@ struct SMBListView: View {
 
     var body: some View {
         ZStack {
-            Theme.Colors.background.ignoresSafeArea()
+            Theme.Colors.appBackground.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                 ScreenHeader(title: "SMB Shares") {
@@ -132,7 +132,7 @@ struct SMBAddView: View {
 
     var body: some View {
         ZStack {
-            Theme.Colors.background.ignoresSafeArea()
+            Theme.Colors.appBackground.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                     Text("Connect to Server")

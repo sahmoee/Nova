@@ -21,38 +21,10 @@ struct CollectionsView: View {
 
     var body: some View {
         ZStack {
-            Theme.Colors.background.ignoresSafeArea()
+            Theme.Colors.appBackground.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                     header
-
-                    // Smart collections: rule-based, always current.
-                    Text("Smart Collections")
-                        .font(Theme.Font.sectionTitle())
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                        .padding(.horizontal, Theme.Spacing.edge)
-                    LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
-                        ForEach(SmartCollection.presets) { smart in
-                            let items = smart.items(from: library.items)
-                            if !items.isEmpty {
-                                NavigationLink {
-                                    SmartCollectionDetailView(collection: smart,
-                                                              onPlay: { selectedItem = $0 })
-                                } label: {
-                                    smartTile(smart, count: items.count)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, Theme.Spacing.edge)
-
-                    if !library.collections.isEmpty {
-                        Text("Your Collections")
-                            .font(Theme.Font.sectionTitle())
-                            .foregroundStyle(Theme.Colors.textPrimary)
-                            .padding(.horizontal, Theme.Spacing.edge)
-                    }
 
                     if library.collections.isEmpty {
                         emptyState
@@ -127,26 +99,6 @@ struct CollectionsView: View {
         .padding(.top, Theme.Spacing.xl)
     }
 
-    private func smartTile(_ smart: SmartCollection, count: Int) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            ZStack {
-                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                    .fill(Theme.Colors.accent.opacity(0.15))
-                    .aspectRatio(1.6, contentMode: .fit)
-                Image(systemName: smart.systemImage)
-                    .font(.appFont(44, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.accent)
-            }
-            Text(smart.name)
-                .font(.appFont(20, weight: .semibold))
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .lineLimit(1)
-            Text("\(count) \(count == 1 ? "title" : "titles")")
-                .font(.appFont(15))
-                .foregroundStyle(Theme.Colors.textTertiary)
-        }
-    }
-
     private func collectionTile(_ collection: MediaCollection) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             ZStack {
@@ -193,7 +145,7 @@ struct CollectionDetailView: View {
 
     var body: some View {
         ZStack {
-            Theme.Colors.background.ignoresSafeArea()
+            Theme.Colors.appBackground.ignoresSafeArea()
             ScrollView {
                 if items.isEmpty {
                     VStack(spacing: Theme.Spacing.md) {
@@ -220,50 +172,6 @@ struct CollectionDetailView: View {
                                         Label("Remove from Collection", systemImage: "minus.circle")
                                     }
                                 }
-                        }
-                    }
-                    .padding(Theme.Spacing.edge)
-                }
-            }
-        }
-        .navigationTitle(collection.name)
-    }
-}
-
-/// Shows the live contents of a rule-based smart collection.
-struct SmartCollectionDetailView: View {
-    let collection: SmartCollection
-    var onPlay: (MediaItem) -> Void
-    @EnvironmentObject private var library: LibraryStore
-
-    private var columns: [GridItem] { Theme.posterGridColumns }
-
-    private var items: [MediaItem] {
-        collection.items(from: library.items)
-    }
-
-    var body: some View {
-        ZStack {
-            Theme.Colors.background.ignoresSafeArea()
-            ScrollView {
-                if items.isEmpty {
-                    VStack(spacing: Theme.Spacing.md) {
-                        Image(systemName: collection.systemImage)
-                            .font(.appFont(52))
-                            .foregroundStyle(Theme.Colors.textTertiary)
-                        Text("Nothing here right now")
-                            .font(.appFont(22, weight: .semibold))
-                            .foregroundStyle(Theme.Colors.textPrimary)
-                        Text("This collection fills itself as your library changes.")
-                            .font(.appFont(18))
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, Theme.Spacing.xl)
-                } else {
-                    LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
-                        ForEach(items) { item in
-                            MediaCard(item: item) { onPlay(item) }
                         }
                     }
                     .padding(Theme.Spacing.edge)

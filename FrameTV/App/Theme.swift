@@ -71,29 +71,67 @@ enum Theme {
     // MARK: - Colors
 
     enum Colors {
-        /// Near-black app background.
-        static let background = Color(red: 0.04, green: 0.04, blue: 0.06)
+        /// Deep, near-black base. Slightly warmer and softer than pure black for a
+        /// more refined, less harsh dark look.
+        static let background = Color(red: 0.05, green: 0.05, blue: 0.07)
+        /// A second, marginally lighter tone used as the far end of the app gradient.
+        static let backgroundElevated = Color(red: 0.09, green: 0.09, blue: 0.13)
 
         /// Slightly lifted surface for cards (paired with .ultraThinMaterial overlay).
-        static let card = Color(red: 0.11, green: 0.11, blue: 0.14)
+        static let card = Color(red: 0.12, green: 0.12, blue: 0.16)
+        /// A touch lighter, for the top of a soft card gradient.
+        static let cardElevated = Color(red: 0.16, green: 0.16, blue: 0.21)
 
         /// Accent — a confident violet-blue.
-        static let accent = Color(red: 0.49, green: 0.40, blue: 0.95)
-        static let accentSecondary = Color(red: 0.30, green: 0.55, blue: 0.98)
+        static let accent = Color(red: 0.52, green: 0.43, blue: 0.96)
+        static let accentSecondary = Color(red: 0.35, green: 0.58, blue: 0.98)
 
         static let textPrimary = Color.white
-        static let textSecondary = Color.white.opacity(0.62)
-        static let textTertiary = Color.white.opacity(0.38)
+        static let textSecondary = Color.white.opacity(0.64)
+        static let textTertiary = Color.white.opacity(0.40)
 
-        static let success = Color(red: 0.30, green: 0.78, blue: 0.45)
-        static let warning = Color(red: 0.96, green: 0.72, blue: 0.25)
-        static let error = Color(red: 0.95, green: 0.36, blue: 0.36)
+        static let success = Color(red: 0.34, green: 0.80, blue: 0.48)
+        static let warning = Color(red: 0.97, green: 0.74, blue: 0.28)
+        static let error = Color(red: 0.96, green: 0.40, blue: 0.40)
 
-        static let separator = Color.white.opacity(0.10)
+        static let separator = Color.white.opacity(0.08)
 
-        /// Gradient used behind hero areas.
+        /// The app-wide background: a soft, slow vertical gradient from the deep base
+        /// up to a slightly elevated tone, with a faint cool cast. Sits behind every
+        /// screen so the whole app feels like one continuous, gently-lit surface.
+        static let appBackground = LinearGradient(
+            stops: [
+                .init(color: background, location: 0.0),
+                .init(color: Color(red: 0.06, green: 0.06, blue: 0.09), location: 0.55),
+                .init(color: backgroundElevated, location: 1.0)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+
+        /// A soft surface gradient for cards/sheets — subtle top-light, so panels read
+        /// as gently raised rather than flat blocks.
+        static let cardGradient = LinearGradient(
+            colors: [cardElevated, card],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+
+        /// Gradient used behind hero areas — gentler than before, easing the accent
+        /// into the background without a hard edge.
         static let heroGradient = LinearGradient(
-            colors: [accent.opacity(0.35), background],
+            stops: [
+                .init(color: accent.opacity(0.28), location: 0.0),
+                .init(color: accent.opacity(0.06), location: 0.45),
+                .init(color: background.opacity(0.0), location: 1.0)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+
+        /// A soft accent wash for selected/active states.
+        static let accentWash = LinearGradient(
+            colors: [accent.opacity(0.85), accentSecondary.opacity(0.85)],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
@@ -102,10 +140,20 @@ enum Theme {
     // MARK: - Radii
 
     enum Radius {
-        static var card: CGFloat { Theme.scaled(16, min: 10) }
-        static var largeCard: CGFloat { Theme.scaled(20, min: 12) }
-        static var button: CGFloat { Theme.scaled(12, min: 8) }
+        static var card: CGFloat { Theme.scaled(18, min: 12) }
+        static var largeCard: CGFloat { Theme.scaled(24, min: 16) }
+        static var button: CGFloat { Theme.scaled(14, min: 10) }
         static let pill: CGFloat = 999
+    }
+
+    // MARK: - Soft depth
+
+    /// A soft, diffuse shadow for raised surfaces — low opacity and a wide blur so
+    /// panels feel gently lifted rather than hard-edged. Apple-style restraint.
+    enum Shadow {
+        static let color = Color.black.opacity(0.35)
+        static var radius: CGFloat { Theme.scaled(24, min: 12) }
+        static var y: CGFloat { Theme.scaled(10, min: 5) }
     }
 
     // MARK: - Spacing
@@ -187,5 +235,32 @@ extension View {
         self.lineLimit(1)
             .minimumScaleFactor(0.5)
             .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+// MARK: - Surface styling
+
+extension View {
+    /// Places the soft app-wide gradient behind a screen so every view shares one
+    /// continuous, gently-lit backdrop instead of a flat fill.
+    func appBackground() -> some View {
+        self.background(Theme.Colors.appBackground.ignoresSafeArea())
+    }
+
+    /// Wraps content in an elegant raised card: soft surface gradient, rounded
+    /// corners, a hairline edge for definition, and a diffuse shadow.
+    func softCard(cornerRadius: CGFloat? = nil, padding: CGFloat? = nil) -> some View {
+        let radius = cornerRadius ?? Theme.Radius.card
+        return self
+            .padding(padding ?? Theme.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .fill(Theme.Colors.cardGradient)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.06), lineWidth: 0.5)
+            )
+            .shadow(color: Theme.Shadow.color, radius: Theme.Shadow.radius, x: 0, y: Theme.Shadow.y)
     }
 }

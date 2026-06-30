@@ -63,7 +63,7 @@ struct AISearchSettingsView: View {
             .padding(.bottom, Theme.Spacing.xl)
             .frame(maxWidth: Theme.contentMaxWidth(1000), alignment: .leading)
         }
-        .background(Theme.Colors.background.ignoresSafeArea())
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
         .dismissKeyboardOnTap()
     }
 

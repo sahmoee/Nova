@@ -58,7 +58,7 @@ struct AIView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
-                Theme.Colors.background.ignoresSafeArea()
+                Theme.Colors.appBackground.ignoresSafeArea()
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                         header

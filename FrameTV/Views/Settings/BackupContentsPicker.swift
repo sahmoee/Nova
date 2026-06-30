@@ -93,7 +93,7 @@ struct BackupContentsPicker: View {
             .padding(.vertical, Theme.Spacing.xl)
             .frame(maxWidth: Theme.contentMaxWidth(900), alignment: .leading)
         }
-        .background(Theme.Colors.background.ignoresSafeArea())
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
     }
 
     private func row(_ item: BackupContents.Item) -> some View {

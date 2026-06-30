@@ -127,7 +127,7 @@ struct DiscoverView: View {
                 .padding(Theme.Spacing.edge)
                 .frame(maxWidth: Theme.contentMaxWidth(1500), alignment: .leading)
             }
-            .background(Theme.Colors.background.ignoresSafeArea())
+            .background(Theme.Colors.appBackground.ignoresSafeArea())
             .navigationDestination(for: CatalogItem.self) { item in
                 ContentDetailView(item: item)
             }

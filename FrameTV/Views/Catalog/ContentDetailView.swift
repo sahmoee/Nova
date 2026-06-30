@@ -56,7 +56,7 @@ struct ContentDetailView: View {
         .background(alignment: .top) {
             backdropHero
         }
-        .background(Theme.Colors.background.ignoresSafeArea())
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
         .navigationDestination(item: $streamTarget) { target in
             StreamPickerView(catalog: target.catalog, episode: target.episode,
                              forceManual: target.forceManual)

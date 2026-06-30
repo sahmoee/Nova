@@ -71,7 +71,7 @@ struct RootView: View {
     @ViewBuilder
     private var rootContent: some View {
         ZStack {
-            Theme.Colors.background.ignoresSafeArea()
+            Theme.Colors.appBackground.ignoresSafeArea()
 
             activeScreen
                 .ignoresSafeArea(.container, edges: .bottom)
@@ -140,7 +140,7 @@ struct RootView: View {
                 .tabItem { Label(AppTab.settings.title, systemImage: AppTab.settings.systemImage) }
                 .tag(AppTab.settings)
         }
-        .background(Theme.Colors.background.ignoresSafeArea())
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
         .toolbar(nowPlaying.playerPresented ? .hidden : .visible, for: .tabBar)
         .safeAreaInset(edge: .bottom) {
             nowPlayingBar

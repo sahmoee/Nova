@@ -35,7 +35,7 @@ struct SMBBrowseView: View {
 
     var body: some View {
         ZStack {
-            Theme.Colors.background.ignoresSafeArea()
+            Theme.Colors.appBackground.ignoresSafeArea()
 
             switch state {
             case .loading:

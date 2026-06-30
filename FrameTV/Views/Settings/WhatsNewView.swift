@@ -68,6 +68,6 @@ struct WhatsNewView: View {
             .padding(Theme.Spacing.edge)
             .frame(maxWidth: Theme.contentMaxWidth(900), alignment: .leading)
         }
-        .background(Theme.Colors.background.ignoresSafeArea())
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
     }
 }

@@ -20,7 +20,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
-                Theme.Colors.background.ignoresSafeArea()
+                Theme.Colors.appBackground.ignoresSafeArea()
 
                 if library.items.isEmpty && shelfStore.enabledShelves.isEmpty {
                     EmptyStateView(
