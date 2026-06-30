@@ -138,6 +138,8 @@ final class LibraryStore: ObservableObject {
             }
             items = cleaned
             if cleaned.count != decoded.count { persist() }
+            // Index the freshly loaded library into Spotlight (no-op on tvOS).
+            SpotlightIndexer.reindex(items)
         } catch {
             // Corrupt/old format: start clean rather than crash.
             items = []
@@ -325,6 +327,8 @@ final class LibraryStore: ObservableObject {
     private func persist() {
         persistLocalOnly()
         pushToCloud()
+        // Keep iOS Spotlight in sync with the current library (no-op on tvOS).
+        SpotlightIndexer.reindex(items)
     }
 
     /// Writes only the local file, without touching iCloud (used when applying a
