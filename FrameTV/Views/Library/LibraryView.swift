@@ -16,6 +16,14 @@ struct LibraryView: View {
     @State private var typeFilter: LibraryTypeFilter = .all
     @State private var selectedItem: MediaItem?
     @State private var detailItem: MediaItem?
+    // Batch B: sort, hidden view, tag filter, bulk edit.
+    @State private var sortOrder: LibrarySortOrder = .recentlyAdded
+    @State private var showingHidden = false
+    @State private var activeTag: String?
+    @State private var bulkEditing = false
+    @State private var selectedIDs: Set<UUID> = []
+    @State private var showTagPrompt = false
+    @State private var newTagText = ""
 
     private var columns: [GridItem] { Theme.posterGridColumns }
 
@@ -31,6 +39,25 @@ struct LibraryView: View {
                             .screenTitleStyle()
                             .foregroundStyle(Theme.Colors.textPrimary)
                         Spacer()
+                        // Sort menu
+                        Menu {
+                            Picker("Sort", selection: $sortOrder) {
+                                ForEach(LibrarySortOrder.allCases) { Label($0.title, systemImage: $0.systemImage).tag($0) }
+                            }
+                        } label: {
+                            Image(systemName: "arrow.up.arrow.down.circle")
+                                .font(.appFont(20))
+                                .foregroundStyle(Theme.Colors.accent)
+                        }
+                        // Bulk edit toggle
+                        Button {
+                            bulkEditing.toggle()
+                            if !bulkEditing { selectedIDs.removeAll() }
+                        } label: {
+                            Image(systemName: bulkEditing ? "checkmark.circle.fill" : "checklist")
+                                .font(.appFont(20))
+                                .foregroundStyle(Theme.Colors.accent)
+                        }
                         NavigationLink {
                             CollectionsView()
                         } label: {
@@ -45,6 +72,15 @@ struct LibraryView: View {
                     }
                     .padding(.horizontal, Theme.Spacing.edge)
                     .padding(.top, Theme.Spacing.lg)
+
+                    // Tag filter row (only when tags exist)
+                    if !library.allTags.isEmpty {
+                        tagFilterRow
+                    }
+                    // Bulk action bar (only in edit mode with a selection)
+                    if bulkEditing {
+                        bulkBar
+                    }
 
                     HStack {
                         filterBar
@@ -75,7 +111,20 @@ struct LibraryView: View {
                             LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
                                 ForEach(displayedItems) { item in
                                     MediaCard(item: item, seasonGrouped: true) {
-                                        detailItem = item
+                                        if bulkEditing {
+                                            toggleSelection(item.id)
+                                        } else {
+                                            detailItem = item
+                                        }
+                                    }
+                                    .overlay(alignment: .topTrailing) {
+                                        if bulkEditing {
+                                            Image(systemName: selectedIDs.contains(item.id) ? "checkmark.circle.fill" : "circle")
+                                                .font(.appFont(24))
+                                                .foregroundStyle(selectedIDs.contains(item.id) ? Theme.Colors.accent : .white)
+                                                .padding(8)
+                                                .shadow(radius: 3)
+                                        }
                                     }
                                     .contextMenu {
                                         if item.hasResumePoint {
@@ -90,6 +139,11 @@ struct LibraryView: View {
                                         } label: {
                                             Label(item.isFavorite ? "Unfavorite" : "Favorite",
                                                   systemImage: item.isFavorite ? "star.slash" : "star")
+                                        }
+                                        Button {
+                                            library.toggleHidden(item)
+                                        } label: {
+                                            Label(item.isHidden ? "Unhide" : "Hide", systemImage: item.isHidden ? "eye" : "eye.slash")
                                         }
                                         Button(role: .destructive) {
                                             withAnimation { library.remove(item) }
@@ -182,11 +236,118 @@ struct LibraryView: View {
         case .favorites:         base = library.favorites
         case .continueWatching:  base = library.continueWatching
         }
+        var result: [MediaItem]
         switch typeFilter {
-        case .all:    return base
-        case .shows:  return base.filter { $0.episode != nil || $0.seriesTitle != nil }
-        case .movies: return base.filter { $0.episode == nil && $0.seriesTitle == nil }
+        case .all:    result = base
+        case .shows:  result = base.filter { $0.episode != nil || $0.seriesTitle != nil }
+        case .movies: result = base.filter { $0.episode == nil && $0.seriesTitle == nil }
         }
+        // Hide hidden/archived items unless the user is viewing them.
+        result = result.filter { showingHidden ? $0.isHidden : !$0.isHidden }
+        // Tag filter, when one is selected.
+        if let tag = activeTag {
+            result = result.filter { $0.tags.contains { $0.caseInsensitiveCompare(tag) == .orderedSame } }
+        }
+        return sortItems(result)
+    }
+
+    /// Applies the active sort order.
+    private func sortItems(_ items: [MediaItem]) -> [MediaItem] {
+        switch sortOrder {
+        case .recentlyAdded:
+            return items.sorted { $0.addedDate > $1.addedDate }
+        case .title:
+            return items.sorted { ($0.seriesTitle ?? $0.title).localizedCaseInsensitiveCompare($1.seriesTitle ?? $1.title) == .orderedAscending }
+        case .year:
+            return items.sorted { ($0.metadata.year ?? 0) > ($1.metadata.year ?? 0) }
+        case .recentlyPlayed:
+            return items.sorted { ($0.lastPlayedDate ?? .distantPast) > ($1.lastPlayedDate ?? .distantPast) }
+        }
+    }
+
+    // MARK: - Batch B views
+
+    private var tagFilterRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Theme.Spacing.sm) {
+                tagChip(title: "All", active: activeTag == nil) { activeTag = nil }
+                ForEach(library.allTags, id: \.self) { tag in
+                    tagChip(title: tag, active: activeTag?.caseInsensitiveCompare(tag) == .orderedSame) {
+                        activeTag = (activeTag?.caseInsensitiveCompare(tag) == .orderedSame) ? nil : tag
+                    }
+                }
+                // Toggle showing hidden/archived items.
+                tagChip(title: showingHidden ? "Hiding Shown" : "Show Hidden",
+                        active: showingHidden,
+                        systemImage: "eye.slash") { showingHidden.toggle() }
+            }
+            .padding(.horizontal, Theme.Spacing.edge)
+        }
+    }
+
+    private func tagChip(title: String, active: Bool, systemImage: String? = nil, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                if let systemImage { Image(systemName: systemImage) }
+                Text(title)
+            }
+            .font(.appFont(15, weight: .medium))
+            .foregroundStyle(active ? Theme.Colors.background : Theme.Colors.textSecondary)
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.vertical, Theme.Spacing.sm)
+            .background(active ? Theme.Colors.accent : Theme.Colors.card, in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var bulkBar: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Text("\(selectedIDs.count) selected")
+                .font(.appFont(15, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textSecondary)
+            Spacer()
+            bulkAction("star", "Favorite") { library.setFavorite(true, for: selectedIDs); endBulk() }
+            bulkAction("tag", "Tag") { showTagPrompt = true }
+            bulkAction("eye.slash", "Hide") { library.setHidden(!showingHidden, for: selectedIDs); endBulk() }
+            bulkAction("trash", "Remove", destructive: true) { library.remove(ids: selectedIDs); endBulk() }
+        }
+        .padding(.horizontal, Theme.Spacing.edge)
+        .padding(.vertical, Theme.Spacing.sm)
+        .alert("Add Tag", isPresented: $showTagPrompt) {
+            TextField("Tag name", text: $newTagText)
+            Button("Cancel", role: .cancel) { newTagText = "" }
+            Button("Add") {
+                library.addTag(newTagText, to: selectedIDs)
+                newTagText = ""; endBulk()
+            }
+        } message: {
+            Text("Tag \(selectedIDs.count) selected items.")
+        }
+    }
+
+    private func bulkAction(_ icon: String, _ label: String, destructive: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 2) {
+                Image(systemName: icon)
+                Text(label).font(.appFont(11))
+            }
+            .foregroundStyle(destructive ? Theme.Colors.error : Theme.Colors.accent)
+            .padding(.horizontal, Theme.Spacing.sm)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(selectedIDs.isEmpty)
+        .opacity(selectedIDs.isEmpty ? 0.4 : 1)
+    }
+
+    private func endBulk() {
+        selectedIDs.removeAll()
+        bulkEditing = false
+    }
+
+    private func toggleSelection(_ id: UUID) {
+        if selectedIDs.contains(id) { selectedIDs.remove(id) } else { selectedIDs.insert(id) }
     }
 
     private var emptyMessage: String {
@@ -233,6 +394,27 @@ struct LibraryView: View {
 // MARK: - Filters
 
 /// Filters the library by content type, applied on top of the section filter.
+enum LibrarySortOrder: String, Hashable, Identifiable, CaseIterable {
+    case recentlyAdded, title, year, recentlyPlayed
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .recentlyAdded:  return "Recently Added"
+        case .title:          return "Title"
+        case .year:           return "Year"
+        case .recentlyPlayed: return "Recently Played"
+        }
+    }
+    var systemImage: String {
+        switch self {
+        case .recentlyAdded:  return "clock"
+        case .title:          return "textformat"
+        case .year:           return "calendar"
+        case .recentlyPlayed: return "play"
+        }
+    }
+}
+
 enum LibraryTypeFilter: Hashable, Identifiable, CaseIterable {
     case all, movies, shows
 

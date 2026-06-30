@@ -36,6 +36,7 @@ final class SettingsStore: ObservableObject {
         static let preferredAudioLanguage = "settings.preferredAudioLanguage"
         static let subtitleLanguage = "settings.subtitleLanguage"
         static let subtitlesEnabled = "settings.subtitlesEnabled"
+        static let playbackSpeed = "settings.playbackSpeed"
         static let traktScrobbling = "settings.traktScrobbling"
         static let builtInPlayer = "settings.builtInPlayer"
         static let preferredExternalPlayer = "settings.preferredExternalPlayer"
@@ -144,6 +145,11 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(subtitlesEnabled, forKey: Key.subtitlesEnabled); CloudSync.shared.setBool(subtitlesEnabled, forKey: Key.subtitlesEnabled) }
     }
 
+    /// Default playback speed (1.0 = normal). Applied by the players.
+    @Published var playbackSpeed: Double {
+        didSet { defaults.set(playbackSpeed, forKey: Key.playbackSpeed); CloudSync.shared.setDouble(playbackSpeed, forKey: Key.playbackSpeed) }
+    }
+
     /// Preferred subtitle language code (ISO).
     @Published var subtitleLanguage: String {
         didSet { defaults.set(subtitleLanguage, forKey: Key.subtitleLanguage); CloudSync.shared.setString(subtitleLanguage, forKey: Key.subtitleLanguage) }
@@ -211,6 +217,9 @@ final class SettingsStore: ObservableObject {
         self.preferEfficientCodec = defaults.bool(forKey: Key.preferEfficientCodec)
         self.preferredAudioLanguage = defaults.string(forKey: Key.preferredAudioLanguage) ?? ""
         self.subtitlesEnabled = defaults.bool(forKey: Key.subtitlesEnabled)
+        // Playback speed defaults to 1.0 (UserDefaults returns 0 when unset).
+        let savedSpeed = defaults.double(forKey: Key.playbackSpeed)
+        self.playbackSpeed = savedSpeed > 0 ? savedSpeed : 1.0
         self.subtitleLanguage = defaults.string(forKey: Key.subtitleLanguage) ?? "en"
         self.traktScrobblingEnabled = defaults.bool(forKey: Key.traktScrobbling)
         self.builtInPlayer = BuiltInPlayer(

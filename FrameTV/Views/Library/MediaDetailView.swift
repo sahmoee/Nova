@@ -72,13 +72,30 @@ struct MediaDetailView: View {
             ) {
                 library.toggleFavorite(item)
             }
+            FocusableButton(
+                title: currentItem.isHidden ? "Unhide" : "Hide",
+                systemImage: currentItem.isHidden ? "eye" : "eye.slash"
+            ) {
+                library.toggleHidden(item)
+            }
+            // Per-show binge settings, for series only.
+            if let series = item.seriesTitle ?? (item.episode != nil ? item.title : nil) {
+                FocusableButton(title: "Binge Settings", systemImage: "slider.horizontal.3") {
+                    bingeSeries = SeriesWrapper(value: series)
+                }
+            }
             FocusableButton(title: "Remove", systemImage: "trash") {
                 library.remove(item)
                 dismiss()
             }
         }
         .frame(maxWidth: Theme.isCompact ? .infinity : 520)
+        .sheet(item: $bingeSeries) { series in
+            BingeSettingsView(seriesTitle: series.value)
+        }
     }
+
+    @State private var bingeSeries: SeriesWrapper?
 
     // Re-read from store so favorite toggles reflect live.
     private var currentItem: MediaItem {
@@ -130,4 +147,10 @@ struct MediaDetailView: View {
         .padding(.vertical, 8)
         .background(.ultraThinMaterial, in: Capsule())
     }
+}
+
+/// Wraps a series title so it can drive a sheet(item:) presentation.
+private struct SeriesWrapper: Identifiable, Equatable {
+    let value: String
+    var id: String { value }
 }

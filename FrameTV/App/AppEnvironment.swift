@@ -14,6 +14,8 @@ final class AppEnvironment: ObservableObject {
     let library: LibraryStore
     let progress: PlaybackProgressStore
     let settings: SettingsStore
+    /// Per-show binge settings (autoplay/skip overrides).
+    let showSettings: ShowSettingsStore
 
     // Source services.
     let realDebrid: RealDebridClient
@@ -37,6 +39,7 @@ final class AppEnvironment: ObservableObject {
         self.library = lib
         self.progress = PlaybackProgressStore(library: lib)
         self.settings = SettingsStore()
+        self.showSettings = ShowSettingsStore()
 
         let rd = RealDebridClient()
         self.realDebrid = rd

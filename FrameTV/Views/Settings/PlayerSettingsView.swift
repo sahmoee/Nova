@@ -72,12 +72,50 @@ struct PlayerSettingsView: View {
                     .font(.appFont(14))
                     .foregroundStyle(Theme.Colors.textTertiary)
                 #endif
+
+                Divider().padding(.vertical, Theme.Spacing.sm)
+
+                // Playback speed.
+                Text("Playback Speed")
+                    .font(Theme.Font.sectionTitle())
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Text("Default speed for playback. Applies to the built-in players.")
+                    .font(.appFont(16))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+
+                HStack(spacing: Theme.Spacing.sm) {
+                    ForEach([0.75, 1.0, 1.25, 1.5, 1.75, 2.0], id: \.self) { speed in
+                        Button {
+                            settings.playbackSpeed = speed
+                        } label: {
+                            Text(speed == 1.0 ? "1×" : "\(speedLabel(speed))×")
+                                .font(.appFont(17, weight: .semibold))
+                                .foregroundStyle(settings.playbackSpeed == speed ? Theme.Colors.background : Theme.Colors.textPrimary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, Theme.Spacing.sm)
+                                .background(settings.playbackSpeed == speed ? Theme.Colors.accent : Theme.Colors.card,
+                                            in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
             .padding(.horizontal, Theme.Spacing.edge)
             .padding(.vertical, Theme.Spacing.xl)
             .frame(maxWidth: Theme.contentMaxWidth(1000), alignment: .leading)
         }
         .background(Theme.Colors.background.ignoresSafeArea())
+    }
+
+    /// Formats a speed for display (e.g. 1.25 -> "1.25", 1.5 -> "1.5").
+    private func speedLabel(_ speed: Double) -> String {
+        let s = String(format: "%.2f", speed)
+        // Trim trailing zeros: 1.50 -> 1.5, 1.00 -> 1
+        var trimmed = s
+        while trimmed.hasSuffix("0") { trimmed.removeLast() }
+        if trimmed.hasSuffix(".") { trimmed.removeLast() }
+        return trimmed
     }
 
     private var externalActive: Bool {

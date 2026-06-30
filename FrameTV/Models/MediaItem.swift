@@ -35,6 +35,15 @@ struct MediaItem: Identifiable, Codable, Hashable {
     /// Skip segments (intro/outro/recap) when known.
     var skipSegments: [SkipSegment]
 
+    // MARK: - Library organization (all optional for backward compatibility)
+
+    /// User-applied free-form tags for filtering/organization.
+    var tags: [String]
+    /// Hidden/archived from the main library view (kept, but out of sight).
+    var isHidden: Bool
+    /// Remembered subtitle timing offset in seconds for this title (+ = later).
+    var subtitleOffset: Double
+
     /// A stable identity for the *same content*, independent of the random `id`
     /// assigned per playback. Used to dedupe the library so replaying an episode
     /// doesn't create a second entry. Prefers cross-service IDs, then series +
@@ -75,7 +84,10 @@ struct MediaItem: Identifiable, Codable, Hashable {
         episode: EpisodeRef? = nil,
         seriesTitle: String? = nil,
         subtitles: [SubtitleTrack] = [],
-        skipSegments: [SkipSegment] = []
+        skipSegments: [SkipSegment] = [],
+        tags: [String] = [],
+        isHidden: Bool = false,
+        subtitleOffset: Double = 0
     ) {
         self.id = id
         self.title = title
@@ -95,6 +107,9 @@ struct MediaItem: Identifiable, Codable, Hashable {
         self.seriesTitle = seriesTitle
         self.subtitles = subtitles
         self.skipSegments = skipSegments
+        self.tags = tags
+        self.isHidden = isHidden
+        self.subtitleOffset = subtitleOffset
     }
 
     // Backward-compatible decoding: libraries saved before Phase 3 lack the new
@@ -119,6 +134,9 @@ struct MediaItem: Identifiable, Codable, Hashable {
         seriesTitle = try c.decodeIfPresent(String.self, forKey: .seriesTitle)
         subtitles = try c.decodeIfPresent([SubtitleTrack].self, forKey: .subtitles) ?? []
         skipSegments = try c.decodeIfPresent([SkipSegment].self, forKey: .skipSegments) ?? []
+        tags = try c.decodeIfPresent([String].self, forKey: .tags) ?? []
+        isHidden = try c.decodeIfPresent(Bool.self, forKey: .isHidden) ?? false
+        subtitleOffset = try c.decodeIfPresent(Double.self, forKey: .subtitleOffset) ?? 0
     }
 
     // MARK: - Derived helpers

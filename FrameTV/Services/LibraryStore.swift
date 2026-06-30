@@ -419,6 +419,84 @@ final class LibraryStore: ObservableObject {
         persist()
     }
 
+    // MARK: - Tags, hiding, subtitle offset (Batch B/C)
+
+    /// Hide or unhide an item from the main library view.
+    func toggleHidden(_ item: MediaItem) {
+        guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
+        items[idx].isHidden.toggle()
+        persist()
+    }
+
+    func setHidden(_ hidden: Bool, for ids: Set<UUID>) {
+        for id in ids {
+            if let idx = items.firstIndex(where: { $0.id == id }) { items[idx].isHidden = hidden }
+        }
+        persist()
+    }
+
+    /// Add a tag (case-insensitive de-dupe) to an item.
+    func addTag(_ tag: String, to item: MediaItem) {
+        let clean = tag.trimmingCharacters(in: .whitespaces)
+        guard !clean.isEmpty, let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
+        if !items[idx].tags.contains(where: { $0.caseInsensitiveCompare(clean) == .orderedSame }) {
+            items[idx].tags.append(clean)
+            persist()
+        }
+    }
+
+    func removeTag(_ tag: String, from item: MediaItem) {
+        guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
+        items[idx].tags.removeAll { $0.caseInsensitiveCompare(tag) == .orderedSame }
+        persist()
+    }
+
+    /// Apply a tag to many items at once (bulk edit).
+    func addTag(_ tag: String, to ids: Set<UUID>) {
+        let clean = tag.trimmingCharacters(in: .whitespaces)
+        guard !clean.isEmpty else { return }
+        for id in ids {
+            if let idx = items.firstIndex(where: { $0.id == id }),
+               !items[idx].tags.contains(where: { $0.caseInsensitiveCompare(clean) == .orderedSame }) {
+                items[idx].tags.append(clean)
+            }
+        }
+        persist()
+    }
+
+    /// Every distinct tag used across the library, sorted.
+    var allTags: [String] {
+        var set = Set<String>()
+        var ordered: [String] = []
+        for item in items {
+            for tag in item.tags where !set.contains(tag.lowercased()) {
+                set.insert(tag.lowercased()); ordered.append(tag)
+            }
+        }
+        return ordered.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    /// Remember a subtitle timing offset (seconds) for an item.
+    func setSubtitleOffset(_ offset: Double, for item: MediaItem) {
+        guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
+        items[idx].subtitleOffset = offset
+        persist()
+    }
+
+    /// Bulk favorite/unfavorite.
+    func setFavorite(_ favorite: Bool, for ids: Set<UUID>) {
+        for id in ids {
+            if let idx = items.firstIndex(where: { $0.id == id }) { items[idx].isFavorite = favorite }
+        }
+        persist()
+    }
+
+    /// Bulk remove.
+    func remove(ids: Set<UUID>) {
+        items.removeAll { ids.contains($0.id) }
+        persist()
+    }
+
     func clearAll() {
         items.removeAll()
         persist()
