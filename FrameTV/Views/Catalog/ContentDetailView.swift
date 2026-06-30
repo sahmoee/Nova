@@ -384,7 +384,9 @@ struct ContentDetailView: View {
                                                      season: ep.season, number: ep.number)
         return Button { streamTarget = StreamTarget(catalog: item, episode: ep) } label: {
             HStack(spacing: Theme.Spacing.md) {
-                PosterImage(url: ep.stillURL, width: Theme.scaled(200, min: 120), height: Theme.scaled(112, min: 68))
+                // Use the show's poster art for every episode (per design) rather than
+                // per-episode stills, in proper 2:3 poster shape so nothing stretches.
+                PosterImage(url: item.posterURL, width: Theme.scaled(80, min: 56), height: Theme.scaled(120, min: 84))
                     .opacity(watched ? 0.55 : 1)
                     .overlay(alignment: .bottomLeading) {
                         if watched {
@@ -483,6 +485,7 @@ struct PosterImage: View {
             placeholder.shimmering()
         }
         .frame(width: width, height: height)
+        .clipped()
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
     }
 

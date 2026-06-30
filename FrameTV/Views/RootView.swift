@@ -169,6 +169,7 @@ struct RootView: View {
                             }
                         }
                         .frame(width: 40, height: 40)
+                        .clipped()
                         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
 
                         VStack(alignment: .leading, spacing: 1) {

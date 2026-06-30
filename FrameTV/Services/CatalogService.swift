@@ -210,7 +210,7 @@ final class CatalogService: ObservableObject {
             title: title,
             sourceType: .addon,
             playbackURL: url,
-            posterURL: episode?.stillURL ?? catalog.posterURL,
+            posterURL: catalog.posterURL ?? episode?.stillURL,
             backdropURL: catalog.backdropURL,
             duration: episode?.runtime,
             legalAccessConfirmed: true,
