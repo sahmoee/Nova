@@ -8,9 +8,6 @@
 //
 
 import SwiftUI
-#if os(iOS)
-import CoreSpotlight
-#endif
 
 struct RootView: View {
     @StateObject private var nav = NavigationCoordinator()
@@ -32,14 +29,6 @@ struct RootView: View {
                 // Route frametv:// deep links (Shortcuts, widgets, Top Shelf, QR setup).
                 nav.handle(url: url)
             }
-            #if os(iOS)
-            .onContinueUserActivity(CSSearchableItemActionType) { activity in
-                // A Spotlight result was tapped; its identifier is a frametv:// URL.
-                if let url = SpotlightIndexer.deepLinkURL(from: activity.userInfo ?? [:]) {
-                    nav.handle(url: url)
-                }
-            }
-            #endif
             .fullScreenCover(item: $reopenItem) { item in
                 PlayerView(item: item)
                     .environmentObject(env)
