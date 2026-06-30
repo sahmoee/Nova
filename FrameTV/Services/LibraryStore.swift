@@ -140,6 +140,8 @@ final class LibraryStore: ObservableObject {
             if cleaned.count != decoded.count { persist() }
             // Index the freshly loaded library into Spotlight (no-op on tvOS).
             SpotlightIndexer.reindex(items)
+            // Seed the widget snapshot on launch (no-op effect on tvOS).
+            writeWidgetSnapshot()
         } catch {
             // Corrupt/old format: start clean rather than crash.
             items = []
@@ -329,6 +331,41 @@ final class LibraryStore: ObservableObject {
         pushToCloud()
         // Keep iOS Spotlight in sync with the current library (no-op on tvOS).
         SpotlightIndexer.reindex(items)
+        // Refresh the widget snapshot (iOS widgets read this; harmless on tvOS).
+        writeWidgetSnapshot()
+    }
+
+    /// Builds and stores the compact snapshot the iOS widget reads from the shared
+    /// App Group container, and asks WidgetKit to refresh.
+    private func writeWidgetSnapshot() {
+        func entry(_ item: MediaItem) -> WidgetEntry {
+            let isShow = item.contentID?.type == .series
+            let subtitle: String
+            if let ep = item.episode {
+                subtitle = "S\(ep.season) E\(ep.number)"
+            } else {
+                var parts = [isShow ? "Show" : "Movie"]
+                if let y = item.metadata.year { parts.append(String(y)) }
+                subtitle = parts.joined(separator: " · ")
+            }
+            let key = item.contentID?.stableKey ?? item.contentKey
+            let link = "frametv://\(isShow ? "show" : "movie")/\(key)"
+            return WidgetEntry(
+                id: item.contentKey,
+                title: item.seriesTitle ?? item.title,
+                subtitle: subtitle,
+                posterURLString: item.posterURL?.absoluteString,
+                progress: item.progressFraction,
+                deepLink: link
+            )
+        }
+        let snapshot = WidgetSnapshot(
+            continueWatching: continueWatching.prefix(6).map(entry),
+            recentlyAdded: recentlyAdded.prefix(6).map(entry),
+            updated: Date()
+        )
+        WidgetShared.write(snapshot)
+        WidgetRefresher.reload()
     }
 
     /// Writes only the local file, without touching iCloud (used when applying a
