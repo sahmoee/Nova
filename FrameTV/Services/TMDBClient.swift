@@ -149,6 +149,14 @@ actor TMDBClient {
         return ext.imdbId
     }
 
+    /// Resolves an IMDB id (e.g. "tt1234567") to a TMDB id using TMDB's /find endpoint.
+    /// Returns the first matching tv (or movie) result, or nil if none.
+    func tmdbID(forIMDB imdb: String, isMovie: Bool) async throws -> Int? {
+        let found: TMDBFindResponse = try await get("find/\(imdb)",
+                                                     query: ["external_source": "imdb_id"])
+        return isMovie ? found.movieResults.first?.id : found.tvResults.first?.id
+    }
+
     /// Fetches the poster and backdrop URLs for a TMDB id. Trakt only returns ids and
     /// titles, so we use this to fill in artwork for watchlist/Trakt rows.
     func artwork(tmdbID: Int, isMovie: Bool) async throws -> (poster: URL?, backdrop: URL?) {
@@ -200,8 +208,15 @@ actor TMDBClient {
 
     /// Fully hydrates a series CatalogItem with seasons and episodes plus its IMDB id.
     func hydrateSeries(_ item: CatalogItem) async throws -> CatalogItem {
-        guard let tmdb = item.contentID.tmdb else { return item }
         var result = item
+
+        // Resolve a TMDB id if we only have an IMDB id (common for Trakt/addon sources).
+        var tmdbID = item.contentID.tmdb
+        if tmdbID == nil, let imdb = item.contentID.imdb {
+            tmdbID = try? await self.tmdbID(forIMDB: imdb, isMovie: false)
+            result.contentID.tmdb = tmdbID
+        }
+        guard let tmdb = tmdbID else { return result }
 
         // External ids (IMDB).
         if result.contentID.imdb == nil {
@@ -248,9 +263,15 @@ actor TMDBClient {
 
     /// Hydrates a movie with its IMDB id (for addon lookups).
     func hydrateMovie(_ item: CatalogItem) async throws -> CatalogItem {
-        guard let tmdb = item.contentID.tmdb, item.contentID.imdb == nil else { return item }
         var result = item
-        result.contentID.imdb = try? await movieIMDBID(tmdbID: tmdb)
+        // Resolve a TMDB id if we only have an IMDB id.
+        if result.contentID.tmdb == nil, let imdb = result.contentID.imdb {
+            result.contentID.tmdb = try? await tmdbID(forIMDB: imdb, isMovie: true)
+        }
+        // Fill in the IMDB id from TMDB if we have the TMDB id but not the IMDB one.
+        if let tmdb = result.contentID.tmdb, result.contentID.imdb == nil {
+            result.contentID.imdb = try? await movieIMDBID(tmdbID: tmdb)
+        }
         return result
     }
 

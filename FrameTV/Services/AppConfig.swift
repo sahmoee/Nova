@@ -20,6 +20,7 @@ enum CredentialKey: String, CaseIterable {
     case traktAccessToken = "trakt.accessToken"
     case traktRefreshToken = "trakt.refreshToken"
     case openSubtitlesAPIKey = "opensubtitles.apiKey"
+    case omdbAPIKey = "omdb.apiKey"
 }
 
 /// Shape of the optional FrameTVConfig.json fallback file.
@@ -28,6 +29,7 @@ struct FrameTVConfigFile: Codable {
     var traktClientId: String?
     var traktClientSecret: String?
     var openSubtitlesApiKey: String?
+    var omdbApiKey: String?
     /// Optional list of addon manifest URLs to preinstall on first run.
     var addonManifestURLs: [String]?
     /// Optional Cloudflare Worker URL for Claude-powered AI search.
@@ -88,6 +90,7 @@ final class AppConfig {
         case .traktClientID:         return nonEmpty(fileConfig.traktClientId)
         case .traktClientSecret:     return nonEmpty(fileConfig.traktClientSecret)
         case .openSubtitlesAPIKey:   return nonEmpty(fileConfig.openSubtitlesApiKey)
+        case .omdbAPIKey:            return nonEmpty(fileConfig.omdbApiKey)
         case .traktAccessToken, .traktRefreshToken:
             return nil   // tokens are runtime-only, never from the static file
         }
@@ -118,6 +121,7 @@ final class AppConfig {
     var traktClientID: String? { value(for: .traktClientID) }
     var traktClientSecret: String? { value(for: .traktClientSecret) }
     var openSubtitlesKey: String? { value(for: .openSubtitlesAPIKey) }
+    var omdbKey: String? { value(for: .omdbAPIKey) }
 
     /// Addon manifest URLs to seed on first run, from the config file (if any).
     var seedAddonURLs: [URL] {

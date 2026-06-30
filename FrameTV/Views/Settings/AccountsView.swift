@@ -17,6 +17,7 @@ struct AccountsView: View {
     @State private var traktID = ""
     @State private var traktSecret = ""
     @State private var openSubtitlesKey = ""
+    @State private var omdbKey = ""
     @State private var savedFlash = false
 
     private let config = AppConfig.shared
@@ -87,6 +88,16 @@ struct AccountsView: View {
                     isPresent: config.isPresent(.openSubtitlesAPIKey)
                 )
                 linkButton("Get an OpenSubtitles API key", url: "https://www.opensubtitles.com/consumers")
+
+                Divider().overlay(Theme.Colors.card)
+
+                credentialField(
+                    title: "OMDb API Key",
+                    subtitle: "Optional. Adds IMDb, Rotten Tomatoes, and Metacritic ratings to titles.",
+                    text: $omdbKey,
+                    isPresent: config.isPresent(.omdbAPIKey)
+                )
+                linkButton("Get a free OMDb API key", url: "https://www.omdbapi.com/apikey.aspx")
 
                 FocusableButton(title: savedFlash ? "Saved ✓" : "Save Credentials",
                                 systemImage: "checkmark.circle",
@@ -175,8 +186,9 @@ struct AccountsView: View {
         if !traktID.isEmpty { config.set(traktID, for: .traktClientID) }
         if !traktSecret.isEmpty { config.set(traktSecret, for: .traktClientSecret) }
         if !openSubtitlesKey.isEmpty { config.set(openSubtitlesKey, for: .openSubtitlesAPIKey) }
+        if !omdbKey.isEmpty { config.set(omdbKey, for: .omdbAPIKey) }
 
-        tmdbKey = ""; traktID = ""; traktSecret = ""; openSubtitlesKey = ""
+        tmdbKey = ""; traktID = ""; traktSecret = ""; openSubtitlesKey = ""; omdbKey = ""
         savedFlash = true
         Task {
             try? await Task.sleep(nanoseconds: 1_500_000_000)

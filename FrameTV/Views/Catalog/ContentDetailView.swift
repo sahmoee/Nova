@@ -23,6 +23,7 @@ struct ContentDetailView: View {
     @State private var streamTarget: StreamTarget?
     @State private var favoriteRefresh = false   // toggles to re-read favorite state
     @State private var trailerURL: URL?          // fetched from TMDB if available
+    @State private var ratings = ExternalRatings()   // IMDb/RT/Metacritic from OMDb
     @State private var showCollectionPicker = false
     @State private var newCollectionName = ""
 
@@ -63,6 +64,7 @@ struct ContentDetailView: View {
         }
         .task { await hydrate() }
         .task { await fetchTrailer() }
+        .task(id: item.contentID.imdb) { await fetchRatings() }
         .sheet(isPresented: $showCollectionPicker) {
             collectionPickerSheet
         }
@@ -130,6 +132,29 @@ struct ContentDetailView: View {
                     }
                 }
                 .font(.appFont(22))
+
+                // External ratings (IMDb / Rotten Tomatoes / Metacritic) from OMDb.
+                if !ratings.isEmpty {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        if let imdb = ratings.imdb {
+                            ratingBadge(text: String(format: "%.1f", imdb), label: "IMDb",
+                                        color: Color(red: 0.96, green: 0.77, blue: 0.13))
+                        }
+                        if let rt = ratings.rottenTomatoes {
+                            ratingBadge(text: "\(rt)%", label: "RT",
+                                        color: rt >= 60 ? Theme.Colors.error : Theme.Colors.success)
+                        }
+                        if let mc = ratings.metacritic {
+                            ratingBadge(text: "\(mc)", label: "Metacritic",
+                                        color: mc >= 60 ? Theme.Colors.success : Theme.Colors.warning)
+                        }
+                    }
+                    .padding(.top, Theme.Spacing.xs)
+                }
+
+                // Open this title on external sites.
+                sourceLinks
+                    .padding(.top, Theme.Spacing.xs)
 
                 if let overview = item.overview, !overview.isEmpty {
                     Text(overview)
@@ -335,7 +360,9 @@ struct ContentDetailView: View {
     private var seriesBody: some View {
         if item.seasons.isEmpty {
             if !isHydrating {
-                Text("No episode information available. Add a TMDB key in Settings for full series data.")
+                Text(env.tmdb.hasKey
+                     ? "Couldn't load episodes for this title. It may not have episode data on TMDB, or the lookup failed — pull to refresh to try again."
+                     : "No episode information available. Add a TMDB key in Settings for full series data.")
                     .font(.appFont(20))
                     .foregroundStyle(Theme.Colors.textTertiary)
             }
@@ -455,6 +482,71 @@ struct ContentDetailView: View {
         if let url = try? await env.tmdb.trailerURL(tmdbID: tmdb, isMovie: isMovie) {
             trailerURL = url
         }
+    }
+
+    /// Loads IMDb / Rotten Tomatoes / Metacritic scores from OMDb (needs the IMDb id,
+    /// which hydration fills in). No-op without an OMDb key.
+    private func fetchRatings() async {
+        guard env.omdb.hasKey, let imdb = item.contentID.imdb else { return }
+        let r = await env.omdb.ratings(forIMDB: imdb)
+        if !r.isEmpty { ratings = r }
+    }
+
+    private func ratingBadge(text: String, label: String, color: Color) -> some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(.appFont(13, weight: .bold))
+                .foregroundStyle(color)
+            Text(text)
+                .font(.appFont(16, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+        }
+        .padding(.horizontal, Theme.Spacing.sm)
+        .padding(.vertical, 6)
+        .background(
+            Capsule().fill(Theme.Colors.card)
+        )
+        .overlay(
+            Capsule().strokeBorder(color.opacity(0.4), lineWidth: 1)
+        )
+    }
+
+    /// Buttons to open this title on external sites. IMDb and Rotten Tomatoes have no
+    /// public API, so these are search/deep links rather than embedded data.
+    @ViewBuilder private var sourceLinks: some View {
+        let title = item.title
+        let encoded = title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? title
+        let isMovie = item.contentID.type == .movie
+        HStack(spacing: Theme.Spacing.sm) {
+            if let imdb = item.contentID.imdb,
+               let url = URL(string: "https://www.imdb.com/title/\(imdb)/") {
+                sourceLinkButton("IMDb", url: url)
+            } else if let url = URL(string: "https://www.imdb.com/find/?q=\(encoded)") {
+                sourceLinkButton("IMDb", url: url)
+            }
+            if let url = URL(string: "https://www.rottentomatoes.com/search?search=\(encoded)") {
+                sourceLinkButton("Rotten Tomatoes", url: url)
+            }
+            if let tmdb = item.contentID.tmdb,
+               let url = URL(string: "https://www.themoviedb.org/\(isMovie ? "movie" : "tv")/\(tmdb)") {
+                sourceLinkButton("TMDB", url: url)
+            }
+        }
+    }
+
+    private func sourceLinkButton(_ label: String, url: URL) -> some View {
+        Link(destination: url) {
+            HStack(spacing: 5) {
+                Image(systemName: "arrow.up.right.square")
+                Text(label)
+            }
+            .font(.appFont(15, weight: .medium))
+            .foregroundStyle(Theme.Colors.accent)
+            .padding(.horizontal, Theme.Spacing.sm)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(Theme.Colors.card))
+        }
+        .buttonStyle(.plain)
     }
 
     private func hydrate() async {

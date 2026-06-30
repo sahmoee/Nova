@@ -109,6 +109,18 @@ struct TMDBExternalIDs: Codable {
     enum CodingKeys: String, CodingKey { case imdbId = "imdb_id" }
 }
 
+/// Response from TMDB's /find/{external_id} endpoint, used to resolve an IMDB id to a
+/// TMDB id. Only the id of the first matching result is needed.
+struct TMDBFindResponse: Codable {
+    struct Match: Codable { let id: Int }
+    let movieResults: [Match]
+    let tvResults: [Match]
+    enum CodingKeys: String, CodingKey {
+        case movieResults = "movie_results"
+        case tvResults = "tv_results"
+    }
+}
+
 /// Minimal detail payload used to fetch artwork for a TMDB id (e.g. enriching Trakt
 /// rows, which have ids but no images).
 struct TMDBArtworkDetail: Codable {

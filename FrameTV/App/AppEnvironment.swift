@@ -25,6 +25,7 @@ final class AppEnvironment: ObservableObject {
     // Phase 3: catalog, addons, metadata, scrobbling.
     let addonStore: AddonStore
     let tmdb: TMDBClient
+    let omdb: OMDbClient
     let trakt: TraktClient
     let openSubtitles: OpenSubtitlesClient
     let addonClient: StremioAddonClient
@@ -50,6 +51,7 @@ final class AppEnvironment: ObservableObject {
         self.addonStore = store
         let tmdbClient = TMDBClient()
         self.tmdb = tmdbClient
+        self.omdb = OMDbClient()
         self.trakt = TraktClient()
         let os = OpenSubtitlesClient()
         self.openSubtitles = os
