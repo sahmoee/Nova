@@ -250,12 +250,36 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         didApplyResume = true
         // Live channels have no fixed timeline — never resume or save a position.
         guard item.sourceType != .liveTV else { return }
+        #if canImport(VLCKitSPM)
+        // Apply the user's default playback speed.
+        if let speed = settings?.playbackSpeed, speed > 0 {
+            mediaPlayer.rate = Float(speed)
+        }
+        // Apply this title's remembered subtitle timing offset (seconds -> microseconds).
+        if item.subtitleOffset != 0 {
+            mediaPlayer.currentVideoSubTitleDelay = Int(item.subtitleOffset * 1_000_000)
+        }
+        #endif
         // If the user chose "Start from beginning" in the resume prompt, skip the seek.
         guard !forceRestart else { return }
         if (settings?.resumePlaybackEnabled ?? true),
            let resume = progressStore?.resumePosition(for: item.id), resume > 30 {
             seek(to: resume)
         }
+    }
+
+    /// Updates the live subtitle delay and remembers it for this title.
+    func setSubtitleOffset(_ seconds: Double, progressStore: PlaybackProgressStore? = nil) {
+        #if canImport(VLCKitSPM)
+        mediaPlayer.currentVideoSubTitleDelay = Int(seconds * 1_000_000)
+        #endif
+    }
+
+    /// Live playback-speed change (e.g. from a player control).
+    func setRate(_ rate: Double) {
+        #if canImport(VLCKitSPM)
+        mediaPlayer.rate = Float(max(0.25, min(rate, 3.0)))
+        #endif
     }
 
     // MARK: - Trakt

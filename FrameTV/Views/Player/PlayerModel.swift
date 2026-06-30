@@ -123,9 +123,11 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
            let resume = progressStore?.resumePosition(for: item.id) {
             player.seek(to: CMTime(seconds: resume, preferredTimescale: 600)) { [weak self] _ in
                 self?.player.play()
+                self?.applyPlaybackSpeed()
             }
         } else {
             player.play()
+            applyPlaybackSpeed()
         }
 
         installTimeObserver()
@@ -453,6 +455,17 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
     }
 
     func play() { player.play() }
+
+    /// Applies the user's default playback speed to the AVPlayer. Called after play
+    /// begins; setting rate directly also resumes playback at that speed.
+    func applyPlaybackSpeed() {
+        guard let speed = settings?.playbackSpeed, speed > 0 else { return }
+        // defaultRate keeps the speed across play/pause; rate applies it now.
+        player.defaultRate = Float(speed)
+        if player.timeControlStatus == .playing || player.rate != 0 {
+            player.rate = Float(speed)
+        }
+    }
     func pause() { player.pause(); scrobble(.pause) }
 
     func stopAndSave() {
