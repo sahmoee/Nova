@@ -57,6 +57,15 @@ struct PlayerView: View {
                 resumeRestartPrompt(position: pos)
             }
         }
+        .overlay {
+            // Night mode: a gentle dark veil over the video to ease late viewing.
+            // Doesn't intercept taps/focus so playback controls still work.
+            if settings.nightMode {
+                Color.black.opacity(0.22)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+            }
+        }
     }
 
     /// Asks the user whether to resume from their saved position or start over.

@@ -161,6 +161,10 @@
 		B3AB2DE1C16ED5D713F012AA /* VLCPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90E81E16AE7D320010F6DC7 /* VLCPlayerView.swift */; };
 		B4525BEFCBD56B13A3FE6472 /* HomeShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44483A3741A3146721D8B9CC /* HomeShelf.swift */; };
 		B5106F76484EE4EE3CE94440 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54DF98E49C2F8631D90C0346 /* RootView.swift */; };
+		6618369DEDE46EBBE278B7D2 /* LibraryCleanupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A696F9E091F8F8DBFF1472AE /* LibraryCleanupView.swift */; };
+		23852832972D648A4E0ED79D /* WatchStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B66648CD3E46A9C0B154858F /* WatchStatsView.swift */; };
+		D25FD312E828F2D1D8CF7608 /* LibraryCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E01039EC91A80EEB10B225 /* LibraryCleanup.swift */; };
+		9BCDA39724E4B3192381730F /* WatchStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = D51ED4505C44CB38C11CFFD5 /* WatchStats.swift */; };
 		E40F56CB52A703C1DD0FB263 /* BingeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BBB612F68BCD7A16C4A24D3 /* BingeSettingsView.swift */; };
 		B89D223928570CAE017012DA /* SubtitleMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC542829C9B9623A7B195ABD /* SubtitleMatcher.swift */; };
 		D3C4CF0A03D453326E3107CF /* ShowSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B413F98B8E8C964230E17AF4 /* ShowSettingsStore.swift */; };
@@ -220,6 +224,10 @@
 		DCCE4450B5B4C0E6637854B4 /* URLValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7875206D23EE5FCBE6D6A628 /* URLValidation.swift */; };
 		DF4E01B19535E44056C95650 /* PlaybackCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3EF3A6949DBE620FBC19616 /* PlaybackCoordinator.swift */; };
 		E05708A1F10187F58F19BBE5 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54DF98E49C2F8631D90C0346 /* RootView.swift */; };
+		80B3FC10984EEC33B6878437 /* LibraryCleanupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A696F9E091F8F8DBFF1472AE /* LibraryCleanupView.swift */; };
+		C80A91673773529F7461CEAA /* WatchStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B66648CD3E46A9C0B154858F /* WatchStatsView.swift */; };
+		E47F8A472D84DF7649820F8F /* LibraryCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E01039EC91A80EEB10B225 /* LibraryCleanup.swift */; };
+		4528FAF801A99356AC8D0DEB /* WatchStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = D51ED4505C44CB38C11CFFD5 /* WatchStats.swift */; };
 		66D5F0E4EC5077C1AAD148EE /* BingeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BBB612F68BCD7A16C4A24D3 /* BingeSettingsView.swift */; };
 		0A85978FC8FD1477CC198125 /* SubtitleMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC542829C9B9623A7B195ABD /* SubtitleMatcher.swift */; };
 		D26CDBBB815254F095694261 /* ShowSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B413F98B8E8C964230E17AF4 /* ShowSettingsStore.swift */; };
@@ -348,6 +356,8 @@
 		7875206D23EE5FCBE6D6A628 /* URLValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLValidation.swift; sourceTree = "<group>"; };
 		7971F8C33FC8B250056CB48E /* Toast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Toast.swift; sourceTree = "<group>"; };
 		79C61692B3A500A951D88317 /* PlayerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerSettingsView.swift; sourceTree = "<group>"; };
+		A696F9E091F8F8DBFF1472AE /* LibraryCleanupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryCleanupView.swift; sourceTree = "<group>"; };
+		B66648CD3E46A9C0B154858F /* WatchStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStatsView.swift; sourceTree = "<group>"; };
 		9BBB612F68BCD7A16C4A24D3 /* BingeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BingeSettingsView.swift; sourceTree = "<group>"; };
 		8075DEF1D961A6A114567B88 /* WhatsNew.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNew.swift; sourceTree = "<group>"; };
 		8243FC1919BC503B71FAB073 /* MediaRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRow.swift; sourceTree = "<group>"; };
@@ -424,6 +434,8 @@
 		F8F5CA2AC22C7C68AC4ABCC7 /* ScreenHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenHeader.swift; sourceTree = "<group>"; };
 		FC5898173AC34F3D610F77E2 /* WhatsNewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewView.swift; sourceTree = "<group>"; };
 		FC594B0BAEC0D365B05066C1 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
+		F2E01039EC91A80EEB10B225 /* LibraryCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryCleanup.swift; sourceTree = "<group>"; };
+		D51ED4505C44CB38C11CFFD5 /* WatchStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStats.swift; sourceTree = "<group>"; };
 		CC542829C9B9623A7B195ABD /* SubtitleMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleMatcher.swift; sourceTree = "<group>"; };
 		B413F98B8E8C964230E17AF4 /* ShowSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowSettingsStore.swift; sourceTree = "<group>"; };
 		4331807226B18AC817555954 /* SpotlightIndexer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightIndexer.swift; sourceTree = "<group>"; };
@@ -613,6 +625,8 @@
 				5CA6E8C823A1C1FC2E0645D9 /* ImageCache.swift */,
 				BA1D9DD1BBA3B208010F23C0 /* KeychainStore.swift */,
 				FC594B0BAEC0D365B05066C1 /* LibraryStore.swift */,
+				F2E01039EC91A80EEB10B225 /* LibraryCleanup.swift */,
+				D51ED4505C44CB38C11CFFD5 /* WatchStats.swift */,
 				CC542829C9B9623A7B195ABD /* SubtitleMatcher.swift */,
 				B413F98B8E8C964230E17AF4 /* ShowSettingsStore.swift */,
 				4331807226B18AC817555954 /* SpotlightIndexer.swift */,
@@ -732,6 +746,8 @@
 				BEE869D9AF813DD87B3D0012 /* BackupContentsPicker.swift */,
 				39B2C5271E02B4684B46C23F /* BackupView.swift */,
 				79C61692B3A500A951D88317 /* PlayerSettingsView.swift */,
+				A696F9E091F8F8DBFF1472AE /* LibraryCleanupView.swift */,
+				B66648CD3E46A9C0B154858F /* WatchStatsView.swift */,
 				9BBB612F68BCD7A16C4A24D3 /* BingeSettingsView.swift */,
 				A659D99C45AB4145BEBEC3FF /* PrivacyLegalView.swift */,
 				EE3ABE58915541F160C540E1 /* QRScannerView.swift */,
@@ -944,6 +960,10 @@
 				B3AB2DE1C16ED5D713F012AA /* VLCPlayerView.swift in Sources */,
 				422E272C61B9C61EA8B43C72 /* RealDebridView.swift in Sources */,
 				E05708A1F10187F58F19BBE5 /* RootView.swift in Sources */,
+				80B3FC10984EEC33B6878437 /* LibraryCleanupView.swift in Sources */,
+				C80A91673773529F7461CEAA /* WatchStatsView.swift in Sources */,
+				E47F8A472D84DF7649820F8F /* LibraryCleanup.swift in Sources */,
+				4528FAF801A99356AC8D0DEB /* WatchStats.swift in Sources */,
 				66D5F0E4EC5077C1AAD148EE /* BingeSettingsView.swift in Sources */,
 				0A85978FC8FD1477CC198125 /* SubtitleMatcher.swift in Sources */,
 				D26CDBBB815254F095694261 /* ShowSettingsStore.swift in Sources */,
@@ -1076,6 +1096,10 @@
 				1F1481FC0213B8203BEF8292 /* VLCPlayerView.swift in Sources */,
 				8623F8CB9AA2D4D15153872F /* RealDebridView.swift in Sources */,
 				B5106F76484EE4EE3CE94440 /* RootView.swift in Sources */,
+				6618369DEDE46EBBE278B7D2 /* LibraryCleanupView.swift in Sources */,
+				23852832972D648A4E0ED79D /* WatchStatsView.swift in Sources */,
+				D25FD312E828F2D1D8CF7608 /* LibraryCleanup.swift in Sources */,
+				9BCDA39724E4B3192381730F /* WatchStats.swift in Sources */,
 				E40F56CB52A703C1DD0FB263 /* BingeSettingsView.swift in Sources */,
 				B89D223928570CAE017012DA /* SubtitleMatcher.swift in Sources */,
 				D3C4CF0A03D453326E3107CF /* ShowSettingsStore.swift in Sources */,

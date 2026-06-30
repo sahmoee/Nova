@@ -37,6 +37,9 @@ final class SettingsStore: ObservableObject {
         static let subtitleLanguage = "settings.subtitleLanguage"
         static let subtitlesEnabled = "settings.subtitlesEnabled"
         static let playbackSpeed = "settings.playbackSpeed"
+        static let nightMode = "settings.nightMode"
+        static let bandwidthSaver = "settings.bandwidthSaver"
+        static let travelMode = "settings.travelMode"
         static let traktScrobbling = "settings.traktScrobbling"
         static let builtInPlayer = "settings.builtInPlayer"
         static let preferredExternalPlayer = "settings.preferredExternalPlayer"
@@ -150,6 +153,21 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(playbackSpeed, forKey: Key.playbackSpeed); CloudSync.shared.setDouble(playbackSpeed, forKey: Key.playbackSpeed) }
     }
 
+    // MARK: - Watching modes (Batch D)
+
+    /// Night watching: dim the player overlay and avoid aggressive autoplay.
+    @Published var nightMode: Bool {
+        didSet { defaults.set(nightMode, forKey: Key.nightMode); CloudSync.shared.setBool(nightMode, forKey: Key.nightMode) }
+    }
+    /// Bandwidth saver: prefer smaller files, efficient codecs, lower resolution.
+    @Published var bandwidthSaver: Bool {
+        didSet { defaults.set(bandwidthSaver, forKey: Key.bandwidthSaver); CloudSync.shared.setBool(bandwidthSaver, forKey: Key.bandwidthSaver) }
+    }
+    /// Travel mode: prefer stable cached/resolved streams and lower default quality.
+    @Published var travelMode: Bool {
+        didSet { defaults.set(travelMode, forKey: Key.travelMode); CloudSync.shared.setBool(travelMode, forKey: Key.travelMode) }
+    }
+
     /// Preferred subtitle language code (ISO).
     @Published var subtitleLanguage: String {
         didSet { defaults.set(subtitleLanguage, forKey: Key.subtitleLanguage); CloudSync.shared.setString(subtitleLanguage, forKey: Key.subtitleLanguage) }
@@ -220,6 +238,9 @@ final class SettingsStore: ObservableObject {
         // Playback speed defaults to 1.0 (UserDefaults returns 0 when unset).
         let savedSpeed = defaults.double(forKey: Key.playbackSpeed)
         self.playbackSpeed = savedSpeed > 0 ? savedSpeed : 1.0
+        self.nightMode = defaults.bool(forKey: Key.nightMode)
+        self.bandwidthSaver = defaults.bool(forKey: Key.bandwidthSaver)
+        self.travelMode = defaults.bool(forKey: Key.travelMode)
         self.subtitleLanguage = defaults.string(forKey: Key.subtitleLanguage) ?? "en"
         self.traktScrobblingEnabled = defaults.bool(forKey: Key.traktScrobbling)
         self.builtInPlayer = BuiltInPlayer(
@@ -295,7 +316,7 @@ final class SettingsStore: ObservableObject {
     /// Builds the ranking preferences bundle from the current streaming settings,
     /// for use by StreamRanker.
     var streamPreferences: StreamRanker.StreamPreferences {
-        StreamRanker.StreamPreferences(
+        var prefs = StreamRanker.StreamPreferences(
             preferredQuality: preferredStreamQuality == .unknown ? nil : preferredStreamQuality,
             preferredLanguage: preferredAudioLanguage.isEmpty ? nil : preferredAudioLanguage,
             maxSizeGB: maxStreamSizeGB,
@@ -303,6 +324,25 @@ final class SettingsStore: ObservableObject {
             minSeeders: minSeeders,
             preferEfficientCodec: preferEfficientCodec
         )
+        // Bandwidth saver tightens toward smaller, efficient streams.
+        if bandwidthSaver {
+            prefs.preferEfficientCodec = true
+            // Cap size to 4 GB unless the user already set a smaller cap.
+            prefs.maxSizeGB = prefs.maxSizeGB == 0 ? 4 : min(prefs.maxSizeGB, 4)
+            // Prefer 720p when no explicit lower target is set.
+            if prefs.preferredQuality == nil || (prefs.preferredQuality?.rank ?? 0) > StreamQuality.hd720.rank {
+                prefs.preferredQuality = .hd720
+            }
+        }
+        // Travel mode favors stable, lighter streams off home Wi-Fi.
+        if travelMode {
+            prefs.preferEfficientCodec = true
+            prefs.maxSizeGB = prefs.maxSizeGB == 0 ? 3 : min(prefs.maxSizeGB, 3)
+            if prefs.preferredQuality == nil || (prefs.preferredQuality?.rank ?? 0) > StreamQuality.hd720.rank {
+                prefs.preferredQuality = .hd720
+            }
+        }
+        return prefs
     }
 }
 

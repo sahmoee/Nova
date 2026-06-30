@@ -44,6 +44,7 @@ struct SettingsView: View {
                             accountsSection
                             streamingSection
                             playbackSection
+                            watchingModesSection
                             subtitleSection
                             librarySection
                             backupSection
@@ -231,6 +232,25 @@ struct SettingsView: View {
                       isOn: $settings.skipOutroEnabled)
             toggleRow("Scrobble to Trakt", systemImage: "checkmark.seal",
                       isOn: $settings.traktScrobblingEnabled)
+        }
+    }
+
+    private var watchingModesSection: some View {
+        section("Watching Modes") {
+            toggleRow("Night Mode", systemImage: "moon.stars",
+                      isOn: $settings.nightMode)
+            toggleRow("Bandwidth Saver", systemImage: "arrow.down.circle",
+                      isOn: $settings.bandwidthSaver)
+            toggleRow("Travel Mode", systemImage: "airplane",
+                      isOn: $settings.travelMode)
+            NavigationLink { WatchStatsView() } label: {
+                settingRow("Watch Stats", systemImage: "chart.bar",
+                           detail: "Your viewing at a glance")
+            }.frameRowStyle()
+            NavigationLink { LibraryCleanupView() } label: {
+                settingRow("Tidy Up", systemImage: "archivebox",
+                           detail: "Clear unfinished titles")
+            }.frameRowStyle()
         }
     }
 
