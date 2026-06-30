@@ -349,7 +349,7 @@ struct DiscoverView: View {
     // MARK: - Logic
 
     private func onAppear() async {
-        hasTMDBKey = await env.tmdb.hasKey
+        hasTMDBKey = env.tmdb.hasKey
         if state == .noKey && hasTMDBKey { state = .idle }
         // Load watchlist if Trakt is connected.
         if await env.trakt.isAuthenticated {
@@ -382,7 +382,7 @@ struct DiscoverView: View {
 
     private func runSearch(_ q: String) async {
         guard !q.isEmpty else { state = .idle; return }
-        if !(await env.tmdb.hasKey) { state = .noKey; return }
+        if !env.tmdb.hasKey { state = .noKey; return }
         state = .searching
         correctedQuery = nil
         let found = await env.catalog.search(q)

@@ -50,7 +50,7 @@ final class CatalogService: ObservableObject {
     func search(_ query: String) async -> [CatalogItem] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
-        if await tmdb.hasKey {
+        if tmdb.hasKey {
             return (try? await tmdb.search(trimmed)) ?? []
         }
         // Without a TMDB key we can't search by text reliably; return empty so the

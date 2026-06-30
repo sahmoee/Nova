@@ -14,7 +14,7 @@
 import Foundation
 
 /// Consolidated external ratings for a title.
-struct ExternalRatings: Equatable {
+struct ExternalRatings: Equatable, Sendable {
     /// IMDb rating on a 0...10 scale (e.g. 7.8).
     var imdb: Double?
     /// Rotten Tomatoes score as a percentage 0...100 (e.g. 92).
@@ -28,7 +28,8 @@ struct ExternalRatings: Equatable {
 enum OMDbError: Error { case missingKey, network(Error), http(Int), notFound }
 
 /// Minimal OMDb client. Looks up a title by IMDb id and extracts the three scores.
-final class OMDbClient {
+/// An actor (like TMDBClient) so it's Sendable and safe to hold in the environment.
+actor OMDbClient {
     private let session: URLSession
     private let keyProvider: @Sendable () -> String?
     private static let base = URL(string: "https://www.omdbapi.com/")!
@@ -39,7 +40,7 @@ final class OMDbClient {
         self.keyProvider = keyProvider
     }
 
-    var hasKey: Bool { keyProvider()?.isEmpty == false }
+    nonisolated var hasKey: Bool { keyProvider()?.isEmpty == false }
 
     /// Fetches ratings for a title by its IMDb id (e.g. "tt0903747"). Returns empty
     /// ratings (never throws to the UI) on any failure so the detail screen degrades

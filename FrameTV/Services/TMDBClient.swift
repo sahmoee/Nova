@@ -38,7 +38,7 @@ actor TMDBClient {
         self.keyProvider = keyProvider
     }
 
-    var hasKey: Bool { (keyProvider()?.isEmpty == false) }
+    nonisolated var hasKey: Bool { (keyProvider()?.isEmpty == false) }
 
     // MARK: - Search
 
