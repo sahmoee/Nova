@@ -97,38 +97,40 @@ private struct PosterCell: View {
     let entry: WidgetEntry
     let posterData: Data?
     var showProgress: Bool
+    var titleFont: Font
 
     var body: some View {
         Link(destination: URL(string: entry.deepLink) ?? URL(string: "frametv://library")!) {
-            VStack(alignment: .leading, spacing: 4) {
-                ZStack(alignment: .bottom) {
-                    poster
-                    if showProgress, entry.progress > 0.01 {
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Rectangle().fill(.black.opacity(0.5))
-                                Rectangle().fill(.white)
-                                    .frame(width: geo.size.width * entry.progress)
-                            }
-                            .frame(height: 3)
+            VStack(alignment: .leading, spacing: 5) {
+                poster
+                    .aspectRatio(2.0/3.0, contentMode: .fit)
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+                    )
+                    .overlay(alignment: .bottom) {
+                        if showProgress, entry.progress > 0.01 {
+                            ProgressBar(progress: entry.progress)
+                                .padding(.horizontal, 5)
+                                .padding(.bottom, 5)
                         }
-                        .frame(height: 3)
                     }
-                }
-                .aspectRatio(2.0/3.0, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                 Text(entry.title)
-                    .font(.caption2).fontWeight(.medium)
+                    .font(titleFont)
+                    .fontWeight(.semibold)
                     .lineLimit(1)
+                    .truncationMode(.tail)
                     .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
 
     @ViewBuilder private var poster: some View {
         if let data = posterData, let uiImage = UIImage(data: data) {
-            // Pre-fetched bytes render immediately. Fill + clip keeps 2:3 without stretch.
             Color.clear.overlay(
                 Image(uiImage: uiImage)
                     .resizable()
@@ -141,9 +143,28 @@ private struct PosterCell: View {
     }
 
     private var placeholder: some View {
-        RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .fill(Color.gray.opacity(0.3))
-            .overlay(Image(systemName: "film").foregroundStyle(.secondary))
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(Color.gray.opacity(0.25))
+            .overlay(
+                Image(systemName: "film")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            )
+    }
+}
+
+/// A slim rounded progress bar shown along the bottom of a Continue Watching poster.
+private struct ProgressBar: View {
+    let progress: Double
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(.black.opacity(0.55))
+                Capsule().fill(.white)
+                    .frame(width: max(3, geo.size.width * min(progress, 1)))
+            }
+        }
+        .frame(height: 4)
     }
 }
 
@@ -157,30 +178,81 @@ private struct RowWidgetView: View {
     let showProgress: Bool
     @Environment(\.widgetFamily) private var family
 
-    private var count: Int { family == .systemLarge ? 6 : (family == .systemMedium ? 4 : 2) }
+    /// How many posters to show per size. Fewer items = bigger posters.
+    private var count: Int {
+        switch family {
+        case .systemLarge:  return 4   // tall frame makes these large
+        case .systemMedium: return 3   // fewer, bigger posters than before
+        default:            return 3
+        }
+    }
+
+    private var titleFont: Font {
+        family == .systemLarge ? .subheadline : .caption2
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(title, systemImage: systemImage)
-                .font(.caption).fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: family == .systemLarge ? 14 : 9) {
+            // Header
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.caption.weight(.semibold))
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .textCase(.uppercase)
+                    .kerning(0.5)
+                Spacer()
+            }
+            .foregroundStyle(.secondary)
+
             if entries.isEmpty {
-                Spacer()
-                Text("Nothing here yet")
-                    .font(.caption2).foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                Spacer()
+                Spacer(minLength: 0)
+                HStack {
+                    Spacer()
+                    VStack(spacing: 6) {
+                        Image(systemName: "film.stack")
+                            .font(.title2)
+                            .foregroundStyle(.tertiary)
+                        Text("Nothing here yet")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    Spacer()
+                }
+                Spacer(minLength: 0)
+            } else if family == .systemLarge {
+                // Large: a 2-row grid (up to 8) so the tall frame fills elegantly.
+                Spacer(minLength: 0)
+                let cols = Array(repeating: GridItem(.flexible(), spacing: 12), count: 4)
+                LazyVGrid(columns: cols, spacing: 14) {
+                    ForEach(entries.prefix(8)) { entry in
+                        PosterCell(entry: entry,
+                                   posterData: posters[entry.id],
+                                   showProgress: showProgress,
+                                   titleFont: titleFont)
+                    }
+                }
+                Spacer(minLength: 0)
             } else {
-                HStack(alignment: .top, spacing: 8) {
+                // Medium/small: a single centered row of larger posters.
+                Spacer(minLength: 0)
+                HStack(alignment: .top, spacing: 10) {
                     ForEach(entries.prefix(count)) { entry in
                         PosterCell(entry: entry,
                                    posterData: posters[entry.id],
-                                   showProgress: showProgress)
+                                   showProgress: showProgress,
+                                   titleFont: titleFont)
+                    }
+                    if entries.count < count {
+                        ForEach(0..<(count - entries.count), id: \.self) { _ in
+                            Color.clear.frame(maxWidth: .infinity)
+                        }
                     }
                 }
+                Spacer(minLength: 0)
             }
         }
-        .padding()
+        .padding(family == .systemLarge ? 18 : 14)
     }
 }
 

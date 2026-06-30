@@ -360,8 +360,8 @@ final class LibraryStore: ObservableObject {
             )
         }
         let snapshot = WidgetSnapshot(
-            continueWatching: continueWatching.prefix(6).map(entry),
-            recentlyAdded: recentlyAdded.prefix(6).map(entry),
+            continueWatching: continueWatching.prefix(8).map(entry),
+            recentlyAdded: recentlyAdded.prefix(8).map(entry),
             updated: Date()
         )
         WidgetShared.write(snapshot)
