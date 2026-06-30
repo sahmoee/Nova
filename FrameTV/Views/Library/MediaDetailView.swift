@@ -14,6 +14,7 @@ struct MediaDetailView: View {
 
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var progress: PlaybackProgressStore
+    @EnvironmentObject private var env: AppEnvironment
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -47,6 +48,25 @@ struct MediaDetailView: View {
                 }
             }
         }
+        .task(id: item.id) { await backfillArtIfNeeded() }
+    }
+
+    /// Older library items (added before episodes used show art) may have an episode
+    /// still as their poster, or no art at all. When such an item is opened, fetch the
+    /// show's proper poster/backdrop from TMDB once and update it in the library so the
+    /// grid and detail screens show clean artwork.
+    private func backfillArtIfNeeded() async {
+        let it = currentItem
+        // Only episodes, only when we can identify the show on TMDB and have a key.
+        guard it.episode != nil, let tmdb = it.contentID?.tmdb, env.tmdb.hasKey else { return }
+        // Fetch the show's canonical poster/backdrop and adopt them if they differ from
+        // what's stored (older items may hold an episode still instead of show art).
+        guard let art = try? await env.tmdb.artwork(tmdbID: tmdb, isMovie: false) else { return }
+        var updated = it
+        var changed = false
+        if let poster = art.poster, updated.posterURL != poster { updated.posterURL = poster; changed = true }
+        if let backdrop = art.backdrop, updated.backdropURL != backdrop { updated.backdropURL = backdrop; changed = true }
+        if changed { library.update(updated) }
     }
 
     @ViewBuilder
@@ -103,8 +123,12 @@ struct MediaDetailView: View {
     }
 
     private func backdrop(in size: CGSize) -> some View {
-        Group {
-            if let url = item.backdropURL ?? item.posterURL {
+        // Use the show's backdrop (16:9, fills the wide hero well) or its poster as a
+        // fallback. Episode stills are deliberately avoided - they're cropped frames
+        // that look wrong zoomed to fill the screen.
+        let heroURL = currentItem.backdropURL ?? currentItem.posterURL
+        return Group {
+            if let url = heroURL {
                 CachedAsyncImage(url: url) { image in
                     image.resizable().aspectRatio(contentMode: .fill)
                 } placeholder: {

@@ -210,8 +210,11 @@ final class CatalogService: ObservableObject {
             title: title,
             sourceType: .addon,
             playbackURL: url,
-            posterURL: catalog.posterURL ?? episode?.stillURL,
-            backdropURL: catalog.backdropURL,
+            // Use the show's poster/backdrop art for episodes. Episode stills are cropped
+            // 16:9 frames that look wrong as posters, so they're intentionally not used
+            // here; a missing poster shows a clean placeholder instead.
+            posterURL: catalog.posterURL,
+            backdropURL: catalog.backdropURL ?? catalog.posterURL,
             duration: episode?.runtime,
             legalAccessConfirmed: true,
             metadata: MediaMetadata(
