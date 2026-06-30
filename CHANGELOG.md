@@ -1,3 +1,6 @@
+06:30:26 15:39 — v1.3 (build 1) — Version
+Small change or fix
+
 06:29:26 07:19 — v1.2 (build 1) — Version
 Small change or fix
 
