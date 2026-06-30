@@ -144,7 +144,7 @@ struct VLCPlayerView: View {
             }
         }
         .onAppear {
-            model.configure(progressStore: progress, settings: settings, trakt: env.trakt)
+            model.configure(progressStore: progress, settings: settings, trakt: env.trakt, libraryStore: env.library)
             // Guard against SwiftUI re-running onAppear (e.g. after a sheet dismiss or
             // a parent nav change), which would otherwise restart the video.
             if !hasStarted {
@@ -181,6 +181,13 @@ struct VLCPlayerView: View {
     }
 
     // MARK: - Next episode
+
+    /// Formats a subtitle delay for display, e.g. "+1.5s later", "In sync".
+    private func delayLabel(_ seconds: Double) -> String {
+        if abs(seconds) < 0.01 { return "In sync" }
+        let sign = seconds > 0 ? "+" : "-"
+        return String(format: "%@%.2gs subtitles %@", sign, abs(seconds), seconds > 0 ? "later" : "earlier")
+    }
 
     private func prepareNextEpisode() async {
         guard let series, let ep = item.episode else { return }
@@ -440,6 +447,42 @@ struct VLCPlayerView: View {
                         #endif
                         Text("Preview").font(.system(size: 17 * model.subtitleScale))
                             .foregroundStyle(.secondary)
+                    }
+                }
+
+                Section("Subtitle Timing") {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        #if os(iOS)
+                        HStack {
+                            Image(systemName: "tortoise")
+                            Slider(value: $model.subtitleDelay, in: -10...10, step: 0.25)
+                            Image(systemName: "hare")
+                        }
+                        #else
+                        HStack(spacing: Theme.Spacing.lg) {
+                            Button {
+                                model.subtitleDelay = max(-10, (model.subtitleDelay - 0.25))
+                            } label: {
+                                Label("Earlier", systemImage: "minus.circle")
+                            }
+                            Text(delayLabel(model.subtitleDelay))
+                                .monospacedDigit()
+                            Button {
+                                model.subtitleDelay = min(10, (model.subtitleDelay + 0.25))
+                            } label: {
+                                Label("Later", systemImage: "plus.circle")
+                            }
+                        }
+                        #endif
+                        HStack {
+                            Text(delayLabel(model.subtitleDelay))
+                                .font(.appFont(15)).foregroundStyle(.secondary)
+                            Spacer()
+                            if model.subtitleDelay != 0 {
+                                Button("Reset") { model.subtitleDelay = 0 }
+                                    .font(.appFont(15))
+                            }
+                        }
                     }
                 }
 

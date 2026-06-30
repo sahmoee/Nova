@@ -49,6 +49,8 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     private var progressStore: PlaybackProgressStore?
     private var settings: SettingsStore?
     private var trakt: TraktClient?
+    /// Optional: lets the player persist a subtitle timing offset back to the item.
+    private var libraryStore: LibraryStore?
 
     private var saveTask: Task<Void, Never>?
     private var hasScrobbledStart = false
@@ -79,10 +81,14 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
 
     func configure(progressStore: PlaybackProgressStore,
                    settings: SettingsStore,
-                   trakt: TraktClient) {
+                   trakt: TraktClient,
+                   libraryStore: LibraryStore? = nil) {
         self.progressStore = progressStore
         self.settings = settings
         self.trakt = trakt
+        self.libraryStore = libraryStore
+        // Seed the live delay from this title's remembered offset.
+        subtitleDelay = item.subtitleOffset
     }
 
     // MARK: - Lifecycle
@@ -207,6 +213,17 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
             mediaPlayer.perform(Selector(("setTextRendererFontSize:")), with: size)
         }
         #endif
+    }
+
+    /// Live subtitle timing offset in seconds (+ = subtitles appear later). Applies to
+    /// VLC immediately and remembers the value on the item via the library store.
+    @Published var subtitleDelay: Double = 0 {
+        didSet {
+            #if canImport(VLCKitSPM)
+            mediaPlayer.currentVideoSubTitleDelay = Int(subtitleDelay * 1_000_000)
+            #endif
+            libraryStore?.setSubtitleOffset(subtitleDelay, for: item)
+        }
     }
 
     /// Loads an external subtitle file (e.g. a .srt the user picked) and selects it.

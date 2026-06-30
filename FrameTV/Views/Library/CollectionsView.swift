@@ -26,6 +26,9 @@ struct CollectionsView: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                     header
 
+                    // Smart Collections: auto-updating groups based on simple rules.
+                    smartSection
+
                     if library.collections.isEmpty {
                         emptyState
                     } else {
@@ -125,6 +128,51 @@ struct CollectionsView: View {
             }
         }
     }
+
+    // MARK: - Smart collections
+
+    @ViewBuilder private var smartSection: some View {
+        let smarts = SmartCollection.presets.filter { !$0.items(from: library.items).isEmpty }
+        if !smarts.isEmpty {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Text("Smart Collections")
+                    .font(.appFont(22, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .padding(.horizontal, Theme.Spacing.edge)
+                LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
+                    ForEach(smarts) { smart in
+                        NavigationLink {
+                            SmartCollectionDetailView(smart: smart, onPlay: { selectedItem = $0 })
+                        } label: {
+                            smartTile(smart, count: smart.items(from: library.items).count)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.edge)
+            }
+        }
+    }
+
+    private func smartTile(_ smart: SmartCollection, count: Int) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            ZStack {
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                    .fill(Theme.Colors.cardGradient)
+                    .aspectRatio(1.6, contentMode: .fit)
+                Image(systemName: smart.systemImage)
+                    .font(.appFont(44, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accent)
+            }
+            Text(smart.name)
+                .font(.appFont(20, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .lineLimit(1)
+            Text("\(count) \(count == 1 ? "title" : "titles")")
+                .font(.appFont(15))
+                .foregroundStyle(Theme.Colors.textTertiary)
+        }
+    }
 }
 
 /// Shows the items inside a single collection.
@@ -179,5 +227,52 @@ struct CollectionDetailView: View {
             }
         }
         .navigationTitle(collection.name)
+    }
+}
+
+// MARK: - Smart collection detail
+
+/// Shows the live contents of a smart collection, re-evaluated from the library each
+/// time it appears so it always reflects the current state.
+struct SmartCollectionDetailView: View {
+    let smart: SmartCollection
+    var onPlay: (MediaItem) -> Void
+    @EnvironmentObject private var library: LibraryStore
+
+    private var columns: [GridItem] { Theme.posterGridColumns }
+
+    private var items: [MediaItem] {
+        smart.items(from: library.items)
+    }
+
+    var body: some View {
+        ZStack {
+            Theme.Colors.appBackground.ignoresSafeArea()
+            ScrollView {
+                if items.isEmpty {
+                    VStack(spacing: Theme.Spacing.md) {
+                        Image(systemName: smart.systemImage)
+                            .font(.appFont(52))
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                        Text("Nothing here right now")
+                            .font(.appFont(22, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                        Text("This updates automatically as your library changes.")
+                            .font(.appFont(18))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, Theme.Spacing.xl)
+                } else {
+                    LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
+                        ForEach(items) { item in
+                            MediaCard(item: item) { onPlay(item) }
+                        }
+                    }
+                    .padding(Theme.Spacing.edge)
+                }
+            }
+        }
+        .navigationTitle(smart.name)
     }
 }
