@@ -70,7 +70,7 @@ struct VLCPlayerView: View {
                         .scaleEffect(1.4).padding(Theme.Spacing.lg)
                         .background(.ultraThinMaterial, in: Circle())
                 }
-                overlay
+                activeOverlay
                     .opacity(controlsVisible ? 1 : 0)
                     .animation(.easeInOut(duration: 0.25), value: controlsVisible)
 
@@ -210,6 +210,145 @@ struct VLCPlayerView: View {
     }
 
     // MARK: - Overlay
+
+    /// Chooses the overlay style from the user's setting. "Classic" is the original
+    /// centered transport; "Native" mirrors Apple's player (left-aligned title, a
+    /// thin scrubber with elapsed/remaining timestamps, and a text control row).
+    @ViewBuilder
+    private var activeOverlay: some View {
+        switch settings.vlcOverlayStyle {
+        case .classic: overlay
+        case .native:  nativeOverlay
+        }
+    }
+
+    // MARK: - Native-style overlay
+
+    /// An Apple-player-style overlay: the top control cluster stays for parity, but
+    /// the bottom is a left-aligned title over a thin full-width scrubber with
+    /// elapsed and remaining time, plus a compact text button row (Info / Audio &
+    /// Subtitles / Aspect / Diagnostics) echoing the native transport bar.
+    private var nativeOverlay: some View {
+        VStack {
+            topBar
+                .padding(Theme.Spacing.lg)
+                #if os(tvOS)
+                .focusSection()
+                #endif
+
+            Spacer()
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Text(model.item.title)
+                    .font(.appFont(30, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .shadow(color: .black.opacity(0.6), radius: 6, y: 2)
+
+                // Thin scrubber with timestamps beneath, like the native bar.
+                VStack(spacing: 4) {
+                    #if os(iOS)
+                    Slider(
+                        value: Binding(
+                            get: { model.currentTime },
+                            set: { model.seek(to: $0) }
+                        ),
+                        in: 0...max(model.duration, 1)
+                    )
+                    .tint(accent)
+                    #else
+                    ProgressView(value: min(model.currentTime, model.duration),
+                                 total: max(model.duration, 1))
+                        .tint(accent)
+                    #endif
+                    HStack {
+                        Text(timeString(model.currentTime))
+                            .font(.appFont(14)).monospacedDigit()
+                            .foregroundStyle(.white)
+                        Spacer()
+                        Text("-\(timeString(max(model.duration - model.currentTime, 0)))")
+                            .font(.appFont(14)).monospacedDigit()
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                    }
+                }
+
+                // Compact text control row (mirrors Info / Chapters / Settings).
+                HStack(spacing: Theme.Spacing.xl) {
+                    nativeTextButton("Play/Pause", systemImage: model.isPlaying ? "pause.fill" : "play.fill") {
+                        model.togglePlayPause(); revealControls()
+                    }
+                    nativeTextButton("−15", systemImage: "gobackward.15") { model.skipBackward(); revealControls() }
+                    nativeTextButton("+15", systemImage: "goforward.15") { model.skipForward(); revealControls() }
+                    if hasNextEpisode {
+                        nativeTextButton("Next", systemImage: "forward.end.fill") { playNextEpisode() }
+                    }
+                    nativeTextButton("Audio & Subtitles", systemImage: "captions.bubble") {
+                        model.showSubtitlePicker = true
+                    }
+                    nativeTextButton(model.fillScreen ? "Fit" : "Fill",
+                                     systemImage: model.fillScreen
+                                        ? "arrow.down.right.and.arrow.up.left"
+                                        : "arrow.up.left.and.arrow.down.right") {
+                        model.fillScreen.toggle(); revealControls()
+                    }
+                    nativeTextButton("Diagnostics", systemImage: "waveform.path.ecg") {
+                        showDiagnostics.toggle(); revealControls()
+                    }
+                }
+                .padding(.top, Theme.Spacing.xs)
+            }
+            .padding(.horizontal, Theme.Spacing.xl)
+            .padding(.bottom, Theme.Spacing.xl)
+            .padding(.top, Theme.Spacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                LinearGradient(colors: [.clear, .black.opacity(0.75)],
+                               startPoint: .top, endPoint: .bottom)
+                    .ignoresSafeArea(edges: .bottom)
+            )
+            #if os(tvOS)
+            .focusSection()
+            #endif
+        }
+    }
+
+    /// The shared top control cluster (close, density, aspect, subtitles, diagnostics),
+    /// reused by the native overlay so both styles expose the same top actions.
+    private var topBar: some View {
+        HStack {
+            Button { model.stopAndSave(); dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.appFont(22, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(Theme.Spacing.md)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Stop")
+            Spacer()
+        }
+    }
+
+    /// A native-style text button: an SF Symbol above a small caption, no filled
+    /// pill — reads like the native transport's text actions.
+    private func nativeTextButton(_ title: String, systemImage: String,
+                                  action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: systemImage)
+                    .font(.appFont(24, weight: .semibold))
+                Text(title)
+                    .font(.appFont(14, weight: .medium))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(.white)
+            .frame(minWidth: Theme.scaled(64, min: 44))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(FrameChipButtonStyle())
+    }
+
+    // MARK: - Classic overlay
 
     private var overlay: some View {
         VStack {

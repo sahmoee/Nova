@@ -12,6 +12,7 @@ import SwiftUI
 struct DiscoverView: View {
     @Binding var path: NavigationPath
     @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var settings: SettingsStore
 
     @State private var query = ""
     @State private var results: [CatalogItem] = []
@@ -113,7 +114,7 @@ struct DiscoverView: View {
                                         .foregroundStyle(Theme.Colors.textSecondary)
                                 }
                             }
-                            grid(results)
+                            resultsBody
                         }
                     case .empty:
                         EmptyStateView(systemImage: "magnifyingglass",
@@ -299,6 +300,62 @@ struct DiscoverView: View {
                 .font(Theme.Font.sectionTitle())
                 .foregroundStyle(Theme.Colors.textPrimary)
             grid(watchlist)
+        }
+    }
+
+    // MARK: - Results layout
+
+    /// Results honor the user's chosen layout: a poster grid, or Apple-TV-style
+    /// horizontal rails grouped by kind (Movies / TV Shows). Both are fully usable
+    /// and switch live from Settings ▸ Appearance.
+    @ViewBuilder
+    private var resultsBody: some View {
+        switch settings.searchLayout {
+        case .grid:
+            grid(results)
+        case .rails:
+            resultRails
+        }
+    }
+
+    /// Movies and TV Shows split into their own horizontally-scrolling rails, echoing
+    /// the native tvOS search screen where each source gets its own row.
+    @ViewBuilder
+    private var resultRails: some View {
+        let movies = results.filter { $0.contentID.type == .movie }
+        let shows  = results.filter { $0.contentID.type == .series }
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+            if !movies.isEmpty {
+                resultRail(title: "Movies", items: movies)
+            }
+            if !shows.isEmpty {
+                resultRail(title: "TV Shows", items: shows)
+            }
+            // Fallback: anything that didn't classify (shouldn't normally happen).
+            let other = results.filter { $0.contentID.type != .movie && $0.contentID.type != .series }
+            if !other.isEmpty {
+                resultRail(title: "More Results", items: other)
+            }
+        }
+        .onAppear { ImageLoader.shared.prefetch(results.compactMap(\.posterURL)) }
+    }
+
+    private func resultRail(title: String, items: [CatalogItem]) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text(title)
+                .font(Theme.Font.sectionTitle())
+                .foregroundStyle(Theme.Colors.textPrimary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: Theme.Spacing.md) {
+                    ForEach(items) { item in
+                        NavigationLink(value: item) {
+                            posterCard(item)
+                        }
+                        .buttonStyle(FrameListRowStyle())
+                    }
+                }
+                .padding(.vertical, Theme.Spacing.xs)
+            }
         }
     }
 
