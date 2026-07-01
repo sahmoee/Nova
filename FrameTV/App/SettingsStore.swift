@@ -64,6 +64,8 @@ final class SettingsStore: ObservableObject {
         static let respectSystemTextSize = "settings.respectSystemTextSize"
         static let textSizeBoost = "settings.textSizeBoost"
         static let homeStyle = "settings.homeStyle"
+        static let libraryStyle = "settings.libraryStyle"
+        static let tabBarStyle = "settings.tabBarStyle"
     }
 
     // MARK: - Playback
@@ -240,6 +242,18 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(homeStyle.rawValue, forKey: Key.homeStyle); CloudSync.shared.setString(homeStyle.rawValue, forKey: Key.homeStyle) }
     }
 
+    /// How the Library screen is presented: the new clean look (default) with a
+    /// segmented All/Movies/Shows control and an options menu, or the classic chips.
+    @Published var libraryStyle: LibraryStyle {
+        didSet { defaults.set(libraryStyle.rawValue, forKey: Key.libraryStyle); CloudSync.shared.setString(libraryStyle.rawValue, forKey: Key.libraryStyle) }
+    }
+
+    /// The iOS tab bar look: the new floating translucent pill (default) or the
+    /// standard system tab bar. tvOS is unaffected (it uses a menu overlay).
+    @Published var tabBarStyle: TabBarStyle {
+        didSet { defaults.set(tabBarStyle.rawValue, forKey: Key.tabBarStyle); CloudSync.shared.setString(tabBarStyle.rawValue, forKey: Key.tabBarStyle) }
+    }
+
     /// How search results are laid out: a poster grid, or Apple-TV-style horizontal
     /// rails grouped by kind (Movies / TV Shows). Both remain fully usable.
     @Published var searchLayout: SearchLayoutStyle {
@@ -365,6 +379,12 @@ final class SettingsStore: ObservableObject {
         self.homeStyle = HomeStyle(
             rawValue: defaults.string(forKey: Key.homeStyle) ?? HomeStyle.cinematic.rawValue
         ) ?? .cinematic
+        self.libraryStyle = LibraryStyle(
+            rawValue: defaults.string(forKey: Key.libraryStyle) ?? LibraryStyle.clean.rawValue
+        ) ?? .clean
+        self.tabBarStyle = TabBarStyle(
+            rawValue: defaults.string(forKey: Key.tabBarStyle) ?? TabBarStyle.floatingPill.rawValue
+        ) ?? .floatingPill
         self.vlcOverlayStyle = PlayerOverlayStyle(
             rawValue: defaults.string(forKey: Key.vlcOverlayStyle) ?? PlayerOverlayStyle.classic.rawValue
         ) ?? .classic
@@ -446,6 +466,10 @@ final class SettingsStore: ObservableObject {
            let s = SearchLayoutStyle(rawValue: v), searchLayout != s { searchLayout = s }
         if let v = cloud.string(forKey: Key.homeStyle),
            let s = HomeStyle(rawValue: v), homeStyle != s { homeStyle = s }
+        if let v = cloud.string(forKey: Key.libraryStyle),
+           let s = LibraryStyle(rawValue: v), libraryStyle != s { libraryStyle = s }
+        if let v = cloud.string(forKey: Key.tabBarStyle),
+           let s = TabBarStyle(rawValue: v), tabBarStyle != s { tabBarStyle = s }
         if let v = cloud.string(forKey: Key.vlcOverlayStyle),
            let s = PlayerOverlayStyle(rawValue: v), vlcOverlayStyle != s { vlcOverlayStyle = s }
         applyBool(Key.respectSystemTextSize, \.respectSystemTextSize)
@@ -612,6 +636,41 @@ enum HomeStyle: String, CaseIterable, Identifiable {
         switch self {
         case .cinematic: return "Cinematic"
         case .classic:   return "Classic"
+        }
+    }
+}
+
+/// How the Library screen is presented.
+enum LibraryStyle: String, CaseIterable, Identifiable {
+    /// New default: a segmented All/Movies/Shows control, a single options menu
+    /// (sort, collections, edit, hidden), then a clean poster grid.
+    case clean
+    /// The classic layout: stacked filter chips and inline header actions.
+    case classic
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .clean:   return "Clean"
+        case .classic: return "Classic"
+        }
+    }
+}
+
+/// The iOS tab bar presentation.
+enum TabBarStyle: String, CaseIterable, Identifiable {
+    /// New default: a floating translucent pill above the content.
+    case floatingPill
+    /// The standard system bottom tab bar.
+    case system
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .floatingPill: return "Floating Pill"
+        case .system:       return "System"
         }
     }
 }

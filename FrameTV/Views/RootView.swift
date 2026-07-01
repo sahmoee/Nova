@@ -14,6 +14,7 @@ struct RootView: View {
     @StateObject private var nowPlaying = NowPlayingStore.shared
     @StateObject private var accentManager = AccentManager.shared
     @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var settings: SettingsStore
 
     @State private var offerRestore = false
     @State private var showWhatsNew = false
@@ -125,9 +126,18 @@ struct RootView: View {
         }
     }
     #else
-    /// iOS / iPadOS: standard bottom tab bar.
+    /// iOS / iPadOS: either the standard bottom tab bar or a floating pill.
     @ViewBuilder
     private var rootContent: some View {
+        switch settings.tabBarStyle {
+        case .system:       systemTabBar
+        case .floatingPill: floatingPillRoot
+        }
+    }
+
+    /// The standard system bottom tab bar.
+    @ViewBuilder
+    private var systemTabBar: some View {
         TabView(selection: nav.selectionBinding) {
             HomeView(path: $nav.homePath)
                 .tabItem { Label(AppTab.home.title, systemImage: AppTab.home.systemImage) }
@@ -155,6 +165,42 @@ struct RootView: View {
             nowPlayingBar
         }
     }
+
+    /// The floating-pill root: the active screen fills the window, with a translucent
+    /// rounded pill floating above the bottom for tab switching. The pill hides while
+    /// the player is on screen.
+    @ViewBuilder
+    private var floatingPillRoot: some View {
+        ZStack(alignment: .bottom) {
+            Theme.Colors.appBackground.ignoresSafeArea()
+
+            activeScreen
+
+            VStack(spacing: 0) {
+                nowPlayingBar
+                if !nowPlaying.playerPresented {
+                    FloatingTabPill(selection: nav.selectionBinding)
+                        .padding(.horizontal, Theme.Spacing.md)
+                        .padding(.bottom, Theme.Spacing.xs)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+        }
+    }
+
+    /// The active screen for the floating-pill root (mirrors the tvOS switch).
+    #if os(iOS)
+    @ViewBuilder
+    private var activeScreen: some View {
+        switch nav.selection {
+        case .home:     HomeView(path: $nav.homePath)
+        case .discover: DiscoverView(path: $nav.discoverPath)
+        case .ai:       AIView(path: $nav.aiPath)
+        case .library:  LibraryView(path: $nav.libraryPath)
+        case .settings: SettingsView(path: $nav.settingsPath)
+        }
+    }
+    #endif
     #endif
 
     /// A "Now Playing" mini-bar shown above the tab bar while something is playing.
@@ -246,3 +292,46 @@ struct RootView: View {
         }
     }
 }
+
+#if os(iOS)
+/// A floating, translucent, rounded tab pill for iOS. Shows all five tabs; the active
+/// one is tinted with the app accent. Re-tapping the active tab pops it to root via the
+/// same selection binding the system tab bar uses.
+struct FloatingTabPill: View {
+    @Binding var selection: AppTab
+    @Environment(\.dynamicAccent) private var accent
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(AppTab.allCases, id: \.self) { tab in
+                Button {
+                    selection = tab
+                } label: {
+                    VStack(spacing: 3) {
+                        Image(systemName: tab.systemImage)
+                            .font(.system(size: 20, weight: .semibold))
+                        Text(tab.title)
+                            .font(.system(size: 11, weight: .medium))
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(selection == tab ? accent : Color.white.opacity(0.65))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 6)
+        .background(
+            Capsule(style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.35), radius: 16, y: 6)
+        )
+    }
+}
+#endif

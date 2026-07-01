@@ -255,6 +255,14 @@ struct SettingsView: View {
             pickerRow("Home Style", systemImage: "house",
                       selection: $settings.homeStyle,
                       options: HomeStyle.allCases) { $0.displayName }
+            pickerRow("Library Style", systemImage: "books.vertical",
+                      selection: $settings.libraryStyle,
+                      options: LibraryStyle.allCases) { $0.displayName }
+            #if os(iOS)
+            pickerRow("Tab Bar Style", systemImage: "square.bottomthird.inset.filled",
+                      selection: $settings.tabBarStyle,
+                      options: TabBarStyle.allCases) { $0.displayName }
+            #endif
             pickerRow("Search Layout", systemImage: "square.grid.2x2",
                       selection: $settings.searchLayout,
                       options: SearchLayoutStyle.allCases) { $0.displayName }

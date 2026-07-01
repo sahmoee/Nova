@@ -12,6 +12,7 @@ struct LibraryView: View {
     @Binding var path: NavigationPath
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var nav: NavigationCoordinator
+    @EnvironmentObject private var settings: SettingsStore
     @State private var filter: LibraryFilter = .recentlyAdded
     @State private var typeFilter: LibraryTypeFilter = .all
     @State private var selectedItem: MediaItem?
@@ -33,69 +34,9 @@ struct LibraryView: View {
                 Theme.Colors.appBackground.ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("Library")
-                            .font(Theme.Font.screenTitle())
-                            .screenTitleStyle()
-                            .foregroundStyle(Theme.Colors.textPrimary)
-                        Spacer()
-                        // Sort menu
-                        Menu {
-                            Picker("Sort", selection: $sortOrder) {
-                                ForEach(LibrarySortOrder.allCases) { Label($0.title, systemImage: $0.systemImage).tag($0) }
-                            }
-                        } label: {
-                            Image(systemName: "arrow.up.arrow.down.circle")
-                                .font(.appFont(20))
-                                .foregroundStyle(Theme.Colors.accent)
-                        }
-                        // Bulk edit toggle
-                        Button {
-                            bulkEditing.toggle()
-                            if !bulkEditing { selectedIDs.removeAll() }
-                        } label: {
-                            Image(systemName: bulkEditing ? "checkmark.circle.fill" : "checklist")
-                                .font(.appFont(20))
-                                .foregroundStyle(Theme.Colors.accent)
-                        }
-                        NavigationLink {
-                            CollectionsView()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "rectangle.stack")
-                                Text("Collections")
-                            }
-                            .font(.appFont(18, weight: .semibold))
-                            .foregroundStyle(Theme.Colors.accent)
-                        }
-                        .frameRowStyle()
-                    }
-                    .padding(.horizontal, Theme.Spacing.edge)
-                    .padding(.top, Theme.Spacing.lg)
-
-                    // Tag filter row (only when tags exist)
-                    if !library.allTags.isEmpty {
-                        tagFilterRow
-                    }
-                    // Bulk action bar (only in edit mode with a selection)
-                    if bulkEditing {
-                        bulkBar
-                    }
-
-                    HStack {
-                        filterBar
-                        Spacer()
-                        if filter == .continueWatching && !displayedItems.isEmpty {
-                            Button {
-                                withAnimation { library.clearContinueWatching() }
-                            } label: {
-                                Text("Clear All")
-                                    .font(.appFont(17, weight: .semibold))
-                                    .foregroundStyle(Theme.Colors.accent)
-                            }
-                            .frameRowStyle()
-                            .padding(.trailing, Theme.Spacing.edge)
-                        }
+                    switch settings.libraryStyle {
+                    case .clean:   cleanHeader
+                    case .classic: classicHeader
                     }
 
                     if displayedItems.isEmpty {
@@ -195,6 +136,155 @@ struct LibraryView: View {
             detailItem = match
         }
         nav.pendingContentKey = nil
+    }
+
+    // MARK: - Headers (clean vs classic)
+
+    /// The original header: title, inline sort/edit/collections icons, tag row, bulk
+    /// bar, and the stacked filter chips.
+    @ViewBuilder
+    private var classicHeader: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Library")
+                .font(Theme.Font.screenTitle())
+                .screenTitleStyle()
+                .foregroundStyle(Theme.Colors.textPrimary)
+            Spacer()
+            Menu {
+                Picker("Sort", selection: $sortOrder) {
+                    ForEach(LibrarySortOrder.allCases) { Label($0.title, systemImage: $0.systemImage).tag($0) }
+                }
+            } label: {
+                Image(systemName: "arrow.up.arrow.down.circle")
+                    .font(.appFont(20))
+                    .foregroundStyle(Theme.Colors.accent)
+            }
+            Button {
+                bulkEditing.toggle()
+                if !bulkEditing { selectedIDs.removeAll() }
+            } label: {
+                Image(systemName: bulkEditing ? "checkmark.circle.fill" : "checklist")
+                    .font(.appFont(20))
+                    .foregroundStyle(Theme.Colors.accent)
+            }
+            NavigationLink {
+                CollectionsView()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "rectangle.stack")
+                    Text("Collections")
+                }
+                .font(.appFont(18, weight: .semibold))
+                .foregroundStyle(Theme.Colors.accent)
+            }
+            .frameRowStyle()
+        }
+        .padding(.horizontal, Theme.Spacing.edge)
+        .padding(.top, Theme.Spacing.lg)
+
+        if !library.allTags.isEmpty {
+            tagFilterRow
+        }
+        if bulkEditing {
+            bulkBar
+        }
+
+        HStack {
+            filterBar
+            Spacer()
+            if filter == .continueWatching && !displayedItems.isEmpty {
+                Button {
+                    withAnimation { library.clearContinueWatching() }
+                } label: {
+                    Text("Clear All")
+                        .font(.appFont(17, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.accent)
+                }
+                .frameRowStyle()
+                .padding(.trailing, Theme.Spacing.edge)
+            }
+        }
+    }
+
+    /// The new default header: a large title, a single options button (sort,
+    /// collections, edit, hidden), and a prominent All/Movies/Shows segmented control.
+    @ViewBuilder
+    private var cleanHeader: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("My Library")
+                .font(Theme.Font.screenTitle())
+                .screenTitleStyle()
+                .foregroundStyle(Theme.Colors.textPrimary)
+            Spacer()
+            optionsMenu
+        }
+        .padding(.horizontal, Theme.Spacing.edge)
+        .padding(.top, Theme.Spacing.lg)
+
+        // Segmented All / Movies / Shows control.
+        Picker("Type", selection: $typeFilter) {
+            ForEach(LibraryTypeFilter.allCases) { t in
+                Text(t.title).tag(t)
+            }
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal, Theme.Spacing.edge)
+
+        if !library.allTags.isEmpty {
+            tagFilterRow
+        }
+        if bulkEditing {
+            bulkBar
+        }
+    }
+
+    /// The consolidated options menu behind the sliders icon in the clean header.
+    private var optionsMenu: some View {
+        Menu {
+            Picker("View", selection: $filter) {
+                ForEach(LibraryFilter.allCases) { f in
+                    Label(f.title, systemImage: filterIcon(f)).tag(f)
+                }
+            }
+            Picker("Sort", selection: $sortOrder) {
+                ForEach(LibrarySortOrder.allCases) { Label($0.title, systemImage: $0.systemImage).tag($0) }
+            }
+            Divider()
+            Button {
+                bulkEditing.toggle()
+                if !bulkEditing { selectedIDs.removeAll() }
+            } label: {
+                Label(bulkEditing ? "Done Editing" : "Select Items",
+                      systemImage: bulkEditing ? "checkmark.circle.fill" : "checklist")
+            }
+            NavigationLink {
+                CollectionsView()
+            } label: {
+                Label("Collections", systemImage: "rectangle.stack")
+            }
+            if filter == .continueWatching && !displayedItems.isEmpty {
+                Button(role: .destructive) {
+                    withAnimation { library.clearContinueWatching() }
+                } label: {
+                    Label("Clear Continue Watching", systemImage: "xmark.circle")
+                }
+            }
+        } label: {
+            Image(systemName: "slider.horizontal.3")
+                .font(.appFont(22, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .padding(Theme.Spacing.sm)
+                .background(Theme.Colors.card, in: Circle())
+        }
+        .frameIconStyle()
+    }
+
+    private func filterIcon(_ f: LibraryFilter) -> String {
+        switch f {
+        case .recentlyAdded:    return "clock"
+        case .favorites:        return "star"
+        case .continueWatching: return "play.circle"
+        }
     }
 
     // MARK: - Filter bar
