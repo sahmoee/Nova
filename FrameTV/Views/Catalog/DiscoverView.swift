@@ -331,7 +331,6 @@ struct DiscoverView: View {
             if !shows.isEmpty {
                 resultRail(title: "TV Shows", items: shows)
             }
-            // Fallback: anything that didn't classify (shouldn't normally happen).
             let other = results.filter { $0.contentID.type != .movie && $0.contentID.type != .series }
             if !other.isEmpty {
                 resultRail(title: "More Results", items: other)

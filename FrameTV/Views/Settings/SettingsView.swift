@@ -48,6 +48,7 @@ struct SettingsView: View {
                                 streamingSection
                             }
                             playbackSection
+                            appearanceSection
                             subtitleSection
                             accessibilitySection
                             librarySection
@@ -247,6 +248,22 @@ struct SettingsView: View {
         if settings.useExternalPlayer { return settings.preferredExternalPlayer.title }
         #endif
         return settings.builtInPlayer.title
+    }
+
+    private var appearanceSection: some View {
+        section("Appearance") {
+            pickerRow("Search Layout", systemImage: "square.grid.2x2",
+                      selection: $settings.searchLayout,
+                      options: SearchLayoutStyle.allCases) { $0.displayName }
+            pickerRow("VLC Player Overlay", systemImage: "play.rectangle",
+                      selection: $settings.vlcOverlayStyle,
+                      options: PlayerOverlayStyle.allCases) { $0.displayName }
+            Text("The Apple player already uses the native overlay. This controls the look of the VLC player used for MKV and other formats.")
+                .font(.appFont(15))
+                .foregroundStyle(Theme.Colors.textTertiary)
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.bottom, Theme.Spacing.xs)
+        }
     }
 
     private var accessibilitySection: some View {

@@ -312,8 +312,8 @@ struct VLCPlayerView: View {
         }
     }
 
-    /// The shared top control cluster (close, density, aspect, subtitles, diagnostics),
-    /// reused by the native overlay so both styles expose the same top actions.
+    /// The shared top control cluster (close), reused by the native overlay so both
+    /// styles expose the same top action.
     private var topBar: some View {
         HStack {
             Button { model.stopAndSave(); dismiss() } label: {

@@ -59,6 +59,8 @@ final class SettingsStore: ObservableObject {
         static let builtInPlayer = "settings.builtInPlayer"
         static let preferredExternalPlayer = "settings.preferredExternalPlayer"
         static let useExternalPlayer = "settings.useExternalPlayer"
+        static let searchLayout = "settings.searchLayout"
+        static let vlcOverlayStyle = "settings.vlcOverlayStyle"
         static let respectSystemTextSize = "settings.respectSystemTextSize"
         static let textSizeBoost = "settings.textSizeBoost"
     }
@@ -229,6 +231,21 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(requireLegalConfirmation, forKey: Key.requireLegalConfirmation); CloudSync.shared.setBool(requireLegalConfirmation, forKey: Key.requireLegalConfirmation) }
     }
 
+    // MARK: - Appearance / Interface
+
+    /// How search results are laid out: a poster grid, or Apple-TV-style horizontal
+    /// rails grouped by kind (Movies / TV Shows). Both remain fully usable.
+    @Published var searchLayout: SearchLayoutStyle {
+        didSet { defaults.set(searchLayout.rawValue, forKey: Key.searchLayout); CloudSync.shared.setString(searchLayout.rawValue, forKey: Key.searchLayout) }
+    }
+
+    /// The VLC player's on-screen overlay: the classic centered transport, or a
+    /// native-style bar (left-aligned title, thin scrubber, text control row) that
+    /// matches Apple's player. AVPlayer always uses Apple's own native overlay.
+    @Published var vlcOverlayStyle: PlayerOverlayStyle {
+        didSet { defaults.set(vlcOverlayStyle.rawValue, forKey: Key.vlcOverlayStyle); CloudSync.shared.setString(vlcOverlayStyle.rawValue, forKey: Key.vlcOverlayStyle) }
+    }
+
     // MARK: - Accessibility / Text size
 
     /// When on (default), app text scales with the system Dynamic Type / Larger Text
@@ -337,6 +354,12 @@ final class SettingsStore: ObservableObject {
         self.preferredExternalPlayer = ExternalPlayer(
             rawValue: defaults.string(forKey: Key.preferredExternalPlayer) ?? ExternalPlayer.infuse.rawValue
         ) ?? .infuse
+        self.searchLayout = SearchLayoutStyle(
+            rawValue: defaults.string(forKey: Key.searchLayout) ?? SearchLayoutStyle.grid.rawValue
+        ) ?? .grid
+        self.vlcOverlayStyle = PlayerOverlayStyle(
+            rawValue: defaults.string(forKey: Key.vlcOverlayStyle) ?? PlayerOverlayStyle.classic.rawValue
+        ) ?? .classic
         self.respectSystemTextSize = defaults.object(forKey: Key.respectSystemTextSize) == nil
             ? true : defaults.bool(forKey: Key.respectSystemTextSize)
         let savedBoost = defaults.double(forKey: Key.textSizeBoost)
@@ -408,6 +431,10 @@ final class SettingsStore: ObservableObject {
         if let v = cloud.string(forKey: Key.preferredAudioLanguage), preferredAudioLanguage != v {
             preferredAudioLanguage = v
         }
+        if let v = cloud.string(forKey: Key.searchLayout),
+           let s = SearchLayoutStyle(rawValue: v), searchLayout != s { searchLayout = s }
+        if let v = cloud.string(forKey: Key.vlcOverlayStyle),
+           let s = PlayerOverlayStyle(rawValue: v), vlcOverlayStyle != s { vlcOverlayStyle = s }
         applyBool(Key.respectSystemTextSize, \.respectSystemTextSize)
         if let v = cloud.double(forKey: Key.textSizeBoost), v > 0, textSizeBoost != v {
             textSizeBoost = v
@@ -503,6 +530,57 @@ enum PlaybackQuality: String, CaseIterable, Identifiable {
         case .high:   return "High"
         case .medium: return "Medium"
         case .low:    return "Low"
+        }
+    }
+}
+
+// MARK: - Interface style options
+
+/// How the Discover/search results are presented.
+enum SearchLayoutStyle: String, CaseIterable, Identifiable {
+    /// A responsive poster grid (the original layout).
+    case grid
+    /// Apple-TV-style horizontal rails, grouped by kind (Movies / TV Shows).
+    case rails
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .grid:  return "Grid"
+        case .rails: return "Rails"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .grid:  return "square.grid.2x2"
+        case .rails: return "rectangle.grid.1x2"
+        }
+    }
+}
+
+/// The visual style of the in-app VLC player overlay.
+enum PlayerOverlayStyle: String, CaseIterable, Identifiable {
+    /// Centered transport with big round buttons (the original overlay).
+    case classic
+    /// Apple-style bar: left-aligned title, a thin scrubber with elapsed/remaining
+    /// timestamps, and a compact text button row — matching the native player.
+    case native
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .classic: return "Classic"
+        case .native:  return "Native"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .classic: return "play.circle"
+        case .native:  return "text.line.first.and.arrowtriangle.forward"
         }
     }
 }

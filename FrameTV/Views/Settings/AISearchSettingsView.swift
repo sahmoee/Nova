@@ -48,20 +48,9 @@ struct AISearchSettingsView: View {
                             AISearchService.workerURLString = newValue
                         }
                     #if os(iOS)
-                    Button {
-                        if let s = UIPasteboard.general.string {
-                            workerURL = s.trimmingCharacters(in: .whitespacesAndNewlines)
-                            AISearchService.workerURLString = workerURL
-                        }
-                    } label: {
-                        Label("Paste", systemImage: "doc.on.clipboard")
-                            .font(.appFont(16, weight: .semibold))
-                            .foregroundStyle(Theme.Colors.accent)
-                            .padding(.horizontal, Theme.Spacing.md)
-                            .padding(.vertical, Theme.Spacing.sm)
-                            .background(Theme.Colors.card, in: Capsule())
+                    PasteButton(text: $workerURL) { pasted in
+                        AISearchService.workerURLString = pasted
                     }
-                    .buttonStyle(.plain)
                     #endif
                 }
 
