@@ -74,7 +74,7 @@ struct PrivacyLegalView: View {
                     }
                     .padding(Theme.Spacing.md)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                    .refinedCardBackground()
 
                     // Open-source acknowledgements. Listing licenses (especially VLCKit's
                     // LGPL) in-app keeps FrameTV compliant with their terms.
@@ -106,7 +106,7 @@ struct PrivacyLegalView: View {
                     }
                     .padding(Theme.Spacing.md)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                    .refinedCardBackground()
                 }
                 .padding(.horizontal, Theme.Spacing.edge)
                 .padding(.bottom, Theme.Spacing.xl)
@@ -126,7 +126,7 @@ struct PrivacyLegalView: View {
         }
         .padding(Theme.Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .refinedCardBackground()
     }
 
     private func permission(icon: String, source: String, detail: String) -> some View {

@@ -70,7 +70,7 @@ struct WatchStatsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Theme.Spacing.md)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .refinedCardBackground()
     }
 
     private func detailRow(title: String, value: String, icon: String) -> some View {
@@ -86,6 +86,6 @@ struct WatchStatsView: View {
             Spacer()
         }
         .padding(Theme.Spacing.md)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .refinedCardBackground()
     }
 }

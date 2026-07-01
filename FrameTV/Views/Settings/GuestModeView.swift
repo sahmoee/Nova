@@ -54,7 +54,7 @@ struct GuestModeView: View {
                 .font(.appFont(22))
                 .foregroundStyle(Theme.Colors.textPrimary)
                 .padding(Theme.Spacing.md)
-                .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                .refinedCardBackground()
                 #if os(iOS)
                 .keyboardType(.numberPad)
                 #endif
@@ -68,7 +68,7 @@ struct GuestModeView: View {
             .frame(maxWidth: Theme.isCompact ? .infinity : 360)
         }
         .padding(Theme.Spacing.lg)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .refinedCardBackground()
     }
 
     // Turning guest mode OFF, PIN-gated if one was set.
@@ -93,7 +93,7 @@ struct GuestModeView: View {
                     .font(.appFont(22))
                     .foregroundStyle(Theme.Colors.textPrimary)
                     .padding(Theme.Spacing.md)
-                    .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                    .refinedCardBackground()
                     #if os(iOS)
                     .keyboardType(.numberPad)
                     #endif
@@ -116,6 +116,6 @@ struct GuestModeView: View {
             }
         }
         .padding(Theme.Spacing.lg)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .refinedCardBackground()
     }
 }

@@ -415,3 +415,26 @@ enum UIComponentStyle: String, CaseIterable, Identifiable {
         }
     }
 }
+
+// MARK: - Refined card background
+
+extension View {
+    /// A drop-in replacement for `.background(Theme.Colors.card, in: RoundedRectangle(...))`
+    /// that honors the app style: a subtle surface gradient with a hairline edge in
+    /// Refined, or the original flat fill in Classic. Keeps the same footprint so it
+    /// doesn't shift any layout.
+    func refinedCardBackground(cornerRadius: CGFloat = Theme.Radius.card) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        return self
+            .background(
+                Theme.uiStyle == .refined
+                    ? AnyShapeStyle(Theme.Colors.cardGradient)
+                    : AnyShapeStyle(Theme.Colors.card),
+                in: shape
+            )
+            .overlay(
+                shape.strokeBorder(Color.white.opacity(Theme.uiStyle == .refined ? 0.07 : 0.0),
+                                   lineWidth: 1)
+            )
+    }
+}
