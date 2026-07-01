@@ -8,6 +8,9 @@
 //
 
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 struct AddonsView: View {
     @EnvironmentObject private var env: AppEnvironment
@@ -89,8 +92,7 @@ struct AddonsView: View {
             }
             .frame(maxWidth: Theme.isCompact ? .infinity : 200)
         }
-        .padding(Theme.Spacing.md)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .softCard()
     }
 
     private var presetSection: some View {
@@ -199,8 +201,7 @@ struct AddAddonView: View {
                             }
                         }
                     }
-                    .padding(Theme.Spacing.md)
-                    .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                    .softCard()
 
                     // One-tap install when this preset has a public instance.
                     if let direct = preset.directURL, let directURL = URL(string: direct) {
@@ -217,17 +218,27 @@ struct AddAddonView: View {
                     }
                 }
 
-                TextField(preset?.placeholderURL ?? "https://…/manifest.json", text: $urlText)
-                    .textFieldStyle(.plain)
-                    .font(.appFont(22))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .padding(Theme.Spacing.md)
-                    .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                HStack(spacing: Theme.Spacing.sm) {
+                    TextField(preset?.placeholderURL ?? "https://…/manifest.json", text: $urlText)
+                        .textFieldStyle(.plain)
+                        .font(.appFont(22))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        #if os(iOS)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
+                        .textSelection(.enabled)
+                        #endif
+                        .padding(Theme.Spacing.md)
+                        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
+                                .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
+                        )
                     #if os(iOS)
-                    .keyboardType(.URL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled(true)
+                    PasteButton(text: $urlText)
                     #endif
+                }
 
                 if let errorMessage {
                     Text(errorMessage)
