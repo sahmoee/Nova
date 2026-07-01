@@ -360,15 +360,18 @@ final class SettingsStore: ObservableObject {
         self.vlcOverlayStyle = PlayerOverlayStyle(
             rawValue: defaults.string(forKey: Key.vlcOverlayStyle) ?? PlayerOverlayStyle.classic.rawValue
         ) ?? .classic
-        self.respectSystemTextSize = defaults.object(forKey: Key.respectSystemTextSize) == nil
+        let resolvedRespect = defaults.object(forKey: Key.respectSystemTextSize) == nil
             ? true : defaults.bool(forKey: Key.respectSystemTextSize)
+        self.respectSystemTextSize = resolvedRespect
         let savedBoost = defaults.double(forKey: Key.textSizeBoost)
-        self.textSizeBoost = savedBoost > 0 ? savedBoost : 1.0
+        let resolvedBoost = savedBoost > 0 ? savedBoost : 1.0
+        self.textSizeBoost = resolvedBoost
 
-        // Reflect text-size prefs into Theme before any view builds a font.
+        // Reflect text-size prefs into Theme before any view builds a font. Uses the
+        // resolved locals so this doesn't touch `self` before initialization finishes.
         #if os(iOS)
-        Theme.respectSystemTextSize = self.respectSystemTextSize
-        Theme.textSizeBoost = CGFloat(self.textSizeBoost)
+        Theme.respectSystemTextSize = resolvedRespect
+        Theme.textSizeBoost = CGFloat(resolvedBoost)
         #endif
 
         // Pull any iCloud values that exist (a newer device may have synced).
