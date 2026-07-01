@@ -252,6 +252,9 @@ struct SettingsView: View {
 
     private var appearanceSection: some View {
         section("Appearance") {
+            pickerRow("Home Style", systemImage: "house",
+                      selection: $settings.homeStyle,
+                      options: HomeStyle.allCases) { $0.displayName }
             pickerRow("Search Layout", systemImage: "square.grid.2x2",
                       selection: $settings.searchLayout,
                       options: SearchLayoutStyle.allCases) { $0.displayName }

@@ -13,9 +13,11 @@ struct HomeView: View {
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var nav: NavigationCoordinator
     @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var settings: SettingsStore
     @StateObject private var shelfStore = HomeShelfStore.shared
     @State private var selectedItem: MediaItem?
     @State private var showCustomize = false
+    @State private var heroIndex = 0
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -31,52 +33,10 @@ struct HomeView: View {
                         action: { nav.selection = .settings }
                     )
                 } else {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
-                            // Onboarding: if the movie database key is missing, nothing
-                            // loads — guide the user to the setup checklist first.
-                            if !env.tmdb.hasKey {
-                                setupBanner
-                            }
-
-                            // Cinematic featured hero spotlighting one item, with a
-                            // compact title bar overlaid for branding + customize.
-                            if let hero = featuredItem {
-                                FeaturedHero(item: hero) { play($0) }
-                                    .overlay(alignment: .topTrailing) { customizeButton }
-                                    .overlay(alignment: .topLeading) { brandMark }
-                            } else {
-                                header
-                            }
-
-                            if !library.continueWatching.isEmpty {
-                                continueWatchingRow
-                            }
-
-                            // User-configured catalog shelves (Trakt, TMDB, addons).
-                            ForEach(shelfStore.enabledShelves) { shelf in
-                                CatalogShelfRow(shelf: shelf)
-                            }
-
-                            if !library.recentlyAdded.isEmpty {
-                                MediaRow(title: "Recently Added",
-                                         items: library.recentlyAdded) { play($0) }
-                            }
-
-                            if !library.favorites.isEmpty {
-                                MediaRow(title: "Favorites",
-                                         items: library.favorites) { play($0) }
-                            }
-                        }
-                        .padding(.bottom, Theme.Spacing.lg)
+                    switch settings.homeStyle {
+                    case .cinematic: cinematicContent
+                    case .classic:   classicContent
                     }
-                    // On tvOS the hero image bleeds to the top edge for a cinematic
-                    // look (no status bar there). On iPhone/iPad we keep the normal
-                    // safe area so the brand header and all content stay below the
-                    // status bar and scroll beneath it.
-                    #if os(tvOS)
-                    .ignoresSafeArea(edges: featuredItem != nil ? .top : [])
-                    #endif
                 }
             }
             .navigationDestination(item: $selectedItem) { item in
@@ -88,6 +48,184 @@ struct HomeView: View {
             .sheet(isPresented: $showCustomize) {
                 HomeCustomizeView()
             }
+        }
+    }
+
+    // MARK: - Classic layout (original dashboard)
+
+    private var classicContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
+                if !env.tmdb.hasKey {
+                    setupBanner
+                }
+                if let hero = featuredItem {
+                    FeaturedHero(item: hero) { play($0) }
+                        .overlay(alignment: .topTrailing) { customizeButton }
+                        .overlay(alignment: .topLeading) { brandMark }
+                } else {
+                    header
+                }
+                if !library.continueWatching.isEmpty {
+                    continueWatchingRow
+                }
+                ForEach(shelfStore.enabledShelves) { shelf in
+                    CatalogShelfRow(shelf: shelf)
+                }
+                if !library.recentlyAdded.isEmpty {
+                    MediaRow(title: "Recently Added",
+                             items: library.recentlyAdded) { play($0) }
+                }
+                if !library.favorites.isEmpty {
+                    MediaRow(title: "Favorites",
+                             items: library.favorites) { play($0) }
+                }
+            }
+            .padding(.bottom, Theme.Spacing.lg)
+        }
+        #if os(tvOS)
+        .ignoresSafeArea(edges: featuredItem != nil ? .top : [])
+        #endif
+    }
+
+    // MARK: - Cinematic layout (new default)
+
+    /// The set of items to rotate through the top hero carousel.
+    private var heroItems: [MediaItem] {
+        var seen = Set<UUID>()
+        let pool = library.continueWatching + library.recentlyAdded + library.favorites
+        return pool.filter { seen.insert($0.id).inserted }.prefix(8).map { $0 }
+    }
+
+    private var cinematicContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
+                if !env.tmdb.hasKey {
+                    setupBanner
+                }
+
+                heroCarousel
+
+                if !library.continueWatching.isEmpty {
+                    continueWatchingRow
+                }
+
+                discoverSection
+
+                ForEach(shelfStore.enabledShelves) { shelf in
+                    CatalogShelfRow(shelf: shelf)
+                }
+                if !library.recentlyAdded.isEmpty {
+                    MediaRow(title: "Recently Added",
+                             items: library.recentlyAdded) { play($0) }
+                }
+                if !library.favorites.isEmpty {
+                    MediaRow(title: "Favorites",
+                             items: library.favorites) { play($0) }
+                }
+            }
+            .padding(.bottom, Theme.Spacing.lg)
+        }
+        #if os(tvOS)
+        .ignoresSafeArea(edges: .top)
+        #endif
+    }
+
+    /// A full-bleed, swipeable hero carousel with page dots — the centerpiece of the
+    /// cinematic home. Falls back to the plain header when there's nothing to show.
+    @ViewBuilder
+    private var heroCarousel: some View {
+        let items = heroItems
+        if items.isEmpty {
+            header
+        } else {
+            VStack(spacing: Theme.Spacing.sm) {
+                TabView(selection: $heroIndex) {
+                    ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
+                        FeaturedHero(item: item) { play($0) }
+                            .overlay(alignment: .topTrailing) { customizeButton }
+                            .overlay(alignment: .topLeading) { brandMark }
+                            .tag(idx)
+                    }
+                }
+                #if os(iOS)
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .frame(height: Theme.isCompact ? 300 : 440)
+                #else
+                .tabViewStyle(.automatic)
+                .frame(height: 620)
+                #endif
+
+                // Page dots.
+                if items.count > 1 {
+                    HStack(spacing: 7) {
+                        ForEach(items.indices, id: \.self) { i in
+                            Circle()
+                                .fill(i == heroIndex ? Color.white : Color.white.opacity(0.35))
+                                .frame(width: i == heroIndex ? 8 : 6,
+                                       height: i == heroIndex ? 8 : 6)
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.2), value: heroIndex)
+                }
+            }
+        }
+    }
+
+    /// The "Discover" section: large painterly gradient tiles linking to Watchlist,
+    /// Trending, and other catalog destinations, echoing a streaming-app home.
+    private var discoverSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text("Discover")
+                .font(Theme.Font.sectionTitle())
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .padding(.horizontal, Theme.Spacing.edge)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.lg) {
+                    ForEach(DiscoverTile.all) { tile in
+                        Button { openDiscover(tile) } label: {
+                            discoverTileCard(tile)
+                        }
+                        .frameRowStyle()
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.edge)
+            }
+        }
+    }
+
+    private func discoverTileCard(_ tile: DiscoverTile) -> some View {
+        ZStack(alignment: .center) {
+            // Painterly-style gradient background (an approximation of a textured
+            // tile — not a copyrighted image).
+            RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                .fill(
+                    LinearGradient(colors: tile.colors,
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                        .fill(
+                            RadialGradient(colors: [.white.opacity(0.10), .clear],
+                                           center: .topLeading, startRadius: 4, endRadius: 260)
+                        )
+                )
+            Text(tile.title)
+                .font(.appFont(28, weight: .heavy))
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.5), radius: 6, y: 2)
+                .padding(.horizontal, Theme.Spacing.md)
+                .multilineTextAlignment(.center)
+        }
+        .frame(width: Theme.isCompact ? 300 : 360,
+               height: Theme.isCompact ? 170 : 200)
+    }
+
+    private func openDiscover(_ tile: DiscoverTile) {
+        switch tile.destination {
+        case .discover: nav.selection = .discover
+        case .library:  nav.selection = .library
+        case .settings: nav.selection = .settings
         }
     }
 
@@ -228,4 +366,36 @@ struct HomeView: View {
             }
         }
     }
+}
+
+// MARK: - Discover tiles
+
+/// A large painterly tile on the cinematic Home's Discover row.
+struct DiscoverTile: Identifiable {
+    enum Destination { case discover, library, settings }
+
+    let id = UUID()
+    let title: String
+    let colors: [Color]
+    let destination: Destination
+
+    /// The default set of Discover destinations, styled with distinct gradients.
+    static let all: [DiscoverTile] = [
+        DiscoverTile(title: "Watchlist",
+                     colors: [Color(red: 0.55, green: 0.11, blue: 0.13),
+                              Color(red: 0.30, green: 0.05, blue: 0.08)],
+                     destination: .discover),
+        DiscoverTile(title: "Trending Movies",
+                     colors: [Color(red: 0.10, green: 0.16, blue: 0.42),
+                              Color(red: 0.04, green: 0.07, blue: 0.24)],
+                     destination: .discover),
+        DiscoverTile(title: "Trending Shows",
+                     colors: [Color(red: 0.12, green: 0.34, blue: 0.30),
+                              Color(red: 0.03, green: 0.16, blue: 0.15)],
+                     destination: .discover),
+        DiscoverTile(title: "My Library",
+                     colors: [Color(red: 0.34, green: 0.20, blue: 0.44),
+                              Color(red: 0.15, green: 0.08, blue: 0.22)],
+                     destination: .library)
+    ]
 }

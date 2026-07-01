@@ -63,6 +63,7 @@ final class SettingsStore: ObservableObject {
         static let vlcOverlayStyle = "settings.vlcOverlayStyle"
         static let respectSystemTextSize = "settings.respectSystemTextSize"
         static let textSizeBoost = "settings.textSizeBoost"
+        static let homeStyle = "settings.homeStyle"
     }
 
     // MARK: - Playback
@@ -233,6 +234,12 @@ final class SettingsStore: ObservableObject {
 
     // MARK: - Appearance / Interface
 
+    /// How the Home screen is presented: the new cinematic look (default) with a
+    /// swipeable hero carousel and painterly Discover tiles, or the classic dashboard.
+    @Published var homeStyle: HomeStyle {
+        didSet { defaults.set(homeStyle.rawValue, forKey: Key.homeStyle); CloudSync.shared.setString(homeStyle.rawValue, forKey: Key.homeStyle) }
+    }
+
     /// How search results are laid out: a poster grid, or Apple-TV-style horizontal
     /// rails grouped by kind (Movies / TV Shows). Both remain fully usable.
     @Published var searchLayout: SearchLayoutStyle {
@@ -355,6 +362,9 @@ final class SettingsStore: ObservableObject {
         self.searchLayout = SearchLayoutStyle(
             rawValue: defaults.string(forKey: Key.searchLayout) ?? SearchLayoutStyle.grid.rawValue
         ) ?? .grid
+        self.homeStyle = HomeStyle(
+            rawValue: defaults.string(forKey: Key.homeStyle) ?? HomeStyle.cinematic.rawValue
+        ) ?? .cinematic
         self.vlcOverlayStyle = PlayerOverlayStyle(
             rawValue: defaults.string(forKey: Key.vlcOverlayStyle) ?? PlayerOverlayStyle.classic.rawValue
         ) ?? .classic
@@ -434,6 +444,8 @@ final class SettingsStore: ObservableObject {
         }
         if let v = cloud.string(forKey: Key.searchLayout),
            let s = SearchLayoutStyle(rawValue: v), searchLayout != s { searchLayout = s }
+        if let v = cloud.string(forKey: Key.homeStyle),
+           let s = HomeStyle(rawValue: v), homeStyle != s { homeStyle = s }
         if let v = cloud.string(forKey: Key.vlcOverlayStyle),
            let s = PlayerOverlayStyle(rawValue: v), vlcOverlayStyle != s { vlcOverlayStyle = s }
         applyBool(Key.respectSystemTextSize, \.respectSystemTextSize)
@@ -582,6 +594,24 @@ enum PlayerOverlayStyle: String, CaseIterable, Identifiable {
         switch self {
         case .classic: return "play.circle"
         case .native:  return "text.line.first.and.arrowtriangle.forward"
+        }
+    }
+}
+
+/// How the Home screen is presented.
+enum HomeStyle: String, CaseIterable, Identifiable {
+    /// New default: full-bleed swipeable hero carousel, Continue Watching with
+    /// overlay cards, and painterly Discover tiles.
+    case cinematic
+    /// The classic dashboard: single featured hero, then stacked shelves.
+    case classic
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .cinematic: return "Cinematic"
+        case .classic:   return "Classic"
         }
     }
 }
