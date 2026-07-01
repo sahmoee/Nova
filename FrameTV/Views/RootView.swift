@@ -175,6 +175,12 @@ struct RootView: View {
             Theme.Colors.appBackground.ignoresSafeArea()
 
             activeScreen
+                // Reserve space at the bottom so scroll content comes to rest above
+                // the floating pill instead of hiding beneath it. Scales with text
+                // size. Collapses to zero while the player is up (pill is hidden).
+                .safeAreaInset(edge: .bottom) {
+                    Color.clear.frame(height: nowPlaying.playerPresented ? 0 : Theme.scaled(78, min: 64))
+                }
 
             VStack(spacing: 0) {
                 nowPlayingBar
@@ -313,10 +319,19 @@ struct FloatingTabPill: View {
                         Text(tab.title)
                             .font(.system(size: 11, weight: .medium))
                             .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                     }
-                    .foregroundStyle(selection == tab ? accent : Color.white.opacity(0.65))
+                    .foregroundStyle(selection == tab ? accent : Color.white.opacity(0.6))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
+                    .background {
+                        if selection == tab {
+                            Capsule(style: .continuous)
+                                .fill(accent.opacity(0.14))
+                                .padding(.vertical, 4)
+                                .padding(.horizontal, 2)
+                        }
+                    }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -328,9 +343,9 @@ struct FloatingTabPill: View {
                 .fill(.ultraThinMaterial)
                 .overlay(
                     Capsule(style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                        .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
                 )
-                .shadow(color: .black.opacity(0.35), radius: 16, y: 6)
+                .shadow(color: .black.opacity(0.4), radius: 20, y: 8)
         )
     }
 }

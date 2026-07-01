@@ -161,11 +161,14 @@ struct HomeView: View {
                     HStack(spacing: 7) {
                         ForEach(items.indices, id: \.self) { i in
                             Circle()
-                                .fill(i == heroIndex ? Color.white : Color.white.opacity(0.35))
-                                .frame(width: i == heroIndex ? 8 : 6,
-                                       height: i == heroIndex ? 8 : 6)
+                                .fill(i == heroIndex ? Color.white : Color.white.opacity(0.4))
+                                .frame(width: i == heroIndex ? 9 : 6,
+                                       height: i == heroIndex ? 9 : 6)
                         }
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(Capsule().fill(.ultraThinMaterial))
                     .animation(.easeInOut(duration: 0.2), value: heroIndex)
                 }
             }
@@ -195,9 +198,10 @@ struct HomeView: View {
     }
 
     private func discoverTileCard(_ tile: DiscoverTile) -> some View {
-        ZStack(alignment: .center) {
+        ZStack(alignment: .bottomLeading) {
             // Painterly-style gradient background (an approximation of a textured
-            // tile — not a copyrighted image).
+            // tile — not a copyrighted image), with layered highlights and a
+            // vignette for depth.
             RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                 .fill(
                     LinearGradient(colors: tile.colors,
@@ -206,19 +210,38 @@ struct HomeView: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                         .fill(
-                            RadialGradient(colors: [.white.opacity(0.10), .clear],
-                                           center: .topLeading, startRadius: 4, endRadius: 260)
+                            RadialGradient(colors: [.white.opacity(0.16), .clear],
+                                           center: .topLeading, startRadius: 4, endRadius: 220)
                         )
                 )
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                        .fill(
+                            LinearGradient(colors: [.clear, .black.opacity(0.35)],
+                                           startPoint: .center, endPoint: .bottom)
+                        )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                )
+
+            // Faint oversized glyph in the corner for texture.
+            Image(systemName: tile.systemImage)
+                .font(.system(size: 90, weight: .bold))
+                .foregroundStyle(.white.opacity(0.08))
+                .offset(x: 12, y: 20)
+
             Text(tile.title)
-                .font(.appFont(28, weight: .heavy))
+                .font(.appFont(26, weight: .heavy))
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.5), radius: 6, y: 2)
-                .padding(.horizontal, Theme.Spacing.md)
-                .multilineTextAlignment(.center)
+                .padding(Theme.Spacing.md)
+                .multilineTextAlignment(.leading)
         }
         .frame(width: Theme.isCompact ? 300 : 360,
                height: Theme.isCompact ? 170 : 200)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
     }
 
     private func openDiscover(_ tile: DiscoverTile) {
@@ -377,6 +400,7 @@ struct DiscoverTile: Identifiable {
     let id = UUID()
     let title: String
     let colors: [Color]
+    let systemImage: String
     let destination: Destination
 
     /// The default set of Discover destinations, styled with distinct gradients.
@@ -384,18 +408,22 @@ struct DiscoverTile: Identifiable {
         DiscoverTile(title: "Watchlist",
                      colors: [Color(red: 0.55, green: 0.11, blue: 0.13),
                               Color(red: 0.30, green: 0.05, blue: 0.08)],
+                     systemImage: "bookmark.fill",
                      destination: .discover),
         DiscoverTile(title: "Trending Movies",
                      colors: [Color(red: 0.10, green: 0.16, blue: 0.42),
                               Color(red: 0.04, green: 0.07, blue: 0.24)],
+                     systemImage: "film.fill",
                      destination: .discover),
         DiscoverTile(title: "Trending Shows",
                      colors: [Color(red: 0.12, green: 0.34, blue: 0.30),
                               Color(red: 0.03, green: 0.16, blue: 0.15)],
+                     systemImage: "tv.fill",
                      destination: .discover),
         DiscoverTile(title: "My Library",
                      colors: [Color(red: 0.34, green: 0.20, blue: 0.44),
                               Color(red: 0.15, green: 0.08, blue: 0.22)],
+                     systemImage: "rectangle.stack.fill",
                      destination: .library)
     ]
 }

@@ -229,6 +229,7 @@ struct LibraryView: View {
         }
         .pickerStyle(.segmented)
         .padding(.horizontal, Theme.Spacing.edge)
+        .padding(.top, Theme.Spacing.xs)
 
         if !library.allTags.isEmpty {
             tagFilterRow
