@@ -89,6 +89,7 @@ struct FeaturedHero: View {
                 }
                 .buttonStyle(HeroPlayButtonStyle(accent: accent))
                 .padding(.top, 2)
+                .accessibilityLabel("\(item.hasResumePoint ? "Resume" : "Play") \(item.title)")
             }
             .padding(.horizontal, Theme.Spacing.edge)
             .padding(.bottom, Theme.Spacing.md)

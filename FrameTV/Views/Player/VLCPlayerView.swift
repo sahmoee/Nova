@@ -334,6 +334,19 @@ struct VLCPlayerView: View {
                 .foregroundStyle(.white)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(controlAccessibilityLabel(for: symbol))
+    }
+
+    /// Human-readable VoiceOver labels for the transport SF Symbols.
+    private func controlAccessibilityLabel(for symbol: String) -> String {
+        switch symbol {
+        case "gobackward.15":    return "Skip back 15 seconds"
+        case "goforward.15":     return "Skip forward 15 seconds"
+        case "pause.fill":       return "Pause"
+        case "play.fill":        return "Play"
+        case "forward.end.fill": return "Next episode"
+        default:                 return "Playback control"
+        }
     }
 
     // MARK: - Resume prompt

@@ -1,88 +1,55 @@
-# FrameTV Top Shelf — Xcode Setup (tvOS)
+# Top Shelf Setup (Apple TV) — ELI5
 
-Top Shelf shows Continue Watching and Recently Added rows on the Apple TV home screen,
-above the FrameTV icon. Like widgets, it needs a **new Xcode target** that can't be
-created from outside Xcode. One-time setup, ~5 minutes.
+Top Shelf is the big row that appears at the top of the Apple TV home screen when your app icon is in the top row. FrameTV can show Continue Watching and Recently Added there, and jump straight into a title.
 
-It reuses the **same App Group snapshot** the app already writes for widgets, so there's
-no extra app-side data work.
+I have written all the code for you (in the FrameTVTopShelf folder). Because a Top Shelf extension is a separate mini-app inside your app, Xcode has to create the target for you. Here is exactly what to do. It takes about 5 minutes.
 
----
+## Step 1 — Add the extension target
 
-## What's already done (in the zip)
+1. Open FrameTV in Xcode.
+2. Menu: File, New, Target.
+3. Pick the tvOS tab at the top.
+4. Choose TV Top Shelf Extension. Click Next.
+5. Product Name: type FrameTVTopShelf (exactly).
+6. Make sure Project is FrameTV and Embed in Application is FrameTV-tvOS.
+7. Click Finish. If Xcode asks to activate a scheme, click Cancel (not Activate).
 
-- `FrameTVTopShelf/FrameTVTopShelf.swift` — the Top Shelf content provider.
-- `FrameTVTopShelf/FrameTVTopShelf.entitlements` — App Group entitlement.
-- `FrameTVTopShelf/Info.plist` — extension Info.plist (principal class + extension point).
-- The app already writes the shared snapshot (`WidgetShared`) on tvOS too.
-- The App Group `group.com.frametv.shared` is already in the app entitlements.
+Xcode just created a folder with a template file. You will replace its contents with mine.
 
----
+## Step 2 — Swap in my files
 
-## Step 1 — Create the TV Top Shelf target
+1. In the new FrameTVTopShelf group Xcode made, DELETE the template Swift file it created (usually ContentProvider.swift or ServiceProvider.swift). Choose Move to Trash.
+2. Drag my three files from the FrameTVTopShelf folder into that group in Xcode:
+   - TopShelfProvider.swift
+   - Info.plist (replace the one Xcode made — choose Replace)
+   - FrameTVTopShelf.entitlements
+3. When dragging, make sure Target: FrameTVTopShelf is checked, and Copy items if needed is checked.
 
-1. **File ▸ New ▸ Target…**
-2. Select the **tvOS** tab, choose **TV Top Shelf Extension**. **Next**.
-3. Product Name: **FrameTVTopShelf** (match the folder name).
-4. Team: `5DV5N49VG8`. **Finish**.
-5. "Activate scheme?" → **Cancel** (keep the app scheme active).
+## Step 3 — Turn on the shared mailbox (App Group)
 
-Xcode creates a `FrameTVTopShelf` group with a template `ContentProvider.swift` and an
-`Info.plist`.
+The Top Shelf needs to read the same shared data the widgets use.
 
-## Step 2 — Replace the template with the zip's file
+1. Click the FrameTV project (top of the file list), then select the FrameTVTopShelf target.
+2. Go to Signing and Capabilities.
+3. Click + Capability, add App Groups.
+4. Check the box next to group.com.frametv.shared.
+   - If it is not listed, click + under App Groups and type it exactly.
 
-1. **Delete** the template `ContentProvider.swift` (or `FrameTVTopShelf.swift`) Xcode made.
-2. **Add** the zip's `FrameTVTopShelf/FrameTVTopShelf.swift` to the **FrameTVTopShelf** target.
-3. Make sure the zip's **Info.plist** keys are present in the target's Info.plist —
-   specifically `NSExtensionPrincipalClass` = `$(PRODUCT_MODULE_NAME).ContentProvider` and
-   `NSExtensionPointIdentifier` = `com.apple.tv-top-shelf`. Copy from the zip's Info.plist
-   if Xcode's generated one differs.
+## Step 4 — Point the Info.plist at my class (only if Xcode made its own)
 
-## Step 3 — Share WidgetShared.swift with this target
+If you replaced Info.plist with mine in Step 2, you can skip this. Otherwise, in the extension's Info.plist, under NSExtension, set:
+- NSExtensionPointIdentifier to com.apple.tv-top-shelf
+- NSExtensionPrincipalClass to $(PRODUCT_MODULE_NAME).TopShelfProvider
 
-1. Select **`FrameTV/App/WidgetShared.swift`**.
-2. File Inspector ▸ **Target Membership** ▸ check **FrameTVTopShelf** (in addition to the
-   app and the widget target it's already on).
+## Step 5 — Build and run on Apple TV
 
-The Top Shelf reads the same snapshot model the app writes.
+1. Clean build folder (Product menu, hold Option, Clean Build Folder).
+2. Build and run the tvOS app once so it writes its library snapshot.
+3. Go to the Apple TV home screen and move FrameTV into the very top row.
+4. Hover on the FrameTV icon. Continue Watching and Recently Added should appear above it, and selecting one opens that title in FrameTV.
 
-## Step 4 — Enable the App Group on the Top Shelf target
+## If nothing shows
 
-1. FrameTVTopShelf target ▸ **Signing & Capabilities**.
-2. **+ Capability ▸ App Groups** (if not present).
-3. Check **`group.com.frametv.shared`** (the same group the tvOS app uses).
-
-## Step 5 — Point the target at its entitlements (if needed)
-
-1. FrameTVTopShelf ▸ Build Settings ▸ "Code Signing Entitlements".
-2. Ensure it's `FrameTVTopShelf/FrameTVTopShelf.entitlements`.
-
-## Step 6 — Build & run on Apple TV
-
-1. Run the **tvOS app** scheme on an Apple TV / simulator.
-2. Open the app once so it writes a snapshot (add or play something if empty).
-3. Go to the tvOS home screen, move focus to the **top row** while FrameTV is the focused
-   app — the Continue Watching / Recently Added rows appear.
-4. Selecting an item opens FrameTV to that title via the deep links already in the app.
-
----
-
-## IMPORTANT — verify the TVServices API at build time
-
-The Top Shelf provider uses the modern sectioned-content API (`TVTopShelfSectionedContent`,
-`TVTopShelfItemCollection`, `TVTopShelfSectionedItem`, `TVTopShelfAction`). These were written
-without a tvOS compiler available, so **if Xcode reports an error on any of these symbols**, it's
-almost certainly a minor signature difference (Apple has revised these APIs over tvOS versions).
-If that happens, send me the exact error and I'll correct the call — the structure (read the
-snapshot, build two sections, attach a deep-link action per item) is right; only a method name or
-argument label may need adjusting.
-
-## Troubleshooting
-
-- **No rows appear** → open the app once so it writes the snapshot; confirm the App Group string
-  matches on the app and the Top Shelf target.
-- **"WidgetShared not found"** → Step 3 wasn't applied; add it to the Top Shelf target membership.
-- **App Group container nil** → group not enabled on the Top Shelf target, or name mismatch.
-- **Items show but don't open the app** → confirm the app builds with the deep-link scheme
-  (`frametv://`) registered (it is, from the deep-links step).
+- The Top Shelf only shows once the app has saved a snapshot, so play or add something first.
+- The app must be in the top row of the home screen.
+- Double-check the App Group box is checked for the extension (Step 3). This is the most common miss.

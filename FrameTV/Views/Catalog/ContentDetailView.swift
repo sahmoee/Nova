@@ -579,6 +579,7 @@ struct PosterImage: View {
         .frame(width: width, height: height)
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .accessibilityHidden(true)
     }
 
     private var placeholder: some View {
