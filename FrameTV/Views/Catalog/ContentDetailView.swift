@@ -396,8 +396,16 @@ struct ContentDetailView: View {
                 .font(.appFont(20, weight: .semibold))
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.vertical, Theme.Spacing.sm)
-                .background(isActive ? Theme.Colors.accent : Theme.Colors.card,
-                            in: Capsule())
+                .background {
+                    if isActive {
+                        Capsule().fill(
+                            LinearGradient(colors: [Theme.Colors.accent, Theme.Colors.accent.opacity(0.8)],
+                                           startPoint: .top, endPoint: .bottom)
+                        )
+                    } else {
+                        Capsule().fill(Theme.Colors.card)
+                    }
+                }
                 .foregroundStyle(isActive ? .white : Theme.Colors.textSecondary)
                 .contentShape(Capsule())
         }

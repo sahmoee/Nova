@@ -425,7 +425,16 @@ struct StreamPickerView: View {
                     .font(.appFont(18, weight: .bold))
                     .frame(width: 72)
                     .padding(.vertical, 8)
-                    .background(qualityColor(stream.quality), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .background(
+                        LinearGradient(colors: [qualityColor(stream.quality),
+                                                qualityColor(stream.quality).opacity(0.75)],
+                                       startPoint: .top, endPoint: .bottom),
+                        in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
+                    )
                     .foregroundStyle(.white)
 
                 VStack(alignment: .leading, spacing: 6) {
