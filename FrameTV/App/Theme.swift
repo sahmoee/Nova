@@ -71,6 +71,15 @@ enum Theme {
     private static let maxDynamicScale: CGFloat = 1.6
     #endif
 
+    // MARK: - Component style (app-wide look)
+
+    /// The app-wide component look. `.refined` (default) gives buttons, cards, and rows
+    /// softer fills, cleaner hairline borders, and gentle gradients; `.classic` keeps
+    /// the original flatter look. Read by the shared ButtonStyles, which can't observe
+    /// objects, so it lives here as a static set from SettingsStore at launch. Applies
+    /// on both iOS and tvOS.
+    nonisolated(unsafe) static var uiStyle: UIComponentStyle = .refined
+
     /// Returns a body-relative font metric-scaled point size on iOS (respecting the
     /// user's text-size preferences), or the raw platform-scaled size on tvOS.
     static func dynamicFontSize(_ base: CGFloat) -> CGFloat {
@@ -387,3 +396,22 @@ struct PasteButton: View {
     }
 }
 #endif
+
+// MARK: - Component style enum
+
+/// The app-wide component look, applied across every shared button, card, and row.
+enum UIComponentStyle: String, CaseIterable, Identifiable {
+    /// Softer fills, hairline borders, gentle gradients on filled buttons (default).
+    case refined
+    /// The original flatter look.
+    case classic
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .refined: return "Refined"
+        case .classic: return "Classic"
+        }
+    }
+}

@@ -53,7 +53,15 @@ struct FocusableButtonStyle: ButtonStyle {
         }
 
         private var background: some ShapeStyle {
-            if prominent { return AnyShapeStyle(accent) }
+            if prominent {
+                if Theme.uiStyle == .refined {
+                    return AnyShapeStyle(
+                        LinearGradient(colors: [accent, accent.opacity(0.82)],
+                                       startPoint: .top, endPoint: .bottom)
+                    )
+                }
+                return AnyShapeStyle(accent)
+            }
             return AnyShapeStyle(active ? accent.opacity(0.9) : Theme.Colors.card)
         }
 
@@ -63,18 +71,21 @@ struct FocusableButtonStyle: ButtonStyle {
         }
 
         var body: some View {
-            configuration.label
+            let refined = Theme.uiStyle == .refined
+            return configuration.label
                 .padding(.horizontal, Theme.Spacing.md)
-                .padding(.vertical, Theme.Spacing.sm)
+                .padding(.vertical, refined ? Theme.Spacing.md : Theme.Spacing.sm)
                 .background(background)
                 .foregroundStyle(foreground)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
-                        .stroke(active ? accent : .clear, lineWidth: 3)
+                        .stroke(active ? accent : (refined && !prominent ? Color.white.opacity(0.06) : .clear),
+                                lineWidth: active ? 3 : 1)
                 )
-                .shadow(color: active ? accent.opacity(0.45) : .clear,
-                        radius: active ? 20 : 0, y: active ? 6 : 0)
+                .shadow(color: prominent && refined ? accent.opacity(0.35) : (active ? accent.opacity(0.45) : .clear),
+                        radius: prominent && refined ? 14 : (active ? 20 : 0),
+                        y: prominent && refined ? 5 : (active ? 6 : 0))
                 .scaleEffect(active ? 1.06 : 1.0)
                 .animation(.easeOut(duration: 0.18), value: active)
         }

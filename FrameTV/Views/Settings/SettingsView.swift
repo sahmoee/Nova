@@ -252,6 +252,9 @@ struct SettingsView: View {
 
     private var appearanceSection: some View {
         section("Appearance") {
+            pickerRow("App Style", systemImage: "paintbrush",
+                      selection: $settings.uiStyle,
+                      options: UIComponentStyle.allCases) { $0.displayName }
             pickerRow("Home Style", systemImage: "house",
                       selection: $settings.homeStyle,
                       options: HomeStyle.allCases) { $0.displayName }

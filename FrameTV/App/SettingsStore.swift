@@ -66,6 +66,7 @@ final class SettingsStore: ObservableObject {
         static let homeStyle = "settings.homeStyle"
         static let libraryStyle = "settings.libraryStyle"
         static let tabBarStyle = "settings.tabBarStyle"
+        static let uiStyle = "settings.uiStyle"
     }
 
     // MARK: - Playback
@@ -254,6 +255,16 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(tabBarStyle.rawValue, forKey: Key.tabBarStyle); CloudSync.shared.setString(tabBarStyle.rawValue, forKey: Key.tabBarStyle) }
     }
 
+    /// The app-wide component look (buttons, cards, rows). Pushes into Theme so the
+    /// shared ButtonStyles reflect it immediately.
+    @Published var uiStyle: UIComponentStyle {
+        didSet {
+            defaults.set(uiStyle.rawValue, forKey: Key.uiStyle)
+            CloudSync.shared.setString(uiStyle.rawValue, forKey: Key.uiStyle)
+            Theme.uiStyle = uiStyle
+        }
+    }
+
     /// How search results are laid out: a poster grid, or Apple-TV-style horizontal
     /// rails grouped by kind (Movies / TV Shows). Both remain fully usable.
     @Published var searchLayout: SearchLayoutStyle {
@@ -385,6 +396,11 @@ final class SettingsStore: ObservableObject {
         self.tabBarStyle = TabBarStyle(
             rawValue: defaults.string(forKey: Key.tabBarStyle) ?? TabBarStyle.floatingPill.rawValue
         ) ?? .floatingPill
+        let resolvedUIStyle = UIComponentStyle(
+            rawValue: defaults.string(forKey: Key.uiStyle) ?? UIComponentStyle.refined.rawValue
+        ) ?? .refined
+        self.uiStyle = resolvedUIStyle
+        Theme.uiStyle = resolvedUIStyle
         self.vlcOverlayStyle = PlayerOverlayStyle(
             rawValue: defaults.string(forKey: Key.vlcOverlayStyle) ?? PlayerOverlayStyle.classic.rawValue
         ) ?? .classic
@@ -470,6 +486,8 @@ final class SettingsStore: ObservableObject {
            let s = LibraryStyle(rawValue: v), libraryStyle != s { libraryStyle = s }
         if let v = cloud.string(forKey: Key.tabBarStyle),
            let s = TabBarStyle(rawValue: v), tabBarStyle != s { tabBarStyle = s }
+        if let v = cloud.string(forKey: Key.uiStyle),
+           let s = UIComponentStyle(rawValue: v), uiStyle != s { uiStyle = s }
         if let v = cloud.string(forKey: Key.vlcOverlayStyle),
            let s = PlayerOverlayStyle(rawValue: v), vlcOverlayStyle != s { vlcOverlayStyle = s }
         applyBool(Key.respectSystemTextSize, \.respectSystemTextSize)

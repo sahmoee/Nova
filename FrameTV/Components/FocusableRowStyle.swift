@@ -45,16 +45,19 @@ struct FrameRowButtonStyle: ButtonStyle {
         }
 
         var body: some View {
-            configuration.label
+            let refined = Theme.uiStyle == .refined
+            return configuration.label
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.vertical, Theme.Spacing.sm)
                 .background(
                     RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .fill(active ? accent.opacity(0.22) : Theme.Colors.card)
+                        .fill(active ? AnyShapeStyle(accent.opacity(0.22))
+                                     : (refined ? AnyShapeStyle(Theme.Colors.cardGradient)
+                                                : AnyShapeStyle(Theme.Colors.card)))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .strokeBorder(active ? accent : Color.white.opacity(0.06),
+                        .strokeBorder(active ? accent : Color.white.opacity(refined ? 0.08 : 0.06),
                                       lineWidth: active ? 2.5 : 1)
                 )
                 .shadow(color: active ? accent.opacity(0.4) : .clear,
