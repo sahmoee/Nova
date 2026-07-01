@@ -10,6 +10,9 @@
 //
 
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 struct MagnetView: View {
     @EnvironmentObject private var environment: AppEnvironment
@@ -73,7 +76,7 @@ struct MagnetView: View {
             .foregroundStyle(Theme.Colors.warning)
             .font(.appFont(20))
             .padding(Theme.Spacing.md)
-            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .refinedCardBackground()
     }
 
     private var inputSection: some View {
@@ -82,11 +85,21 @@ struct MagnetView: View {
                 .font(.appFont(20))
                 .foregroundStyle(Theme.Colors.textSecondary)
 
-            TextField("magnet:?xt=urn:btih:…", text: $magnetText)
-                .textFieldStyle(.plain)
-                .padding(Theme.Spacing.md)
-                .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
-                .foregroundStyle(Theme.Colors.textPrimary)
+            HStack(spacing: Theme.Spacing.sm) {
+                TextField("magnet:?xt=urn:btih:…", text: $magnetText)
+                    .textFieldStyle(.plain)
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled(true)
+                    .textSelection(.enabled)
+                    #endif
+                    .padding(Theme.Spacing.md)
+                    .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                #if os(iOS)
+                PasteButton(text: $magnetText)
+                #endif
+            }
 
             // Legal confirmation is always shown for magnets, regardless of setting.
             LegalConfirmToggle(isOn: $legalConfirmed)

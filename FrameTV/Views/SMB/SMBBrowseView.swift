@@ -197,7 +197,7 @@ struct SMBBrowseView: View {
             .frame(maxWidth: Theme.isCompact ? .infinity : 180)
         }
         .padding(Theme.Spacing.md)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .refinedCardBackground()
     }
 
     private func row(icon: String, title: String, accent: Color) -> some View {
@@ -209,7 +209,7 @@ struct SMBBrowseView: View {
             Image(systemName: "chevron.right").foregroundStyle(Theme.Colors.textTertiary)
         }
         .padding(Theme.Spacing.md)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .refinedCardBackground()
     }
 
     // MARK: - Actions

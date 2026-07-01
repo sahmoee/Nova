@@ -120,7 +120,7 @@ struct SourcesView: View {
             }
         }
         .padding(Theme.Spacing.md)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .refinedCardBackground()
     }
 
     private func statusText(_ status: SourceStatus) -> String {

@@ -8,6 +8,9 @@
 //
 
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 import Combine
 
 struct SMBListView: View {
@@ -106,7 +109,7 @@ struct SMBListView: View {
             .buttonStyle(.plain)
         }
         .padding(Theme.Spacing.md)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .refinedCardBackground()
     }
 }
 
@@ -151,6 +154,7 @@ struct SMBAddView: View {
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled(true)
                             .keyboardType(.URL)
+                            .textSelection(.enabled)
                             #endif
                             .padding(Theme.Spacing.md)
                             .frame(maxWidth: .infinity, alignment: .leading)
