@@ -467,12 +467,20 @@ struct VLCPlayerView: View {
     }
 
     private func controlButton(_ symbol: String, large: Bool = false, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        let refined = Theme.uiStyle == .refined
+        return Button(action: action) {
             Image(systemName: symbol)
                 .font(.appFont(large ? 44 : 28, weight: .bold))
                 .foregroundStyle(.white)
+                .frame(width: large ? 92 : 64, height: large ? 92 : 64)
+                .background {
+                    if refined {
+                        Circle().fill(.ultraThinMaterial)
+                            .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+                    }
+                }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(FrameChipButtonStyle())
         .accessibilityLabel(controlAccessibilityLabel(for: symbol))
     }
 

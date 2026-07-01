@@ -69,8 +69,19 @@ struct SubtitlePickerView: View {
                 Spacer()
             }
             .padding(Theme.Spacing.md)
-            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                    .fill(isSelected
+                          ? AnyShapeStyle(Theme.Colors.accent.opacity(0.16))
+                          : AnyShapeStyle(Theme.Colors.cardGradient))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                    .strokeBorder(isSelected ? Theme.Colors.accent : Color.white.opacity(0.06),
+                                  lineWidth: isSelected ? 2 : 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(FrameListRowStyle())
     }
 }
