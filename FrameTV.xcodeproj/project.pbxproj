@@ -366,11 +366,11 @@
 		33C5EA3C89FCC7B7E2881DDB /* LegalAccessGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalAccessGate.swift; sourceTree = "<group>"; };
 		34670C92352DA0517DA99010 /* TMDBClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TMDBClient.swift; sourceTree = "<group>"; };
 		12CF2CBBF0D640129C7C3AFF /* NetworkConditionMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkConditionMonitor.swift; sourceTree = "<group>"; };
-		2835FF8A9D0C4E3295CF4244 /* GuestModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuestModeView.swift; sourceTree = "<group>"; };
-		E711D43340B04FC38EB970CA /* DebugReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugReportView.swift; sourceTree = "<group>"; };
-		360D8A22268241E9BC1980EA /* LibraryQualityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryQualityView.swift; sourceTree = "<group>"; };
-		0018B4468D814440B24504E5 /* FixMatchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixMatchView.swift; sourceTree = "<group>"; };
-		9096BB0AB70541318ACCE62E /* PersonalMediaDisclosureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalMediaDisclosureView.swift; sourceTree = "<group>"; };
+		2835FF8A9D0C4E3295CF4244 /* GuestModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../Views/Settings/GuestModeView.swift"; sourceTree = "<group>"; };
+		E711D43340B04FC38EB970CA /* DebugReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../Views/Settings/DebugReportView.swift"; sourceTree = "<group>"; };
+		360D8A22268241E9BC1980EA /* LibraryQualityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../Views/Library/LibraryQualityView.swift"; sourceTree = "<group>"; };
+		0018B4468D814440B24504E5 /* FixMatchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../Views/Library/FixMatchView.swift"; sourceTree = "<group>"; };
+		9096BB0AB70541318ACCE62E /* PersonalMediaDisclosureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "../Views/App/PersonalMediaDisclosureView.swift"; sourceTree = "<group>"; };
 		4CD9936F13F04501BF9006FB /* OMDbClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OMDbClient.swift; sourceTree = "<group>"; };
 		3605D97A79B9AC12B001BD24 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		38A55F7C58A22DE3D4D4422D /* FrameTV.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FrameTV.entitlements; sourceTree = "<group>"; };
