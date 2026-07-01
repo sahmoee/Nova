@@ -17,6 +17,7 @@ struct RootView: View {
 
     @State private var offerRestore = false
     @State private var showWhatsNew = false
+    @AppStorage("hasSeenPersonalMediaDisclosure") private var hasSeenDisclosure = false
     @State private var reopenItem: MediaItem?
     @State private var showTVMenu = false
 
@@ -35,6 +36,14 @@ struct RootView: View {
                     .environmentObject(nav)
             }
             .toastHost()
+            .fullScreenCover(isPresented: Binding(
+                get: { !hasSeenDisclosure },
+                set: { newValue in if !newValue { hasSeenDisclosure = true } }
+            )) {
+                PersonalMediaDisclosureView {
+                    hasSeenDisclosure = true
+                }
+            }
             .onAppear(perform: maybeOfferRestore)
             .onAppear(perform: maybeShowWhatsNew)
             .sheet(isPresented: $showWhatsNew) {

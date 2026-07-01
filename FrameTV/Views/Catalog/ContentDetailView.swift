@@ -190,9 +190,9 @@ struct ContentDetailView: View {
                     .padding(.top, Theme.Spacing.md)
                 }
 
-                // Play Trailer (when TMDB has one). Opens the trailer; on tvOS this
-                // requires a browser-capable target, so it's offered on iOS where the
-                // system can open YouTube/Safari.
+                // Play Trailer (when TMDB has one). TMDB trailers are YouTube links,
+                // which iOS can open in the YouTube app or Safari. tvOS cannot open
+                // these reliably, so the button is offered on iOS/iPad only.
                 #if os(iOS)
                 if let trailer = trailerURL {
                     FocusableButton(title: "Play Trailer", systemImage: "film") {

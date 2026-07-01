@@ -40,6 +40,8 @@ struct MediaDetailView: View {
 
                         metadataChips
 
+                        playbackMemoryNote
+
                         actionButtons
                     }
                     .padding(Theme.Spacing.edge)
@@ -157,6 +159,22 @@ struct MediaDetailView: View {
             if let size = item.metadata.fileSize {
                 chip(ByteCountFormatter.string(fromByteCount: size, countStyle: .file))
             }
+        }
+    }
+
+    /// Shows which engine last played this title successfully, so the user knows what
+    /// to expect (and can choose the right engine up front rather than after a failure).
+    @ViewBuilder
+    private var playbackMemoryNote: some View {
+        if let engine = PlayerMemory.engine(for: item) {
+            let name = engine == .vlc ? "VLC" : "Apple Player"
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Theme.Colors.success)
+                Text("Last played successfully with \(name)")
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+            .font(.appFont(16))
         }
     }
 

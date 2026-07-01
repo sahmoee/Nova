@@ -41,6 +41,10 @@ struct RealDebridView: View {
                         .screenTitleStyle()
                         .foregroundStyle(Theme.Colors.textPrimary)
 
+                    Text("Connect your own Real-Debrid account to resolve links to media you own or are authorized to access. FrameTV does not provide or index any content.")
+                        .font(.appFont(17))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+
                     accountSection
                     Divider().overlay(Theme.Colors.separator)
                     unrestrictSection
