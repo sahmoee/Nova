@@ -49,6 +49,33 @@ struct PrivacyLegalView: View {
                         body: "FrameTV does not bypass DRM, does not suggest sources, and does not help locate copyrighted material. It is a player, not a finder."
                     )
 
+                    // Source permissions audit: exactly what each configured source
+                    // can access. Pure transparency; nothing here changes behavior.
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Text("What Each Source Can Do")
+                            .font(.appFont(28, weight: .bold))
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                        Text("FrameTV only talks to the services you set up. Here is exactly what each one is used for.")
+                            .font(.appFont(18))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+
+                        permission(icon: "photo.on.rectangle", source: "TMDB",
+                                   detail: "Posters, backdrops, episode metadata. Uses your API key.")
+                        permission(icon: "checklist", source: "Trakt",
+                                   detail: "Watchlist, lists, trending, and watch progress you choose to sync.")
+                        permission(icon: "star.circle", source: "OMDb",
+                                   detail: "IMDb, Rotten Tomatoes, and Metacritic ratings. Uses your API key.")
+                        permission(icon: "arrow.down.circle", source: "Real-Debrid",
+                                   detail: "Resolves links through your own account. FrameTV never sees your password, only the token you authorize.")
+                        permission(icon: "externaldrive.connected.to.line.below", source: "SMB",
+                                   detail: "Reads the specific network shares you add, on your local network only.")
+                        permission(icon: "sparkles", source: "AI Worker",
+                                   detail: "Receives only the search text you type (and, for library search, your library titles). Off until you add a Worker URL.")
+                    }
+                    .padding(Theme.Spacing.md)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+
                     // Open-source acknowledgements. Listing licenses (especially VLCKit's
                     // LGPL) in-app keeps FrameTV compliant with their terms.
                     VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
@@ -100,6 +127,26 @@ struct PrivacyLegalView: View {
         .padding(Theme.Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+    }
+
+    private func permission(icon: String, source: String, detail: String) -> some View {
+        HStack(alignment: .top, spacing: Theme.Spacing.md) {
+            Image(systemName: icon)
+                .font(.appFont(22, weight: .semibold))
+                .foregroundStyle(Theme.Colors.accent)
+                .frame(width: 34)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(source)
+                    .font(.appFont(19, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Text(detail)
+                    .font(.appFont(16))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 4)
     }
 
     private func acknowledgement(name: String, license: String, detail: String) -> some View {

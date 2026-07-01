@@ -418,4 +418,49 @@ enum StreamRanker {
         if reasons.isEmpty { reasons.append("Available stream") }
         return reasons
     }
+
+    /// A plain-language confidence level for how smoothly a stream is likely to play,
+    /// so users get an instant read without parsing technical badges.
+    enum PlaybackConfidence: String {
+        case readyToPlay      = "Ready to Play"
+        case likelyCompatible = "Likely Compatible"
+        case mayNeedVLC       = "May Need VLC"
+        case slowSource       = "Slow Source"
+        case lowConfidence    = "Low Confidence"
+
+        /// SF Symbol used alongside the label.
+        var systemImage: String {
+            switch self {
+            case .readyToPlay:      return "checkmark.seal.fill"
+            case .likelyCompatible: return "checkmark.circle"
+            case .mayNeedVLC:       return "wand.and.stars"
+            case .slowSource:       return "tortoise.fill"
+            case .lowConfidence:    return "questionmark.circle"
+            }
+        }
+    }
+
+    /// Classifies a stream into a single confidence level. Codecs/containers that
+    /// AVPlayer handles natively rate higher; formats that typically need VLC (e.g.
+    /// MKV containers, EAC3/DTS audio) are flagged as "May Need VLC". Uncached torrents
+    /// with few seeders are flagged as slow.
+    static func confidence(_ s: StreamOption) -> PlaybackConfidence {
+        // Uncached torrent with low seeders: slow to start regardless of format.
+        if !s.isCached, s.sourceKind == .torrent {
+            if let seeders = s.seeders, seeders < 5 { return .slowSource }
+        }
+        let title = s.rawTitle.lowercased()
+        // Formats AVPlayer often can't play but VLC can.
+        let needsVLC = title.contains(".mkv") || title.contains("matroska")
+            || s.audioFormat.rawValue.lowercased().contains("dts")
+            || title.contains("dts") || title.contains("eac3") || title.contains("truehd")
+        if needsVLC { return .mayNeedVLC }
+        // Cached/direct with a known good quality: ready to play.
+        if s.isCached || s.sourceKind == .cloud || s.sourceKind == .localSMB || s.sourceKind == .directURL {
+            if s.quality != .unknown { return .readyToPlay }
+            return .likelyCompatible
+        }
+        if s.quality != .unknown { return .likelyCompatible }
+        return .lowConfidence
+    }
 }

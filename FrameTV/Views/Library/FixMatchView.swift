@@ -14,16 +14,21 @@ struct FixMatchView: View {
     let item: MediaItem
     var onApplied: (() -> Void)? = nil
 
+    init(item: MediaItem, onApplied: (() -> Void)? = nil) {
+        self.item = item
+        self.onApplied = onApplied
+    }
+
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var library: LibraryStore
     @Environment(\.dismiss) private var dismiss
 
     @State private var query: String = ""
     @State private var results: [CatalogItem] = []
-    @State private var state: State = .idle
+    @State private var state: LoadState = .idle
     @State private var applyingID: String?
 
-    enum State: Equatable { case idle, searching, results, empty, noKey }
+    enum LoadState: Equatable { case idle, searching, results, empty, noKey }
 
     var body: some View {
         ZStack {

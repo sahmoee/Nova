@@ -9,6 +9,9 @@
 
 import SwiftUI
 import AVKit
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct PlayerView: View {
     let item: MediaItem
@@ -255,7 +258,10 @@ struct PlayerView: View {
                 // Native AVPlayerViewController UI: scrubbing, subtitle/audio menus,
                 // fullscreen toggle, Picture in Picture, and AirPlay. In fullscreen the
                 // system hides all chrome automatically.
-                AVPlayerContainer(player: model.player, onExitFullscreen: { dismiss() })
+                AVPlayerContainer(player: model.player,
+                                  onExitFullscreen: { dismiss() },
+                                  nextEpisodeTitle: preparedNext?.title,
+                                  onPlayNext: preparedNext != nil ? { playNext() } : nil)
                     .ignoresSafeArea()
             case .failed(let message):
                 playbackRecovery(message: message)
@@ -350,6 +356,11 @@ struct AVPlayerContainer: UIViewControllerRepresentable {
     let player: AVPlayer
     /// Called when the user exits fullscreen so the presenting view can dismiss.
     var onExitFullscreen: (() -> Void)? = nil
+    /// tvOS only: when a next episode is queued, its title and a play action are
+    /// provided so a focusable "Next Episode" button can be shown in the native
+    /// transport bar (contextual actions). nil hides the button.
+    var nextEpisodeTitle: String? = nil
+    var onPlayNext: (() -> Void)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator(onExitFullscreen: onExitFullscreen) }
 
@@ -379,10 +390,25 @@ struct AVPlayerContainer: UIViewControllerRepresentable {
         if uiViewController.player !== player {
             uiViewController.player = player
         }
+        #if os(tvOS)
+        // Keep the "Next Episode" contextual action in sync. It renders as a focusable
+        // button in the native transport bar, reachable with the remote.
+        context.coordinator.onPlayNext = onPlayNext
+        if let title = nextEpisodeTitle, onPlayNext != nil {
+            let action = UIAction(title: "Next: \(title)",
+                                  image: UIImage(systemName: "forward.end.fill")) { [weak coordinator = context.coordinator] _ in
+                coordinator?.onPlayNext?()
+            }
+            uiViewController.contextualActions = [action]
+        } else {
+            uiViewController.contextualActions = []
+        }
+        #endif
     }
 
     final class Coordinator: NSObject, AVPlayerViewControllerDelegate {
         let onExitFullscreen: (() -> Void)?
+        var onPlayNext: (() -> Void)?
         init(onExitFullscreen: (() -> Void)?) { self.onExitFullscreen = onExitFullscreen }
 
         #if os(iOS)

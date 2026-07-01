@@ -11,8 +11,12 @@ import SwiftUI
 
 struct TraktConnectView: View {
     @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var settings: SettingsStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+
+    @AppStorage("settings.traktLastSync") private var lastSyncStamp: Double = 0
+    @State private var syncing = false
 
     @State private var phase: Phase = .checking
     @State private var deviceCode: TraktDeviceCode?
@@ -77,6 +81,9 @@ struct TraktConnectView: View {
             Text("Your watchlist and watched progress sync with Trakt.")
                 .font(.appFont(20))
                 .foregroundStyle(Theme.Colors.textSecondary)
+
+            scrobbleControlPanel
+
             FocusableButton(title: "Disconnect", systemImage: "rectangle.portrait.and.arrow.right") {
                 Task {
                     await env.trakt.signOut()
@@ -87,6 +94,77 @@ struct TraktConnectView: View {
             .frame(maxWidth: Theme.isCompact ? .infinity : 320)
             .padding(.top, Theme.Spacing.sm)
         }
+    }
+
+    /// Visible scrobbling + sync controls so power users can see and adjust behavior.
+    private var scrobbleControlPanel: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            Text("Scrobbling & Sync")
+                .font(.appFont(20, weight: .bold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .padding(.top, Theme.Spacing.sm)
+
+            Toggle("Scrobble playback to Trakt", isOn: $settings.traktScrobblingEnabled)
+            Toggle("Sync watch progress", isOn: $settings.traktSyncProgress)
+            Toggle("Sync favorites / watchlist", isOn: $settings.traktSyncFavorites)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Mark watched at \(settings.traktMinWatchPercent)%")
+                    .font(.appFont(18))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                #if os(iOS)
+                Slider(value: Binding(
+                    get: { Double(settings.traktMinWatchPercent) },
+                    set: { settings.traktMinWatchPercent = Int($0) }
+                ), in: 50...100, step: 5)
+                .tint(Theme.Colors.accent)
+                #else
+                HStack(spacing: Theme.Spacing.md) {
+                    Button("−") { settings.traktMinWatchPercent = max(50, settings.traktMinWatchPercent - 5) }
+                    Text("\(settings.traktMinWatchPercent)%").monospacedDigit()
+                    Button("+") { settings.traktMinWatchPercent = min(100, settings.traktMinWatchPercent + 5) }
+                }
+                .font(.appFont(20, weight: .semibold))
+                #endif
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("When local and Trakt disagree")
+                    .font(.appFont(18))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                Picker("Conflict", selection: $settings.traktConflict) {
+                    ForEach(TraktConflictBehavior.allCases) { c in
+                        Text(c.rawValue).tag(c)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
+            HStack(spacing: Theme.Spacing.md) {
+                Text(lastSyncStamp > 0
+                     ? "Last sync: \(Date(timeIntervalSince1970: lastSyncStamp).formatted(date: .abbreviated, time: .shortened))"
+                     : "Not synced yet")
+                    .font(.appFont(15))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                Spacer()
+            }
+
+            FocusableButton(title: syncing ? "Syncing…" : "Sync now", systemImage: "arrow.triangle.2.circlepath") {
+                Task { await manualSync() }
+            }
+            .disabled(syncing)
+            .frame(maxWidth: Theme.isCompact ? .infinity : 320)
+        }
+        .padding(Theme.Spacing.lg)
+        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .tint(Theme.Colors.accent)
+    }
+
+    private func manualSync() async {
+        syncing = true
+        await env.trakt.syncNow()
+        lastSyncStamp = Date().timeIntervalSince1970
+        syncing = false
     }
 
     private var deviceCodeView: some View {

@@ -143,6 +143,14 @@ actor TraktClient {
         return items.compactMap { catalogItem(from: $0) }
     }
 
+    /// Performs an on-demand sync: refreshes the auth token if needed and pulls the
+    /// user's watchlist so local state reflects Trakt. Best-effort; never throws to
+    /// the caller so the UI can simply show a completion time.
+    func syncNow() async {
+        _ = await refreshTokenIfPossible()
+        _ = try? await watchlist()
+    }
+
     /// A user's custom list by slug.
     func list(slug: String) async throws -> [CatalogItem] {
         let items: [TraktListItem] = try await authedGet("users/me/lists/\(slug)/items", extended: true)
