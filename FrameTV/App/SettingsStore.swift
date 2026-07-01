@@ -338,10 +338,8 @@ final class SettingsStore: ObservableObject {
         self.travelMode = defaults.bool(forKey: Key.travelMode)
         self.subtitleLanguage = defaults.string(forKey: Key.subtitleLanguage) ?? "en"
         self.traktScrobblingEnabled = defaults.bool(forKey: Key.traktScrobbling)
-        self.traktMinWatchPercent = {
-            let v = defaults.integer(forKey: Key.traktMinWatchPercent)
-            return v == 0 ? 90 : v   // default 90% if unset
-        }()
+        let savedTraktMinWatch = defaults.integer(forKey: Key.traktMinWatchPercent)
+        self.traktMinWatchPercent = savedTraktMinWatch == 0 ? 90 : savedTraktMinWatch   // default 90% if unset
         self.traktSyncProgress = defaults.object(forKey: Key.traktSyncProgress) == nil ? true : defaults.bool(forKey: Key.traktSyncProgress)
         self.traktSyncFavorites = defaults.object(forKey: Key.traktSyncFavorites) == nil ? true : defaults.bool(forKey: Key.traktSyncFavorites)
         self.traktConflict = TraktConflictBehavior(rawValue: defaults.string(forKey: Key.traktConflict) ?? "") ?? .ask
