@@ -8,10 +8,14 @@
 //
 
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 struct AISearchSettingsView: View {
     @State private var workerURL = AISearchService.workerURLString
     @State private var showWorkerCode = false
+    @State private var didCopyCode = false
 
     var body: some View {
         ScrollView {
@@ -28,19 +32,38 @@ struct AISearchSettingsView: View {
                 Text("Worker URL")
                     .font(.appFont(17, weight: .semibold))
                     .foregroundStyle(Theme.Colors.textPrimary)
-                TextField("https://your-worker.workers.dev", text: $workerURL)
-                    .textFieldStyle(.plain)
+                HStack(spacing: Theme.Spacing.sm) {
+                    TextField("https://your-worker.workers.dev", text: $workerURL)
+                        .textFieldStyle(.plain)
+                        #if os(iOS)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
+                        .textSelection(.enabled)
+                        #endif
+                        .padding(Theme.Spacing.md)
+                        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .onChange(of: workerURL) { _, newValue in
+                            AISearchService.workerURLString = newValue
+                        }
                     #if os(iOS)
-                    .keyboardType(.URL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled(true)
-                    #endif
-                    .padding(Theme.Spacing.md)
-                    .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .onChange(of: workerURL) { _, newValue in
-                        AISearchService.workerURLString = newValue
+                    Button {
+                        if let s = UIPasteboard.general.string {
+                            workerURL = s.trimmingCharacters(in: .whitespacesAndNewlines)
+                            AISearchService.workerURLString = workerURL
+                        }
+                    } label: {
+                        Label("Paste", systemImage: "doc.on.clipboard")
+                            .font(.appFont(16, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.accent)
+                            .padding(.horizontal, Theme.Spacing.md)
+                            .padding(.vertical, Theme.Spacing.sm)
+                            .background(Theme.Colors.card, in: Capsule())
                     }
+                    .buttonStyle(.plain)
+                    #endif
+                }
 
                 Label(AISearchService.isConfigured ? "AI search is ready" : "Not configured yet",
                       systemImage: AISearchService.isConfigured ? "checkmark.circle.fill" : "exclamationmark.circle")
@@ -73,13 +96,30 @@ struct AISearchSettingsView: View {
             instruction(2, "Add a secret named ANTHROPIC_API_KEY with your Anthropic API key (Workers ▸ Settings ▸ Variables).")
             instruction(3, "Paste the Worker code below, deploy, and copy its URL into the field above.")
 
-            Text("Worker code")
-                .font(.appFont(16, weight: .semibold))
-                .foregroundStyle(Theme.Colors.textPrimary)
+            HStack {
+                Text("Worker code")
+                    .font(.appFont(16, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Spacer()
+                #if os(iOS)
+                Button {
+                    UIPasteboard.general.string = workerSource
+                    didCopyCode = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) { didCopyCode = false }
+                } label: {
+                    Label(didCopyCode ? "Copied" : "Copy",
+                          systemImage: didCopyCode ? "checkmark" : "doc.on.doc")
+                        .font(.appFont(15, weight: .semibold))
+                        .foregroundStyle(didCopyCode ? Theme.Colors.success : Theme.Colors.accent)
+                }
+                .buttonStyle(.plain)
+                #endif
+            }
             ScrollView(.horizontal, showsIndicators: true) {
                 Text(workerSource)
                     .font(.system(size: 13, design: .monospaced))
                     .foregroundStyle(Theme.Colors.textSecondary)
+                    .textSelection(.enabled)
                     .padding(Theme.Spacing.md)
             }
             .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))

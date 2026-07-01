@@ -92,11 +92,19 @@ struct DirectURLView: View {
             Text(label)
                 .font(.appFont(20, weight: .semibold))
                 .foregroundStyle(Theme.Colors.textSecondary)
-            TextField(placeholder, text: text)
-                .textFieldStyle(.plain)
-                .padding(Theme.Spacing.md)
-                .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
-                .foregroundStyle(Theme.Colors.textPrimary)
+            HStack(spacing: Theme.Spacing.sm) {
+                TextField(placeholder, text: text)
+                    .textFieldStyle(.plain)
+                    #if os(iOS)
+                    .textSelection(.enabled)
+                    #endif
+                    .padding(Theme.Spacing.md)
+                    .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                #if os(iOS)
+                PasteButton(text: text)
+                #endif
+            }
         }
     }
 

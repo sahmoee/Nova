@@ -48,8 +48,8 @@ struct SettingsView: View {
                                 streamingSection
                             }
                             playbackSection
-                            appearanceSection
                             subtitleSection
+                            accessibilitySection
                             librarySection
                             if !settings.guestMode {
                                 backupSection
@@ -249,19 +249,49 @@ struct SettingsView: View {
         return settings.builtInPlayer.title
     }
 
-    private var appearanceSection: some View {
-        section("Appearance") {
-            pickerRow("Search Layout", systemImage: "square.grid.2x2",
-                      selection: $settings.searchLayout,
-                      options: SearchLayoutStyle.allCases) { $0.displayName }
-            pickerRow("VLC Player Overlay", systemImage: "play.rectangle",
-                      selection: $settings.vlcOverlayStyle,
-                      options: PlayerOverlayStyle.allCases) { $0.displayName }
-            Text("The Apple player already uses the native overlay. This controls the look of the VLC player used for MKV and other formats.")
-                .font(.appFont(15))
-                .foregroundStyle(Theme.Colors.textTertiary)
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.bottom, Theme.Spacing.xs)
+    private var accessibilitySection: some View {
+        section("Accessibility") {
+            #if os(iOS)
+            toggleRow("Respect System Text Size", systemImage: "textformat.size",
+                      isOn: $settings.respectSystemTextSize)
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                HStack {
+                    Label("Text Size", systemImage: "character.magnify")
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .font(.appFont(22))
+                    Spacer()
+                    Text("\(Int(settings.textSizeBoost * 100))%")
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .font(.appFont(20))
+                        .monospacedDigit()
+                }
+                HStack(spacing: Theme.Spacing.md) {
+                    Image(systemName: "textformat.size.smaller")
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                    Slider(value: $settings.textSizeBoost, in: 0.8...1.6, step: 0.05)
+                        .tint(Theme.Colors.accent)
+                    Image(systemName: "textformat.size.larger")
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                }
+                if settings.textSizeBoost != 1.0 {
+                    Button("Reset to 100%") { settings.textSizeBoost = 1.0 }
+                        .font(.appFont(16))
+                        .foregroundStyle(Theme.Colors.accent)
+                }
+                Text("Adjusts FrameTV's text. Turn on Respect System Text Size to also follow your device's Display & Text Size setting. Changes apply as you move between screens.")
+                    .font(.appFont(15))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+            }
+            .padding(Theme.Spacing.md)
+            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            #else
+            Text("Text size follows the living-room layout on Apple TV. Adjust text size on iPhone or iPad in Settings ▸ Accessibility.")
+                .font(.appFont(20))
+                .foregroundStyle(Theme.Colors.textSecondary)
+                .padding(Theme.Spacing.md)
+                .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            #endif
         }
     }
 

@@ -112,7 +112,7 @@ struct ContentDetailView: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.lg) {
-            PosterImage(url: item.posterURL, width: Theme.scaled(280, min: 130), height: Theme.scaled(420, min: 195))
+            PosterImage(url: item.posterURL, width: Theme.scaled(280, min: 120), height: Theme.scaled(420, min: 180))
 
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 Text(item.title)
@@ -120,7 +120,7 @@ struct ContentDetailView: View {
                     .screenTitleStyle()
                     .foregroundStyle(Theme.Colors.textPrimary)
 
-                HStack(spacing: Theme.Spacing.md) {
+                WrapFlowLayout(spacing: Theme.Spacing.md, lineSpacing: Theme.Spacing.xs) {
                     if let year = item.year {
                         Text(String(year)).foregroundStyle(Theme.Colors.textSecondary)
                     }
@@ -135,7 +135,7 @@ struct ContentDetailView: View {
 
                 // External ratings (IMDb / Rotten Tomatoes / Metacritic) from OMDb.
                 if !ratings.isEmpty {
-                    HStack(spacing: Theme.Spacing.sm) {
+                    WrapFlowLayout(spacing: Theme.Spacing.sm, lineSpacing: Theme.Spacing.sm) {
                         if let imdb = ratings.imdb {
                             ratingBadge(text: String(format: "%.1f", imdb), label: "IMDb",
                                         color: Color(red: 0.96, green: 0.77, blue: 0.13))
@@ -145,7 +145,7 @@ struct ContentDetailView: View {
                                         color: rt >= 60 ? Theme.Colors.error : Theme.Colors.success)
                         }
                         if let mc = ratings.metacritic {
-                            ratingBadge(text: "\(mc)", label: "Metacritic",
+                            ratingBadge(text: "\(mc)", label: "MC",
                                         color: mc >= 60 ? Theme.Colors.success : Theme.Colors.warning)
                         }
                     }
@@ -501,6 +501,8 @@ struct ContentDetailView: View {
                 .font(.appFont(16, weight: .semibold))
                 .foregroundStyle(Theme.Colors.textPrimary)
         }
+        .lineLimit(1)
+        .fixedSize(horizontal: true, vertical: false)
         .padding(.horizontal, Theme.Spacing.sm)
         .padding(.vertical, 6)
         .background(
@@ -517,7 +519,7 @@ struct ContentDetailView: View {
         let title = item.title
         let encoded = title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? title
         let isMovie = item.contentID.type == .movie
-        HStack(spacing: Theme.Spacing.sm) {
+        WrapFlowLayout(spacing: Theme.Spacing.sm, lineSpacing: Theme.Spacing.sm) {
             if let imdb = item.contentID.imdb,
                let url = URL(string: "https://www.imdb.com/title/\(imdb)/") {
                 sourceLinkButton("IMDb", url: url)
@@ -538,12 +540,13 @@ struct ContentDetailView: View {
         Link(destination: url) {
             HStack(spacing: 5) {
                 Image(systemName: "arrow.up.right.square")
-                Text(label)
+                Text(label).lineLimit(1)
             }
             .font(.appFont(15, weight: .medium))
+            .fixedSize(horizontal: true, vertical: false)
             .foregroundStyle(Theme.Colors.accent)
-            .padding(.horizontal, Theme.Spacing.sm)
-            .padding(.vertical, 6)
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.vertical, 8)
             .background(Capsule().fill(Theme.Colors.card))
         }
         .buttonStyle(.plain)

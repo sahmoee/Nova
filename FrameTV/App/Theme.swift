@@ -52,6 +52,45 @@ enum Theme {
         Swift.max(size * uiScale, floor)
     }
 
+    // MARK: - Dynamic Type (accessibility text sizes)
+    //
+    // The whole app sizes text through `appFont`. To honor the user's accessibility
+    // text-size setting, iOS routes those sizes through UIFontMetrics so they grow and
+    // shrink with the system Larger Text control (and any in-app boost). tvOS has no
+    // Dynamic Type, so it keeps its fixed 10-foot sizing untouched.
+
+    #if os(iOS)
+    /// When false, text stays at the app's designed size regardless of the system
+    /// setting. When true (default), text scales with Dynamic Type. Set from
+    /// SettingsStore at launch and whenever the user changes it.
+    nonisolated(unsafe) static var respectSystemTextSize = true
+    /// An additional multiplier the user can apply in-app (1.0 = none). Lets people
+    /// enlarge FrameTV's text without changing their whole phone.
+    nonisolated(unsafe) static var textSizeBoost: CGFloat = 1.0
+    /// A ceiling so very large accessibility sizes don't shatter dense layouts.
+    private static let maxDynamicScale: CGFloat = 1.6
+    #endif
+
+    /// Returns a body-relative font metric-scaled point size on iOS (respecting the
+    /// user's text-size preferences), or the raw platform-scaled size on tvOS.
+    static func dynamicFontSize(_ base: CGFloat) -> CGFloat {
+        let scaled = scaledFont(base)
+        #if os(iOS)
+        var value = scaled
+        if respectSystemTextSize {
+            // Grow/shrink with the system Dynamic Type setting, capped so extreme
+            // accessibility sizes stay within the layout.
+            let metric = UIFontMetrics(forTextStyle: .body).scaledValue(for: scaled)
+            let ratio = Swift.min(metric / scaled, maxDynamicScale)
+            value = scaled * ratio
+        }
+        value *= textSizeBoost
+        return value
+        #else
+        return scaled
+        #endif
+    }
+
     /// A responsive max content width for reading columns / forms. On iPhone there
     /// is no cap (content fills the screen); on iPad/tvOS a generous cap keeps very
     /// wide layouts comfortable without wasting space.
@@ -208,10 +247,10 @@ enum Theme {
     // MARK: - Typography helpers
 
     enum Font {
-        static func sectionTitle() -> SwiftUI.Font { .system(size: Theme.scaledFont(30), weight: .bold) }
-        static func cardTitle() -> SwiftUI.Font { .system(size: Theme.scaledFont(22), weight: .semibold) }
-        static func cardSubtitle() -> SwiftUI.Font { .system(size: Theme.scaledFont(18), weight: .regular) }
-        static func screenTitle() -> SwiftUI.Font { .system(size: Theme.scaledFont(56), weight: .heavy) }
+        static func sectionTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(30), weight: .bold) }
+        static func cardTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(22), weight: .semibold) }
+        static func cardSubtitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(18), weight: .regular) }
+        static func screenTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(56), weight: .heavy) }
     }
 }
 
@@ -222,7 +261,7 @@ extension SwiftUI.Font {
     /// inline type shrinks on iPhone the same way the design tokens do.
     static func appFont(_ size: CGFloat, weight: SwiftUI.Font.Weight = .regular,
                     design: SwiftUI.Font.Design = .default) -> SwiftUI.Font {
-        .system(size: Theme.scaledFont(size), weight: weight, design: design)
+        .system(size: Theme.dynamicFontSize(size), weight: weight, design: design)
     }
 }
 
@@ -264,3 +303,87 @@ extension View {
             .shadow(color: Theme.Shadow.color, radius: Theme.Shadow.radius, x: 0, y: Theme.Shadow.y)
     }
 }
+
+// MARK: - Wrapping flow layout
+
+/// A simple wrapping HStack: lays children left-to-right and wraps to the next line
+/// when they don't fit. Used for chip/badge rows (rating badges, source links) so they
+/// never overflow a narrow column or wrap mid-word inside a single chip. Available on
+/// iOS 16+/tvOS 16+ via the Layout protocol; the app targets 26.0 so this is safe.
+struct WrapFlowLayout: Layout {
+    var spacing: CGFloat = 8
+    var lineSpacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var rowWidth: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var totalHeight: CGFloat = 0
+        var totalWidth: CGFloat = 0
+        for view in subviews {
+            let size = view.sizeThatFits(.unspecified)
+            if rowWidth > 0, rowWidth + spacing + size.width > maxWidth {
+                totalWidth = Swift.max(totalWidth, rowWidth)
+                totalHeight += rowHeight + lineSpacing
+                rowWidth = size.width
+                rowHeight = size.height
+            } else {
+                rowWidth += (rowWidth > 0 ? spacing : 0) + size.width
+                rowHeight = Swift.max(rowHeight, size.height)
+            }
+        }
+        totalWidth = Swift.max(totalWidth, rowWidth)
+        totalHeight += rowHeight
+        return CGSize(width: min(totalWidth, maxWidth), height: totalHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let maxWidth = bounds.width
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+        for view in subviews {
+            let size = view.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width > bounds.minX + maxWidth {
+                x = bounds.minX
+                y += rowHeight + lineSpacing
+                rowHeight = 0
+            }
+            view.place(at: CGPoint(x: x, y: y), anchor: .topLeading,
+                       proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = Swift.max(rowHeight, size.height)
+        }
+    }
+}
+
+// MARK: - Paste affordance
+
+#if os(iOS)
+/// A small pill Paste button that writes the clipboard's text into a binding. Placed
+/// beside URL/token fields so users don't have to long-press to paste. Trims
+/// surrounding whitespace/newlines that often ride along with a copied link.
+struct PasteButton: View {
+    @Binding var text: String
+    var onPaste: ((String) -> Void)? = nil
+
+    var body: some View {
+        Button {
+            if let s = UIPasteboard.general.string {
+                let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+                text = trimmed
+                onPaste?(trimmed)
+            }
+        } label: {
+            Label("Paste", systemImage: "doc.on.clipboard")
+                .font(.appFont(16, weight: .semibold))
+                .foregroundStyle(Theme.Colors.accent)
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.vertical, Theme.Spacing.sm)
+                .background(Theme.Colors.card, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Paste from clipboard")
+    }
+}
+#endif
