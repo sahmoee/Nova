@@ -195,7 +195,16 @@ struct DiscoverView: View {
     @ViewBuilder
     private var suggestionsView: some View {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        if searchFocused && q.count < 2 && !recentSearches.isEmpty {
+        // On tvOS, focus leaves the text field the moment you swipe down toward these
+        // rows, so gating visibility on searchFocused would make them vanish as you try
+        // to reach them. Show them based on the query alone there; keep the focus-gated
+        // behavior on iOS so they dismiss when the user taps away.
+        #if os(tvOS)
+        let showRecent = q.count < 2 && !recentSearches.isEmpty
+        #else
+        let showRecent = searchFocused && q.count < 2 && !recentSearches.isEmpty
+        #endif
+        if showRecent {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Recent")
                     .font(.appFont(15, weight: .semibold))

@@ -32,12 +32,6 @@ struct VLCPlayerView: View {
     @State private var resumePromptPosition: TimeInterval?
     @State private var hideControlsTask: Task<Void, Never>?
     @State private var hasStarted = false
-    #if os(tvOS)
-    /// Directs tvOS focus: the swipe-catcher when controls are hidden, the play/pause
-    /// button when they're shown, so every control is reachable with the remote.
-    @FocusState private var focusArea: PlayerFocus?
-    private enum PlayerFocus: Hashable { case surface, playPause }
-    #endif
     @State private var showSubtitleImporter = false
     @State private var preparedNext: MediaItem?
     @State private var navigateNext: MediaItem?
@@ -76,39 +70,8 @@ struct VLCPlayerView: View {
                         .scaleEffect(1.4).padding(Theme.Spacing.lg)
                         .background(.ultraThinMaterial, in: Circle())
                 }
-
-                #if os(iOS)
-                // Gesture layer sits BELOW the controls so buttons always win a tap.
-                // Horizontal drag anywhere on the video scrubs (right = forward, left =
-                // rewind); a tap on empty video toggles the controls. A vertical-ish
-                // drag is ignored so it doesn't fight a tap.
-                Color.clear.contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 8)
-                            .onChanged { value in handleScrubChange(translation: value.translation.width, width: nil) }
-                            .onEnded { _ in commitScrub() }
-                    )
-                    .onTapGesture { toggleControls() }
-                #else
-                // tvOS: left/right swipes on the remote touchpad skip; up/down or
-                // select reveal the controls. Play/pause toggles playback. This catches
-                // focus only while controls are hidden, so focus can move to the buttons.
-                Color.clear
-                    .focusable(!controlsVisible)
-                    .focused($focusArea, equals: .surface)
-                    .onMoveCommand { direction in
-                        switch direction {
-                        case .left:  model.skipBackward(10); revealControls()
-                        case .right: model.skipForward(10); revealControls()
-                        default:     revealControls()
-                        }
-                    }
-                    .onPlayPauseCommand { model.togglePlayPause(); revealControls() }
-                #endif
-
                 overlay
                     .opacity(controlsVisible ? 1 : 0)
-                    .allowsHitTesting(controlsVisible)
                     .animation(.easeInOut(duration: 0.25), value: controlsVisible)
 
                 // Diagnostics panel (toggled from the controls).
@@ -135,6 +98,33 @@ struct VLCPlayerView: View {
                 if let target = scrubTarget {
                     seekPreview(target: target)
                 }
+                #if os(iOS)
+                // Horizontal drag anywhere on the video scrubs: drag right to go
+                // forward, left to rewind. A vertical-ish drag is ignored so it
+                // doesn't fight a tap. Tapping (no drag) reveals the controls.
+                Color.clear.contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 8)
+                            .onChanged { value in handleScrubChange(translation: value.translation.width, width: nil) }
+                            .onEnded { _ in commitScrub() }
+                    )
+                    .onTapGesture { revealControls() }
+                #else
+                // tvOS: left/right swipes on the remote touchpad skip; up/down or
+                // select reveal the controls. Play/pause toggles playback. The catcher
+                // only takes focus while controls are hidden - once they're visible,
+                // focus moves to the overlay buttons (top bar and transport).
+                Color.clear
+                    .focusable(!controlsVisible)
+                    .onMoveCommand { direction in
+                        switch direction {
+                        case .left:  model.skipBackward(10); revealControls()
+                        case .right: model.skipForward(10); revealControls()
+                        default:     revealControls()
+                        }
+                    }
+                    .onPlayPauseCommand { model.togglePlayPause(); revealControls() }
+                #endif
             case .failed(let message):
                 ErrorStateView(
                     message: message,
@@ -144,7 +134,7 @@ struct VLCPlayerView: View {
             }
         }
         .onAppear {
-            model.configure(progressStore: progress, settings: settings, trakt: env.trakt, libraryStore: env.library)
+            model.configure(progressStore: progress, settings: settings, trakt: env.trakt)
             // Guard against SwiftUI re-running onAppear (e.g. after a sheet dismiss or
             // a parent nav change), which would otherwise restart the video.
             if !hasStarted {
@@ -181,13 +171,6 @@ struct VLCPlayerView: View {
     }
 
     // MARK: - Next episode
-
-    /// Formats a subtitle delay for display, e.g. "+1.5s later", "In sync".
-    private func delayLabel(_ seconds: Double) -> String {
-        if abs(seconds) < 0.01 { return "In sync" }
-        let sign = seconds > 0 ? "+" : "-"
-        return String(format: "%@%.2gs subtitles %@", sign, abs(seconds), seconds > 0 ? "later" : "earlier")
-    }
 
     private func prepareNextEpisode() async {
         guard let series, let ep = item.episode else { return }
@@ -289,6 +272,9 @@ struct VLCPlayerView: View {
                 }
             }
             .padding(Theme.Spacing.lg)
+            #if os(tvOS)
+            .focusSection()
+            #endif
 
             Spacer()
 
@@ -325,9 +311,6 @@ struct VLCPlayerView: View {
                     controlButton(model.isPlaying ? "pause.fill" : "play.fill", large: true) {
                         model.togglePlayPause(); revealControls()
                     }
-                    #if os(tvOS)
-                    .focused($focusArea, equals: .playPause)
-                    #endif
                     if !minimalControls {
                         controlButton("goforward.15") { model.skipForward() }
                         if hasNextEpisode {
@@ -338,6 +321,9 @@ struct VLCPlayerView: View {
             }
             .padding(Theme.Spacing.xl)
             .background(.ultraThinMaterial.opacity(0.4))
+            #if os(tvOS)
+            .focusSection()
+            #endif
         }
     }
 
@@ -450,42 +436,6 @@ struct VLCPlayerView: View {
                     }
                 }
 
-                Section("Subtitle Timing") {
-                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                        #if os(iOS)
-                        HStack {
-                            Image(systemName: "tortoise")
-                            Slider(value: $model.subtitleDelay, in: -10...10, step: 0.25)
-                            Image(systemName: "hare")
-                        }
-                        #else
-                        HStack(spacing: Theme.Spacing.lg) {
-                            Button {
-                                model.subtitleDelay = max(-10, (model.subtitleDelay - 0.25))
-                            } label: {
-                                Label("Earlier", systemImage: "minus.circle")
-                            }
-                            Text(delayLabel(model.subtitleDelay))
-                                .monospacedDigit()
-                            Button {
-                                model.subtitleDelay = min(10, (model.subtitleDelay + 0.25))
-                            } label: {
-                                Label("Later", systemImage: "plus.circle")
-                            }
-                        }
-                        #endif
-                        HStack {
-                            Text(delayLabel(model.subtitleDelay))
-                                .font(.appFont(15)).foregroundStyle(.secondary)
-                            Spacer()
-                            if model.subtitleDelay != 0 {
-                                Button("Reset") { model.subtitleDelay = 0 }
-                                    .font(.appFont(15))
-                            }
-                        }
-                    }
-                }
-
                 if model.audioTracks.count > 1 {
                     Section("Audio") {
                         ForEach(model.audioTracks) { track in
@@ -513,37 +463,24 @@ struct VLCPlayerView: View {
 
     private func revealControls() {
         controlsVisible = true
-        #if os(tvOS)
-        // Move focus into the controls so the remote can operate them.
-        focusArea = .playPause
-        #endif
         scheduleHideControls()
-    }
-
-    /// Tapping the video toggles the controls: show if hidden, hide if showing.
-    private func toggleControls() {
-        if controlsVisible {
-            hideControlsTask?.cancel()
-            withAnimation { controlsVisible = false }
-            #if os(tvOS)
-            focusArea = .surface
-            #endif
-        } else {
-            revealControls()
-        }
     }
 
     private func scheduleHideControls() {
         hideControlsTask?.cancel()
+        // On tvOS the controls are focused elements; hiding them after a few seconds
+        // would snatch focus away mid-navigation. Use a longer, gentler timeout there
+        // (playback/skip still reveal-and-reset it) so the user can move around the
+        // top bar and transport without the overlay vanishing under them.
+        #if os(tvOS)
+        let delay: UInt64 = 12_000_000_000
+        #else
+        let delay: UInt64 = 4_000_000_000
+        #endif
         hideControlsTask = Task {
-            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            try? await Task.sleep(nanoseconds: delay)
             if Task.isCancelled { return }
-            await MainActor.run {
-                withAnimation { controlsVisible = false }
-                #if os(tvOS)
-                focusArea = .surface
-                #endif
-            }
+            await MainActor.run { withAnimation { controlsVisible = false } }
         }
     }
 

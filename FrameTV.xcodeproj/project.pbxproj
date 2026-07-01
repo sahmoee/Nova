@@ -45,7 +45,6 @@
 		1F177667C9BFCDAFC7E9BADA /* LiveTVView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23F2B55ABB6C8A1F656E4736 /* LiveTVView.swift */; };
 		1FB980552C3F80A4F6A36F68 /* DirectURLService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6E6E99F2C1AAF086CAAA463 /* DirectURLService.swift */; };
 		2280A686C4D270B67C1B7BAA /* TMDBClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34670C92352DA0517DA99010 /* TMDBClient.swift */; };
-		4020F7BD23D44938BA29F844 /* OMDbClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CD9936F13F04501BF9006FB /* OMDbClient.swift */; };
 		228164E4A020C88E6B9A909F /* AppNetworking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26D445A6AA8D3FF6F146B03E /* AppNetworking.swift */; };
 		23852832972D648A4E0ED79D /* WatchStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B66648CD3E46A9C0B154858F /* WatchStatsView.swift */; };
 		249FFBDE8F9434A41638857C /* RealSMBProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5414ACC0FB76135E40B8DCB /* RealSMBProvider.swift */; };
@@ -74,7 +73,9 @@
 		3F0DF8BB27FF3691AC6208CE /* HomeCustomizeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D65CB86D7CF8C7F02893171 /* HomeCustomizeView.swift */; };
 		3F116831DC4779A7B22B23B1 /* SMBCheckerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE0682914797AE3EA83CDB1A /* SMBCheckerView.swift */; };
 		3F380348032B86AE1C4825AE /* PlaybackCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3EF3A6949DBE620FBC19616 /* PlaybackCoordinator.swift */; };
+		4020F7BD23D44938BA29F844 /* OMDbClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CD9936F13F04501BF9006FB /* OMDbClient.swift */; };
 		40719331806AC1552AD0AE7B /* FrameTVApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 671F3AF1CDC4B1AB200C36CA /* FrameTVApp.swift */; };
+		419EE9EEDFC346F3AE59A30C /* OMDbClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CD9936F13F04501BF9006FB /* OMDbClient.swift */; };
 		41D20B86CC38D548CBBFBF57 /* CatalogShelfRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF8BD9365E738C71B05EAF6E /* CatalogShelfRow.swift */; };
 		41EBB85F6D46F2AEEDCAC632 /* PlaybackDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC332E4AAF036B86D4FECE00 /* PlaybackDiagnostics.swift */; };
 		422E272C61B9C61EA8B43C72 /* RealDebridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B963B108E404576776FB5383 /* RealDebridView.swift */; };
@@ -125,7 +126,6 @@
 		73368932B07CABB3D3657DAD /* SubtitlePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01343E017C42B6492DAB5600 /* SubtitlePickerView.swift */; };
 		733996133FD05831A6CBE002 /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC594B0BAEC0D365B05066C1 /* LibraryStore.swift */; };
 		7351F19AAB1DBC8662F550D1 /* TMDBClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34670C92352DA0517DA99010 /* TMDBClient.swift */; };
-		419EE9EEDFC346F3AE59A30C /* OMDbClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CD9936F13F04501BF9006FB /* OMDbClient.swift */; };
 		73BE6730CFDE4C6E69470986 /* ScreenHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8F5CA2AC22C7C68AC4ABCC7 /* ScreenHeader.swift */; };
 		74364A7B259B873F821DC6DA /* RealDebridClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2090DCADB481BDF4EDDCA1AF /* RealDebridClient.swift */; };
 		74D60E270FC72B86D423B241 /* PlayerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE46DE416DAE5E5DDEF2E31 /* PlayerModel.swift */; };
@@ -353,7 +353,6 @@
 		33236A6077A5F4CA49B5B9E7 /* SMBURLParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMBURLParser.swift; sourceTree = "<group>"; };
 		33C5EA3C89FCC7B7E2881DDB /* LegalAccessGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalAccessGate.swift; sourceTree = "<group>"; };
 		34670C92352DA0517DA99010 /* TMDBClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TMDBClient.swift; sourceTree = "<group>"; };
-		4CD9936F13F04501BF9006FB /* OMDbClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OMDbClient.swift; sourceTree = "<group>"; };
 		3605D97A79B9AC12B001BD24 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		38A55F7C58A22DE3D4D4422D /* FrameTV.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FrameTV.entitlements; sourceTree = "<group>"; };
 		39B2C5271E02B4684B46C23F /* BackupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupView.swift; sourceTree = "<group>"; };
@@ -371,6 +370,7 @@
 		4B84344A81473E3B6324AE67 /* OfflineCatalogCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCatalogCache.swift; sourceTree = "<group>"; };
 		4BBA535D3FA0EA37713AD2EA /* AIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIView.swift; sourceTree = "<group>"; };
 		4C12CF106AE8B2228CFDD644 /* RealDebridModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealDebridModels.swift; sourceTree = "<group>"; };
+		4CD9936F13F04501BF9006FB /* OMDbClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OMDbClient.swift; sourceTree = "<group>"; };
 		4DAED2A694E04D1F4DDAC46E /* MediaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailView.swift; sourceTree = "<group>"; };
 		54DF98E49C2F8631D90C0346 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		5519B507B9E49505F005D45A /* StateViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateViews.swift; sourceTree = "<group>"; };
@@ -1325,11 +1325,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FrameTV/Resources/FrameTV.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "FrameTV/Resources/Info-tvOS.plist";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.tvos;
 				PRODUCT_NAME = FrameTV;
 				SDKROOT = appletvos;
@@ -1349,11 +1349,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FrameTV/Resources/FrameTV.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "FrameTV/Resources/Info-tvOS.plist";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.tvos;
 				PRODUCT_NAME = FrameTV;
 				SDKROOT = appletvos;
@@ -1378,7 +1378,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CODE_SIGN_ENTITLEMENTS = FrameTVWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FrameTVWidgets/Info.plist;
@@ -1390,9 +1390,9 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.4;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.ios.FrameTV.Widgets;
+				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1421,7 +1421,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CODE_SIGN_ENTITLEMENTS = FrameTVWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FrameTVWidgets/Info.plist;
@@ -1433,9 +1433,9 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.4;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.ios.FrameTV.Widgets;
+				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1457,12 +1457,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FrameTV/Resources/FrameTV.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "FrameTV/Resources/Info-iOS.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.ios;
 				PRODUCT_NAME = FrameTV;
 				SDKROOT = iphoneos;
@@ -1481,12 +1481,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FrameTV/Resources/FrameTV.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "FrameTV/Resources/Info-iOS.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.ios;
 				PRODUCT_NAME = FrameTV;
 				SDKROOT = iphoneos;
