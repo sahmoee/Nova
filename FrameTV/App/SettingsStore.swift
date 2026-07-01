@@ -9,6 +9,14 @@
 import SwiftUI
 import Combine
 
+/// How to resolve conflicts when local watch state and Trakt disagree.
+enum TraktConflictBehavior: String, CaseIterable, Identifiable {
+    case localWins = "Local wins"
+    case traktWins = "Trakt wins"
+    case ask = "Ask"
+    var id: String { rawValue }
+}
+
 @MainActor
 final class SettingsStore: ObservableObject {
 
@@ -41,6 +49,13 @@ final class SettingsStore: ObservableObject {
         static let bandwidthSaver = "settings.bandwidthSaver"
         static let travelMode = "settings.travelMode"
         static let traktScrobbling = "settings.traktScrobbling"
+        static let traktMinWatchPercent = "settings.traktMinWatchPercent"
+        static let traktSyncProgress = "settings.traktSyncProgress"
+        static let traktSyncFavorites = "settings.traktSyncFavorites"
+        static let traktConflict = "settings.traktConflict"
+        static let traktLastSync = "settings.traktLastSync"
+        static let guestMode = "settings.guestMode"
+        static let guestPIN = "settings.guestPIN"
         static let builtInPlayer = "settings.builtInPlayer"
         static let preferredExternalPlayer = "settings.preferredExternalPlayer"
         static let useExternalPlayer = "settings.useExternalPlayer"
@@ -179,6 +194,33 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(traktScrobblingEnabled, forKey: Key.traktScrobbling); CloudSync.shared.setBool(traktScrobblingEnabled, forKey: Key.traktScrobbling) }
     }
 
+    /// Minimum watched percentage before a title is marked watched on Trakt.
+    @Published var traktMinWatchPercent: Int {
+        didSet { defaults.set(traktMinWatchPercent, forKey: Key.traktMinWatchPercent); CloudSync.shared.setDouble(Double(traktMinWatchPercent), forKey: Key.traktMinWatchPercent) }
+    }
+    @Published var traktSyncProgress: Bool {
+        didSet { defaults.set(traktSyncProgress, forKey: Key.traktSyncProgress); CloudSync.shared.setBool(traktSyncProgress, forKey: Key.traktSyncProgress) }
+    }
+    @Published var traktSyncFavorites: Bool {
+        didSet { defaults.set(traktSyncFavorites, forKey: Key.traktSyncFavorites); CloudSync.shared.setBool(traktSyncFavorites, forKey: Key.traktSyncFavorites) }
+    }
+    /// Conflict resolution when local and Trakt disagree.
+    @Published var traktConflict: TraktConflictBehavior {
+        didSet { defaults.set(traktConflict.rawValue, forKey: Key.traktConflict); CloudSync.shared.setString(traktConflict.rawValue, forKey: Key.traktConflict) }
+    }
+
+    // MARK: - Guest mode
+
+    /// When on, source setup, magnets/direct URLs, and advanced settings are hidden,
+    /// so a shared Apple TV shows only the library and playback. A PIN gates exit.
+    @Published var guestMode: Bool {
+        didSet { defaults.set(guestMode, forKey: Key.guestMode) }
+    }
+    /// Optional 4-digit PIN required to leave guest mode. Empty = no PIN.
+    @Published var guestPIN: String {
+        didSet { defaults.set(guestPIN, forKey: Key.guestPIN) }
+    }
+
     // MARK: - Legal / privacy
 
     @Published var requireLegalConfirmation: Bool {
@@ -243,6 +285,15 @@ final class SettingsStore: ObservableObject {
         self.travelMode = defaults.bool(forKey: Key.travelMode)
         self.subtitleLanguage = defaults.string(forKey: Key.subtitleLanguage) ?? "en"
         self.traktScrobblingEnabled = defaults.bool(forKey: Key.traktScrobbling)
+        self.traktMinWatchPercent = {
+            let v = defaults.integer(forKey: Key.traktMinWatchPercent)
+            return v == 0 ? 90 : v   // default 90% if unset
+        }()
+        self.traktSyncProgress = defaults.object(forKey: Key.traktSyncProgress) == nil ? true : defaults.bool(forKey: Key.traktSyncProgress)
+        self.traktSyncFavorites = defaults.object(forKey: Key.traktSyncFavorites) == nil ? true : defaults.bool(forKey: Key.traktSyncFavorites)
+        self.traktConflict = TraktConflictBehavior(rawValue: defaults.string(forKey: Key.traktConflict) ?? "") ?? .ask
+        self.guestMode = defaults.bool(forKey: Key.guestMode)
+        self.guestPIN = defaults.string(forKey: Key.guestPIN) ?? ""
         self.builtInPlayer = BuiltInPlayer(
             rawValue: defaults.string(forKey: Key.builtInPlayer) ?? BuiltInPlayer.auto.rawValue
         ) ?? .auto

@@ -106,6 +106,10 @@ struct MediaDetailView: View {
                     bingeSeries = SeriesWrapper(value: series)
                 }
             }
+            // Correct a wrong poster / show / episode match.
+            FocusableButton(title: "Fix Match", systemImage: "wand.and.stars") {
+                showFixMatch = true
+            }
             FocusableButton(title: "Remove", systemImage: "trash") {
                 library.remove(item)
                 dismiss()
@@ -115,9 +119,15 @@ struct MediaDetailView: View {
         .sheet(item: $bingeSeries) { series in
             BingeSettingsView(seriesTitle: series.value)
         }
+        .sheet(isPresented: $showFixMatch) {
+            FixMatchView(item: item)
+                .environmentObject(env)
+                .environmentObject(library)
+        }
     }
 
     @State private var bingeSeries: SeriesWrapper?
+    @State private var showFixMatch = false
 
     // Re-read from store so favorite toggles reflect live.
     private var currentItem: MediaItem {

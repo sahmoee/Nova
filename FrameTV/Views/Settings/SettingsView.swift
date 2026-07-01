@@ -41,12 +41,19 @@ struct SettingsView: View {
                             .padding(.horizontal, Theme.Spacing.edge)
 
                         VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                            accountsSection
-                            streamingSection
+                            // Guest mode hides source setup, advanced streaming, and
+                            // account screens on shared devices.
+                            if !settings.guestMode {
+                                accountsSection
+                                streamingSection
+                            }
                             playbackSection
                             subtitleSection
                             librarySection
-                            backupSection
+                            if !settings.guestMode {
+                                backupSection
+                            }
+                            advancedSection
                             privacyLegalSection
                         }
                         // Edge-to-edge accordion: only a slim inset so the section cards
@@ -271,6 +278,9 @@ struct SettingsView: View {
 
     private var librarySection: some View {
         section("Library") {
+            NavigationLink { LibraryQualityView() } label: {
+                settingRow("Library Health", systemImage: "checkmark.seal", detail: "Scan & fix")
+            }.frameRowStyle()
             NavigationLink { DuplicatesView() } label: {
                 settingRow("Duplicate Cleanup", systemImage: "arrow.triangle.merge",
                            detail: duplicateCountDetail)
@@ -304,6 +314,20 @@ struct SettingsView: View {
             NavigationLink { PrivacyLegalView() } label: {
                 settingRow("Privacy & Legal Info", systemImage: "hand.raised", detail: "View")
             }.frameRowStyle()
+        }
+    }
+
+    private var advancedSection: some View {
+        section("Advanced") {
+            NavigationLink { GuestModeView() } label: {
+                settingRow("Guest Mode", systemImage: "person.2",
+                           detail: settings.guestMode ? "On" : "Off")
+            }.frameRowStyle()
+            if !settings.guestMode {
+                NavigationLink { DebugReportView() } label: {
+                    settingRow("Debug Report", systemImage: "ladybug", detail: "Export")
+                }.frameRowStyle()
+            }
         }
     }
 

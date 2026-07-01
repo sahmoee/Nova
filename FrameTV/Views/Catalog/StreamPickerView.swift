@@ -19,6 +19,7 @@ struct StreamPickerView: View {
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var settings: SettingsStore
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var network = NetworkConditionMonitor.shared
 
     @State private var streams: [StreamOption] = []
     @State private var state: ViewState = .loading
@@ -38,7 +39,7 @@ struct StreamPickerView: View {
     @State private var smartFilter = ParsedStreamFilter()
 
     // Group the list by source kind (Cloud, Torrent, SMB, Direct, Addon).
-    @State private var groupBySource = false
+    @State private var groupBySource = true
 
     enum ViewState: Equatable { case loading, loaded, empty, error(String) }
 
@@ -168,6 +169,8 @@ struct StreamPickerView: View {
 
                 if showFilters { filterBar }
 
+                networkBanner
+
                 if groupBySource {
                     ForEach(groupedStreams, id: \.0) { group in
                         sourceGroupHeader(group.0, count: group.1.count)
@@ -232,10 +235,18 @@ struct StreamPickerView: View {
     private var groupedStreams: [(String, [StreamOption])] {
         let order: [SourceKind] = [.cloud, .torrent, .localSMB, .directURL, .liveTV, .unknown]
         let grouped = Dictionary(grouping: filteredStreams, by: { $0.sourceKind })
-        return order.compactMap { kind in
+        var result: [(String, [StreamOption])] = []
+        // Recommended: the top few streams overall (already rank-sorted in
+        // filteredStreams), surfaced first so the best pick is immediate.
+        let recommended = Array(filteredStreams.prefix(3))
+        if !recommended.isEmpty {
+            result.append(("Recommended", recommended))
+        }
+        result += order.compactMap { kind in
             guard let items = grouped[kind], !items.isEmpty else { return nil }
             return (sourceGroupTitle(kind), items)
         }
+        return result
     }
 
     private func sourceGroupTitle(_ kind: SourceKind) -> String {
@@ -277,6 +288,33 @@ struct StreamPickerView: View {
         let n = filteredStreams.count
         let total = streams.count
         return n == total ? "\(total) streams" : "\(n) of \(total) streams"
+    }
+
+    /// Advisory banner when the network looks limited (cellular / metered / Low Data),
+    /// suggesting Bandwidth Saver. One-tap enables it; the app then prefers smaller,
+    /// cached streams.
+    @ViewBuilder
+    private var networkBanner: some View {
+        if let reason = network.suggestionReason, !settings.bandwidthSaver {
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: "wifi.exclamationmark")
+                    .foregroundStyle(Color.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Bandwidth Saver suggested")
+                        .font(.appFont(16, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    Text("\(reason). Prefer smaller, cached streams to avoid heavy data use.")
+                        .font(.appFont(14))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                }
+                Spacer()
+                Button("Enable") { settings.bandwidthSaver = true }
+                    .font(.appFont(15, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accent)
+            }
+            .padding(Theme.Spacing.md)
+            .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        }
     }
 
     private var filterBar: some View {
@@ -399,6 +437,8 @@ struct StreamPickerView: View {
                             }
                         }
                     }
+                    // Playback confidence: an instant plain-language read.
+                    confidenceBadge(StreamRanker.confidence(stream))
                     Text(stream.rawTitle)
                         .font(.appFont(20, weight: .medium))
                         .foregroundStyle(Theme.Colors.textPrimary)
@@ -457,6 +497,23 @@ struct StreamPickerView: View {
             in: Capsule()
         )
         .foregroundStyle(label.isWarning ? Color.orange : Theme.Colors.accent)
+    }
+
+    private func confidenceBadge(_ c: StreamRanker.PlaybackConfidence) -> some View {
+        let color: Color
+        switch c {
+        case .readyToPlay:      color = Theme.Colors.success
+        case .likelyCompatible: color = Theme.Colors.accent
+        case .mayNeedVLC:       color = Color.orange
+        case .slowSource:       color = Color.orange
+        case .lowConfidence:    color = Theme.Colors.textTertiary
+        }
+        return HStack(spacing: 5) {
+            Image(systemName: c.systemImage)
+            Text(c.rawValue)
+        }
+        .font(.appFont(14, weight: .semibold))
+        .foregroundStyle(color)
     }
 
     private func qualityColor(_ q: StreamQuality) -> Color {
