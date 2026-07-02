@@ -24,6 +24,7 @@ struct PlayerView: View {
     @Environment(\.dismiss) private var dismiss
 
     @StateObject private var model: PlayerModel
+    @ObservedObject private var sleepTimer = SleepTimer.shared
     @State private var preparedNext: MediaItem?      // pre-resolved, not yet navigated
     @State private var navigateNext: MediaItem?      // bound to navigationDestination
     @State private var prepareTask: Task<Void, Never>?
@@ -68,6 +69,37 @@ struct PlayerView: View {
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
             }
+        }
+        .overlay(alignment: .topTrailing) {
+            // Sleep timer: pause playback after a chosen interval. A tap target
+            // overlaid on the system player is safe (only custom gestures conflict).
+            Menu {
+                ForEach(SleepTimer.Preset.allCases) { preset in
+                    Button(preset.label) { sleepTimer.start(minutes: preset.rawValue) }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: sleepTimer.isRunning ? "moon.fill" : "moon")
+                    if sleepTimer.isRunning {
+                        Text(sleepTimer.display)
+                            .font(.appFont(14, weight: .semibold)).monospacedDigit()
+                    }
+                }
+                .font(.appFont(18, weight: .semibold))
+                .foregroundStyle(sleepTimer.isRunning ? Theme.Colors.accent : .white.opacity(0.85))
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.vertical, Theme.Spacing.sm)
+                .background(.ultraThinMaterial, in: Capsule())
+            }
+            .padding(.top, Theme.Spacing.xl)
+            .padding(.trailing, Theme.Spacing.lg)
+        }
+        .onAppear {
+            SleepTimer.shared.onFire = { [weak model] in model?.pause() }
+        }
+        .onDisappear {
+            SleepTimer.shared.cancel()
+            SleepTimer.shared.onFire = nil
         }
     }
 
