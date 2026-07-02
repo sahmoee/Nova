@@ -218,6 +218,16 @@ struct ContentDetailView: View {
                 .frame(maxWidth: Theme.isCompact ? .infinity : 320)
                 .padding(.top, Theme.Spacing.xs)
 
+                // Mark this title watched or unwatched (movies and non-episodic items).
+                if item.contentID.type == .movie {
+                    FocusableButton(title: isWatched ? "Watched" : "Mark as Watched",
+                                    systemImage: isWatched ? "checkmark.circle.fill" : "checkmark.circle") {
+                        toggleWatched()
+                    }
+                    .frame(maxWidth: Theme.isCompact ? .infinity : 320)
+                    .padding(.top, Theme.Spacing.xs)
+                }
+
                 if isHydrating {
                     ProgressView().tint(Theme.Colors.accent).padding(.top, Theme.Spacing.sm)
                 }
@@ -286,6 +296,28 @@ struct ContentDetailView: View {
         _ = favoriteRefresh   // dependency so toggling re-evaluates
         let key = catalogAsMediaItem().contentKey
         return env.library.items.first(where: { $0.contentKey == key })?.isFavorite ?? false
+    }
+
+    /// Whether this title has been fully watched.
+    private var isWatched: Bool {
+        _ = favoriteRefresh
+        let key = catalogAsMediaItem().contentKey
+        return env.library.items.first(where: { $0.contentKey == key })?.isWatched ?? false
+    }
+
+    private func toggleWatched() {
+        let probe = catalogAsMediaItem()
+        if let existing = env.library.items.first(where: { $0.contentKey == probe.contentKey }) {
+            if existing.isWatched { env.library.markUnwatched(existing) }
+            else { env.library.markWatched(existing) }
+        } else {
+            var item = probe
+            env.library.add(item)
+            if let added = env.library.items.first(where: { $0.contentKey == item.contentKey }) {
+                env.library.markWatched(added)
+            }
+        }
+        favoriteRefresh.toggle()
     }
 
     private func toggleFavorite() {

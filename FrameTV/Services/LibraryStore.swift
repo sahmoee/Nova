@@ -528,6 +528,36 @@ final class LibraryStore: ObservableObject {
         persist()
     }
 
+    /// Marks an item as fully watched (sets progress to complete) and stamps the date.
+    func markWatched(_ item: MediaItem) {
+        guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
+        if let d = items[idx].duration, d > 0 {
+            items[idx].lastPlayedPosition = d
+        } else {
+            // No known duration: use a sentinel so isWatched (>=90%) is satisfied.
+            items[idx].duration = 100
+            items[idx].lastPlayedPosition = 100
+        }
+        items[idx].lastPlayedDate = Date()
+        persist()
+    }
+
+    /// Marks an item as unwatched (clears progress and last-played date).
+    func markUnwatched(_ item: MediaItem) {
+        guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
+        items[idx].lastPlayedPosition = 0
+        items[idx].lastPlayedDate = nil
+        persist()
+    }
+
+    /// Items that have been watched or partially played, most recent first — powers a
+    /// "Recently Watched" rail.
+    var recentlyWatched: [MediaItem] {
+        items
+            .filter { $0.lastPlayedDate != nil }
+            .sorted { ($0.lastPlayedDate ?? .distantPast) > ($1.lastPlayedDate ?? .distantPast) }
+    }
+
     // MARK: - Queries (used by Home/Library rows)
 
     var favorites: [MediaItem] {

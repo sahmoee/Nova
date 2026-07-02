@@ -110,6 +110,11 @@ struct HomeView: View {
                     continueWatchingRow
                 }
 
+                if !library.recentlyWatched.isEmpty {
+                    MediaRow(title: "Recently Watched",
+                             items: Array(library.recentlyWatched.prefix(20))) { play($0) }
+                }
+
                 discoverSection
 
                 ForEach(shelfStore.enabledShelves) { shelf in

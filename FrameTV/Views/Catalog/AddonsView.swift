@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 #if os(iOS)
 import UIKit
 #endif
@@ -15,6 +16,11 @@ import UIKit
 struct AddonsView: View {
     @EnvironmentObject private var env: AppEnvironment
     @State private var showAdd = false
+    @State private var health: [UUID: AddonStore.Health] = [:]
+    @State private var isChecking = false
+    @State private var showExporter = false
+    @State private var showImporter = false
+    @State private var exportDoc: AddonExportDocument?
 
     private var store: AddonStore { env.addonStore }
 
@@ -47,23 +53,82 @@ struct AddonsView: View {
         .sheet(isPresented: $showAdd) {
             AddAddonView()
         }
+        .fileExporter(isPresented: $showExporter,
+                      document: exportDoc,
+                      contentType: .json,
+                      defaultFilename: "FrameTV-Addons") { _ in }
+        .fileImporter(isPresented: $showImporter,
+                      allowedContentTypes: [.json]) { result in
+            if case .success(let url) = result {
+                Task {
+                    let ok = url.startAccessingSecurityScopedResource()
+                    defer { if ok { url.stopAccessingSecurityScopedResource() } }
+                    if let data = try? Data(contentsOf: url) {
+                        _ = await store.importData(data)
+                    }
+                }
+            }
+        }
     }
 
     private var header: some View {
         ScreenHeader(title: "Addons", subtitle: "Stream sources you've installed") {
-            FocusableButton(title: "Add", systemImage: "plus", prominent: true) {
-                showAdd = true
+            HStack(spacing: Theme.Spacing.sm) {
+                if !store.addons.isEmpty {
+                    FocusableButton(title: isChecking ? "Checking…" : "Health",
+                                    systemImage: "stethoscope") {
+                        runHealthCheck()
+                    }
+                    Menu {
+                        Button {
+                            if let data = try? store.exportData() {
+                                exportDoc = AddonExportDocument(data: data)
+                                showExporter = true
+                            }
+                        } label: { Label("Export Addons", systemImage: "square.and.arrow.up") }
+                        Button {
+                            showImporter = true
+                        } label: { Label("Import Addons", systemImage: "square.and.arrow.down") }
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down.circle")
+                            .font(.appFont(22))
+                            .foregroundStyle(Theme.Colors.accent)
+                    }
+                }
+                FocusableButton(title: "Add", systemImage: "plus", prominent: true) {
+                    showAdd = true
+                }
+                .frame(maxWidth: Theme.isCompact ? .infinity : 200)
             }
-            .frame(maxWidth: Theme.isCompact ? .infinity : 200)
+        }
+    }
+
+    private func runHealthCheck() {
+        isChecking = true
+        Task {
+            let result = await store.checkHealth()
+            await MainActor.run {
+                health = result
+                isChecking = false
+            }
         }
     }
 
     private func addonRow(_ addon: InstalledAddon) -> some View {
         HStack(spacing: Theme.Spacing.md) {
-            Image(systemName: "puzzlepiece.extension.fill")
-                .font(.appFont(28))
-                .foregroundStyle(addon.isEnabled ? Theme.Colors.accent : Theme.Colors.textTertiary)
-                .frame(width: 56)
+            ZStack(alignment: .bottomTrailing) {
+                Image(systemName: "puzzlepiece.extension.fill")
+                    .font(.appFont(28))
+                    .foregroundStyle(addon.isEnabled ? Theme.Colors.accent : Theme.Colors.textTertiary)
+                if let h = health[addon.id] {
+                    Circle()
+                        .fill(healthColor(h))
+                        .frame(width: 12, height: 12)
+                        .overlay(Circle().strokeBorder(Theme.Colors.appBackground, lineWidth: 2))
+                        .offset(x: 4, y: 2)
+                }
+            }
+            .frame(width: 56)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(addon.name)
@@ -287,5 +352,31 @@ struct AddAddonView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Addon health color + export document
+
+extension AddonsView {
+    func healthColor(_ h: AddonStore.Health) -> Color {
+        switch h {
+        case .reachable:      return Theme.Colors.success
+        case .broken:         return Theme.Colors.error
+        case .checking:       return Theme.Colors.warning
+        case .unknown:        return Theme.Colors.textTertiary
+        }
+    }
+}
+
+/// A tiny JSON document used by the file exporter to save the addon config.
+struct AddonExportDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+    var data: Data
+    init(data: Data) { self.data = data }
+    init(configuration: ReadConfiguration) throws {
+        data = configuration.file.regularFileContents ?? Data()
+    }
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
     }
 }

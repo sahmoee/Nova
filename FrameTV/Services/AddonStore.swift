@@ -118,6 +118,117 @@ final class AddonStore: ObservableObject {
         persist()
     }
 
+    // MARK: - Categorization
+
+    /// Sets (or clears) the user category for an addon.
+    func setCategory(_ category: String?, for addon: InstalledAddon) {
+        guard let idx = addons.firstIndex(where: { $0.id == addon.id }) else { return }
+        let trimmed = category?.trimmingCharacters(in: .whitespacesAndNewlines)
+        addons[idx].category = (trimmed?.isEmpty == false) ? trimmed : nil
+        persist()
+    }
+
+    /// Replaces the tag list for an addon.
+    func setTags(_ tags: [String], for addon: InstalledAddon) {
+        guard let idx = addons.firstIndex(where: { $0.id == addon.id }) else { return }
+        addons[idx].tags = tags
+        persist()
+    }
+
+    /// All distinct categories currently in use, sorted.
+    var categories: [String] {
+        Set(addons.compactMap { $0.category }).sorted()
+    }
+
+    /// Enables or disables every addon in a category at once.
+    func setEnabledForCategory(_ category: String, _ enabled: Bool) {
+        for idx in addons.indices where addons[idx].category == category {
+            addons[idx].isEnabled = enabled
+        }
+        persist()
+    }
+
+    // MARK: - Health
+
+    /// A reachability result for an addon's manifest.
+    enum Health: Equatable { case unknown, checking, reachable, broken(String) }
+
+    /// Pings each addon's manifest and returns a map of addon id to health. Does not
+    /// mutate stored state; the caller decides how to present it.
+    func checkHealth() async -> [UUID: Health] {
+        var result: [UUID: Health] = [:]
+        await withTaskGroup(of: (UUID, Health).self) { group in
+            for addon in addons {
+                group.addTask {
+                    do {
+                        _ = try await self.client.fetchManifest(at: addon.manifestURL)
+                        return (addon.id, .reachable)
+                    } catch {
+                        return (addon.id, .broken(error.localizedDescription))
+                    }
+                }
+            }
+            for await (id, health) in group {
+                result[id] = health
+            }
+        }
+        return result
+    }
+
+    // MARK: - Import / Export
+
+    /// A portable snapshot of the installed addons (manifest URLs plus user metadata),
+    /// safe to share as a file. Contains no credentials.
+    struct Export: Codable {
+        struct Entry: Codable {
+            var manifestURL: URL
+            var name: String
+            var isEnabled: Bool
+            var category: String?
+            var tags: [String]
+        }
+        var version: Int = 1
+        var entries: [Entry]
+    }
+
+    /// Builds an export snapshot of the current addons.
+    func makeExport() -> Export {
+        Export(entries: addons.map {
+            .init(manifestURL: $0.manifestURL, name: $0.name,
+                  isEnabled: $0.isEnabled, category: $0.category, tags: $0.tags)
+        })
+    }
+
+    /// Encodes the current addons to pretty-printed JSON data for sharing.
+    func exportData() throws -> Data {
+        let enc = JSONEncoder()
+        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try enc.encode(makeExport())
+    }
+
+    /// Imports addons from an export snapshot. Installs any manifest not already
+    /// present, then applies the saved enabled/category/tags. Returns how many were
+    /// newly installed.
+    @discardableResult
+    func importData(_ data: Data) async -> Int {
+        guard let snapshot = try? JSONDecoder().decode(Export.self, from: data) else { return 0 }
+        var installed = 0
+        for entry in snapshot.entries {
+            if !contains(manifestURL: entry.manifestURL) {
+                if (try? await install(manifestURL: entry.manifestURL)) != nil {
+                    installed += 1
+                }
+            }
+            if let idx = addons.firstIndex(where: { $0.manifestURL == entry.manifestURL }) {
+                addons[idx].isEnabled = entry.isEnabled
+                addons[idx].category = entry.category
+                addons[idx].tags = entry.tags
+            }
+        }
+        persist()
+        return installed
+    }
+
     // MARK: - First-run seeding
 
     /// Seeds Cinemeta (metadata) and any config-file addons if not present.

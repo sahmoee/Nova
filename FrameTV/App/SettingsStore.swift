@@ -692,3 +692,64 @@ enum TabBarStyle: String, CaseIterable, Identifiable {
         }
     }
 }
+
+// MARK: - Sleep timer
+
+/// A simple countdown that fires a callback when it reaches zero — used to pause
+/// playback after a chosen interval. Lives here (an already-registered file) to avoid
+/// adding a new source file. Observed by the player, which pauses on `onFire`.
+@MainActor
+final class SleepTimer: ObservableObject {
+    static let shared = SleepTimer()
+
+    /// Preset durations in minutes; `endOfEpisode` is handled by the player, not here.
+    enum Preset: Int, CaseIterable, Identifiable {
+        case off = 0, m15 = 15, m30 = 30, m45 = 45, m60 = 60, m90 = 90
+        var id: Int { rawValue }
+        var label: String { self == .off ? "Off" : "\(rawValue) min" }
+    }
+
+    @Published private(set) var remaining: TimeInterval = 0
+    @Published private(set) var isRunning = false
+
+    private var timer: Timer?
+    /// Called on the main actor when the countdown hits zero.
+    var onFire: (() -> Void)?
+
+    /// Starts (or restarts) the countdown for the given number of minutes. Passing 0
+    /// cancels any running timer.
+    func start(minutes: Int) {
+        cancel()
+        guard minutes > 0 else { return }
+        remaining = TimeInterval(minutes * 60)
+        isRunning = true
+        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.tick() }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
+    }
+
+    func cancel() {
+        timer?.invalidate()
+        timer = nil
+        isRunning = false
+        remaining = 0
+    }
+
+    private func tick() {
+        guard isRunning else { return }
+        remaining = max(0, remaining - 1)
+        if remaining <= 0 {
+            let fire = onFire
+            cancel()
+            fire?()
+        }
+    }
+
+    /// A mm:ss string for display.
+    var display: String {
+        let s = Int(remaining)
+        return String(format: "%d:%02d", s / 60, s % 60)
+    }
+}

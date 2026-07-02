@@ -25,6 +25,10 @@ struct InstalledAddon: Identifiable, Codable, Hashable {
     var catalogs: [AddonCatalogRef] // browsable catalogs (for live TV + shelves)
     var isEnabled: Bool
     var addedDate: Date
+    /// Optional user-assigned category for grouping (e.g. "Movies", "Live TV").
+    var category: String?
+    /// Optional user tags for filtering.
+    var tags: [String]
 
     init(
         id: UUID = UUID(),
@@ -36,7 +40,9 @@ struct InstalledAddon: Identifiable, Codable, Hashable {
         types: [String] = [],
         catalogs: [AddonCatalogRef] = [],
         isEnabled: Bool = true,
-        addedDate: Date = Date()
+        addedDate: Date = Date(),
+        category: String? = nil,
+        tags: [String] = []
     ) {
         self.id = id
         self.manifestURL = manifestURL
@@ -48,6 +54,26 @@ struct InstalledAddon: Identifiable, Codable, Hashable {
         self.catalogs = catalogs
         self.isEnabled = isEnabled
         self.addedDate = addedDate
+        self.category = category
+        self.tags = tags
+    }
+
+    /// Tolerant decoder: older persisted addons predate `category` and `tags`, so
+    /// those keys may be absent. Decode them if present, else use safe defaults.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        manifestURL = try c.decode(URL.self, forKey: .manifestURL)
+        name = try c.decode(String.self, forKey: .name)
+        version = try c.decodeIfPresent(String.self, forKey: .version)
+        description = try c.decodeIfPresent(String.self, forKey: .description)
+        resources = try c.decodeIfPresent([String].self, forKey: .resources) ?? []
+        types = try c.decodeIfPresent([String].self, forKey: .types) ?? []
+        catalogs = try c.decodeIfPresent([AddonCatalogRef].self, forKey: .catalogs) ?? []
+        isEnabled = try c.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
+        addedDate = try c.decodeIfPresent(Date.self, forKey: .addedDate) ?? Date()
+        category = try c.decodeIfPresent(String.self, forKey: .category)
+        tags = try c.decodeIfPresent([String].self, forKey: .tags) ?? []
     }
 
     /// The base URL (manifest URL with the trailing manifest.json removed).
