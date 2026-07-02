@@ -516,7 +516,9 @@ struct QueueManageView: View {
                             for i in idx { library.removeFromQueue(library.queuedItems[i]) }
                         }
                     }
+                    #if os(iOS)
                     .scrollContentBackground(.hidden)
+                    #endif
                 }
             }
             .background(Theme.Colors.appBackground.ignoresSafeArea())
