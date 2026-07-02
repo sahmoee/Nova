@@ -103,6 +103,26 @@ struct MediaCard: View {
             .background(.ultraThinMaterial, in: Capsule())
             .padding(10)
 
+            // Watched badge: a filled checkmark in the top-right corner once the
+            // title has been fully watched. Sits over the artwork like the source
+            // chip so it survives any poster.
+            if item.isWatched {
+                VStack {
+                    HStack {
+                        Spacer()
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.appFont(18, weight: .bold))
+                            .foregroundStyle(Theme.Colors.success)
+                            .padding(6)
+                            .background(.ultraThinMaterial, in: Circle())
+                            .padding(8)
+                    }
+                    Spacer()
+                }
+                .frame(width: width, height: height)
+                .allowsHitTesting(false)
+            }
+
             // Resume progress bar.
             if item.progressFraction > 0 {
                 progressBar

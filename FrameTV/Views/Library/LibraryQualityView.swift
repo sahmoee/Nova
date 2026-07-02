@@ -40,7 +40,7 @@ struct LibraryQualityView: View {
                         }
                         .font(.appFont(20))
                         .padding(Theme.Spacing.md)
-                        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                        .refinedCardBackground()
                     } else {
                         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                             row("photo", "\(report.missingPosters) items missing posters", report.missingPosters)
@@ -49,7 +49,7 @@ struct LibraryQualityView: View {
                             row("rectangle.on.rectangle", "\(report.missingBackdrop) items missing backdrop art", report.missingBackdrop)
                         }
                         .padding(Theme.Spacing.md)
-                        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                        .refinedCardBackground()
 
                         if fixedCount > 0 {
                             Text("Fixed \(fixedCount) item\(fixedCount == 1 ? "" : "s").")

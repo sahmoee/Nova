@@ -88,7 +88,7 @@ struct FixMatchView: View {
             }
         }
         .padding(Theme.Spacing.md)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .refinedCardBackground()
     }
 
     private func matchRow(_ match: CatalogItem) -> some View {

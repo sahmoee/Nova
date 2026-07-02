@@ -156,7 +156,7 @@ struct PlayerSettingsView: View {
             }
             .padding(Theme.Spacing.md)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .refinedCardBackground()
             .contentShape(Rectangle())
         }
         .buttonStyle(FrameListRowStyle())

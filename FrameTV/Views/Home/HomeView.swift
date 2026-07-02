@@ -73,6 +73,10 @@ struct HomeView: View {
                 if !library.continueWatching.isEmpty {
                     continueWatchingRow
                 }
+                if !library.recentlyWatched.isEmpty {
+                    MediaRow(title: "Recently Watched",
+                             items: Array(library.recentlyWatched.prefix(20))) { play($0) }
+                }
                 if !library.queuedItems.isEmpty {
                     VStack(alignment: .leading, spacing: 0) {
                         HStack {

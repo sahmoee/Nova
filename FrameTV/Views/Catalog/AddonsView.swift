@@ -45,6 +45,41 @@ struct AddonsView: View {
                 } else {
                     ForEach(store.addons) { addon in
                         addonRow(addon)
+                            .contextMenu {
+                                // Assign this addon to a category (or clear it). New
+                                // categories are created by picking any suggestion or
+                                // reusing one already in use.
+                                Menu {
+                                    ForEach(categorySuggestions(for: addon), id: \.self) { name in
+                                        Button {
+                                            store.setCategory(name, for: addon)
+                                        } label: {
+                                            if addon.category == name {
+                                                Label(name, systemImage: "checkmark")
+                                            } else {
+                                                Text(name)
+                                            }
+                                        }
+                                    }
+                                    if addon.category != nil {
+                                        Divider()
+                                        Button(role: .destructive) {
+                                            store.setCategory(nil, for: addon)
+                                        } label: { Label("Clear Category", systemImage: "xmark") }
+                                    }
+                                } label: {
+                                    Label(addon.category.map { "Category: \($0)" } ?? "Set Category",
+                                          systemImage: "folder")
+                                }
+                                if let category = addon.category {
+                                    Button {
+                                        store.setEnabledForCategory(category, true)
+                                    } label: { Label("Enable All in \(category)", systemImage: "checkmark.circle") }
+                                    Button {
+                                        store.setEnabledForCategory(category, false)
+                                    } label: { Label("Disable All in \(category)", systemImage: "circle.slash") }
+                                }
+                            }
                     }
                 }
 
@@ -111,6 +146,16 @@ struct AddonsView: View {
         }
     }
 
+
+    /// Category options offered in the context menu: any categories already in use
+    /// plus a few sensible defaults, deduplicated and sorted.
+    private func categorySuggestions(for addon: InstalledAddon) -> [String] {
+        var set = Set(store.categories)
+        for base in ["Movies", "TV Shows", "Live TV", "Anime"] { set.insert(base) }
+        if let current = addon.category { set.insert(current) }
+        return set.sorted()
+    }
+
     private func runHealthCheck() {
         isChecking = true
         Task {
@@ -139,9 +184,19 @@ struct AddonsView: View {
             .frame(width: 56)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(addon.name)
-                    .font(.appFont(24, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.textPrimary)
+                HStack(spacing: Theme.Spacing.sm) {
+                    Text(addon.name)
+                        .font(.appFont(24, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    if let category = addon.category {
+                        Text(category)
+                            .font(.appFont(13, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.accent)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .overlay(Capsule().strokeBorder(Theme.Colors.accent.opacity(0.5), lineWidth: 1))
+                    }
+                }
                 Text(capabilityText(for: addon))
                     .font(.appFont(16))
                     .foregroundStyle(Theme.Colors.textTertiary)

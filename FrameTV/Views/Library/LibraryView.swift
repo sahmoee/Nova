@@ -82,6 +82,13 @@ struct LibraryView: View {
                                                   systemImage: item.isFavorite ? "star.slash" : "star")
                                         }
                                         Button {
+                                            if item.isWatched { library.markUnwatched(item) }
+                                            else { library.markWatched(item) }
+                                        } label: {
+                                            Label(item.isWatched ? "Mark as Unwatched" : "Mark as Watched",
+                                                  systemImage: item.isWatched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
+                                        }
+                                        Button {
                                             library.toggleHidden(item)
                                         } label: {
                                             Label(item.isHidden ? "Unhide" : "Hide", systemImage: item.isHidden ? "eye" : "eye.slash")

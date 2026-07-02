@@ -64,7 +64,7 @@ struct SetupChecklistView: View {
                 .foregroundStyle(Theme.Colors.textPrimary)
         }
         .padding(Theme.Spacing.md)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .refinedCardBackground()
         .padding(.horizontal, Theme.Spacing.edge)
     }
 
@@ -99,7 +99,7 @@ struct SetupChecklistView: View {
                     .foregroundStyle(Theme.Colors.textTertiary)
             }
             .padding(Theme.Spacing.md)
-            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .refinedCardBackground()
         }
         .frameRowStyle()
     }

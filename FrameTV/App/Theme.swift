@@ -246,7 +246,9 @@ enum Theme {
         return [GridItem(.adaptive(minimum: CardSize.posterWidth), spacing: Spacing.lg)]
         #else
         if isPad {
-            return Array(repeating: GridItem(.flexible(), spacing: Spacing.lg), count: 4)
+            // 5 columns on iPad (was 4): denser browsing that still keeps posters
+            // large enough to read at typical iPad sizes.
+            return Array(repeating: GridItem(.flexible(), spacing: Spacing.lg), count: 5)
         } else {
             return [GridItem(.adaptive(minimum: CardSize.posterWidth), spacing: Spacing.lg)]
         }

@@ -156,7 +156,7 @@ struct TraktConnectView: View {
             .frame(maxWidth: Theme.isCompact ? .infinity : 320)
         }
         .padding(Theme.Spacing.lg)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .refinedCardBackground()
         .tint(Theme.Colors.accent)
     }
 

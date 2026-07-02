@@ -107,7 +107,7 @@ struct BingeSettingsView: View {
             .pickerStyle(.segmented)
         }
         .padding(Theme.Spacing.md)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .refinedCardBackground()
     }
 
     private enum TriState: Hashable {
