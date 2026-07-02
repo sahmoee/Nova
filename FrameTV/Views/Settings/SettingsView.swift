@@ -261,6 +261,9 @@ struct SettingsView: View {
             pickerRow("Library Style", systemImage: "books.vertical",
                       selection: $settings.libraryStyle,
                       options: LibraryStyle.allCases) { $0.displayName }
+            pickerRow("Detail Style", systemImage: "rectangle.portrait.on.rectangle.portrait",
+                      selection: $settings.detailStyle,
+                      options: DetailStyle.allCases) { $0.displayName }
             #if os(iOS)
             pickerRow("Tab Bar Style", systemImage: "square.bottomthird.inset.filled",
                       selection: $settings.tabBarStyle,

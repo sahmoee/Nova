@@ -15,7 +15,9 @@ struct MediaDetailView: View {
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var progress: PlaybackProgressStore
     @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var settings: SettingsStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicAccent) private var accent
 
     var body: some View {
         GeometryReader { geo in
@@ -24,33 +26,208 @@ struct MediaDetailView: View {
                 backdrop(in: geo.size)
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                        Spacer(minLength: geo.size.height * 0.35)
-
-                        Text(item.title)
-                            .font(Theme.Font.screenTitle())
-                            .screenTitleStyle()
-                            .foregroundStyle(Theme.Colors.textPrimary)
-
-                        if !item.subtitleLine.isEmpty {
-                            Text(item.subtitleLine)
-                                .font(.appFont(24))
-                                .foregroundStyle(Theme.Colors.textSecondary)
-                        }
-
-                        metadataChips
-
-                        playbackMemoryNote
-
-                        actionButtons
+                    switch settings.detailStyle {
+                    case .cinematic: cinematicContent(in: geo.size)
+                    case .classic:   classicContent(in: geo.size)
                     }
-                    .padding(Theme.Spacing.edge)
-                    .frame(minHeight: geo.size.height, alignment: .bottom)
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
         .task(id: item.id) { await backfillArtIfNeeded() }
+    }
+
+    // MARK: - Classic layout (original)
+
+    private func classicContent(in size: CGSize) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            Spacer(minLength: size.height * 0.35)
+
+            Text(item.title)
+                .font(Theme.Font.screenTitle())
+                .screenTitleStyle()
+                .foregroundStyle(Theme.Colors.textPrimary)
+
+            if !item.subtitleLine.isEmpty {
+                Text(item.subtitleLine)
+                    .font(.appFont(24))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+
+            metadataChips
+
+            playbackMemoryNote
+
+            actionButtons
+        }
+        .padding(Theme.Spacing.edge)
+        .frame(minHeight: size.height, alignment: .bottom)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Cinematic layout (glass card + tile grid)
+
+    private func cinematicContent(in size: CGSize) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Spacer(minLength: size.height * 0.30)
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                Text(item.title)
+                    .font(Theme.Font.screenTitle())
+                    .screenTitleStyle()
+                    .foregroundStyle(Theme.Colors.textPrimary)
+
+                // Year / episode line plus a source badge capsule.
+                HStack(spacing: Theme.Spacing.sm) {
+                    if !item.subtitleLine.isEmpty {
+                        Text(item.subtitleLine)
+                            .font(.appFont(20))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                        Text("•")
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                    }
+                    HStack(spacing: 6) {
+                        Image(systemName: item.sourceType.systemImage)
+                        Text(item.sourceType.displayName)
+                    }
+                    .font(.appFont(16, weight: .semibold))
+                    .foregroundStyle(accent)
+                    .padding(.horizontal, Theme.Spacing.sm)
+                    .padding(.vertical, 6)
+                    .overlay(Capsule().strokeBorder(accent.opacity(0.5), lineWidth: 1))
+                }
+
+                metadataChips
+
+                playbackMemoryNote
+
+                // Full-width primary Play / Resume.
+                FocusableButton(
+                    title: item.hasResumePoint ? "Resume" : "Play",
+                    systemImage: "play.fill",
+                    prominent: true,
+                    action: onPlay
+                )
+                .frame(maxWidth: .infinity)
+                .padding(.top, Theme.Spacing.xs)
+
+                if item.hasResumePoint {
+                    FocusableButton(title: "Start Over", systemImage: "gobackward") {
+                        progress.reset(for: item.id)
+                        onPlay()
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+
+                // 2-column grid of secondary action tiles.
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: Theme.Spacing.sm),
+                                    GridItem(.flexible(), spacing: Theme.Spacing.sm)],
+                          spacing: Theme.Spacing.sm) {
+                    actionTile(currentItem.isFavorite ? "Unfavorite" : "Favorite",
+                               subtitle: currentItem.isFavorite ? "Remove from favorites" : "Add to favorites",
+                               systemImage: currentItem.isFavorite ? "star.slash" : "star") {
+                        library.toggleFavorite(item)
+                    }
+                    actionTile(currentItem.isHidden ? "Unhide" : "Hide",
+                               subtitle: currentItem.isHidden ? "Show in library" : "Hide from library",
+                               systemImage: currentItem.isHidden ? "eye" : "eye.slash") {
+                        library.toggleHidden(item)
+                    }
+                    if let series = item.seriesTitle ?? (item.episode != nil ? item.title : nil) {
+                        actionTile("Binge Settings", subtitle: "Manage binge behavior",
+                                   systemImage: "slider.horizontal.3") {
+                            bingeSeries = SeriesWrapper(value: series)
+                        }
+                    }
+                    actionTile("Fix Match", subtitle: "Improve match results",
+                               systemImage: "wand.and.stars") {
+                        showFixMatch = true
+                    }
+                }
+
+                // Destructive full-width row.
+                Button {
+                    library.remove(item)
+                    dismiss()
+                } label: {
+                    HStack(spacing: Theme.Spacing.md) {
+                        Image(systemName: "trash")
+                            .font(.appFont(22, weight: .semibold))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Remove")
+                                .font(.appFont(20, weight: .bold))
+                            Text("Delete from library")
+                                .font(.appFont(15))
+                                .foregroundStyle(Theme.Colors.textTertiary)
+                        }
+                        Spacer()
+                    }
+                    .foregroundStyle(Theme.Colors.error)
+                    .padding(Theme.Spacing.md)
+                    .background(
+                        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                            .fill(Theme.Colors.error.opacity(0.10))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                            .strokeBorder(Theme.Colors.error.opacity(0.35), lineWidth: 1)
+                    )
+                    .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                }
+                .buttonStyle(FrameListRowStyle())
+            }
+            .padding(Theme.Spacing.lg)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.card * 1.5, style: .continuous)
+                    .fill(.ultraThinMaterial)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.card * 1.5, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+            )
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.bottom, Theme.Spacing.lg)
+            .sheet(item: $bingeSeries) { series in
+                BingeSettingsView(seriesTitle: series.value)
+            }
+            .sheet(isPresented: $showFixMatch) {
+                FixMatchView(item: item)
+                    .environmentObject(env)
+                    .environmentObject(library)
+            }
+        }
+        .frame(minHeight: size.height, alignment: .bottom)
+    }
+
+    /// A secondary action tile: accent icon, bold title, muted subtitle.
+    private func actionTile(_ title: String, subtitle: String, systemImage: String,
+                            action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: systemImage)
+                    .font(.appFont(24, weight: .semibold))
+                    .foregroundStyle(accent)
+                    .frame(width: 34)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.appFont(18, weight: .bold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                    Text(subtitle)
+                        .font(.appFont(14))
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(Theme.Spacing.md)
+            .frame(maxWidth: .infinity, minHeight: 74, alignment: .leading)
+            .refinedCardBackground()
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        }
+        .buttonStyle(FrameListRowStyle())
     }
 
     /// Older library items (added before episodes used show art) may have an episode

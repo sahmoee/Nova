@@ -67,6 +67,7 @@ final class SettingsStore: ObservableObject {
         static let libraryStyle = "settings.libraryStyle"
         static let tabBarStyle = "settings.tabBarStyle"
         static let uiStyle = "settings.uiStyle"
+        static let detailStyle = "settings.detailStyle"
     }
 
     // MARK: - Playback
@@ -243,6 +244,12 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(homeStyle.rawValue, forKey: Key.homeStyle); CloudSync.shared.setString(homeStyle.rawValue, forKey: Key.homeStyle) }
     }
 
+    /// How the library media-detail sheet is presented: the new cinematic glass-card
+    /// look (default) with a tile grid of actions, or the classic stacked buttons.
+    @Published var detailStyle: DetailStyle {
+        didSet { defaults.set(detailStyle.rawValue, forKey: Key.detailStyle); CloudSync.shared.setString(detailStyle.rawValue, forKey: Key.detailStyle) }
+    }
+
     /// How the Library screen is presented: the new clean look (default) with a
     /// segmented All/Movies/Shows control and an options menu, or the classic chips.
     @Published var libraryStyle: LibraryStyle {
@@ -393,6 +400,9 @@ final class SettingsStore: ObservableObject {
         self.libraryStyle = LibraryStyle(
             rawValue: defaults.string(forKey: Key.libraryStyle) ?? LibraryStyle.clean.rawValue
         ) ?? .clean
+        self.detailStyle = DetailStyle(
+            rawValue: defaults.string(forKey: Key.detailStyle) ?? DetailStyle.cinematic.rawValue
+        ) ?? .cinematic
         self.tabBarStyle = TabBarStyle(
             rawValue: defaults.string(forKey: Key.tabBarStyle) ?? TabBarStyle.floatingPill.rawValue
         ) ?? .floatingPill
@@ -484,6 +494,8 @@ final class SettingsStore: ObservableObject {
            let s = HomeStyle(rawValue: v), homeStyle != s { homeStyle = s }
         if let v = cloud.string(forKey: Key.libraryStyle),
            let s = LibraryStyle(rawValue: v), libraryStyle != s { libraryStyle = s }
+        if let v = cloud.string(forKey: Key.detailStyle),
+           let s = DetailStyle(rawValue: v), detailStyle != s { detailStyle = s }
         if let v = cloud.string(forKey: Key.tabBarStyle),
            let s = TabBarStyle(rawValue: v), tabBarStyle != s { tabBarStyle = s }
         if let v = cloud.string(forKey: Key.uiStyle),
@@ -751,5 +763,24 @@ final class SleepTimer: ObservableObject {
     var display: String {
         let s = Int(remaining)
         return String(format: "%d:%02d", s / 60, s % 60)
+    }
+}
+
+
+/// How the library media-detail sheet is presented.
+enum DetailStyle: String, CaseIterable, Identifiable {
+    /// New default: frosted glass card over the backdrop, tile grid of actions,
+    /// and a destructive Remove row.
+    case cinematic
+    /// The classic stacked-buttons layout.
+    case classic
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .cinematic: return "Cinematic"
+        case .classic:   return "Classic"
+        }
     }
 }

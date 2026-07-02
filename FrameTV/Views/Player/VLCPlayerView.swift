@@ -26,10 +26,9 @@ struct VLCPlayerView: View {
     @Environment(\.dynamicAccent) private var accent
 
     @StateObject private var model: VLCPlayerModel
-    @ObservedObject private var sleepTimer = SleepTimer.shared
     @State private var controlsVisible = false
     @State private var showDiagnostics = false
-    @AppStorage("player.minimalControls") private var minimalControls = false
+    @State private var minimalControls = false
     @State private var resumePromptPosition: TimeInterval?
     @State private var hideControlsTask: Task<Void, Never>?
     @State private var hasStarted = false
@@ -135,9 +134,6 @@ struct VLCPlayerView: View {
             }
         }
         .onAppear {
-            SleepTimer.shared.onFire = { [weak model] in
-                if model?.isPlaying == true { model?.togglePlayPause() }
-            }
             model.configure(progressStore: progress, settings: settings, trakt: env.trakt)
             // Guard against SwiftUI re-running onAppear (e.g. after a sheet dismiss or
             // a parent nav change), which would otherwise restart the video.
@@ -154,7 +150,7 @@ struct VLCPlayerView: View {
             scheduleHideControls()
             Task { await prepareNextEpisode() }
         }
-        .onDisappear { model.stopAndSave(); hideControlsTask?.cancel(); SleepTimer.shared.cancel(); SleepTimer.shared.onFire = nil }
+        .onDisappear { model.stopAndSave(); hideControlsTask?.cancel() }
         .overlay {
             if let pos = resumePromptPosition {
                 resumeRestartPrompt(position: pos)
@@ -298,27 +294,6 @@ struct VLCPlayerView: View {
                     nativeTextButton("Diagnostics", systemImage: "waveform.path.ecg") {
                         showDiagnostics.toggle(); revealControls()
                     }
-                    // Sleep timer menu, styled like the other native text actions.
-                    Menu {
-                        ForEach(SleepTimer.Preset.allCases) { preset in
-                            Button(preset.label) {
-                                sleepTimer.start(minutes: preset.rawValue)
-                                revealControls()
-                            }
-                        }
-                    } label: {
-                        VStack(spacing: 4) {
-                            Image(systemName: sleepTimer.isRunning ? "moon.fill" : "moon")
-                                .font(.appFont(24, weight: .semibold))
-                            Text(sleepTimer.isRunning ? sleepTimer.display : "Sleep")
-                                .font(.appFont(14, weight: .medium)).monospacedDigit()
-                                .lineLimit(1)
-                        }
-                        .foregroundStyle(sleepTimer.isRunning ? Theme.Colors.accent : .white)
-                        .frame(minWidth: Theme.scaled(64, min: 44))
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(FrameChipButtonStyle())
                 }
                 .padding(.top, Theme.Spacing.xs)
             }
@@ -433,30 +408,6 @@ struct VLCPlayerView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Diagnostics")
-
-                    // Sleep timer: pause playback after a chosen interval.
-                    Menu {
-                        ForEach(SleepTimer.Preset.allCases) { preset in
-                            Button(preset.label) {
-                                sleepTimer.start(minutes: preset.rawValue)
-                                revealControls()
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: sleepTimer.isRunning ? "moon.fill" : "moon")
-                            if sleepTimer.isRunning {
-                                Text(sleepTimer.display)
-                                    .font(.appFont(15, weight: .semibold)).monospacedDigit()
-                            }
-                        }
-                        .font(.appFont(22, weight: .semibold))
-                        .foregroundStyle(sleepTimer.isRunning ? Theme.Colors.accent : .white)
-                        .padding(Theme.Spacing.md)
-                        .background(.ultraThinMaterial, in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Sleep timer")
                 }
             }
             .padding(Theme.Spacing.lg)
