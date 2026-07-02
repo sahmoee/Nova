@@ -108,7 +108,9 @@ struct AISearchSettingsView: View {
                 Text(workerSource)
                     .font(.system(size: 13, design: .monospaced))
                     .foregroundStyle(Theme.Colors.textSecondary)
+                    #if os(iOS)
                     .textSelection(.enabled)
+                    #endif
                     .padding(Theme.Spacing.md)
             }
             .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))

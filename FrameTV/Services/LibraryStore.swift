@@ -53,6 +53,7 @@ final class LibraryStore: ObservableObject {
         load()
         loadCollections()
         startCloudSync()
+        loadQueue()
     }
 
     // MARK: - iCloud sync
@@ -539,6 +540,11 @@ final class LibraryStore: ObservableObject {
             items[idx].lastPlayedPosition = 100
         }
         items[idx].lastPlayedDate = Date()
+        // Queue means "plan to watch" — once watched, it leaves the queue.
+        if queueIDs.contains(items[idx].id) {
+            queueIDs.removeAll { $0 == items[idx].id }
+            persistQueue()
+        }
         persist()
     }
 
@@ -548,6 +554,69 @@ final class LibraryStore: ObservableObject {
         items[idx].lastPlayedPosition = 0
         items[idx].lastPlayedDate = nil
         persist()
+    }
+
+    // MARK: - Watchlist Queue
+    //
+    // A dedicated "I plan to watch this" list, separate from Favorites ("I like
+    // this"). Stored as an ordered list of item IDs, persisted locally and synced
+    // via iCloud KVS so the queue follows the user across iPhone, iPad, and tvOS.
+
+    @Published private(set) var queueIDs: [UUID] = []
+
+    private var queueDefaultsKey: String { "library.queue.v1" }
+
+    /// Loads the queue from local storage (called from init via loadQueue()).
+    func loadQueue() {
+        if let data = UserDefaults.standard.data(forKey: queueDefaultsKey),
+           let ids = try? JSONDecoder().decode([UUID].self, from: data) {
+            queueIDs = ids
+        }
+        // Adopt a cloud copy if one exists (newer device wins on merge below).
+        if let data = CloudSync.shared.data(forKey: queueDefaultsKey),
+           let ids = try? JSONDecoder().decode([UUID].self, from: data),
+           !ids.isEmpty, queueIDs.isEmpty {
+            queueIDs = ids
+        }
+    }
+
+    private func persistQueue() {
+        if let data = try? JSONEncoder().encode(queueIDs) {
+            UserDefaults.standard.set(data, forKey: queueDefaultsKey)
+            CloudSync.shared.setData(data, forKey: queueDefaultsKey)
+        }
+    }
+
+    /// Whether an item is currently in the queue.
+    func isQueued(_ item: MediaItem) -> Bool { queueIDs.contains(item.id) }
+
+    /// Adds an item to the end of the queue (no duplicates).
+    func addToQueue(_ item: MediaItem) {
+        guard !queueIDs.contains(item.id) else { return }
+        queueIDs.append(item.id)
+        persistQueue()
+    }
+
+    func removeFromQueue(_ item: MediaItem) {
+        queueIDs.removeAll { $0 == item.id }
+        persistQueue()
+    }
+
+    /// Reorders the queue (list-style move).
+    func moveInQueue(from source: IndexSet, to destination: Int) {
+        queueIDs.move(fromOffsets: source, toOffset: destination)
+        persistQueue()
+    }
+
+    /// The queued items in order, skipping any that were removed from the library.
+    var queuedItems: [MediaItem] {
+        queueIDs.compactMap { id in items.first(where: { $0.id == id }) }
+    }
+
+    /// The next thing to watch tonight: the first queued item, preferring one that is
+    /// already in progress so an unfinished pick surfaces first.
+    var upNextInQueue: MediaItem? {
+        queuedItems.first(where: { $0.hasResumePoint }) ?? queuedItems.first
     }
 
     /// Items that have been watched or partially played, most recent first — powers a

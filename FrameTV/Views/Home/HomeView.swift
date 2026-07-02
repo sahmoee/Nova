@@ -18,6 +18,7 @@ struct HomeView: View {
     @State private var selectedItem: MediaItem?
     @State private var showCustomize = false
     @State private var heroIndex = 0
+    @State private var showQueue = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -48,6 +49,9 @@ struct HomeView: View {
             .sheet(isPresented: $showCustomize) {
                 HomeCustomizeView()
             }
+            .sheet(isPresented: $showQueue) {
+                QueueManageView()
+            }
         }
     }
 
@@ -69,6 +73,24 @@ struct HomeView: View {
                 if !library.continueWatching.isEmpty {
                     continueWatchingRow
                 }
+                if !library.queuedItems.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack {
+                            Text("Up Next in Queue")
+                                .font(Theme.Font.sectionTitle())
+                                .foregroundStyle(Theme.Colors.textPrimary)
+                            Spacer()
+                            Button("Manage") { showQueue = true }
+                                .font(.appFont(17, weight: .semibold))
+                                .foregroundStyle(Theme.Colors.accent)
+                                .buttonStyle(FrameChipButtonStyle())
+                        }
+                        .padding(.horizontal, Theme.Spacing.edge)
+                        MediaRow(title: "",
+                                 items: Array(library.queuedItems.prefix(20))) { play($0) }
+                    }
+                }
+
                 ForEach(shelfStore.enabledShelves) { shelf in
                     CatalogShelfRow(shelf: shelf)
                 }
@@ -108,6 +130,24 @@ struct HomeView: View {
 
                 if !library.continueWatching.isEmpty {
                     continueWatchingRow
+                }
+
+                if !library.queuedItems.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack {
+                            Text("Up Next in Queue")
+                                .font(Theme.Font.sectionTitle())
+                                .foregroundStyle(Theme.Colors.textPrimary)
+                            Spacer()
+                            Button("Manage") { showQueue = true }
+                                .font(.appFont(17, weight: .semibold))
+                                .foregroundStyle(Theme.Colors.accent)
+                                .buttonStyle(FrameChipButtonStyle())
+                        }
+                        .padding(.horizontal, Theme.Spacing.edge)
+                        MediaRow(title: "",
+                                 items: Array(library.queuedItems.prefix(20))) { play($0) }
+                    }
                 }
 
                 if !library.recentlyWatched.isEmpty {
@@ -431,4 +471,64 @@ struct DiscoverTile: Identifiable {
                      systemImage: "rectangle.stack.fill",
                      destination: .library)
     ]
+}
+
+
+// MARK: - Queue management
+
+/// Reorder or remove queued titles. The queue is the "plan to watch" list, separate
+/// from Favorites; it syncs across devices via iCloud KVS.
+struct QueueManageView: View {
+    @EnvironmentObject private var library: LibraryStore
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if library.queuedItems.isEmpty {
+                    Text("Your queue is empty. Add titles from any detail page.")
+                        .font(.appFont(18))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .padding(Theme.Spacing.lg)
+                } else {
+                    List {
+                        ForEach(library.queuedItems) { item in
+                            HStack(spacing: Theme.Spacing.md) {
+                                PosterImage(url: item.posterURL,
+                                            width: 44, height: 66)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.title)
+                                        .font(.appFont(18, weight: .semibold))
+                                        .foregroundStyle(Theme.Colors.textPrimary)
+                                        .lineLimit(1)
+                                    if item.hasResumePoint {
+                                        Text("In progress")
+                                            .font(.appFont(14))
+                                            .foregroundStyle(Theme.Colors.accent)
+                                    }
+                                }
+                                Spacer()
+                            }
+                            .listRowBackground(Theme.Colors.card)
+                        }
+                        .onMove { library.moveInQueue(from: $0, to: $1) }
+                        .onDelete { idx in
+                            for i in idx { library.removeFromQueue(library.queuedItems[i]) }
+                        }
+                    }
+                    .scrollContentBackground(.hidden)
+                }
+            }
+            .background(Theme.Colors.appBackground.ignoresSafeArea())
+            .navigationTitle("Queue")
+            .toolbar {
+                #if os(iOS)
+                ToolbarItem(placement: .topBarLeading) { EditButton() }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+                #endif
+            }
+        }
+    }
 }

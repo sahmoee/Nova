@@ -127,6 +127,11 @@ struct MediaDetailView: View {
                                systemImage: currentItem.isFavorite ? "star.slash" : "star") {
                         library.toggleFavorite(item)
                     }
+                    actionTile(library.isQueued(item) ? "In Queue" : "Add to Queue",
+                               subtitle: library.isQueued(item) ? "Remove from queue" : "Plan to watch",
+                               systemImage: library.isQueued(item) ? "text.badge.checkmark" : "text.badge.plus") {
+                        library.isQueued(item) ? library.removeFromQueue(item) : library.addToQueue(item)
+                    }
                     actionTile(currentItem.isHidden ? "Unhide" : "Hide",
                                subtitle: currentItem.isHidden ? "Show in library" : "Hide from library",
                                systemImage: currentItem.isHidden ? "eye" : "eye.slash") {
@@ -264,6 +269,12 @@ struct MediaDetailView: View {
                     progress.reset(for: item.id)
                     onPlay()
                 }
+            }
+            FocusableButton(
+                title: library.isQueued(item) ? "Remove from Queue" : "Add to Queue",
+                systemImage: library.isQueued(item) ? "text.badge.checkmark" : "text.badge.plus"
+            ) {
+                library.isQueued(item) ? library.removeFromQueue(item) : library.addToQueue(item)
             }
             FocusableButton(
                 title: currentItem.isFavorite ? "Unfavorite" : "Favorite",

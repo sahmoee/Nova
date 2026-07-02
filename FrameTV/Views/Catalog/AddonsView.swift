@@ -8,7 +8,9 @@
 //
 
 import SwiftUI
+#if os(iOS)
 import UniformTypeIdentifiers
+#endif
 #if os(iOS)
 import UIKit
 #endif
@@ -18,9 +20,11 @@ struct AddonsView: View {
     @State private var showAdd = false
     @State private var health: [UUID: AddonStore.Health] = [:]
     @State private var isChecking = false
+    #if os(iOS)
     @State private var showExporter = false
     @State private var showImporter = false
     @State private var exportDoc: AddonExportDocument?
+    #endif
 
     private var store: AddonStore { env.addonStore }
 
@@ -53,6 +57,7 @@ struct AddonsView: View {
         .sheet(isPresented: $showAdd) {
             AddAddonView()
         }
+        #if os(iOS)
         .fileExporter(isPresented: $showExporter,
                       document: exportDoc,
                       contentType: .json,
@@ -69,6 +74,7 @@ struct AddonsView: View {
                 }
             }
         }
+        #endif
     }
 
     private var header: some View {
@@ -79,6 +85,7 @@ struct AddonsView: View {
                                     systemImage: "stethoscope") {
                         runHealthCheck()
                     }
+                    #if os(iOS)
                     Menu {
                         Button {
                             if let data = try? store.exportData() {
@@ -94,6 +101,7 @@ struct AddonsView: View {
                             .font(.appFont(22))
                             .foregroundStyle(Theme.Colors.accent)
                     }
+                    #endif
                 }
                 FocusableButton(title: "Add", systemImage: "plus", prominent: true) {
                     showAdd = true
@@ -368,6 +376,7 @@ extension AddonsView {
     }
 }
 
+#if os(iOS)
 /// A tiny JSON document used by the file exporter to save the addon config.
 struct AddonExportDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.json] }
@@ -380,3 +389,4 @@ struct AddonExportDocument: FileDocument {
         FileWrapper(regularFileWithContents: data)
     }
 }
+#endif
