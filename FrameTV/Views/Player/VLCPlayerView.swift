@@ -37,10 +37,6 @@ struct VLCPlayerView: View {
     @State private var preparedNext: MediaItem?
     @State private var navigateNext: MediaItem?
 
-    // Drag/swipe-to-seek state. `scrubTarget` is the previewed time while a drag is
-    // in progress (nil when not scrubbing); committing applies it to the player.
-    @State private var scrubTarget: TimeInterval?
-    @State private var scrubStart: TimeInterval = 0
 
     private var hasNextEpisode: Bool { preparedNext != nil }
 
@@ -95,21 +91,15 @@ struct VLCPlayerView: View {
                     .transition(.opacity)
                 }
 
-                // Seek preview shown while dragging/swiping to scrub.
-                if let target = scrubTarget {
-                    seekPreview(target: target)
-                }
                 #if os(iOS)
-                // Horizontal drag anywhere on the video scrubs: drag right to go
-                // forward, left to rewind. A vertical-ish drag is ignored so it
-                // doesn't fight a tap. Tapping (no drag) reveals the controls.
+                // iOS is tap-only: no swipe or drag gestures on the video. A single
+                // tap reveals the controls (or hides them if already showing); all
+                // seeking, play/pause, and skipping happen through the on-screen
+                // buttons. This avoids gestures that fight scrolling or feel unreliable.
                 Color.clear.contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 8)
-                            .onChanged { value in handleScrubChange(translation: value.translation.width, width: nil) }
-                            .onEnded { _ in commitScrub() }
-                    )
-                    .onTapGesture { revealControls() }
+                    .onTapGesture {
+                        if controlsVisible { hideControls() } else { revealControls() }
+                    }
                 #else
                 // tvOS: left/right swipes on the remote touchpad skip; up/down or
                 // select reveal the controls. Play/pause toggles playback. The catcher
@@ -705,6 +695,11 @@ struct VLCPlayerView: View {
         scheduleHideControls()
     }
 
+    private func hideControls() {
+        hideControlsTask?.cancel()
+        withAnimation { controlsVisible = false }
+    }
+
     private func scheduleHideControls() {
         hideControlsTask?.cancel()
         // On tvOS the controls are focused elements; hiding them after a few seconds
@@ -731,77 +726,5 @@ struct VLCPlayerView: View {
                      : String(format: "%d:%02d", m, s)
     }
 
-    // MARK: - Drag / swipe to seek
 
-    /// Updates the previewed scrub position from a horizontal drag translation.
-    /// `width` is the available width when known (for proportional scrubbing); when
-    /// nil we use a fixed sensitivity (about 90s of seek per full screen width).
-    private func handleScrubChange(translation: CGFloat, width: CGFloat?) {
-        guard model.duration > 0 else { return }
-        if scrubTarget == nil { scrubStart = model.currentTime }
-        let seconds: TimeInterval
-        if let width, width > 0 {
-            seconds = TimeInterval(translation / width) * model.duration
-        } else {
-            // Fixed sensitivity: ~0.25s per point of drag.
-            seconds = TimeInterval(translation) * 0.25
-        }
-        let target = max(0, min(scrubStart + seconds, model.duration))
-        scrubTarget = target
-        revealControls()
-    }
-
-    /// Commits the previewed scrub position to the player and ends scrubbing.
-    private func commitScrub() {
-        if let target = scrubTarget {
-            model.seek(to: target)
-        }
-        scrubTarget = nil
-        scheduleHideControls()
-    }
-
-    /// A large centered readout of the target time while scrubbing.
-    private func seekPreview(target: TimeInterval) -> some View {
-        let delta = target - scrubStart
-        let sign = delta >= 0 ? "+" : "−"
-        return VStack(spacing: Theme.Spacing.sm) {
-            Image(systemName: delta >= 0 ? "goforward" : "gobackward")
-                .font(.appFont(40, weight: .semibold))
-            Text(timeString(target))
-                .font(.appFont(34, weight: .bold))
-                .monospacedDigit()
-            Text("\(sign)\(timeString(abs(delta)))")
-                .font(.appFont(20, weight: .semibold))
-                .monospacedDigit()
-                .foregroundStyle(Theme.Colors.textSecondary)
-        }
-        .foregroundStyle(.white)
-        .padding(Theme.Spacing.xl)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .transition(.scale.combined(with: .opacity))
-    }
 }
-
-// MARK: - VLC video surface
-
-#if canImport(VLCKitSPM)
-#if os(iOS) || os(tvOS)
-import UIKit
-
-/// Hosts the VLC media player's video output in a UIView.
-struct VLCVideoSurface: UIViewRepresentable {
-    let player: VLCMediaPlayer
-
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView()
-        view.backgroundColor = .black
-        player.drawable = view
-        return view
-    }
-
-    func updateUIView(_ uiView: UIView, context: Context) {
-        if player.drawable == nil { player.drawable = uiView }
-    }
-}
-#endif
-#endif
