@@ -438,6 +438,11 @@ struct ContentDetailView: View {
             let activeSeason = selectedSeason ?? seasons.first?.number ?? 1
 
             VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                Text("Seasons")
+                    .font(.appFont(24, weight: .bold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+
+                // Season rail.
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: Theme.Spacing.sm) {
                         ForEach(seasons) { season in
@@ -446,9 +451,19 @@ struct ContentDetailView: View {
                     }
                 }
 
+                // Episode rail for the selected season: horizontal cards with 16:9
+                // still art, title, and metadata beneath.
                 if let season = seasons.first(where: { $0.number == activeSeason }) {
-                    ForEach(season.episodes) { ep in
-                        episodeRow(ep)
+                    Text(season.displayName)
+                        .font(.appFont(20, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(alignment: .top, spacing: Theme.Spacing.md) {
+                            ForEach(season.episodes) { ep in
+                                episodeCard(ep)
+                            }
+                        }
+                        .padding(.vertical, Theme.Spacing.xs)
                     }
                 }
             }
@@ -477,6 +492,73 @@ struct ContentDetailView: View {
         .buttonStyle(FrameChipButtonStyle())
     }
 
+    /// A vertical episode card for the horizontal season rail: 16:9 still on top,
+    /// then label, title, and metadata. Tapping opens the stream picker; long-press
+    /// toggles watched.
+    private func episodeCard(_ ep: EpisodeInfo) -> some View {
+        let watched = env.library.isEpisodeWatched(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
+                                                   season: ep.season, number: ep.number)
+        let inProgress = env.library.isEpisodeInProgress(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
+                                                         season: ep.season, number: ep.number)
+        return Button { streamTarget = StreamTarget(catalog: item, episode: ep) } label: {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                EpisodeStill(stillURL: ep.stillURL, fallbackURL: item.backdropURL ?? item.posterURL,
+                             width: Theme.scaled(240, min: 190))
+                    .opacity(watched ? 0.6 : 1)
+                    .overlay(alignment: .bottomLeading) {
+                        HStack(spacing: 6) {
+                            if watched {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.white, Theme.Colors.accent)
+                            } else if inProgress {
+                                Image(systemName: "play.circle.fill")
+                                    .foregroundStyle(.white, Theme.Colors.accentSecondary)
+                            }
+                        }
+                        .font(.appFont(22))
+                        .padding(8)
+                    }
+                    .overlay(alignment: .topTrailing) {
+                        Image(systemName: "play.circle.fill")
+                            .font(.appFont(26))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .shadow(color: .black.opacity(0.5), radius: 4)
+                            .padding(8)
+                    }
+
+                Text(ep.label)
+                    .font(.appFont(14, weight: .bold))
+                    .foregroundStyle(Theme.Colors.accent)
+                Text(ep.displayTitle)
+                    .font(.appFont(17, weight: .semibold))
+                    .foregroundStyle(watched ? Theme.Colors.textSecondary : Theme.Colors.textPrimary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                if let meta = episodeMetaLine(ep) {
+                    Text(meta)
+                        .font(.appFont(14))
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                        .lineLimit(1)
+                }
+            }
+            .frame(width: Theme.scaled(240, min: 190), alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(FrameListRowStyle())
+        .contextMenu {
+            Button {
+                _ = env.library.setEpisodeWatched(!watched,
+                                                  imdb: item.contentID.imdb,
+                                                  tmdb: item.contentID.tmdb,
+                                                  season: ep.season, number: ep.number)
+                favoriteRefresh.toggle()
+            } label: {
+                Label(watched ? "Mark as Unwatched" : "Mark as Watched",
+                      systemImage: watched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
+            }
+        }
+    }
+
     private func episodeRow(_ ep: EpisodeInfo) -> some View {
         let watched = env.library.isEpisodeWatched(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
                                                season: ep.season, number: ep.number)
@@ -484,9 +566,10 @@ struct ContentDetailView: View {
                                                      season: ep.season, number: ep.number)
         return Button { streamTarget = StreamTarget(catalog: item, episode: ep) } label: {
             HStack(spacing: Theme.Spacing.md) {
-                // Use the show's poster art for every episode (per design) rather than
-                // per-episode stills, in proper 2:3 poster shape so nothing stretches.
-                PosterImage(url: item.posterURL, width: Theme.scaled(80, min: 56), height: Theme.scaled(120, min: 84))
+                // Episode still art in proper 16:9 shape (falls back to the show poster
+                // cropped to 16:9 when a still isn't available), so nothing stretches.
+                EpisodeStill(stillURL: ep.stillURL, fallbackURL: item.backdropURL ?? item.posterURL,
+                             width: Theme.scaled(150, min: 116))
                     .opacity(watched ? 0.55 : 1)
                     .overlay(alignment: .bottomLeading) {
                         if watched {
@@ -655,6 +738,35 @@ struct ContentDetailView: View {
 // MARK: - Poster helper
 
 /// A simple async poster/still image with a placeholder.
+/// A 16:9 episode thumbnail using the episode still (or a show-art fallback), sized to
+/// a fixed width and cropped to fill so it never stretches.
+struct EpisodeStill: View {
+    let stillURL: URL?
+    let fallbackURL: URL?
+    var width: CGFloat
+
+    private var height: CGFloat { width * 9.0 / 16.0 }
+
+    var body: some View {
+        CachedAsyncImage(url: stillURL ?? fallbackURL, maxPixel: 780) { image in
+            image.resizable().aspectRatio(contentMode: .fill)
+        } placeholder: {
+            RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                .fill(Theme.Colors.card)
+                .overlay(
+                    Image(systemName: "play.tv")
+                        .font(.appFont(28))
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                )
+                .shimmering()
+        }
+        .frame(width: width, height: height)
+        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .accessibilityHidden(true)
+    }
+}
+
 struct PosterImage: View {
     let url: URL?
     var width: CGFloat

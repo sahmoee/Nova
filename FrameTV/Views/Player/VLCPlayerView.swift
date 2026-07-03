@@ -737,3 +737,26 @@ struct VLCPlayerView: View {
 
 
 }
+
+
+#if canImport(VLCKitSPM)
+#if os(iOS) || os(tvOS)
+import UIKit
+
+/// Hosts the VLC media player's video output in a UIView.
+struct VLCVideoSurface: UIViewRepresentable {
+    let player: VLCMediaPlayer
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .black
+        player.drawable = view
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        if player.drawable == nil { player.drawable = uiView }
+    }
+}
+#endif
+#endif

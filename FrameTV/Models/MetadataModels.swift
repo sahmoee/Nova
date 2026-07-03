@@ -159,9 +159,9 @@ struct TMDBVideo: Codable {
 /// Helpers for building TMDB image URLs.
 enum TMDBImage {
     static let base = "https://image.tmdb.org/t/p/"
-    static func poster(_ path: String?) -> URL? { url(path, size: "w500") }
-    static func backdrop(_ path: String?) -> URL? { url(path, size: "w1280") }
-    static func still(_ path: String?) -> URL? { url(path, size: "w300") }
+    static func poster(_ path: String?) -> URL? { url(path, size: "w780") }
+    static func backdrop(_ path: String?) -> URL? { url(path, size: "original") }
+    static func still(_ path: String?) -> URL? { url(path, size: "w780") }
 
     private static func url(_ path: String?, size: String) -> URL? {
         guard let path, !path.isEmpty else { return nil }
