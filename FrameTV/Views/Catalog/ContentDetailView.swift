@@ -106,7 +106,7 @@ struct ContentDetailView: View {
                 .clipped()
                 .overlay(
                     LinearGradient(
-                        colors: [.clear, .clear, Theme.Colors.appBackground.opacity(0.7), Theme.Colors.appBackground],
+                        colors: [.clear, .clear, Theme.Colors.background.opacity(0.7), Theme.Colors.background],
                         startPoint: .top, endPoint: .bottom
                     )
                 )
