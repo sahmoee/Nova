@@ -181,6 +181,37 @@ actor TMDBClient {
         return URL(string: "https://www.youtube.com/watch?v=\(key)")
     }
 
+    /// Top-billed cast for the detail screen's Cast rail (up to 20).
+    func cast(tmdbID: Int, isMovie: Bool) async throws -> [CastMember] {
+        let path = isMovie ? "movie/\(tmdbID)/credits" : "tv/\(tmdbID)/credits"
+        let response: TMDBCreditsResponse = try await get(path)
+        return response.cast.prefix(20).map {
+            CastMember(id: $0.id, name: $0.name, character: $0.character,
+                       profileURL: TMDBImage.profile($0.profilePath))
+        }
+    }
+
+    /// Related / recommended titles for the detail screen's Related rail.
+    func related(tmdbID: Int, isMovie: Bool) async throws -> [CatalogItem] {
+        let path = isMovie ? "movie/\(tmdbID)/recommendations" : "tv/\(tmdbID)/recommendations"
+        let response: TMDBRelatedResponse = try await get(path)
+        return response.results.compactMap { entry -> CatalogItem? in
+            let title = entry.title ?? entry.name
+            guard let title, !title.isEmpty else { return nil }
+            let yearString = (entry.releaseDate ?? entry.firstAirDate)?.prefix(4)
+            return CatalogItem(
+                contentID: ContentID(tmdb: entry.id, type: isMovie ? .movie : .series),
+                title: title,
+                overview: nil,
+                posterURL: TMDBImage.poster(entry.posterPath),
+                backdropURL: TMDBImage.backdrop(entry.backdropPath),
+                year: yearString.flatMap { Int($0) },
+                rating: nil,
+                genres: []
+            )
+        }
+    }
+
     /// Enriches a list of CatalogItems (e.g. from Trakt) that have TMDB ids but no
     /// artwork. Runs lookups concurrently and leaves items without a TMDB id untouched.
     func enrichArtwork(_ items: [CatalogItem]) async -> [CatalogItem] {

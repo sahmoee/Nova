@@ -26,6 +26,8 @@ struct ContentDetailView: View {
     @State private var ratings = ExternalRatings()   // IMDb/RT/Metacritic from OMDb
     @State private var showCollectionPicker = false
     @State private var newCollectionName = ""
+    @State private var cast: [CastMember] = []
+    @State private var related: [CatalogItem] = []
 
     init(item: CatalogItem) {
         self.initialItem = item
@@ -43,19 +45,33 @@ struct ContentDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                header
+            VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
+                heroHeader
+
                 if item.isSeries {
                     seriesBody
-                } else {
-                    movieBody
+                }
+
+                if trailerURL != nil {
+                    trailersSection
+                }
+
+                if !related.isEmpty {
+                    relatedSection
+                }
+
+                if !cast.isEmpty {
+                    castSection
+                }
+
+                if isHydrating {
+                    ProgressView().tint(Theme.Colors.accent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Theme.Spacing.lg)
                 }
             }
-            .padding(Theme.Spacing.edge)
+            .padding(.bottom, Theme.Spacing.xl)
             .frame(maxWidth: Theme.contentMaxWidth(1400), alignment: .leading)
-        }
-        .background(alignment: .top) {
-            backdropHero
         }
         .background(Theme.Colors.appBackground.ignoresSafeArea())
         .navigationDestination(item: $streamTarget) { target in
@@ -64,12 +80,242 @@ struct ContentDetailView: View {
         }
         .task { await hydrate() }
         .task { await fetchTrailer() }
+        .task { await fetchExtras() }
         .task(id: item.contentID.imdb) { await fetchRatings() }
         .sheet(isPresented: $showCollectionPicker) {
             collectionPickerSheet
         }
         .onAppear { AccentManager.shared.deriveAccent(from: item.posterURL ?? item.backdropURL) }
         .onDisappear { AccentManager.shared.reset() }
+    }
+
+    // MARK: - Hero header (centered, Apple TV style)
+
+    private var heroHeader: some View {
+        VStack(spacing: Theme.Spacing.md) {
+            // Full-bleed backdrop with the title art centered over it and a fade to the
+            // background at the bottom.
+            ZStack(alignment: .bottom) {
+                CachedAsyncImage(url: item.backdropURL ?? item.posterURL, maxPixel: 1600) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Rectangle().fill(Theme.Colors.card).shimmering()
+                }
+                .frame(height: Theme.isCompact ? 420 : 620)
+                .frame(maxWidth: .infinity)
+                .clipped()
+                .overlay(
+                    LinearGradient(
+                        colors: [.clear, .clear, Theme.Colors.appBackground.opacity(0.7), Theme.Colors.appBackground],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                )
+            }
+            .ignoresSafeArea(edges: .top)
+
+            // Type / genre line.
+            Text(metaLine)
+                .font(.appFont(18, weight: .medium))
+                .foregroundStyle(Theme.Colors.textSecondary)
+                .multilineTextAlignment(.center)
+
+            // Primary Play + circular watched toggle, centered.
+            HStack(spacing: Theme.Spacing.md) {
+                Button {
+                    if item.isSeries, let first = firstEpisode() {
+                        streamTarget = StreamTarget(catalog: item, episode: first)
+                    } else {
+                        streamTarget = StreamTarget(catalog: item, episode: nil)
+                    }
+                } label: {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Image(systemName: "play.fill")
+                        Text(item.isSeries ? "Play First Episode" : playButtonTitle)
+                    }
+                    .font(.appFont(20, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .padding(.vertical, Theme.Spacing.md)
+                    .padding(.horizontal, Theme.Spacing.xl)
+                    .background(Capsule().fill(.white))
+                }
+                .buttonStyle(FrameChipButtonStyle())
+                .contextMenu {
+                    Button {
+                        streamTarget = StreamTarget(catalog: item, episode: nil, forceManual: true)
+                    } label: { Label("Choose Stream…", systemImage: "list.bullet") }
+                }
+
+                Button { toggleWatched() } label: {
+                    Image(systemName: isWatched ? "checkmark.circle.fill" : "checkmark")
+                        .font(.appFont(24, weight: .semibold))
+                        .foregroundStyle(isWatched ? .black : .white)
+                        .frame(width: 58, height: 58)
+                        .background(Circle().fill(isWatched ? .white : Color.white.opacity(0.16)))
+                        .overlay(Circle().strokeBorder(Color.white.opacity(0.25), lineWidth: 1))
+                }
+                .buttonStyle(FrameChipButtonStyle())
+            }
+
+            // Overview + year, centered under the buttons.
+            if let overview = item.overview, !overview.isEmpty {
+                Text(overview)
+                    .font(.appFont(17))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .lineLimit(3)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, Theme.Spacing.edge)
+            }
+            if let year = item.year {
+                Text(String(year))
+                    .font(.appFont(15))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+            }
+
+            // Secondary actions (Favorite / Collection / Trailer / links).
+            secondaryActionsRail
+                .padding(.top, Theme.Spacing.xs)
+        }
+    }
+
+    /// "TV Show · Comedy · Animation" style line.
+    private var metaLine: String {
+        var parts: [String] = [item.contentID.type == .series ? "TV Show" : "Movie"]
+        parts.append(contentsOf: item.genres.prefix(2))
+        return parts.joined(separator: " · ")
+    }
+
+    private func firstEpisode() -> EpisodeInfo? {
+        let seasons = item.seasons.filter { $0.number > 0 }.isEmpty
+            ? item.seasons : item.seasons.filter { $0.number > 0 }
+        return seasons.sorted { $0.number < $1.number }
+            .first?.episodes.sorted { $0.number < $1.number }.first
+    }
+
+    // MARK: - Trailers / Related / Cast
+
+    private var trailersSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            sectionHeader("Trailers")
+            if let trailer = trailerURL {
+                Button {
+                    #if os(iOS)
+                    UIApplication.shared.open(trailer)
+                    #endif
+                } label: {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                            .fill(Theme.Colors.card)
+                        Image(systemName: "play.circle.fill")
+                            .font(.appFont(44))
+                            .foregroundStyle(.white.opacity(0.9))
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Image(systemName: "play.fill").font(.appFont(14))
+                                Text("\(item.title) — Trailer")
+                                    .font(.appFont(15, weight: .medium)).lineLimit(1)
+                                Spacer()
+                            }
+                            .foregroundStyle(.white)
+                            .padding(Theme.Spacing.sm)
+                        }
+                    }
+                    .frame(width: Theme.scaled(320, min: 280), height: Theme.scaled(180, min: 158))
+                    .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                }
+                .buttonStyle(FrameListRowStyle())
+                .padding(.horizontal, Theme.Spacing.edge)
+            }
+        }
+    }
+
+    private var relatedSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            sectionHeader("Related", chevron: true)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.md) {
+                    ForEach(related) { rel in
+                        NavigationLink {
+                            ContentDetailView(item: rel)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 6) {
+                                PosterImage(url: rel.posterURL,
+                                            width: Theme.scaled(150, min: 120),
+                                            height: Theme.scaled(225, min: 180))
+                                Text(rel.title)
+                                    .font(.appFont(15, weight: .medium))
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+                                    .lineLimit(1)
+                                    .frame(width: Theme.scaled(150, min: 120), alignment: .leading)
+                            }
+                        }
+                        .buttonStyle(FrameListRowStyle())
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.edge)
+                .padding(.vertical, Theme.Spacing.xs)
+            }
+        }
+    }
+
+    private var castSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            sectionHeader("Cast")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.md) {
+                    ForEach(cast) { member in
+                        VStack(spacing: 6) {
+                            CachedAsyncImage(url: member.profileURL, maxPixel: 300) { image in
+                                image.resizable().aspectRatio(contentMode: .fill)
+                            } placeholder: {
+                                Circle().fill(Theme.Colors.card)
+                                    .overlay(Image(systemName: "person.fill")
+                                        .font(.appFont(28)).foregroundStyle(Theme.Colors.textTertiary))
+                            }
+                            .frame(width: Theme.scaled(88, min: 72), height: Theme.scaled(88, min: 72))
+                            .clipShape(Circle())
+                            Text(member.name)
+                                .font(.appFont(14, weight: .medium))
+                                .foregroundStyle(Theme.Colors.textPrimary)
+                                .lineLimit(1)
+                            if let character = member.character, !character.isEmpty {
+                                Text(character)
+                                    .font(.appFont(12))
+                                    .foregroundStyle(Theme.Colors.textTertiary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        .frame(width: Theme.scaled(100, min: 84))
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.edge)
+                .padding(.vertical, Theme.Spacing.xs)
+            }
+        }
+    }
+
+    private func sectionHeader(_ title: String, chevron: Bool = false) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .font(.appFont(24, weight: .bold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+            if chevron {
+                Image(systemName: "chevron.right")
+                    .font(.appFont(18, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+        }
+        .padding(.horizontal, Theme.Spacing.edge)
+    }
+
+    private func fetchExtras() async {
+        guard let tmdb = item.contentID.tmdb, env.tmdb.hasKey else { return }
+        let isMovie = item.contentID.type == .movie
+        async let castResult = try? env.tmdb.cast(tmdbID: tmdb, isMovie: isMovie)
+        async let relatedResult = try? env.tmdb.related(tmdbID: tmdb, isMovie: isMovie)
+        let (c, r) = await (castResult, relatedResult)
+        if let c { cast = c }
+        if let r { related = Array(r.prefix(20)) }
     }
 
     // MARK: - Backdrop hero
@@ -438,31 +684,42 @@ struct ContentDetailView: View {
             let activeSeason = selectedSeason ?? seasons.first?.number ?? 1
 
             VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                Text("Seasons")
-                    .font(.appFont(24, weight: .bold))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-
-                // Season rail.
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Theme.Spacing.sm) {
-                        ForEach(seasons) { season in
-                            seasonChip(season, isActive: season.number == activeSeason)
+                // Season picker as a menu (tap to choose), matching the reference's
+                // "Season 1 ⌄" control.
+                Menu {
+                    ForEach(seasons) { season in
+                        Button {
+                            selectedSeason = season.number
+                        } label: {
+                            if season.number == activeSeason {
+                                Label(season.displayName, systemImage: "checkmark")
+                            } else {
+                                Text(season.displayName)
+                            }
                         }
                     }
+                } label: {
+                    HStack(spacing: Theme.Spacing.xs) {
+                        Text(seasons.first(where: { $0.number == activeSeason })?.displayName ?? "Season \(activeSeason)")
+                            .font(.appFont(28, weight: .bold))
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.appFont(18, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                    }
                 }
+                .padding(.horizontal, Theme.Spacing.edge)
 
-                // Episode rail for the selected season: horizontal cards with 16:9
-                // still art, title, and metadata beneath.
+                // Episode rail: wide 16:9 cards with the episode info overlaid on the
+                // still (title, number, synopsis), matching the reference.
                 if let season = seasons.first(where: { $0.number == activeSeason }) {
-                    Text(season.displayName)
-                        .font(.appFont(20, weight: .semibold))
-                        .foregroundStyle(Theme.Colors.textSecondary)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(alignment: .top, spacing: Theme.Spacing.md) {
                             ForEach(season.episodes) { ep in
                                 episodeCard(ep)
                             }
                         }
+                        .padding(.horizontal, Theme.Spacing.edge)
                         .padding(.vertical, Theme.Spacing.xs)
                     }
                 }
@@ -492,71 +749,81 @@ struct ContentDetailView: View {
         .buttonStyle(FrameChipButtonStyle())
     }
 
-    /// A vertical episode card for the horizontal season rail: 16:9 still on top,
-    /// then label, title, and metadata. Tapping opens the stream picker; long-press
-    /// toggles watched.
+    /// A wide episode card: the still fills it with the episode number, title, and
+    /// synopsis overlaid on a gradient at the bottom, matching the reference layout.
     private func episodeCard(_ ep: EpisodeInfo) -> some View {
         let watched = env.library.isEpisodeWatched(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
                                                    season: ep.season, number: ep.number)
         let inProgress = env.library.isEpisodeInProgress(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
                                                          season: ep.season, number: ep.number)
+        let cardWidth = Theme.scaled(330, min: 280)
         return Button { streamTarget = StreamTarget(catalog: item, episode: ep) } label: {
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                EpisodeStill(stillURL: ep.stillURL, fallbackURL: item.backdropURL ?? item.posterURL,
-                             width: Theme.scaled(240, min: 190))
-                    .opacity(watched ? 0.6 : 1)
-                    .overlay(alignment: .bottomLeading) {
-                        HStack(spacing: 6) {
-                            if watched {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.white, Theme.Colors.accent)
-                            } else if inProgress {
-                                Image(systemName: "play.circle.fill")
-                                    .foregroundStyle(.white, Theme.Colors.accentSecondary)
-                            }
-                        }
-                        .font(.appFont(22))
-                        .padding(8)
-                    }
-                    .overlay(alignment: .topTrailing) {
-                        Image(systemName: "play.circle.fill")
-                            .font(.appFont(26))
-                            .foregroundStyle(.white.opacity(0.9))
-                            .shadow(color: .black.opacity(0.5), radius: 4)
-                            .padding(8)
-                    }
+            ZStack(alignment: .bottomLeading) {
+                CachedAsyncImage(url: ep.stillURL ?? item.backdropURL ?? item.posterURL, maxPixel: 780) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Rectangle().fill(Theme.Colors.card).shimmering()
+                }
+                .frame(width: cardWidth, height: cardWidth * 9.0 / 16.0 + 120)
+                .clipped()
 
-                Text(ep.label)
-                    .font(.appFont(14, weight: .bold))
-                    .foregroundStyle(Theme.Colors.accent)
-                Text(ep.displayTitle)
-                    .font(.appFont(17, weight: .semibold))
-                    .foregroundStyle(watched ? Theme.Colors.textSecondary : Theme.Colors.textPrimary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                if let meta = episodeMetaLine(ep) {
-                    Text(meta)
-                        .font(.appFont(14))
-                        .foregroundStyle(Theme.Colors.textTertiary)
+                LinearGradient(colors: [.clear, .black.opacity(0.55), .black.opacity(0.92)],
+                               startPoint: .center, endPoint: .bottom)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("EPISODE \(ep.number)")
+                        .font(.appFont(13, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.85))
+                    Text(ep.displayTitle)
+                        .font(.appFont(19, weight: .bold))
+                        .foregroundStyle(.white)
                         .lineLimit(1)
+                    if let overview = ep.overview, !overview.isEmpty {
+                        Text(overview)
+                            .font(.appFont(15))
+                            .foregroundStyle(.white.opacity(0.85))
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                    }
+                    HStack {
+                        Image(systemName: inProgress ? "play.circle" : "play.fill")
+                            .font(.appFont(18))
+                            .foregroundStyle(.white)
+                        Spacer()
+                        Menu {
+                            Button {
+                                _ = env.library.setEpisodeWatched(!watched,
+                                                                  imdb: item.contentID.imdb,
+                                                                  tmdb: item.contentID.tmdb,
+                                                                  season: ep.season, number: ep.number)
+                                favoriteRefresh.toggle()
+                            } label: {
+                                Label(watched ? "Mark as Unwatched" : "Mark as Watched",
+                                      systemImage: watched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.appFont(18, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    .padding(.top, 2)
+                }
+                .padding(Theme.Spacing.md)
+
+                if watched {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.appFont(22))
+                        .foregroundStyle(.white, Theme.Colors.accent)
+                        .padding(Theme.Spacing.sm)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 }
             }
-            .frame(width: Theme.scaled(240, min: 190), alignment: .leading)
-            .contentShape(Rectangle())
+            .frame(width: cardWidth)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
         .buttonStyle(FrameListRowStyle())
-        .contextMenu {
-            Button {
-                _ = env.library.setEpisodeWatched(!watched,
-                                                  imdb: item.contentID.imdb,
-                                                  tmdb: item.contentID.tmdb,
-                                                  season: ep.season, number: ep.number)
-                favoriteRefresh.toggle()
-            } label: {
-                Label(watched ? "Mark as Unwatched" : "Mark as Watched",
-                      systemImage: watched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
-            }
-        }
     }
 
     private func episodeRow(_ ep: EpisodeInfo) -> some View {

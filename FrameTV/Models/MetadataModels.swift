@@ -162,6 +162,7 @@ enum TMDBImage {
     static func poster(_ path: String?) -> URL? { url(path, size: "w780") }
     static func backdrop(_ path: String?) -> URL? { url(path, size: "original") }
     static func still(_ path: String?) -> URL? { url(path, size: "w780") }
+    static func profile(_ path: String?) -> URL? { url(path, size: "w300") }
 
     private static func url(_ path: String?, size: String) -> URL? {
         guard let path, !path.isEmpty else { return nil }
@@ -244,4 +245,50 @@ struct TraktIDs: Codable {
 struct TraktScrobbleResponse: Codable {
     let action: String?
     let progress: Double?
+}
+
+// MARK: - Cast & related (TMDB)
+
+/// A single cast member for the detail screen's Cast rail.
+struct CastMember: Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let character: String?
+    let profileURL: URL?
+}
+
+struct TMDBCreditsResponse: Codable {
+    let cast: [TMDBCastEntry]
+}
+
+struct TMDBCastEntry: Codable {
+    let id: Int
+    let name: String
+    let character: String?
+    let profilePath: String?
+    enum CodingKeys: String, CodingKey {
+        case id, name, character
+        case profilePath = "profile_path"
+    }
+}
+
+struct TMDBRelatedResponse: Codable {
+    let results: [TMDBRelatedEntry]
+}
+
+struct TMDBRelatedEntry: Codable {
+    let id: Int
+    let title: String?
+    let name: String?
+    let posterPath: String?
+    let backdropPath: String?
+    let firstAirDate: String?
+    let releaseDate: String?
+    enum CodingKeys: String, CodingKey {
+        case id, title, name
+        case posterPath = "poster_path"
+        case backdropPath = "backdrop_path"
+        case firstAirDate = "first_air_date"
+        case releaseDate = "release_date"
+    }
 }
