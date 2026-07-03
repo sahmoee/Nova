@@ -34,6 +34,17 @@ struct MediaDetailView: View {
             }
         }
         .task(id: item.id) { await backfillArtIfNeeded() }
+        // Sheets are attached once at the body level so each presentation binding has
+        // exactly one owner. Duplicating them per layout branch caused "only
+        // presenting a single sheet is supported" warnings and dropped presentations.
+        .sheet(item: $bingeSeries) { series in
+            BingeSettingsView(seriesTitle: series.value)
+        }
+        .sheet(isPresented: $showFixMatch) {
+            FixMatchView(item: item)
+                .environmentObject(env)
+                .environmentObject(library)
+        }
     }
 
     // MARK: - Classic layout (original)
@@ -192,14 +203,6 @@ struct MediaDetailView: View {
             )
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.bottom, Theme.Spacing.lg)
-            .sheet(item: $bingeSeries) { series in
-                BingeSettingsView(seriesTitle: series.value)
-            }
-            .sheet(isPresented: $showFixMatch) {
-                FixMatchView(item: item)
-                    .environmentObject(env)
-                    .environmentObject(library)
-            }
         }
         .frame(minHeight: size.height, alignment: .bottom)
     }
@@ -304,14 +307,6 @@ struct MediaDetailView: View {
             }
         }
         .frame(maxWidth: Theme.isCompact ? .infinity : 520)
-        .sheet(item: $bingeSeries) { series in
-            BingeSettingsView(seriesTitle: series.value)
-        }
-        .sheet(isPresented: $showFixMatch) {
-            FixMatchView(item: item)
-                .environmentObject(env)
-                .environmentObject(library)
-        }
     }
 
     @State private var bingeSeries: SeriesWrapper?
