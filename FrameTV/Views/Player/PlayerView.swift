@@ -243,7 +243,7 @@ struct PlayerView: View {
         // The user's preferred built-in player can force one engine, and a recovery
         // override (from "Try other player") forces a specific engine for retry.
         if useVLCEngine {
-            VLCPlayerView(item: item, series: series)
+            VLCPlayerView(item: item, series: series, onStreamExpired: onStreamExpired)
         } else {
             avPlayerBody
         }

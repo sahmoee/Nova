@@ -64,6 +64,9 @@ struct ErrorStateView: View {
     var title: String = "Something went wrong"
     var message: String
     var retryTitle: String = "Retry"
+    /// Optional prominent primary action shown above Retry (e.g. "Try Next Stream").
+    var primaryTitle: String? = nil
+    var onPrimary: (() -> Void)? = nil
     var onRetry: (() -> Void)? = nil
     var onOpenSettings: (() -> Void)? = nil
     var onBack: (() -> Void)? = nil
@@ -84,10 +87,15 @@ struct ErrorStateView: View {
                 .frame(maxWidth: 720)
 
             VStack(spacing: Theme.Spacing.sm) {
+                if let onPrimary, let primaryTitle {
+                    FocusableButton(title: primaryTitle, systemImage: "forward.fill",
+                                    prominent: true, action: onPrimary)
+                        .frame(maxWidth: Theme.isCompact ? .infinity : 320)
+                }
                 HStack(spacing: Theme.Spacing.md) {
                     if let onRetry {
                         FocusableButton(title: retryTitle, systemImage: "arrow.clockwise",
-                                        prominent: true, action: onRetry)
+                                        prominent: onPrimary == nil, action: onRetry)
                             .frame(maxWidth: Theme.isCompact ? .infinity : 280)
                     }
                     if let onOpenSettings {

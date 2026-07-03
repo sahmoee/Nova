@@ -18,6 +18,8 @@ import UniformTypeIdentifiers
 struct VLCPlayerView: View {
     let item: MediaItem
     var series: CatalogItem?
+    /// Called when the stream link itself is dead so the picker can fail over.
+    var onStreamExpired: (() -> Void)?
 
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var progress: PlaybackProgressStore
@@ -47,9 +49,10 @@ struct VLCPlayerView: View {
     }
     #endif
 
-    init(item: MediaItem, series: CatalogItem? = nil) {
+    init(item: MediaItem, series: CatalogItem? = nil, onStreamExpired: (() -> Void)? = nil) {
         self.item = item
         self.series = series
+        self.onStreamExpired = onStreamExpired
         _model = StateObject(wrappedValue: VLCPlayerModel(item: item))
     }
 
@@ -119,6 +122,12 @@ struct VLCPlayerView: View {
             case .failed(let message):
                 ErrorStateView(
                     message: message,
+                    primaryTitle: onStreamExpired != nil ? "Try Next Stream" : nil,
+                    onPrimary: onStreamExpired != nil ? {
+                        model.stopAndSave()
+                        onStreamExpired?()
+                        dismiss()
+                    } : nil,
                     onRetry: { model.restart() },
                     onBack: { model.stopAndSave(); dismiss() }
                 )
