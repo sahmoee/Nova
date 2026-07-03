@@ -246,9 +246,11 @@ enum Theme {
         return [GridItem(.adaptive(minimum: CardSize.posterWidth), spacing: Spacing.lg)]
         #else
         if isPad {
-            // 5 columns on iPad (was 4): denser browsing that still keeps posters
-            // large enough to read at typical iPad sizes.
-            return Array(repeating: GridItem(.flexible(), spacing: Spacing.lg), count: 5)
+            // Adaptive columns sized to the card's real width, so the grid fits as
+            // many posters as the orientation allows (about 4 in portrait, 5 to 6 in
+            // landscape) while always keeping proper spacing. Fixed column counts
+            // crowded the fixed-width cards together in portrait.
+            return [GridItem(.adaptive(minimum: CardSize.posterWidth), spacing: Spacing.lg)]
         } else {
             return [GridItem(.adaptive(minimum: CardSize.posterWidth), spacing: Spacing.lg)]
         }
