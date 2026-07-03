@@ -1,0 +1,57 @@
+Why the changes are not showing
+
+Short answer: the changes are in your code. I checked the repo zip you
+uploaded and every recent change is present and committed:
+
+- Discover no longer bumps its shelf token on every appearance (the
+  fix for the blank Discover screen) - confirmed removed.
+- The detail hero no longer escapes the safe area and is about 38
+  percent of screen height (the dead-space fix) - confirmed.
+- collapseToShow is in LibraryStore (shows listed once) - confirmed.
+- Home rows use openDetail (open detail, not instant play) - confirmed.
+- The current What's New note (version 3) is first in the list -
+  confirmed.
+- The player tap-catcher sits beneath the controls (buttons work) -
+  confirmed.
+
+Your git log also shows all of the commits landed:
+  Fix detail dead space and blank Discover
+  Center detail hero; refresh What's New; collapse shows in rows
+  Home rows open detail; dynamic hero sizing on iOS
+  ...
+
+So this is not a code problem. When correct source does not appear in
+the running app, it is almost always the build or install step. In
+order of likelihood:
+
+1) Xcode ran a cached build. Fix: in Xcode choose Product then Clean
+   Build Folder (Shift Command K), then build and run again. Also
+   delete the app from the device or simulator first so a fresh copy
+   is installed.
+
+2) The delta was not actually applied on top of your tree before
+   building. If you build from a different checkout than the one the
+   zips were applied to, you will see the old app. Confirm you are
+   building the same folder the deltas were unzipped into, and that
+   commit.sh ran without error.
+
+3) The version did not change, so the device kept the identical
+   installed binary. Your project version is dotted (1.6), and the old
+   bump_version.sh only matched integer versions, so the marketing
+   version was being mangled on each run. A corrected bump_version.sh
+   is included in this folder - drop it in at the repo root, replacing
+   the old one. It increments only the final component, so 1.6 becomes
+   1.7 and an integer like 3 becomes 4.
+
+4) Simulator or device showing a stale install. Fix: long-press the
+   app, delete it, then run again from Xcode.
+
+Recommended once: Clean Build Folder, delete the app from the
+device/simulator, replace bump_version.sh with the included one, run
+commit.sh, then build and run. The new detail layout, working
+Discover, and the rest will appear.
+
+Note: ContentDetailView still contains some older unused methods
+(backdropHero, header, movieBody, seasonChip, episodeRow). They are
+dead code - defined but never called - and do not affect the build or
+the screen. They can be removed later for tidiness.
