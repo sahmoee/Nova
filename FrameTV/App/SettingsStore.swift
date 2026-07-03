@@ -68,7 +68,6 @@ final class SettingsStore: ObservableObject {
         static let tabBarStyle = "settings.tabBarStyle"
         static let uiStyle = "settings.uiStyle"
         static let detailStyle = "settings.detailStyle"
-        static let autoSleepMinutes = "settings.autoSleepMinutes"
         static let reviewSafeMode = "settings.reviewSafeMode"
     }
 
@@ -318,12 +317,6 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(reviewSafeMode, forKey: Key.reviewSafeMode) }
     }
 
-    /// A default sleep-timer duration in minutes that starts automatically whenever
-    /// playback begins (0 = off). One-off timers set in the player still override it.
-    @Published var autoSleepMinutes: Int {
-        didSet { defaults.set(autoSleepMinutes, forKey: Key.autoSleepMinutes); CloudSync.shared.setDouble(Double(autoSleepMinutes), forKey: Key.autoSleepMinutes) }
-    }
-
     /// Mirrors the current text-size preferences into Theme's static fields, which
     /// `appFont` reads. Called on init and whenever either preference changes.
     private func applyTextSizeToTheme() {
@@ -419,7 +412,6 @@ final class SettingsStore: ObservableObject {
         self.detailStyle = DetailStyle(
             rawValue: defaults.string(forKey: Key.detailStyle) ?? DetailStyle.cinematic.rawValue
         ) ?? .cinematic
-        self.autoSleepMinutes = defaults.integer(forKey: Key.autoSleepMinutes)
         self.reviewSafeMode = defaults.bool(forKey: Key.reviewSafeMode)
         self.tabBarStyle = TabBarStyle(
             rawValue: defaults.string(forKey: Key.tabBarStyle) ?? TabBarStyle.floatingPill.rawValue
@@ -514,9 +506,6 @@ final class SettingsStore: ObservableObject {
            let s = LibraryStyle(rawValue: v), libraryStyle != s { libraryStyle = s }
         if let v = cloud.string(forKey: Key.detailStyle),
            let s = DetailStyle(rawValue: v), detailStyle != s { detailStyle = s }
-        if let v = cloud.double(forKey: Key.autoSleepMinutes), autoSleepMinutes != Int(v) {
-            autoSleepMinutes = Int(v)
-        }
         if let v = cloud.string(forKey: Key.tabBarStyle),
            let s = TabBarStyle(rawValue: v), tabBarStyle != s { tabBarStyle = s }
         if let v = cloud.string(forKey: Key.uiStyle),
@@ -726,66 +715,6 @@ enum TabBarStyle: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Sleep timer
-
-/// A simple countdown that fires a callback when it reaches zero — used to pause
-/// playback after a chosen interval. Lives here (an already-registered file) to avoid
-/// adding a new source file. Observed by the player, which pauses on `onFire`.
-@MainActor
-final class SleepTimer: ObservableObject {
-    static let shared = SleepTimer()
-
-    /// Preset durations in minutes; `endOfEpisode` is handled by the player, not here.
-    enum Preset: Int, CaseIterable, Identifiable {
-        case off = 0, m15 = 15, m30 = 30, m45 = 45, m60 = 60, m90 = 90
-        var id: Int { rawValue }
-        var label: String { self == .off ? "Off" : "\(rawValue) min" }
-    }
-
-    @Published private(set) var remaining: TimeInterval = 0
-    @Published private(set) var isRunning = false
-
-    private var timer: Timer?
-    /// Called on the main actor when the countdown hits zero.
-    var onFire: (() -> Void)?
-
-    /// Starts (or restarts) the countdown for the given number of minutes. Passing 0
-    /// cancels any running timer.
-    func start(minutes: Int) {
-        cancel()
-        guard minutes > 0 else { return }
-        remaining = TimeInterval(minutes * 60)
-        isRunning = true
-        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.tick() }
-        }
-        RunLoop.main.add(t, forMode: .common)
-        timer = t
-    }
-
-    func cancel() {
-        timer?.invalidate()
-        timer = nil
-        isRunning = false
-        remaining = 0
-    }
-
-    private func tick() {
-        guard isRunning else { return }
-        remaining = max(0, remaining - 1)
-        if remaining <= 0 {
-            let fire = onFire
-            cancel()
-            fire?()
-        }
-    }
-
-    /// A mm:ss string for display.
-    var display: String {
-        let s = Int(remaining)
-        return String(format: "%d:%02d", s / 60, s % 60)
-    }
-}
 
 
 /// How the library media-detail sheet is presented.
