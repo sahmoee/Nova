@@ -73,10 +73,6 @@ struct HomeView: View {
                 if !library.continueWatching.isEmpty {
                     continueWatchingRow
                 }
-                if !library.recentlyWatched.isEmpty {
-                    MediaRow(title: "Recently Watched",
-                             items: Array(library.recentlyWatched.prefix(20))) { play($0) }
-                }
                 if !library.queuedItems.isEmpty {
                     VStack(alignment: .leading, spacing: 0) {
                         HStack {
@@ -154,10 +150,6 @@ struct HomeView: View {
                     }
                 }
 
-                if !library.recentlyWatched.isEmpty {
-                    MediaRow(title: "Recently Watched",
-                             items: Array(library.recentlyWatched.prefix(20))) { play($0) }
-                }
 
                 discoverSection
 
@@ -275,6 +267,22 @@ struct HomeView: View {
                         .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
                 )
 
+            // Prominent tile icon: a clear glyph in a soft translucent circle at the
+            // top-left, plus the faint oversized glyph kept for background texture.
+            VStack {
+                HStack {
+                    Image(systemName: tile.systemImage)
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 52, height: 52)
+                        .background(.white.opacity(0.16), in: Circle())
+                        .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 1))
+                        .padding(Theme.Spacing.md)
+                    Spacer()
+                }
+                Spacer()
+            }
+
             // Faint oversized glyph in the corner for texture.
             Image(systemName: tile.systemImage)
                 .font(.system(size: 90, weight: .bold))
@@ -312,10 +320,16 @@ struct HomeView: View {
     }
 
     private var brandMark: some View {
+        // A larger, more elegant wordmark: serif design, tight tracking, and a soft
+        // white-to-silver vertical sheen so it reads like a title card over artwork.
         Text("FrameTV")
-            .font(.appFont(28, weight: .heavy))
-            .foregroundStyle(.white)
-            .shadow(color: .black.opacity(0.5), radius: 6, y: 1)
+            .font(.system(size: Theme.dynamicFontSize(40), weight: .bold, design: .serif))
+            .kerning(0.5)
+            .foregroundStyle(
+                LinearGradient(colors: [.white, .white.opacity(0.75)],
+                               startPoint: .top, endPoint: .bottom)
+            )
+            .shadow(color: .black.opacity(0.6), radius: 8, y: 2)
             .padding(.horizontal, Theme.Spacing.edge)
             .padding(.top, Theme.Spacing.sm)
             #if os(tvOS)

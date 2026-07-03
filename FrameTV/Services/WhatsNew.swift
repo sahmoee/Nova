@@ -32,6 +32,37 @@ enum WhatsNew {
     /// The changelog. Newest version first. Add a new entry on every release.
     static let releases: [ReleaseNote] = [
         ReleaseNote(
+            version: "1.2",
+            headline: "A new look on every screen, plus watch tracking",
+            features: [
+                ReleaseFeature(
+                    symbol: "paintbrush",
+                    title: "Cinematic redesign, your way",
+                    detail: "New Home, Library, detail sheet, floating tab bar, and refined buttons and cards everywhere. Every screen has a style picker in Settings, Appearance, so the classic look is one tap away."
+                ),
+                ReleaseFeature(
+                    symbol: "checkmark.circle",
+                    title: "Watch tracking",
+                    detail: "Mark titles watched or unwatched from the detail page or by long-pressing a poster, with a green checkmark badge on watched artwork."
+                ),
+                ReleaseFeature(
+                    symbol: "puzzlepiece.extension",
+                    title: "Smarter addon management",
+                    detail: "Group addons into categories, ping them all with one Health check, and export or import your whole addon setup as a file."
+                ),
+                ReleaseFeature(
+                    symbol: "moon",
+                    title: "Sleep timer",
+                    detail: "Pause playback automatically after 15 to 90 minutes, with a live countdown in the player."
+                ),
+                ReleaseFeature(
+                    symbol: "textformat.size",
+                    title: "Text size and easier paste",
+                    detail: "The whole app now follows your system text size, with an in-app size slider, and link fields have one-tap Paste."
+                )
+            ]
+        ),
+        ReleaseNote(
             version: "3",
             headline: "A cinematic redesign and smarter sources",
             features: [
@@ -121,9 +152,10 @@ enum WhatsNew {
     }
 
     /// The note to present for a version: the authored one if it exists, otherwise
-    /// the generic fallback. Always returns a value.
+    /// the newest authored note (so real release notes still show after version
+    /// bumps between authored entries), otherwise the generic fallback.
     static func resolvedNote(for version: String) -> ReleaseNote {
-        note(for: version) ?? fallbackNote(version: version)
+        note(for: version) ?? latest ?? fallbackNote(version: version)
     }
 }
 
