@@ -71,7 +71,8 @@ struct ContentDetailView: View {
                 }
             }
             .padding(.bottom, Theme.Spacing.xl)
-            .frame(maxWidth: Theme.contentMaxWidth(1400), alignment: .leading)
+            .frame(maxWidth: Theme.contentMaxWidth(1400))
+            .frame(maxWidth: .infinity)
         }
         .background(Theme.Colors.appBackground.ignoresSafeArea())
         .navigationDestination(item: $streamTarget) { target in
@@ -91,6 +92,18 @@ struct ContentDetailView: View {
 
     // MARK: - Hero header (centered, Apple TV style)
 
+    /// The backdrop height, sized to the device so it scales across iPhone sizes and
+    /// iPad instead of being a fixed number. About 48% of screen height on iOS,
+    /// clamped to a comfortable range; a larger fixed value on tvOS.
+    private var heroHeight: CGFloat {
+        #if os(iOS)
+        let h = UIScreen.main.bounds.height
+        return min(max(h * 0.48, 360), 720)
+        #else
+        return 640
+        #endif
+    }
+
     private var heroHeader: some View {
         VStack(spacing: Theme.Spacing.md) {
             // Full-bleed backdrop with the title art centered over it and a fade to the
@@ -101,7 +114,7 @@ struct ContentDetailView: View {
                 } placeholder: {
                     Rectangle().fill(Theme.Colors.card).shimmering()
                 }
-                .frame(height: Theme.isCompact ? 420 : 620)
+                .frame(height: heroHeight)
                 .frame(maxWidth: .infinity)
                 .clipped()
                 .overlay(
@@ -118,8 +131,6 @@ struct ContentDetailView: View {
                 .font(.appFont(18, weight: .medium))
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, Theme.Spacing.edge)
 
             // Primary Play + circular watched toggle, centered.
             HStack(spacing: Theme.Spacing.md) {
@@ -165,8 +176,6 @@ struct ContentDetailView: View {
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .lineLimit(3)
                     .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity)
                     .padding(.horizontal, Theme.Spacing.edge)
             }
             if let year = item.year {
@@ -179,7 +188,6 @@ struct ContentDetailView: View {
             secondaryActionsRail
                 .padding(.top, Theme.Spacing.xs)
         }
-        .frame(maxWidth: .infinity)
     }
 
     /// "TV Show · Comedy · Animation" style line.

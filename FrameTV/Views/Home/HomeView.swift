@@ -16,6 +16,7 @@ struct HomeView: View {
     @EnvironmentObject private var settings: SettingsStore
     @StateObject private var shelfStore = HomeShelfStore.shared
     @State private var selectedItem: MediaItem?
+    @State private var detailTarget: CatalogItem?
     @State private var showCustomize = false
     @State private var heroIndex = 0
     @State private var showQueue = false
@@ -45,6 +46,9 @@ struct HomeView: View {
             }
             .navigationDestination(for: CatalogItem.self) { item in
                 ContentDetailView(item: item)
+            }
+            .navigationDestination(item: $detailTarget) { catalog in
+                ContentDetailView(item: catalog)
             }
             .sheet(isPresented: $showCustomize) {
                 HomeCustomizeView()
@@ -87,7 +91,7 @@ struct HomeView: View {
                         }
                         .padding(.horizontal, Theme.Spacing.edge)
                         MediaRow(title: "",
-                                 items: Array(library.queuedItems.prefix(20))) { play($0) }
+                                 items: Array(library.queuedItems.prefix(20))) { openDetail($0) }
                     }
                 }
 
@@ -96,11 +100,11 @@ struct HomeView: View {
                 }
                 if !library.recentlyAdded.isEmpty {
                     MediaRow(title: "Recently Added",
-                             items: library.recentlyAdded) { play($0) }
+                             items: library.recentlyAdded) { openDetail($0) }
                 }
                 if !library.favorites.isEmpty {
                     MediaRow(title: "Favorites",
-                             items: library.favorites) { play($0) }
+                             items: library.favorites) { openDetail($0) }
                 }
             }
             .padding(.bottom, Theme.Spacing.lg)
@@ -146,7 +150,7 @@ struct HomeView: View {
                         }
                         .padding(.horizontal, Theme.Spacing.edge)
                         MediaRow(title: "",
-                                 items: Array(library.queuedItems.prefix(20))) { play($0) }
+                                 items: Array(library.queuedItems.prefix(20))) { openDetail($0) }
                     }
                 }
 
@@ -158,11 +162,11 @@ struct HomeView: View {
                 }
                 if !library.recentlyAdded.isEmpty {
                     MediaRow(title: "Recently Added",
-                             items: library.recentlyAdded) { play($0) }
+                             items: library.recentlyAdded) { openDetail($0) }
                 }
                 if !library.favorites.isEmpty {
                     MediaRow(title: "Favorites",
-                             items: library.favorites) { play($0) }
+                             items: library.favorites) { openDetail($0) }
                 }
             }
             .padding(.bottom, Theme.Spacing.lg)
@@ -399,6 +403,12 @@ struct HomeView: View {
 
     private func play(_ item: MediaItem) {
         selectedItem = item
+    }
+
+    /// Opens the full detail screen (stream picker flow) for a row item, matching the
+    /// Discover tab. Used by Recently Added, Favorites, and Queue rows.
+    private func openDetail(_ item: MediaItem) {
+        detailTarget = item.asCatalogItem()
     }
 
     /// Restarts an item from the beginning: clears its saved progress, then plays.
