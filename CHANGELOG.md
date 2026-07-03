@@ -1,3 +1,9 @@
+07:03:26 14:56 — v1.4 (build 6) — Build
+Big change
+
+07:03:26 14:56 — v1.4 (build 5) — Version
+Small change or fix
+
 07:03:26 10:45 — v1.3 (build 5) — Build
 Big change
 

@@ -447,7 +447,6 @@ struct SettingsView: View {
     // MARK: - Builders
 
     @ViewBuilder
-    @ViewBuilder
     private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
         // Build the section's body once so it isn't captured by DisclosureGroup's
         // escaping closure (which would require `content` to be @escaping).
