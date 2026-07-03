@@ -32,6 +32,37 @@ enum WhatsNew {
     /// The changelog. Newest version first. Add a new entry on every release.
     static let releases: [ReleaseNote] = [
         ReleaseNote(
+            version: "3",
+            headline: "A cinematic redesign and smarter sources",
+            features: [
+                ReleaseFeature(
+                    symbol: "play.rectangle.on.rectangle",
+                    title: "Apple TV-style detail screen",
+                    detail: "Shows and movies open the same cinematic detail screen everywhere, with a centered hero, a season rail, and a rail of episode cards for each season."
+                ),
+                ReleaseFeature(
+                    symbol: "rectangle.stack",
+                    title: "Shows stay together",
+                    detail: "Your library and Home rows list each show once instead of a card per episode, with every season and episode stacked under the show."
+                ),
+                ReleaseFeature(
+                    symbol: "arrow.triangle.2.circlepath",
+                    title: "Automatic stream failover",
+                    detail: "Dead or expired links are detected and skipped automatically, so playback moves on to the next working stream."
+                ),
+                ReleaseFeature(
+                    symbol: "photo",
+                    title: "Sharper artwork",
+                    detail: "Posters, backdrops, and episode stills load at higher resolution and keep their correct shape, so nothing looks stretched."
+                ),
+                ReleaseFeature(
+                    symbol: "slider.horizontal.3",
+                    title: "Controls that fit your screen",
+                    detail: "Player controls are reachable on every device, and screens size themselves to your iPhone or iPad."
+                )
+            ]
+        ),
+        ReleaseNote(
             version: "1.2",
             headline: "A new look on every screen, plus watch tracking",
             features: [
@@ -51,11 +82,6 @@ enum WhatsNew {
                     detail: "Group addons into categories, ping them all with one Health check, and export or import your whole addon setup as a file."
                 ),
                 ReleaseFeature(
-                    symbol: "moon",
-                    title: "Sleep timer",
-                    detail: "Pause playback automatically after 15 to 90 minutes, with a live countdown in the player."
-                ),
-                ReleaseFeature(
                     symbol: "textformat.size",
                     title: "Text size and easier paste",
                     detail: "The whole app now follows your system text size, with an in-app size slider, and link fields have one-tap Paste."
@@ -63,7 +89,7 @@ enum WhatsNew {
             ]
         ),
         ReleaseNote(
-            version: "3",
+            version: "3-old",
             headline: "A cinematic redesign and smarter sources",
             features: [
                 ReleaseFeature(

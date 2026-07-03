@@ -630,7 +630,7 @@ final class LibraryStore: ObservableObject {
     // MARK: - Queries (used by Home/Library rows)
 
     var favorites: [MediaItem] {
-        items.filter { $0.isFavorite }
+        collapseToShow(items.filter { $0.isFavorite })
     }
 
     var continueWatching: [MediaItem] {
@@ -640,7 +640,26 @@ final class LibraryStore: ObservableObject {
     }
 
     var recentlyAdded: [MediaItem] {
-        items.sorted { $0.addedDate > $1.addedDate }
+        collapseToShow(items.sorted { $0.addedDate > $1.addedDate })
+    }
+
+    /// Collapses episodes so each series appears once (its most recent episode
+    /// represents the whole show), while movies and non-episodic items stay
+    /// individual. Used by Home rows so a show isn't listed once per episode.
+    func collapseToShow(_ input: [MediaItem]) -> [MediaItem] {
+        var seenShows = Set<String>()
+        var result: [MediaItem] = []
+        for item in input {
+            if item.isSeries {
+                let showKey = item.seriesTitle?.lowercased()
+                    ?? item.contentID?.stableKey
+                    ?? item.title.lowercased()
+                if seenShows.insert(showKey).inserted { result.append(item) }
+            } else {
+                result.append(item)
+            }
+        }
+        return result
     }
 
     /// The library grid's entries: standalone movies as-is, but episodes collapsed so

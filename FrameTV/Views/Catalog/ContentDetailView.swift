@@ -106,6 +106,7 @@ struct ContentDetailView: View {
 
     private var heroHeader: some View {
         VStack(spacing: Theme.Spacing.md) {
+            // hero content is centered horizontally
             // Full-bleed backdrop with the title art centered over it and a fade to the
             // background at the bottom.
             ZStack(alignment: .bottom) {
@@ -131,6 +132,8 @@ struct ContentDetailView: View {
                 .font(.appFont(18, weight: .medium))
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, Theme.Spacing.edge)
 
             // Primary Play + circular watched toggle, centered.
             HStack(spacing: Theme.Spacing.md) {
@@ -168,6 +171,7 @@ struct ContentDetailView: View {
                 }
                 .buttonStyle(FrameChipButtonStyle())
             }
+            .frame(maxWidth: .infinity)
 
             // Overview + year, centered under the buttons.
             if let overview = item.overview, !overview.isEmpty {
@@ -176,6 +180,8 @@ struct ContentDetailView: View {
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .lineLimit(3)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity)
                     .padding(.horizontal, Theme.Spacing.edge)
             }
             if let year = item.year {
@@ -187,7 +193,9 @@ struct ContentDetailView: View {
             // Secondary actions (Favorite / Collection / Trailer / links).
             secondaryActionsRail
                 .padding(.top, Theme.Spacing.xs)
+                .frame(maxWidth: .infinity)
         }
+        .frame(maxWidth: .infinity)
     }
 
     /// "TV Show · Comedy · Animation" style line.
@@ -497,6 +505,8 @@ struct ContentDetailView: View {
                 }
             }
             .padding(.vertical, Theme.Spacing.xs)
+            .padding(.horizontal, Theme.Spacing.edge)
+            .frame(maxWidth: .infinity)
         }
     }
 
