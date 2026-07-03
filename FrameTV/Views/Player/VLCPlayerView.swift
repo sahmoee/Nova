@@ -238,7 +238,11 @@ struct VLCPlayerView: View {
     private var nativeOverlay: some View {
         VStack {
             topBar
-                .padding(Theme.Spacing.lg)
+                .padding(.horizontal, Theme.Spacing.lg)
+                .padding(.top, Theme.Spacing.xl)
+                #if os(iOS)
+                .safeAreaPadding(.top)
+                #endif
                 #if os(tvOS)
                 .focusSection()
                 #endif
@@ -380,6 +384,9 @@ struct VLCPlayerView: View {
 
     private var overlay: some View {
         VStack {
+            // Top edge: only the close button, padded well below the status bar and
+            // Dynamic Island so it is always tappable. All secondary actions moved to
+            // the bottom More menu, which is reachable on every device.
             HStack {
                 Button { model.stopAndSave(); dismiss() } label: {
                     Image(systemName: "xmark")
@@ -391,78 +398,26 @@ struct VLCPlayerView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Stop")
                 Spacer()
-                // Overlay density toggle: minimal hides the secondary controls for a
-                // cleaner view; full shows everything.
-                Button { minimalControls.toggle(); revealControls() } label: {
-                    Image(systemName: minimalControls ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
-                        .font(.appFont(22, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(Theme.Spacing.md)
-                        .background(.ultraThinMaterial, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(minimalControls ? "Show all controls" : "Minimal controls")
-
-                if !minimalControls {
-                    // Fill vs fit (the player already covers the screen; this toggles
-                    // whether the video is cropped to fill or letterboxed to fit).
-                    Button {
-                        model.fillScreen.toggle(); revealControls()
-                    } label: {
-                        Image(systemName: model.fillScreen
-                              ? "arrow.down.right.and.arrow.up.left"
-                              : "arrow.up.left.and.arrow.down.right")
-                            .font(.appFont(22, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .padding(Theme.Spacing.md)
-                            .background(.ultraThinMaterial, in: Circle())
+                if sleepTimer.isRunning {
+                    // Passive countdown badge only; the control lives in More below.
+                    HStack(spacing: 6) {
+                        Image(systemName: "moon.fill")
+                        Text(sleepTimer.display)
+                            .font(.appFont(15, weight: .semibold)).monospacedDigit()
                     }
-                    .buttonStyle(.plain)
-                    Button { model.showSubtitlePicker = true } label: {
-                        Image(systemName: "captions.bubble")
-                            .font(.appFont(22, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .padding(Theme.Spacing.md)
-                            .background(.ultraThinMaterial, in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    // Diagnostics (engine, source, format, buffer health).
-                    Button { showDiagnostics.toggle(); revealControls() } label: {
-                        Image(systemName: "waveform.path.ecg")
-                            .font(.appFont(22, weight: .semibold))
-                            .foregroundStyle(showDiagnostics ? Theme.Colors.accent : .white)
-                            .padding(Theme.Spacing.md)
-                            .background(.ultraThinMaterial, in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Diagnostics")
-
-                    // Sleep timer: pause playback after a chosen interval.
-                    Menu {
-                        ForEach(SleepTimer.Preset.allCases) { preset in
-                            Button(preset.label) {
-                                sleepTimer.start(minutes: preset.rawValue)
-                                revealControls()
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: sleepTimer.isRunning ? "moon.fill" : "moon")
-                            if sleepTimer.isRunning {
-                                Text(sleepTimer.display)
-                                    .font(.appFont(15, weight: .semibold)).monospacedDigit()
-                            }
-                        }
-                        .font(.appFont(22, weight: .semibold))
-                        .foregroundStyle(sleepTimer.isRunning ? Theme.Colors.accent : .white)
-                        .padding(Theme.Spacing.md)
-                        .background(.ultraThinMaterial, in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Sleep timer")
+                    .font(.appFont(18, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accent)
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.vertical, Theme.Spacing.sm)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .allowsHitTesting(false)
                 }
             }
-            .padding(Theme.Spacing.lg)
+            .padding(.horizontal, Theme.Spacing.lg)
+            .padding(.top, Theme.Spacing.xl)
+            #if os(iOS)
+            .safeAreaPadding(.top)
+            #endif
             #if os(tvOS)
             .focusSection()
             #endif
@@ -508,6 +463,7 @@ struct VLCPlayerView: View {
                             controlButton("forward.end.fill") { playNextEpisode() }
                         }
                     }
+                    moreMenu
                 }
             }
             .padding(Theme.Spacing.xl)
@@ -516,6 +472,70 @@ struct VLCPlayerView: View {
             .focusSection()
             #endif
         }
+    }
+
+    /// All secondary player actions, gathered into one always-reachable menu on the
+    /// bottom bar: subtitles, fill/fit, density, sleep timer, and diagnostics. These
+    /// previously lived across the top edge, where the status bar and Dynamic Island
+    /// made them hard or impossible to tap.
+    private var moreMenu: some View {
+        Menu {
+            Button {
+                model.showSubtitlePicker = true
+            } label: { Label("Audio & Subtitles", systemImage: "captions.bubble") }
+
+            Button {
+                model.fillScreen.toggle(); revealControls()
+            } label: {
+                Label(model.fillScreen ? "Fit to Screen" : "Fill Screen",
+                      systemImage: model.fillScreen
+                        ? "arrow.down.right.and.arrow.up.left"
+                        : "arrow.up.left.and.arrow.down.right")
+            }
+
+            Button {
+                minimalControls.toggle(); revealControls()
+            } label: {
+                Label(minimalControls ? "Show All Controls" : "Minimal Controls",
+                      systemImage: minimalControls ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
+            }
+
+            Menu {
+                ForEach(SleepTimer.Preset.allCases) { preset in
+                    Button(preset.label) {
+                        sleepTimer.start(minutes: preset.rawValue)
+                        revealControls()
+                    }
+                }
+                if sleepTimer.isRunning {
+                    Divider()
+                    Button(role: .destructive) { sleepTimer.cancel() } label: {
+                        Label("Cancel Timer", systemImage: "moon.zzz")
+                    }
+                }
+            } label: {
+                Label(sleepTimer.isRunning ? "Sleep Timer (\(sleepTimer.display))" : "Sleep Timer",
+                      systemImage: sleepTimer.isRunning ? "moon.fill" : "moon")
+            }
+
+            Button {
+                showDiagnostics.toggle(); revealControls()
+            } label: { Label("Diagnostics", systemImage: "waveform.path.ecg") }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.appFont(28, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 64, height: 64)
+                .background {
+                    if Theme.uiStyle == .refined {
+                        Circle().fill(.ultraThinMaterial)
+                            .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+                    }
+                }
+                .contentShape(Circle())
+        }
+        .buttonStyle(FrameChipButtonStyle())
+        .accessibilityLabel("More controls")
     }
 
     private func controlButton(_ symbol: String, large: Bool = false, action: @escaping () -> Void) -> some View {

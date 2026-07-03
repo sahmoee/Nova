@@ -70,9 +70,11 @@ struct PlayerView: View {
                     .allowsHitTesting(false)
             }
         }
-        .overlay(alignment: .topTrailing) {
-            // Sleep timer: pause playback after a chosen interval. A tap target
-            // overlaid on the system player is safe (only custom gestures conflict).
+        .overlay(alignment: .bottomTrailing) {
+            // Sleep timer: pause playback after a chosen interval. Placed at the
+            // bottom-trailing corner, clear of the status bar, Dynamic Island, and
+            // AVKit top chrome, so it is always reachable. A tap target overlaid on
+            // the system player is safe (only custom gestures conflict).
             Menu {
                 ForEach(SleepTimer.Preset.allCases) { preset in
                     Button(preset.label) { sleepTimer.start(minutes: preset.rawValue) }
@@ -91,7 +93,7 @@ struct PlayerView: View {
                 .padding(.vertical, Theme.Spacing.sm)
                 .background(.ultraThinMaterial, in: Capsule())
             }
-            .padding(.top, Theme.Spacing.xl)
+            .padding(.bottom, Theme.scaled(110, min: 84))
             .padding(.trailing, Theme.Spacing.lg)
         }
         .onAppear {
