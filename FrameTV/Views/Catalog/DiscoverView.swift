@@ -145,6 +145,11 @@ struct DiscoverView: View {
         }
         .task { await onAppear() }
         .onAppear { discoverRefreshToken += 1 }
+        .refreshable {
+            // Pull to reshuffle: bumping the token makes every shelf pick a fresh
+            // selection, the same mechanism onAppear uses.
+            discoverRefreshToken += 1
+        }
         .dismissKeyboardOnTap()
     }
 

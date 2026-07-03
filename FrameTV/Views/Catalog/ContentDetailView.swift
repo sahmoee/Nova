@@ -502,6 +502,20 @@ struct ContentDetailView: View {
             .contentShape(Rectangle())
         }
         .frameRowStyle()
+        .contextMenu {
+            // Long-press an episode to flip its watched state. Episodes that have
+            // never been played aren't in the library yet and can't be marked.
+            Button {
+                _ = env.library.setEpisodeWatched(!watched,
+                                                  imdb: item.contentID.imdb,
+                                                  tmdb: item.contentID.tmdb,
+                                                  season: ep.season, number: ep.number)
+                favoriteRefresh.toggle()
+            } label: {
+                Label(watched ? "Mark as Unwatched" : "Mark as Watched",
+                      systemImage: watched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
+            }
+        }
     }
 
     /// Builds a "42 min · Aired Jan 3, 2024" style line from available episode data.

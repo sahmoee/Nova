@@ -11,6 +11,7 @@ import SwiftUI
 struct SourcesView: View {
     @Binding var path: NavigationPath
     @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var library: LibraryStore
     /// Drives the SMB card's real status (configured vs not) from saved shares.
     @StateObject private var smbModel = SMBSharesModel()
@@ -39,19 +40,23 @@ struct SourcesView: View {
                         .padding(.horizontal, Theme.Spacing.edge)
 
                     LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
-                        NavigationLink { RealDebridView() } label: {
-                            SourceCard(title: "Real-Debrid",
-                                       systemImage: SourceType.realDebrid.systemImage,
-                                       status: SourceHealth.realDebrid().status) {}
-                                .allowsHitTesting(false)
-                        }.buttonStyle(.plain)
+                        if !settings.reviewSafeMode {
+                            NavigationLink { RealDebridView() } label: {
+                                SourceCard(title: "Real-Debrid",
+                                           systemImage: SourceType.realDebrid.systemImage,
+                                           status: SourceHealth.realDebrid().status) {}
+                                    .allowsHitTesting(false)
+                            }.buttonStyle(.plain)
+                        }
 
-                        NavigationLink { AddonsView() } label: {
-                            SourceCard(title: "Addons",
-                                       systemImage: SourceType.addon.systemImage,
-                                       status: SourceHealth.addons(env.addonStore).status) {}
-                                .allowsHitTesting(false)
-                        }.buttonStyle(.plain)
+                        if !settings.reviewSafeMode {
+                            NavigationLink { AddonsView() } label: {
+                                SourceCard(title: "Addons",
+                                           systemImage: SourceType.addon.systemImage,
+                                           status: SourceHealth.addons(env.addonStore).status) {}
+                                    .allowsHitTesting(false)
+                            }.buttonStyle(.plain)
+                        }
 
                         NavigationLink { SMBListView() } label: {
                             SourceCard(title: "SMB Shares",
@@ -75,12 +80,14 @@ struct SourcesView: View {
                                 .allowsHitTesting(false)
                         }.buttonStyle(.plain)
 
+                        if !settings.reviewSafeMode {
                         NavigationLink { MagnetView() } label: {
                             SourceCard(title: "Magnet Link",
                                        systemImage: "scope",
                                        status: SourceHealth.realDebrid().status) {}
                                 .allowsHitTesting(false)
                         }.buttonStyle(.plain)
+                        }
                     }
                     .padding(.horizontal, Theme.Spacing.edge)
                     .padding(.bottom, Theme.Spacing.xl)

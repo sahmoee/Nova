@@ -695,4 +695,14 @@ final class LibraryStore: ObservableObject {
     func isEpisodeInProgress(imdb: String?, tmdb: Int?, season: Int, number: Int) -> Bool {
         episodeItem(imdb: imdb, tmdb: tmdb, season: season, number: number)?.hasResumePoint ?? false
     }
+
+    /// Marks a specific episode watched or unwatched, if it exists in the library.
+    /// Episodes not yet in the library (never played) can't be marked; returns
+    /// whether a matching item was found.
+    @discardableResult
+    func setEpisodeWatched(_ watched: Bool, imdb: String?, tmdb: Int?, season: Int, number: Int) -> Bool {
+        guard let ep = episodeItem(imdb: imdb, tmdb: tmdb, season: season, number: number) else { return false }
+        if watched { markWatched(ep) } else { markUnwatched(ep) }
+        return true
+    }
 }

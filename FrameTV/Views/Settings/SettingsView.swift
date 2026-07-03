@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var confirmClearLibrary = false
     @State private var confirmClearHistory = false
     @State private var expandedSections: [String: Bool] = [:]
+    @State private var settingsSearch = ""
     @State private var sourcesPath = NavigationPath()
 
     /// Summary detail for the Sources & Health row, e.g. "All connected" or
@@ -39,6 +40,31 @@ struct SettingsView: View {
                             .foregroundStyle(Theme.Colors.textPrimary)
                             .padding(.top, Theme.Spacing.lg)
                             .padding(.horizontal, Theme.Spacing.edge)
+
+                        // Quick filter: type to show only matching sections, all
+                        // expanded so results are immediately visible.
+                        #if os(iOS)
+                        HStack(spacing: Theme.Spacing.sm) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(Theme.Colors.textTertiary)
+                            TextField("Search settings", text: $settingsSearch)
+                                .textFieldStyle(.plain)
+                                .foregroundStyle(Theme.Colors.textPrimary)
+                                .autocorrectionDisabled(true)
+                            if !settingsSearch.isEmpty {
+                                Button {
+                                    settingsSearch = ""
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(Theme.Colors.textTertiary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(Theme.Spacing.md)
+                        .refinedCardBackground(cornerRadius: Theme.Radius.button)
+                        .padding(.horizontal, Theme.Spacing.edge)
+                        #endif
 
                         VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                             // Guest mode hides source setup, advanced streaming, and
@@ -94,27 +120,33 @@ struct SettingsView: View {
                            detail: sourcesHealthDetail)
             }.frameRowStyle()
 
-            NavigationLink { RealDebridView() } label: {
-                settingRow("Real-Debrid Account", systemImage: "arrow.down.circle",
-                           detail: KeychainStore.shared.realDebridToken == nil ? "Not connected" : "Connected")
-            }.frameRowStyle()
+            if !settings.reviewSafeMode {
+                NavigationLink { RealDebridView() } label: {
+                    settingRow("Real-Debrid Account", systemImage: "arrow.down.circle",
+                               detail: KeychainStore.shared.realDebridToken == nil ? "Not connected" : "Connected")
+                }.frameRowStyle()
+            }
 
             // SMB Shares temporarily hidden while the SMB sign-in issue is sorted out.
 
-            NavigationLink { AddonsView() } label: {
-                settingRow("Addons", systemImage: "puzzlepiece.extension",
-                           detail: "\(env.addonStore.addons.count) installed")
-            }.frameRowStyle()
+            if !settings.reviewSafeMode {
+                NavigationLink { AddonsView() } label: {
+                    settingRow("Addons", systemImage: "puzzlepiece.extension",
+                               detail: "\(env.addonStore.addons.count) installed")
+                }.frameRowStyle()
+            }
 
             NavigationLink { DirectURLView() } label: {
                 settingRow("Play from URL", systemImage: "link",
                            detail: "Open a direct video link")
             }.frameRowStyle()
 
-            NavigationLink { MagnetView() } label: {
-                settingRow("Play from Magnet", systemImage: "scope",
-                           detail: "Via Real-Debrid")
-            }.frameRowStyle()
+            if !settings.reviewSafeMode {
+                NavigationLink { MagnetView() } label: {
+                    settingRow("Play from Magnet", systemImage: "scope",
+                               detail: "Via Real-Debrid")
+                }.frameRowStyle()
+            }
 
             NavigationLink { AccountsView() } label: {
                 settingRow("Metadata & Accounts", systemImage: "key",
@@ -415,17 +447,25 @@ struct SettingsView: View {
     // MARK: - Builders
 
     @ViewBuilder
+    @ViewBuilder
     private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
         // Build the section's body once so it isn't captured by DisclosureGroup's
         // escaping closure (which would require `content` to be @escaping).
         let body = VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             content()
         }
+        let query = settingsSearch.trimmingCharacters(in: .whitespaces)
+        if !query.isEmpty && !title.localizedCaseInsensitiveContains(query) {
+            EmptyView()
+        } else {
         #if os(iOS)
         // Expandable accordion. Starts expanded; the user can collapse sections.
         DisclosureGroup(
             isExpanded: Binding(
-                get: { expandedSections[title] ?? defaultExpanded(title) },
+                get: {
+                    if !settingsSearch.trimmingCharacters(in: .whitespaces).isEmpty { return true }
+                    return expandedSections[title] ?? defaultExpanded(title)
+                },
                 set: { expandedSections[title] = $0 }
             )
         ) {
@@ -447,11 +487,15 @@ struct SettingsView: View {
             body
         }
         #endif
+        }
     }
 
     /// Sections that start expanded; others start collapsed to keep Settings tidy.
+    /// While a search is active, every matching section is expanded so results are
+    /// immediately visible.
     private func defaultExpanded(_ title: String) -> Bool {
-        ["Accounts & Sources", "Backup & Sync"].contains(title)
+        if !settingsSearch.trimmingCharacters(in: .whitespaces).isEmpty { return true }
+        return ["Accounts & Sources", "Backup & Sync"].contains(title)
     }
 
     private func settingRow(_ title: String, systemImage: String, detail: String) -> some View {

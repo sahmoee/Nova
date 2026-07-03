@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct PrivacyLegalView: View {
+    @EnvironmentObject private var settings: SettingsStore
+
     var body: some View {
         ZStack {
             Theme.Colors.appBackground.ignoresSafeArea()
@@ -18,6 +20,24 @@ struct PrivacyLegalView: View {
                         .screenTitleStyle()
                         .foregroundStyle(Theme.Colors.textPrimary)
                         .padding(.top, Theme.Spacing.lg)
+
+                    // Review-safe configuration: hides the stream-resolution
+                    // surfaces (Real-Debrid, magnet, addons) on this device only.
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Toggle(isOn: $settings.reviewSafeMode) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Review-Safe Mode")
+                                    .font(.appFont(20, weight: .semibold))
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+                                Text("Hides Real-Debrid, magnet, and addon features on this device. Direct URLs, SMB, Trakt, and your library are unaffected. Not synced to iCloud.")
+                                    .font(.appFont(15))
+                                    .foregroundStyle(Theme.Colors.textTertiary)
+                            }
+                        }
+                        .tint(Theme.Colors.accent)
+                    }
+                    .padding(Theme.Spacing.md)
+                    .refinedCardBackground()
 
                     block(
                         title: "What FrameTV is",

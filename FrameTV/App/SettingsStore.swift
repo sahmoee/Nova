@@ -69,6 +69,7 @@ final class SettingsStore: ObservableObject {
         static let uiStyle = "settings.uiStyle"
         static let detailStyle = "settings.detailStyle"
         static let autoSleepMinutes = "settings.autoSleepMinutes"
+        static let reviewSafeMode = "settings.reviewSafeMode"
     }
 
     // MARK: - Playback
@@ -309,6 +310,14 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    /// When on, the app hides the Real-Debrid, magnet, and addon stream-resolution
+    /// surfaces, leaving direct URLs, SMB, Trakt, and the library intact. This is the
+    /// groundwork for an App Store review-safe configuration. Deliberately NOT synced
+    /// to iCloud so it can be set per device.
+    @Published var reviewSafeMode: Bool {
+        didSet { defaults.set(reviewSafeMode, forKey: Key.reviewSafeMode) }
+    }
+
     /// A default sleep-timer duration in minutes that starts automatically whenever
     /// playback begins (0 = off). One-off timers set in the player still override it.
     @Published var autoSleepMinutes: Int {
@@ -411,6 +420,7 @@ final class SettingsStore: ObservableObject {
             rawValue: defaults.string(forKey: Key.detailStyle) ?? DetailStyle.cinematic.rawValue
         ) ?? .cinematic
         self.autoSleepMinutes = defaults.integer(forKey: Key.autoSleepMinutes)
+        self.reviewSafeMode = defaults.bool(forKey: Key.reviewSafeMode)
         self.tabBarStyle = TabBarStyle(
             rawValue: defaults.string(forKey: Key.tabBarStyle) ?? TabBarStyle.floatingPill.rawValue
         ) ?? .floatingPill
