@@ -45,27 +45,24 @@ struct ContentDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .center, spacing: Theme.Spacing.md) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                 heroHeader
+                    .frame(maxWidth: .infinity)
 
                 if item.isSeries {
                     seriesBody
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 if trailerURL != nil {
                     trailersSection
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 if !related.isEmpty {
                     relatedSection
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 if !cast.isEmpty {
                     castSection
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 if isHydrating {
@@ -102,11 +99,6 @@ struct ContentDetailView: View {
     private var heroHeight: CGFloat {
         #if os(iOS)
         let h = UIScreen.main.bounds.height
-        // iPad has far more vertical room, so allow a taller hero; iPhone stays a
-        // compact proportion so the buttons and rail sit on-screen without scrolling.
-        if Theme.isPad {
-            return min(max(h * 0.42, 460), 760)
-        }
         return min(max(h * 0.38, 300), 520)
         #else
         return 560
@@ -249,6 +241,7 @@ struct ContentDetailView: View {
                 .padding(.horizontal, Theme.Spacing.edge)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var relatedSection: some View {
@@ -278,6 +271,7 @@ struct ContentDetailView: View {
                 .padding(.vertical, Theme.Spacing.xs)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var castSection: some View {
@@ -314,6 +308,7 @@ struct ContentDetailView: View {
                 .padding(.vertical, Theme.Spacing.xs)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func sectionHeader(_ title: String, chevron: Bool = false) -> some View {
@@ -475,38 +470,40 @@ struct ContentDetailView: View {
     /// A compact horizontal rail of consistent, evenly-sized secondary actions, so
     /// they read as one aligned group instead of a tall stack of full-width buttons.
     private var secondaryActionsRail: some View {
-        WrapFlowLayout(spacing: Theme.Spacing.sm, lineSpacing: Theme.Spacing.sm, alignment: .center) {
-            if !item.isSeries {
-                detailAction("Choose Stream", systemImage: "list.bullet") {
-                    streamTarget = StreamTarget(catalog: item, episode: nil, forceManual: true)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Theme.Spacing.sm) {
+                if !item.isSeries {
+                    detailAction("Choose Stream", systemImage: "list.bullet") {
+                        streamTarget = StreamTarget(catalog: item, episode: nil, forceManual: true)
+                    }
+                }
+                #if os(iOS)
+                if let trailer = trailerURL {
+                    detailAction("Trailer", systemImage: "film") {
+                        UIApplication.shared.open(trailer)
+                    }
+                }
+                #endif
+                detailAction(isFavorited ? "Favorited" : "Favorite",
+                             systemImage: isFavorited ? "star.fill" : "star",
+                             active: isFavorited) {
+                    toggleFavorite()
+                }
+                detailAction("Collection", systemImage: "rectangle.stack.badge.plus") {
+                    showCollectionPicker = true
+                }
+                if item.contentID.type == .movie {
+                    detailAction(isWatched ? "Watched" : "Mark Watched",
+                                 systemImage: isWatched ? "checkmark.circle.fill" : "checkmark.circle",
+                                 active: isWatched) {
+                        toggleWatched()
+                    }
                 }
             }
-            #if os(iOS)
-            if let trailer = trailerURL {
-                detailAction("Trailer", systemImage: "film") {
-                    UIApplication.shared.open(trailer)
-                }
-            }
-            #endif
-            detailAction(isFavorited ? "Favorited" : "Favorite",
-                         systemImage: isFavorited ? "star.fill" : "star",
-                         active: isFavorited) {
-                toggleFavorite()
-            }
-            detailAction("Collection", systemImage: "rectangle.stack.badge.plus") {
-                showCollectionPicker = true
-            }
-            if item.contentID.type == .movie {
-                detailAction(isWatched ? "Watched" : "Mark Watched",
-                             systemImage: isWatched ? "checkmark.circle.fill" : "checkmark.circle",
-                             active: isWatched) {
-                    toggleWatched()
-                }
-            }
+            .padding(.horizontal, Theme.Spacing.edge)
+            .padding(.vertical, Theme.Spacing.xs)
+            .frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, Theme.Spacing.edge)
-        .padding(.vertical, Theme.Spacing.xs)
-        .frame(maxWidth: .infinity)
     }
 
     /// One compact secondary action: icon over a short label in a fixed-width pill.
@@ -746,6 +743,7 @@ struct ContentDetailView: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
