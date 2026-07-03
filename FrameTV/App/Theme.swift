@@ -326,6 +326,9 @@ extension View {
 struct WrapFlowLayout: Layout {
     var spacing: CGFloat = 8
     var lineSpacing: CGFloat = 8
+    /// Horizontal alignment of each row within the available width. Defaults to
+    /// leading so existing callers are unaffected; pass .center to center rows.
+    var alignment: HorizontalAlignment = .leading
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let maxWidth = proposal.width ?? .infinity
@@ -352,20 +355,37 @@ struct WrapFlowLayout: Layout {
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let maxWidth = bounds.width
-        var x = bounds.minX
-        var y = bounds.minY
-        var rowHeight: CGFloat = 0
-        for view in subviews {
+
+        // Group subviews into rows first, so each row can be centered if requested.
+        var rows: [[Int]] = []
+        var current: [Int] = []
+        var rowWidth: CGFloat = 0
+        for (i, view) in subviews.enumerated() {
             let size = view.sizeThatFits(.unspecified)
-            if x > bounds.minX, x + size.width > bounds.minX + maxWidth {
-                x = bounds.minX
-                y += rowHeight + lineSpacing
-                rowHeight = 0
+            if !current.isEmpty, rowWidth + spacing + size.width > maxWidth {
+                rows.append(current)
+                current = [i]
+                rowWidth = size.width
+            } else {
+                rowWidth += (current.isEmpty ? 0 : spacing) + size.width
+                current.append(i)
             }
-            view.place(at: CGPoint(x: x, y: y), anchor: .topLeading,
-                       proposal: ProposedViewSize(size))
-            x += size.width + spacing
-            rowHeight = Swift.max(rowHeight, size.height)
+        }
+        if !current.isEmpty { rows.append(current) }
+
+        var y = bounds.minY
+        for row in rows {
+            let sizes = row.map { subviews[$0].sizeThatFits(.unspecified) }
+            let rowWidth = sizes.reduce(0) { $0 + $1.width } + spacing * CGFloat(max(row.count - 1, 0))
+            let rowHeight = sizes.map(\.height).max() ?? 0
+            var x = bounds.minX + (alignment == .center ? max(0, (maxWidth - rowWidth) / 2) : 0)
+            for (idx, subviewIndex) in row.enumerated() {
+                let size = sizes[idx]
+                subviews[subviewIndex].place(at: CGPoint(x: x, y: y), anchor: .topLeading,
+                                             proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+            y += rowHeight + lineSpacing
         }
     }
 }

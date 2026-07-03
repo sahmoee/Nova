@@ -470,40 +470,38 @@ struct ContentDetailView: View {
     /// A compact horizontal rail of consistent, evenly-sized secondary actions, so
     /// they read as one aligned group instead of a tall stack of full-width buttons.
     private var secondaryActionsRail: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Theme.Spacing.sm) {
-                if !item.isSeries {
-                    detailAction("Choose Stream", systemImage: "list.bullet") {
-                        streamTarget = StreamTarget(catalog: item, episode: nil, forceManual: true)
-                    }
-                }
-                #if os(iOS)
-                if let trailer = trailerURL {
-                    detailAction("Trailer", systemImage: "film") {
-                        UIApplication.shared.open(trailer)
-                    }
-                }
-                #endif
-                detailAction(isFavorited ? "Favorited" : "Favorite",
-                             systemImage: isFavorited ? "star.fill" : "star",
-                             active: isFavorited) {
-                    toggleFavorite()
-                }
-                detailAction("Collection", systemImage: "rectangle.stack.badge.plus") {
-                    showCollectionPicker = true
-                }
-                if item.contentID.type == .movie {
-                    detailAction(isWatched ? "Watched" : "Mark Watched",
-                                 systemImage: isWatched ? "checkmark.circle.fill" : "checkmark.circle",
-                                 active: isWatched) {
-                        toggleWatched()
-                    }
+        WrapFlowLayout(spacing: Theme.Spacing.sm, lineSpacing: Theme.Spacing.sm, alignment: .center) {
+            if !item.isSeries {
+                detailAction("Choose Stream", systemImage: "list.bullet") {
+                    streamTarget = StreamTarget(catalog: item, episode: nil, forceManual: true)
                 }
             }
-            .padding(.horizontal, Theme.Spacing.edge)
-            .padding(.vertical, Theme.Spacing.xs)
-            .frame(maxWidth: .infinity)
+            #if os(iOS)
+            if let trailer = trailerURL {
+                detailAction("Trailer", systemImage: "film") {
+                    UIApplication.shared.open(trailer)
+                }
+            }
+            #endif
+            detailAction(isFavorited ? "Favorited" : "Favorite",
+                         systemImage: isFavorited ? "star.fill" : "star",
+                         active: isFavorited) {
+                toggleFavorite()
+            }
+            detailAction("Collection", systemImage: "rectangle.stack.badge.plus") {
+                showCollectionPicker = true
+            }
+            if item.contentID.type == .movie {
+                detailAction(isWatched ? "Watched" : "Mark Watched",
+                             systemImage: isWatched ? "checkmark.circle.fill" : "checkmark.circle",
+                             active: isWatched) {
+                    toggleWatched()
+                }
+            }
         }
+        .padding(.horizontal, Theme.Spacing.edge)
+        .padding(.vertical, Theme.Spacing.xs)
+        .frame(maxWidth: .infinity)
     }
 
     /// One compact secondary action: icon over a short label in a fixed-width pill.
