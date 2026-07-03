@@ -22,6 +22,9 @@ struct StreamPickerView: View {
     @ObservedObject private var network = NetworkConditionMonitor.shared
 
     @State private var streams: [StreamOption] = []
+    @State private var deadStreamIDs: Set<String> = []
+    @State private var autoFailingOver = false
+    @State private var lastPlayedStream: StreamOption?
     @State private var state: ViewState = .loading
     @State private var resolvingStreamID: String?
     @State private var playable: MediaItem?
@@ -69,7 +72,13 @@ struct StreamPickerView: View {
             }
         }
         .navigationDestination(item: $playable) { item in
-            PlayerView(item: item, series: catalog.isSeries ? catalog : nil)
+            PlayerView(item: item, series: catalog.isSeries ? catalog : nil, onStreamExpired: {
+                // The stream the player was using died. Mark it and auto-play the next.
+                if let dead = lastPlayedStream { markDead(dead) }
+                if let next = nextCandidate() {
+                    Task { await play(next) }
+                }
+            })
         }
         .navigationDestination(isPresented: $showAddonsSetup) {
             AddonsView()
@@ -244,6 +253,8 @@ struct StreamPickerView: View {
     /// chip filters with any active smart (natural-language) filter.
     private var filteredStreams: [StreamOption] {
         streams.filter { s in
+            // Streams that already failed to resolve this session are excluded.
+            if deadStreamIDs.contains(s.id) { return false }
             // Chip filters.
             if let minQuality, s.quality.rank < minQuality.rank { return false }
             if let selectedSource, s.addonName != selectedSource { return false }
@@ -621,9 +632,33 @@ struct StreamPickerView: View {
                 stream: stream, catalog: catalog, episode: episode
             )
             env.library.add(item)
+            lastPlayedStream = stream
             playable = item
         } catch {
-            state = .error((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
+            // This stream failed to resolve — mark it dead, drop it from the list, and
+            // automatically try the next best candidate. Only surface an error if
+            // nothing is left to try.
+            markDead(stream)
+            if let next = nextCandidate() {
+                autoFailingOver = true
+                await play(next)
+            } else {
+                autoFailingOver = false
+                state = .error((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
+            }
         }
+    }
+
+    /// Marks a stream dead so it is filtered out and never auto-selected again this
+    /// session.
+    private func markDead(_ stream: StreamOption) {
+        deadStreamIDs.insert(stream.id)
+        streams.removeAll { $0.id == stream.id }
+    }
+
+    /// The next best still-alive stream to try, honoring the current filters and
+    /// preferring cached/instant sources first.
+    private func nextCandidate() -> StreamOption? {
+        filteredStreams.first { !deadStreamIDs.contains($0.id) }
     }
 }

@@ -17,6 +17,10 @@ struct PlayerView: View {
     let item: MediaItem
     /// Optional context so the player can compute and play the next episode.
     var series: CatalogItem?
+    /// Called when playback fails because the stream link itself is dead (expired,
+    /// timed out, or unresolvable). The picker uses this to mark the stream and
+    /// automatically fail over to the next best one.
+    var onStreamExpired: (() -> Void)?
 
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var progress: PlaybackProgressStore
@@ -37,9 +41,10 @@ struct PlayerView: View {
     // overriding the automatic/preference routing (used by "Try other player").
     @State private var engineOverride: PlaybackEngine?
 
-    init(item: MediaItem, series: CatalogItem? = nil) {
+    init(item: MediaItem, series: CatalogItem? = nil, onStreamExpired: (() -> Void)? = nil) {
         self.item = item
         self.series = series
+        self.onStreamExpired = onStreamExpired
         _model = StateObject(wrappedValue: PlayerModel(item: item))
     }
 
@@ -214,9 +219,14 @@ struct PlayerView: View {
 
                     // Go back to pick a different stream — surfaced first when the
                     // issue is the stream itself (expired/timeout/no-stream).
-                    FocusableButton(title: "Choose a different stream",
+                    FocusableButton(title: onStreamExpired != nil && reason.suggestsDifferentStream
+                                        ? "Try Next Stream" : "Choose a different stream",
                                     systemImage: "list.bullet",
                                     prominent: reason.suggestsDifferentStream) {
+                        // If this was a dead-stream failure and the picker gave us a
+                        // failover hook, tell it to skip this stream and auto-play the
+                        // next before we pop back.
+                        if reason.suggestsDifferentStream { onStreamExpired?() }
                         dismiss()
                     }
                     .frame(maxWidth: 460)

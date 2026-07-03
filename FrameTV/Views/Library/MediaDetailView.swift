@@ -129,67 +129,37 @@ struct MediaDetailView: View {
                     .frame(maxWidth: .infinity)
                 }
 
-                // 2-column grid of secondary action tiles.
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: Theme.Spacing.sm),
-                                    GridItem(.flexible(), spacing: Theme.Spacing.sm)],
-                          spacing: Theme.Spacing.sm) {
-                    actionTile(currentItem.isFavorite ? "Unfavorite" : "Favorite",
-                               subtitle: currentItem.isFavorite ? "Remove from favorites" : "Add to favorites",
-                               systemImage: currentItem.isFavorite ? "star.slash" : "star") {
-                        library.toggleFavorite(item)
-                    }
-                    actionTile(library.isQueued(item) ? "In Queue" : "Add to Queue",
-                               subtitle: library.isQueued(item) ? "Remove from queue" : "Plan to watch",
-                               systemImage: library.isQueued(item) ? "text.badge.checkmark" : "text.badge.plus") {
-                        library.isQueued(item) ? library.removeFromQueue(item) : library.addToQueue(item)
-                    }
-                    actionTile(currentItem.isHidden ? "Unhide" : "Hide",
-                               subtitle: currentItem.isHidden ? "Show in library" : "Hide from library",
-                               systemImage: currentItem.isHidden ? "eye" : "eye.slash") {
-                        library.toggleHidden(item)
-                    }
-                    if let series = item.seriesTitle ?? (item.episode != nil ? item.title : nil) {
-                        actionTile("Binge Settings", subtitle: "Manage binge behavior",
-                                   systemImage: "slider.horizontal.3") {
-                            bingeSeries = SeriesWrapper(value: series)
+                // Compact horizontal rail of secondary actions (small buttons, not
+                // stacked). Scrolls if they exceed the width.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        compactAction(currentItem.isFavorite ? "Unfavorite" : "Favorite",
+                                      systemImage: currentItem.isFavorite ? "star.slash" : "star") {
+                            library.toggleFavorite(item)
+                        }
+                        compactAction(library.isQueued(item) ? "In Queue" : "Queue",
+                                      systemImage: library.isQueued(item) ? "text.badge.checkmark" : "text.badge.plus") {
+                            library.isQueued(item) ? library.removeFromQueue(item) : library.addToQueue(item)
+                        }
+                        compactAction(currentItem.isHidden ? "Unhide" : "Hide",
+                                      systemImage: currentItem.isHidden ? "eye" : "eye.slash") {
+                            library.toggleHidden(item)
+                        }
+                        if let series = item.seriesTitle ?? (item.episode != nil ? item.title : nil) {
+                            compactAction("Binge", systemImage: "slider.horizontal.3") {
+                                bingeSeries = SeriesWrapper(value: series)
+                            }
+                        }
+                        compactAction("Fix Match", systemImage: "wand.and.stars") {
+                            showFixMatch = true
+                        }
+                        compactAction("Remove", systemImage: "trash", destructive: true) {
+                            library.remove(item)
+                            dismiss()
                         }
                     }
-                    actionTile("Fix Match", subtitle: "Improve match results",
-                               systemImage: "wand.and.stars") {
-                        showFixMatch = true
-                    }
+                    .padding(.vertical, Theme.Spacing.xs)
                 }
-
-                // Destructive full-width row.
-                Button {
-                    library.remove(item)
-                    dismiss()
-                } label: {
-                    HStack(spacing: Theme.Spacing.md) {
-                        Image(systemName: "trash")
-                            .font(.appFont(22, weight: .semibold))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Remove")
-                                .font(.appFont(20, weight: .bold))
-                            Text("Delete from library")
-                                .font(.appFont(15))
-                                .foregroundStyle(Theme.Colors.textTertiary)
-                        }
-                        Spacer()
-                    }
-                    .foregroundStyle(Theme.Colors.error)
-                    .padding(Theme.Spacing.md)
-                    .background(
-                        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                            .fill(Theme.Colors.error.opacity(0.10))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                            .strokeBorder(Theme.Colors.error.opacity(0.35), lineWidth: 1)
-                    )
-                    .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-                }
-                .buttonStyle(FrameListRowStyle())
             }
             .padding(Theme.Spacing.lg)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -205,6 +175,35 @@ struct MediaDetailView: View {
             .padding(.bottom, Theme.Spacing.lg)
         }
         .frame(minHeight: size.height, alignment: .bottom)
+    }
+
+    /// A compact horizontal action button: icon over a short label in a small pill.
+    private func compactAction(_ title: String, systemImage: String,
+                               destructive: Bool = false,
+                               action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                Image(systemName: systemImage)
+                    .font(.appFont(20, weight: .semibold))
+                Text(title)
+                    .font(.appFont(14, weight: .semibold))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(destructive ? Theme.Colors.error : Theme.Colors.textPrimary)
+            .frame(minWidth: 78)
+            .padding(.vertical, Theme.Spacing.sm)
+            .padding(.horizontal, Theme.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                    .fill(destructive ? AnyShapeStyle(Theme.Colors.error.opacity(0.12)) : AnyShapeStyle(Theme.Colors.cardGradient))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                    .strokeBorder(destructive ? Theme.Colors.error.opacity(0.35) : Color.white.opacity(0.07), lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        }
+        .buttonStyle(FrameListRowStyle())
     }
 
     /// A secondary action tile: accent icon, bold title, muted subtitle.
@@ -258,52 +257,49 @@ struct MediaDetailView: View {
 
     @ViewBuilder
     private var actionButtons: some View {
-        // Buttons wrap to a column on compact (iPhone) so they never overflow.
         let resume = item.hasResumePoint
-        VStack(spacing: Theme.Spacing.sm) {
+        return VStack(spacing: Theme.Spacing.sm) {
             FocusableButton(
                 title: resume ? "Resume" : "Play",
                 systemImage: "play.fill",
                 prominent: true,
                 action: onPlay
             )
-            if resume {
-                FocusableButton(title: "Start Over", systemImage: "gobackward") {
-                    progress.reset(for: item.id)
-                    onPlay()
+            .frame(maxWidth: Theme.isCompact ? .infinity : 520)
+
+            // Secondary actions as a compact horizontal rail of small buttons.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    if resume {
+                        compactAction("Start Over", systemImage: "gobackward") {
+                            progress.reset(for: item.id); onPlay()
+                        }
+                    }
+                    compactAction(library.isQueued(item) ? "In Queue" : "Queue",
+                                  systemImage: library.isQueued(item) ? "text.badge.checkmark" : "text.badge.plus") {
+                        library.isQueued(item) ? library.removeFromQueue(item) : library.addToQueue(item)
+                    }
+                    compactAction(currentItem.isFavorite ? "Unfavorite" : "Favorite",
+                                  systemImage: currentItem.isFavorite ? "star.slash" : "star") {
+                        library.toggleFavorite(item)
+                    }
+                    compactAction(currentItem.isHidden ? "Unhide" : "Hide",
+                                  systemImage: currentItem.isHidden ? "eye" : "eye.slash") {
+                        library.toggleHidden(item)
+                    }
+                    if let series = item.seriesTitle ?? (item.episode != nil ? item.title : nil) {
+                        compactAction("Binge", systemImage: "slider.horizontal.3") {
+                            bingeSeries = SeriesWrapper(value: series)
+                        }
+                    }
+                    compactAction("Fix Match", systemImage: "wand.and.stars") {
+                        showFixMatch = true
+                    }
+                    compactAction("Remove", systemImage: "trash", destructive: true) {
+                        library.remove(item); dismiss()
+                    }
                 }
-            }
-            FocusableButton(
-                title: library.isQueued(item) ? "Remove from Queue" : "Add to Queue",
-                systemImage: library.isQueued(item) ? "text.badge.checkmark" : "text.badge.plus"
-            ) {
-                library.isQueued(item) ? library.removeFromQueue(item) : library.addToQueue(item)
-            }
-            FocusableButton(
-                title: currentItem.isFavorite ? "Unfavorite" : "Favorite",
-                systemImage: currentItem.isFavorite ? "star.slash" : "star"
-            ) {
-                library.toggleFavorite(item)
-            }
-            FocusableButton(
-                title: currentItem.isHidden ? "Unhide" : "Hide",
-                systemImage: currentItem.isHidden ? "eye" : "eye.slash"
-            ) {
-                library.toggleHidden(item)
-            }
-            // Per-show binge settings, for series only.
-            if let series = item.seriesTitle ?? (item.episode != nil ? item.title : nil) {
-                FocusableButton(title: "Binge Settings", systemImage: "slider.horizontal.3") {
-                    bingeSeries = SeriesWrapper(value: series)
-                }
-            }
-            // Correct a wrong poster / show / episode match.
-            FocusableButton(title: "Fix Match", systemImage: "wand.and.stars") {
-                showFixMatch = true
-            }
-            FocusableButton(title: "Remove", systemImage: "trash") {
-                library.remove(item)
-                dismiss()
+                .padding(.vertical, Theme.Spacing.xs)
             }
         }
         .frame(maxWidth: Theme.isCompact ? .infinity : 520)
