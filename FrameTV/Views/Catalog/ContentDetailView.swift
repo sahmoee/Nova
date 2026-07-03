@@ -242,7 +242,6 @@ struct ContentDetailView: View {
                 .padding(.horizontal, Theme.Spacing.edge)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var relatedSection: some View {
@@ -272,7 +271,6 @@ struct ContentDetailView: View {
                 .padding(.vertical, Theme.Spacing.xs)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var castSection: some View {
@@ -309,7 +307,6 @@ struct ContentDetailView: View {
                 .padding(.vertical, Theme.Spacing.xs)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func sectionHeader(_ title: String, chevron: Bool = false) -> some View {
@@ -339,132 +336,7 @@ struct ContentDetailView: View {
     // MARK: - Backdrop hero
 
     @ViewBuilder
-    private var backdropHero: some View {
-        if let url = item.backdropURL {
-            CachedAsyncImage(url: url, maxPixel: 1600) { image in
-                image.resizable().aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Color.clear
-            }
-            .frame(height: Theme.isCompact ? 320 : 560)
-            .frame(maxWidth: .infinity)
-            .clipped()
-            .overlay(
-                // Vertical fade to the background, plus a subtle accent wash from the
-                // artwork color along the leading edge for an Apple TV cinematic feel.
-                ZStack {
-                    LinearGradient(
-                        colors: [
-                            Theme.Colors.background.opacity(0.15),
-                            Theme.Colors.background.opacity(0.7),
-                            Theme.Colors.background
-                        ],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                    LinearGradient(
-                        colors: [accent.opacity(0.28), .clear],
-                        startPoint: .bottomLeading, endPoint: .topTrailing
-                    )
-                    .blendMode(.plusLighter)
-                }
-            )
-            .ignoresSafeArea(edges: .top)
-        }
-    }
-
     // MARK: - Header
-
-    private var header: some View {
-        HStack(alignment: .top, spacing: Theme.Spacing.lg) {
-            PosterImage(url: item.posterURL, width: Theme.scaled(280, min: 120), height: Theme.scaled(420, min: 180))
-
-            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                Text(item.title)
-                    .font(Theme.Font.screenTitle())
-                    .screenTitleStyle()
-                    .foregroundStyle(Theme.Colors.textPrimary)
-
-                WrapFlowLayout(spacing: Theme.Spacing.md, lineSpacing: Theme.Spacing.xs) {
-                    if let year = item.year {
-                        Text(String(year)).foregroundStyle(Theme.Colors.textSecondary)
-                    }
-                    Text(item.contentID.type.displayName)
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                    if let rating = item.rating, rating > 0 {
-                        Label(String(format: "%.1f", rating), systemImage: "star.fill")
-                            .foregroundStyle(Theme.Colors.warning)
-                    }
-                }
-                .font(.appFont(22))
-
-                // External ratings (IMDb / Rotten Tomatoes / Metacritic) from OMDb.
-                if !ratings.isEmpty {
-                    WrapFlowLayout(spacing: Theme.Spacing.sm, lineSpacing: Theme.Spacing.sm) {
-                        if let imdb = ratings.imdb {
-                            ratingBadge(text: String(format: "%.1f", imdb), label: "IMDb",
-                                        color: Color(red: 0.96, green: 0.77, blue: 0.13))
-                        }
-                        if let rt = ratings.rottenTomatoes {
-                            ratingBadge(text: "\(rt)%", label: "RT",
-                                        color: rt >= 60 ? Theme.Colors.error : Theme.Colors.success)
-                        }
-                        if let mc = ratings.metacritic {
-                            ratingBadge(text: "\(mc)", label: "MC",
-                                        color: mc >= 60 ? Theme.Colors.success : Theme.Colors.warning)
-                        }
-                    }
-                    .padding(.top, Theme.Spacing.xs)
-                }
-
-                // Open this title on external sites.
-                sourceLinks
-                    .padding(.top, Theme.Spacing.xs)
-
-                if let overview = item.overview, !overview.isEmpty {
-                    Text(overview)
-                        .font(.appFont(19))
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                        .lineSpacing(5)
-                        .padding(.top, Theme.Spacing.sm)
-                }
-
-                if !item.isSeries {
-                    // Primary action: full-width Play / Find Streams. For movies the
-                    // stream picker auto-loads and auto-selects the best stream, so
-                    // this goes straight to playback when auto-select is on.
-                    FocusableButton(title: playButtonTitle, systemImage: "play.fill", prominent: true) {
-                        streamTarget = StreamTarget(catalog: item, episode: nil)
-                    }
-                    .contextMenu {
-                        Button {
-                            streamTarget = StreamTarget(catalog: item, episode: nil, forceManual: true)
-                        } label: { Label("Choose Stream…", systemImage: "list.bullet") }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, Theme.Spacing.md)
-                }
-
-                if item.isSeries, let nextUp = nextUnwatchedEpisode() {
-                    FocusableButton(title: resumeButtonTitle(nextUp),
-                                    systemImage: "play.fill", prominent: true) {
-                        streamTarget = StreamTarget(catalog: item, episode: nextUp)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, Theme.Spacing.md)
-                }
-
-                // Secondary actions: a compact, evenly-sized rail that scrolls, so the
-                // buttons are consistent and aligned instead of a tall stack.
-                secondaryActionsRail
-                    .padding(.top, Theme.Spacing.sm)
-
-                if isHydrating {
-                    ProgressView().tint(Theme.Colors.accent).padding(.top, Theme.Spacing.sm)
-                }
-            }
-            Spacer(minLength: 0)
-        }
-    }
 
     // MARK: - Secondary actions
 
@@ -679,10 +551,6 @@ struct ContentDetailView: View {
 
     // MARK: - Movie
 
-    private var movieBody: some View {
-        EmptyView()
-    }
-
     // MARK: - Series
 
     @ViewBuilder
@@ -742,30 +610,7 @@ struct ContentDetailView: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
-    }
-
-    private func seasonChip(_ season: SeasonInfo, isActive: Bool) -> some View {
-        Button { selectedSeason = season.number } label: {
-            Text(season.displayName)
-                .font(.appFont(20, weight: .semibold))
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.vertical, Theme.Spacing.sm)
-                .background {
-                    if isActive {
-                        Capsule().fill(
-                            LinearGradient(colors: [Theme.Colors.accent, Theme.Colors.accent.opacity(0.8)],
-                                           startPoint: .top, endPoint: .bottom)
-                        )
-                    } else {
-                        Capsule().fill(Theme.Colors.card)
-                    }
-                }
-                .foregroundStyle(isActive ? .white : Theme.Colors.textSecondary)
-                .contentShape(Capsule())
-        }
-        .buttonStyle(FrameChipButtonStyle())
     }
 
     /// A wide episode card: the still fills it with the episode number, title, and
@@ -845,89 +690,7 @@ struct ContentDetailView: View {
         .buttonStyle(FrameListRowStyle())
     }
 
-    private func episodeRow(_ ep: EpisodeInfo) -> some View {
-        let watched = env.library.isEpisodeWatched(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
-                                               season: ep.season, number: ep.number)
-        let inProgress = env.library.isEpisodeInProgress(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
-                                                     season: ep.season, number: ep.number)
-        return Button { streamTarget = StreamTarget(catalog: item, episode: ep) } label: {
-            HStack(spacing: Theme.Spacing.md) {
-                // Episode still art in proper 16:9 shape (falls back to the show poster
-                // cropped to 16:9 when a still isn't available), so nothing stretches.
-                EpisodeStill(stillURL: ep.stillURL, fallbackURL: item.backdropURL ?? item.posterURL,
-                             width: Theme.scaled(150, min: 116))
-                    .opacity(watched ? 0.55 : 1)
-                    .overlay(alignment: .bottomLeading) {
-                        if watched {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.appFont(20))
-                                .foregroundStyle(.white, Theme.Colors.accent)
-                                .padding(6)
-                        } else if inProgress {
-                            Image(systemName: "play.circle.fill")
-                                .font(.appFont(20))
-                                .foregroundStyle(.white, Theme.Colors.accentSecondary)
-                                .padding(6)
-                        }
-                    }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("\(ep.label) · \(ep.displayTitle)")
-                        .font(.appFont(22, weight: .semibold))
-                        .foregroundStyle(watched ? Theme.Colors.textSecondary : Theme.Colors.textPrimary)
-                        .lineLimit(1)
-                    // Runtime + air date line.
-                    if let meta = episodeMetaLine(ep) {
-                        Text(meta)
-                            .font(.appFont(15))
-                            .foregroundStyle(Theme.Colors.textTertiary)
-                    }
-                    if let overview = ep.overview, !overview.isEmpty {
-                        Text(overview)
-                            .font(.appFont(17))
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                            .lineLimit(2)
-                    }
-                }
-                Spacer()
-                Image(systemName: inProgress ? "play.circle" : "play.circle.fill")
-                    .font(.appFont(30))
-                    .foregroundStyle(Theme.Colors.accent)
-            }
-            .padding(.vertical, Theme.Spacing.xs)
-            .contentShape(Rectangle())
-        }
-        .frameRowStyle()
-        .contextMenu {
-            // Long-press an episode to flip its watched state. Episodes that have
-            // never been played aren't in the library yet and can't be marked.
-            Button {
-                _ = env.library.setEpisodeWatched(!watched,
-                                                  imdb: item.contentID.imdb,
-                                                  tmdb: item.contentID.tmdb,
-                                                  season: ep.season, number: ep.number)
-                favoriteRefresh.toggle()
-            } label: {
-                Label(watched ? "Mark as Unwatched" : "Mark as Watched",
-                      systemImage: watched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
-            }
-        }
-    }
-
     /// Builds a "42 min · Aired Jan 3, 2024" style line from available episode data.
-    private func episodeMetaLine(_ ep: EpisodeInfo) -> String? {
-        var parts: [String] = []
-        if let runtime = ep.runtime, runtime > 0 {
-            let minutes = Int((runtime / 60).rounded())
-            parts.append("\(minutes) min")
-        }
-        if let air = ep.airDate {
-            let fmt = DateFormatter(); fmt.dateStyle = .medium
-            parts.append("Aired \(fmt.string(from: air))")
-        }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
-
     // MARK: - Hydration
 
     /// Looks up a trailer URL from TMDB when the item has a TMDB id. Best-effort;
@@ -948,50 +711,8 @@ struct ContentDetailView: View {
         if !r.isEmpty { ratings = r }
     }
 
-    private func ratingBadge(text: String, label: String, color: Color) -> some View {
-        HStack(spacing: 6) {
-            Text(label)
-                .font(.appFont(13, weight: .bold))
-                .foregroundStyle(color)
-            Text(text)
-                .font(.appFont(16, weight: .semibold))
-                .foregroundStyle(Theme.Colors.textPrimary)
-        }
-        .lineLimit(1)
-        .fixedSize(horizontal: true, vertical: false)
-        .padding(.horizontal, Theme.Spacing.sm)
-        .padding(.vertical, 6)
-        .background(
-            Capsule().fill(Theme.Colors.card)
-        )
-        .overlay(
-            Capsule().strokeBorder(color.opacity(0.4), lineWidth: 1)
-        )
-    }
-
     /// Buttons to open this title on external sites. IMDb and Rotten Tomatoes have no
     /// public API, so these are search/deep links rather than embedded data.
-    @ViewBuilder private var sourceLinks: some View {
-        let title = item.title
-        let encoded = title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? title
-        let isMovie = item.contentID.type == .movie
-        WrapFlowLayout(spacing: Theme.Spacing.sm, lineSpacing: Theme.Spacing.sm) {
-            if let imdb = item.contentID.imdb,
-               let url = URL(string: "https://www.imdb.com/title/\(imdb)/") {
-                sourceLinkButton("IMDb", url: url)
-            } else if let url = URL(string: "https://www.imdb.com/find/?q=\(encoded)") {
-                sourceLinkButton("IMDb", url: url)
-            }
-            if let url = URL(string: "https://www.rottentomatoes.com/search?search=\(encoded)") {
-                sourceLinkButton("RT", url: url)
-            }
-            if let tmdb = item.contentID.tmdb,
-               let url = URL(string: "https://www.themoviedb.org/\(isMovie ? "movie" : "tv")/\(tmdb)") {
-                sourceLinkButton("TMDB", url: url)
-            }
-        }
-    }
-
     private func sourceLinkButton(_ label: String, url: URL) -> some View {
         Link(destination: url) {
             HStack(spacing: 5) {
