@@ -45,7 +45,7 @@ struct ContentDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                 heroHeader
 
                 if item.isSeries {
@@ -98,42 +98,37 @@ struct ContentDetailView: View {
     private var heroHeight: CGFloat {
         #if os(iOS)
         let h = UIScreen.main.bounds.height
-        return min(max(h * 0.48, 360), 720)
+        return min(max(h * 0.38, 300), 520)
         #else
-        return 640
+        return 560
         #endif
     }
 
     private var heroHeader: some View {
-        VStack(spacing: Theme.Spacing.md) {
-            // hero content is centered horizontally
-            // Full-bleed backdrop with the title art centered over it and a fade to the
-            // background at the bottom.
-            ZStack(alignment: .bottom) {
-                CachedAsyncImage(url: item.backdropURL ?? item.posterURL, maxPixel: 1600) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Rectangle().fill(Theme.Colors.card).shimmering()
-                }
-                .frame(height: heroHeight)
-                .frame(maxWidth: .infinity)
-                .clipped()
-                .overlay(
-                    LinearGradient(
-                        colors: [.clear, .clear, Theme.Colors.background.opacity(0.7), Theme.Colors.background],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                )
+        VStack(spacing: Theme.Spacing.sm) {
+            // Backdrop with a fade to the background at the bottom. Kept in the normal
+            // scroll flow (no safe-area escape) so the content below follows directly
+            // with no gap.
+            CachedAsyncImage(url: item.backdropURL ?? item.posterURL, maxPixel: 1600) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Rectangle().fill(Theme.Colors.card).shimmering()
             }
-            .ignoresSafeArea(edges: .top)
+            .frame(height: heroHeight)
+            .frame(maxWidth: .infinity)
+            .clipped()
+            .overlay(
+                LinearGradient(
+                    colors: [.clear, .clear, Theme.Colors.background.opacity(0.7), Theme.Colors.background],
+                    startPoint: .top, endPoint: .bottom
+                )
+            )
 
             // Type / genre line.
             Text(metaLine)
                 .font(.appFont(18, weight: .medium))
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, Theme.Spacing.edge)
 
             // Primary Play + circular watched toggle, centered.
             HStack(spacing: Theme.Spacing.md) {
@@ -171,7 +166,6 @@ struct ContentDetailView: View {
                 }
                 .buttonStyle(FrameChipButtonStyle())
             }
-            .frame(maxWidth: .infinity)
 
             // Overview + year, centered under the buttons.
             if let overview = item.overview, !overview.isEmpty {
@@ -180,8 +174,6 @@ struct ContentDetailView: View {
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .lineLimit(3)
                     .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity)
                     .padding(.horizontal, Theme.Spacing.edge)
             }
             if let year = item.year {
@@ -193,9 +185,7 @@ struct ContentDetailView: View {
             // Secondary actions (Favorite / Collection / Trailer / links).
             secondaryActionsRail
                 .padding(.top, Theme.Spacing.xs)
-                .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity)
     }
 
     /// "TV Show · Comedy · Animation" style line.
@@ -504,8 +494,8 @@ struct ContentDetailView: View {
                     }
                 }
             }
-            .padding(.vertical, Theme.Spacing.xs)
             .padding(.horizontal, Theme.Spacing.edge)
+            .padding(.vertical, Theme.Spacing.xs)
             .frame(maxWidth: .infinity)
         }
     }
