@@ -215,8 +215,10 @@ final class CatalogService: ObservableObject {
             // video. If the server reports a content length and it is implausibly
             // small for real media, treat it as an expired link too.
             let type = (http.value(forHTTPHeaderField: "Content-Type") ?? "").lowercased()
-            if let lenStr = http.value(forHTTPHeaderField: "Content-Range")?.split(separator: "/").last
-                ?? http.value(forHTTPHeaderField: "Content-Length"),
+            let rangeLen = http.value(forHTTPHeaderField: "Content-Range")?
+                .split(separator: "/").last.map(String.init)
+            let lenStr = rangeLen ?? http.value(forHTTPHeaderField: "Content-Length")
+            if let lenStr,
                let total = Int64(lenStr.trimmingCharacters(in: .whitespaces)),
                total > 0, total < 3_000_000,          // under ~3 MB
                (type.contains("video") || type.contains("mp4") || type.contains("octet-stream")) {
