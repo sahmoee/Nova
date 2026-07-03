@@ -45,23 +45,27 @@ struct ContentDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            VStack(alignment: .center, spacing: Theme.Spacing.md) {
                 heroHeader
 
                 if item.isSeries {
                     seriesBody
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 if trailerURL != nil {
                     trailersSection
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 if !related.isEmpty {
                     relatedSection
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 if !cast.isEmpty {
                     castSection
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 if isHydrating {
@@ -105,7 +109,7 @@ struct ContentDetailView: View {
     }
 
     private var heroHeader: some View {
-        VStack(spacing: Theme.Spacing.sm) {
+        VStack(alignment: .center, spacing: Theme.Spacing.sm) {
             // Backdrop with a fade to the background at the bottom. Kept in the normal
             // scroll flow (no safe-area escape) so the content below follows directly
             // with no gap.
@@ -130,7 +134,7 @@ struct ContentDetailView: View {
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
 
-            // Primary Play + circular watched toggle, centered.
+            // Primary Play + circular watched toggle.
             HStack(spacing: Theme.Spacing.md) {
                 Button {
                     if item.isSeries, let first = firstEpisode() {
@@ -167,13 +171,14 @@ struct ContentDetailView: View {
                 .buttonStyle(FrameChipButtonStyle())
             }
 
-            // Overview + year, centered under the buttons.
+            // Overview + year.
             if let overview = item.overview, !overview.isEmpty {
                 Text(overview)
                     .font(.appFont(17))
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .lineLimit(3)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, Theme.Spacing.edge)
             }
             if let year = item.year {
@@ -186,6 +191,7 @@ struct ContentDetailView: View {
             secondaryActionsRail
                 .padding(.top, Theme.Spacing.xs)
         }
+        .frame(maxWidth: .infinity)
     }
 
     /// "TV Show · Comedy · Animation" style line.
