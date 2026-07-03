@@ -72,8 +72,6 @@ struct ContentDetailView: View {
                 }
             }
             .padding(.bottom, Theme.Spacing.xl)
-            .frame(maxWidth: Theme.contentMaxWidth(1400))
-            .frame(maxWidth: .infinity)
         }
         .background(Theme.Colors.appBackground.ignoresSafeArea())
         .navigationDestination(item: $streamTarget) { target in
@@ -99,8 +97,6 @@ struct ContentDetailView: View {
     private var heroHeight: CGFloat {
         #if os(iOS)
         let h = UIScreen.main.bounds.height
-        // iPad has far more vertical room, so allow a taller hero; iPhone stays a
-        // compact proportion so the buttons and rail sit on-screen without scrolling.
         if Theme.isPad {
             return min(max(h * 0.42, 460), 760)
         }
