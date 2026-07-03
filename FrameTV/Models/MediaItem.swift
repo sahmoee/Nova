@@ -188,6 +188,34 @@ struct MediaItem: Identifiable, Codable, Hashable {
         guard let episode else { return nil }
         return "\(episode.label) · \(title)"
     }
+
+    /// Whether this library item represents a series (a show, or an episode of one).
+    var isSeries: Bool {
+        contentID?.type == .series || episode != nil || seriesTitle != nil
+    }
+
+    /// Builds a CatalogItem for this library item so it can open the full detail
+    /// screen (with season and episode rails). Uses the show title for episodes.
+    func asCatalogItem() -> CatalogItem {
+        let showTitle = seriesTitle ?? title
+        let cid = contentID ?? ContentID(type: isSeries ? .series : .movie)
+        let seriesCID: ContentID = {
+            if cid.type == .series { return cid }
+            return ContentID(imdb: cid.imdb, tmdb: cid.tmdb, trakt: cid.trakt,
+                             addonItemID: cid.addonItemID,
+                             type: isSeries ? .series : .movie)
+        }()
+        return CatalogItem(
+            contentID: seriesCID,
+            title: showTitle,
+            overview: nil,
+            posterURL: posterURL,
+            backdropURL: backdropURL ?? posterURL,
+            year: metadata.year,
+            rating: nil,
+            genres: []
+        )
+    }
 }
 
 /// Lightweight reference to a specific episode, stored on a MediaItem so the

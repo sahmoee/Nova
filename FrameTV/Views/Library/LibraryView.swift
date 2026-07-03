@@ -117,15 +117,25 @@ struct LibraryView: View {
             // Play pushes the player on top (don't pop detail first — popping and
             // pushing at once in one stack conflicts); backing out returns to detail.
             .navigationDestination(item: $detailItem) { item in
-                MediaDetailView(item: item) {
-                    selectedItem = item
+                if item.isSeries {
+                    ContentDetailView(item: item.asCatalogItem())
+                } else {
+                    MediaDetailView(item: item) {
+                        selectedItem = item
+                    }
                 }
             }
             #else
             .sheet(item: $detailItem) { item in
-                MediaDetailView(item: item) {
-                    detailItem = nil
-                    selectedItem = item
+                if item.isSeries {
+                    NavigationStack {
+                        ContentDetailView(item: item.asCatalogItem())
+                    }
+                } else {
+                    MediaDetailView(item: item) {
+                        detailItem = nil
+                        selectedItem = item
+                    }
                 }
             }
             #endif
