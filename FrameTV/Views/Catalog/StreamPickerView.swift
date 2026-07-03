@@ -491,9 +491,11 @@ struct StreamPickerView: View {
                     .foregroundStyle(.white)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    // Best-match labels (Best Overall, Fastest Start, etc.).
+                    // Best-match labels (Best Overall, Fastest Start, etc.). Uses a
+                    // wrapping layout so multiple labels flow onto new lines instead of
+                    // being squeezed into vertical text.
                     if !labels.isEmpty {
-                        HStack(spacing: 6) {
+                        WrapFlowLayout(spacing: 6, lineSpacing: 6) {
                             ForEach(labels, id: \.rawValue) { label in
                                 matchLabel(label)
                             }
@@ -551,6 +553,8 @@ struct StreamPickerView: View {
         HStack(spacing: 4) {
             Image(systemName: label.systemImage)
             Text(label.rawValue)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
         }
         .font(.appFont(13, weight: .bold))
         .padding(.horizontal, 8).padding(.vertical, 3)

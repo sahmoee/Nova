@@ -118,6 +118,8 @@ struct ContentDetailView: View {
                 .font(.appFont(18, weight: .medium))
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, Theme.Spacing.edge)
 
             // Primary Play + circular watched toggle, centered.
             HStack(spacing: Theme.Spacing.md) {
@@ -163,6 +165,8 @@ struct ContentDetailView: View {
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .lineLimit(3)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity)
                     .padding(.horizontal, Theme.Spacing.edge)
             }
             if let year = item.year {
@@ -175,6 +179,7 @@ struct ContentDetailView: View {
             secondaryActionsRail
                 .padding(.top, Theme.Spacing.xs)
         }
+        .frame(maxWidth: .infinity)
     }
 
     /// "TV Show · Comedy · Animation" style line.
