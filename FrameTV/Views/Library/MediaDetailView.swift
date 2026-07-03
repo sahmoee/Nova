@@ -320,7 +320,7 @@ struct MediaDetailView: View {
         let heroURL = currentItem.backdropURL ?? currentItem.posterURL
         return Group {
             if let url = heroURL {
-                CachedAsyncImage(url: url) { image in
+                CachedAsyncImage(url: url, maxPixel: 1600) { image in
                     image.resizable().aspectRatio(contentMode: .fill)
                 } placeholder: {
                     Theme.Colors.card.shimmering()

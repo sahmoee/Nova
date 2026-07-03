@@ -133,7 +133,7 @@ struct MediaCard: View {
     @ViewBuilder
     private var posterImage: some View {
         if let url = item.posterURL {
-            CachedAsyncImage(url: url) { image in
+            CachedAsyncImage(url: url, maxPixel: 700) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
             } placeholder: {
                 placeholder.shimmering()

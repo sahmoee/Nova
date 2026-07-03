@@ -39,7 +39,7 @@ struct FeaturedHero: View {
     private func heroContent(width: CGFloat) -> some View {
         ZStack(alignment: .bottomLeading) {
             // Backdrop (falls back to poster).
-            CachedAsyncImage(url: item.backdropURL ?? item.posterURL) { image in
+            CachedAsyncImage(url: item.backdropURL ?? item.posterURL, maxPixel: 1600) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
             } placeholder: {
                 Rectangle().fill(Theme.Colors.card)

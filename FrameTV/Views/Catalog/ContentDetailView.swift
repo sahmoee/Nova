@@ -77,7 +77,7 @@ struct ContentDetailView: View {
     @ViewBuilder
     private var backdropHero: some View {
         if let url = item.backdropURL {
-            CachedAsyncImage(url: url) { image in
+            CachedAsyncImage(url: url, maxPixel: 1600) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
             } placeholder: {
                 Color.clear
@@ -158,81 +158,41 @@ struct ContentDetailView: View {
 
                 if let overview = item.overview, !overview.isEmpty {
                     Text(overview)
-                        .font(.appFont(22))
+                        .font(.appFont(19))
                         .foregroundStyle(Theme.Colors.textSecondary)
-                        .lineSpacing(6)
+                        .lineSpacing(5)
                         .padding(.top, Theme.Spacing.sm)
                 }
 
                 if !item.isSeries {
+                    // Primary action: full-width Play / Find Streams. For movies the
+                    // stream picker auto-loads and auto-selects the best stream, so
+                    // this goes straight to playback when auto-select is on.
                     FocusableButton(title: playButtonTitle, systemImage: "play.fill", prominent: true) {
                         streamTarget = StreamTarget(catalog: item, episode: nil)
                     }
                     .contextMenu {
-                        // Long-press the Play button for the manual stream list.
                         Button {
                             streamTarget = StreamTarget(catalog: item, episode: nil, forceManual: true)
                         } label: { Label("Choose Stream…", systemImage: "list.bullet") }
                     }
-                    .frame(maxWidth: Theme.isCompact ? .infinity : 320)
+                    .frame(maxWidth: .infinity)
                     .padding(.top, Theme.Spacing.md)
-
-                    // Secondary: always open the manual stream list, even with
-                    // auto-select on, so the user can pick a specific stream.
-                    FocusableButton(title: "Choose Stream", systemImage: "list.bullet") {
-                        streamTarget = StreamTarget(catalog: item, episode: nil, forceManual: true)
-                    }
-                    .frame(maxWidth: Theme.isCompact ? .infinity : 320)
-                    .padding(.top, Theme.Spacing.xs)
                 }
 
-                // Series: jump straight to the next unwatched episode.
                 if item.isSeries, let nextUp = nextUnwatchedEpisode() {
                     FocusableButton(title: resumeButtonTitle(nextUp),
                                     systemImage: "play.fill", prominent: true) {
                         streamTarget = StreamTarget(catalog: item, episode: nextUp)
                     }
-                    .frame(maxWidth: Theme.isCompact ? .infinity : 360)
+                    .frame(maxWidth: .infinity)
                     .padding(.top, Theme.Spacing.md)
                 }
 
-                // Play Trailer (when TMDB has one). TMDB trailers are YouTube links,
-                // which iOS can open in the YouTube app or Safari. tvOS cannot open
-                // these reliably, so the button is offered on iOS/iPad only.
-                #if os(iOS)
-                if let trailer = trailerURL {
-                    FocusableButton(title: "Play Trailer", systemImage: "film") {
-                        UIApplication.shared.open(trailer)
-                    }
-                    .frame(maxWidth: Theme.isCompact ? .infinity : 320)
+                // Secondary actions: a compact, evenly-sized rail that scrolls, so the
+                // buttons are consistent and aligned instead of a tall stack.
+                secondaryActionsRail
                     .padding(.top, Theme.Spacing.sm)
-                }
-                #endif
-
-                // Favorite this title (adds it to the library and marks it favorite).
-                FocusableButton(title: isFavorited ? "Favorited" : "Add to Favorites",
-                                systemImage: isFavorited ? "star.fill" : "star") {
-                    toggleFavorite()
-                }
-                .frame(maxWidth: Theme.isCompact ? .infinity : 320)
-                .padding(.top, Theme.Spacing.sm)
-
-                // Add this title to a collection.
-                FocusableButton(title: "Add to Collection", systemImage: "rectangle.stack.badge.plus") {
-                    showCollectionPicker = true
-                }
-                .frame(maxWidth: Theme.isCompact ? .infinity : 320)
-                .padding(.top, Theme.Spacing.xs)
-
-                // Mark this title watched or unwatched (movies and non-episodic items).
-                if item.contentID.type == .movie {
-                    FocusableButton(title: isWatched ? "Watched" : "Mark as Watched",
-                                    systemImage: isWatched ? "checkmark.circle.fill" : "checkmark.circle") {
-                        toggleWatched()
-                    }
-                    .frame(maxWidth: Theme.isCompact ? .infinity : 320)
-                    .padding(.top, Theme.Spacing.xs)
-                }
 
                 if isHydrating {
                     ProgressView().tint(Theme.Colors.accent).padding(.top, Theme.Spacing.sm)
@@ -240,6 +200,73 @@ struct ContentDetailView: View {
             }
             Spacer(minLength: 0)
         }
+    }
+
+    // MARK: - Secondary actions
+
+    /// A compact horizontal rail of consistent, evenly-sized secondary actions, so
+    /// they read as one aligned group instead of a tall stack of full-width buttons.
+    private var secondaryActionsRail: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Theme.Spacing.sm) {
+                if !item.isSeries {
+                    detailAction("Choose Stream", systemImage: "list.bullet") {
+                        streamTarget = StreamTarget(catalog: item, episode: nil, forceManual: true)
+                    }
+                }
+                #if os(iOS)
+                if let trailer = trailerURL {
+                    detailAction("Trailer", systemImage: "film") {
+                        UIApplication.shared.open(trailer)
+                    }
+                }
+                #endif
+                detailAction(isFavorited ? "Favorited" : "Favorite",
+                             systemImage: isFavorited ? "star.fill" : "star",
+                             active: isFavorited) {
+                    toggleFavorite()
+                }
+                detailAction("Collection", systemImage: "rectangle.stack.badge.plus") {
+                    showCollectionPicker = true
+                }
+                if item.contentID.type == .movie {
+                    detailAction(isWatched ? "Watched" : "Mark Watched",
+                                 systemImage: isWatched ? "checkmark.circle.fill" : "checkmark.circle",
+                                 active: isWatched) {
+                        toggleWatched()
+                    }
+                }
+            }
+            .padding(.vertical, Theme.Spacing.xs)
+        }
+    }
+
+    /// One compact secondary action: icon over a short label in a fixed-width pill.
+    private func detailAction(_ title: String, systemImage: String,
+                              active: Bool = false,
+                              action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.appFont(22, weight: .semibold))
+                Text(title)
+                    .font(.appFont(14, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+            }
+            .foregroundStyle(active ? accent : Theme.Colors.textPrimary)
+            .frame(width: Theme.scaled(96, min: 84), height: Theme.scaled(84, min: 74))
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                    .fill(Theme.Colors.cardGradient)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                    .strokeBorder(active ? accent.opacity(0.6) : Color.white.opacity(0.07), lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        }
+        .buttonStyle(FrameListRowStyle())
     }
 
     // MARK: - Collection picker
@@ -587,7 +614,7 @@ struct ContentDetailView: View {
                 sourceLinkButton("IMDb", url: url)
             }
             if let url = URL(string: "https://www.rottentomatoes.com/search?search=\(encoded)") {
-                sourceLinkButton("Rotten Tomatoes", url: url)
+                sourceLinkButton("RT", url: url)
             }
             if let tmdb = item.contentID.tmdb,
                let url = URL(string: "https://www.themoviedb.org/\(isMovie ? "movie" : "tv")/\(tmdb)") {
@@ -634,7 +661,7 @@ struct PosterImage: View {
     var height: CGFloat
 
     var body: some View {
-        CachedAsyncImage(url: url) { image in
+        CachedAsyncImage(url: url, maxPixel: 900) { image in
             image.resizable().aspectRatio(contentMode: .fill)
         } placeholder: {
             placeholder.shimmering()

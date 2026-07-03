@@ -133,6 +133,10 @@ actor ImageLoader {
 /// Mirrors the common phase-based API enough for our call sites.
 struct CachedAsyncImage<Content: View, Placeholder: View>: View {
     let url: URL?
+    /// Target long-edge resolution to decode at. Larger surfaces (backdrops, hero
+    /// posters) pass a higher value so images stay crisp on Retina displays instead
+    /// of being upscaled from a small thumbnail.
+    var maxPixel: CGFloat = 600
     @ViewBuilder var content: (Image) -> Content
     @ViewBuilder var placeholder: () -> Placeholder
 
@@ -142,7 +146,7 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
     var body: some View {
         Group {
             if let loaded {
-                content(Image(uiImage: loaded))
+                content(Image(uiImage: loaded).interpolation(.high).antialiased(true))
             } else {
                 placeholder()
             }
@@ -151,7 +155,7 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
             loaded = nil
             failed = false
             guard let url else { return }
-            if let image = await ImageLoader.shared.image(for: url) {
+            if let image = await ImageLoader.shared.image(for: url, maxPixel: maxPixel) {
                 loaded = image
             } else {
                 failed = true
