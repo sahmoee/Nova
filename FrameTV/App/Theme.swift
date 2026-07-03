@@ -376,9 +376,9 @@ struct WrapFlowLayout: Layout {
         var y = bounds.minY
         for row in rows {
             let sizes = row.map { subviews[$0].sizeThatFits(.unspecified) }
-            let rowWidth = sizes.reduce(0) { $0 + $1.width } + spacing * CGFloat(max(row.count - 1, 0))
+            let rowW = sizes.reduce(0) { $0 + $1.width } + spacing * CGFloat(max(row.count - 1, 0))
             let rowHeight = sizes.map(\.height).max() ?? 0
-            var x = bounds.minX + (alignment == .center ? max(0, (maxWidth - rowWidth) / 2) : 0)
+            var x = bounds.minX + (alignment == .center ? max(0, (maxWidth - rowW) / 2) : 0)
             for (idx, subviewIndex) in row.enumerated() {
                 let size = sizes[idx]
                 subviews[subviewIndex].place(at: CGPoint(x: x, y: y), anchor: .topLeading,
