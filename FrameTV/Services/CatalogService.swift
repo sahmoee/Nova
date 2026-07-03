@@ -190,10 +190,57 @@ final class CatalogService: ObservableObject {
 
     /// Resolves a chosen stream into a fully-formed MediaItem ready for the player,
     /// attaching metadata, subtitles, and skip segments.
+    /// Sends a lightweight HEAD (falling back to a tiny ranged GET) to confirm the
+    /// resolved link is live and is real media, not an expired-link error slate.
+    /// Throws StreamResolveError.expiredLink when the link is dead so callers can
+    /// fail over to another stream. Only checks http(s) URLs; local and SMB URLs pass
+    /// through untouched.
+    private func validatePlaybackURL(_ url: URL) async throws {
+        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else { return }
+
+        var request = URLRequest(url: url, timeoutInterval: 8)
+        request.httpMethod = "HEAD"
+        request.setValue("bytes=0-1", forHTTPHeaderField: "Range")
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else { return }
+
+            // Dead/expired links usually answer 401/403/404/410 or a 5xx.
+            if [401, 403, 404, 410].contains(http.statusCode) || http.statusCode >= 500 {
+                throw StreamResolveError.expiredLink
+            }
+
+            // The ElfHosted-style "Link expired" slate is a very small MP4 served as
+            // video. If the server reports a content length and it is implausibly
+            // small for real media, treat it as an expired link too.
+            let type = (http.value(forHTTPHeaderField: "Content-Type") ?? "").lowercased()
+            if let lenStr = http.value(forHTTPHeaderField: "Content-Range")?.split(separator: "/").last
+                ?? http.value(forHTTPHeaderField: "Content-Length"),
+               let total = Int64(lenStr.trimmingCharacters(in: .whitespaces)),
+               total > 0, total < 3_000_000,          // under ~3 MB
+               (type.contains("video") || type.contains("mp4") || type.contains("octet-stream")) {
+                throw StreamResolveError.expiredLink
+            }
+        } catch let error as StreamResolveError {
+            throw error
+        } catch {
+            // Network hiccup on the probe alone shouldn't block playback; let the
+            // player attempt it and surface any real failure through recovery.
+            return
+        }
+    }
+
     func makePlayable(stream: StreamOption,
                       catalog: CatalogItem,
                       episode: EpisodeInfo?) async throws -> MediaItem {
         let url = try await resolver.resolve(stream, hasDebridToken: hasDebridToken())
+
+        // Validate the resolved link before handing it to the player. Expired debrid
+        // and addon links commonly return an error status or a tiny error-slate video
+        // (e.g. the ElfHosted "Link expired" clip). Catching that here lets the picker
+        // auto-fail-over to the next stream instead of playing the error video.
+        try await validatePlaybackURL(url)
 
         let epRef: EpisodeRef? = episode.map {
             EpisodeRef(season: $0.season, number: $0.number, episodeTitle: $0.title)

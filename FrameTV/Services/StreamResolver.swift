@@ -19,6 +19,7 @@ enum StreamResolveError: LocalizedError {
     case noPlayableURL
     case debridUnavailable
     case fileNotFound
+    case expiredLink
     case underlying(Error)
 
     var errorDescription: String? {
@@ -26,6 +27,7 @@ enum StreamResolveError: LocalizedError {
         case .noPlayableURL:    return "This stream couldn't be turned into a playable link."
         case .debridUnavailable:return "Resolving this stream needs a connected Real-Debrid account (Settings ▸ Real-Debrid)."
         case .fileNotFound:     return "The selected file wasn't found in the torrent."
+        case .expiredLink:      return "This playback link has expired. Trying the next stream."
         case .underlying(let e):return e.localizedDescription
         }
     }

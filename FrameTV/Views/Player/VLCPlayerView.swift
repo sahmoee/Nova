@@ -283,55 +283,62 @@ struct VLCPlayerView: View {
                     }
                 }
 
-                // Compact text control row (mirrors Info / Chapters / Settings).
-                HStack(spacing: Theme.Spacing.xl) {
-                    nativeTextButton("Play/Pause", systemImage: model.isPlaying ? "pause.fill" : "play.fill") {
-                        model.togglePlayPause(); revealControls()
-                    }
-                    nativeTextButton("−15", systemImage: "gobackward.15") { model.skipBackward(); revealControls() }
-                    nativeTextButton("+15", systemImage: "goforward.15") { model.skipForward(); revealControls() }
-                    if hasNextEpisode {
-                        nativeTextButton("Next", systemImage: "forward.end.fill") { playNextEpisode() }
-                    }
-                    nativeTextButton("Audio & Subtitles", systemImage: "captions.bubble") {
-                        model.showSubtitlePicker = true
-                    }
-                    nativeTextButton(model.fillScreen ? "Fit" : "Fill",
-                                     systemImage: model.fillScreen
-                                        ? "arrow.down.right.and.arrow.up.left"
-                                        : "arrow.up.left.and.arrow.down.right") {
-                        model.fillScreen.toggle(); revealControls()
-                    }
-                    nativeTextButton("Diagnostics", systemImage: "waveform.path.ecg") {
-                        showDiagnostics.toggle(); revealControls()
-                    }
-                    // Sleep timer menu, styled like the other native text actions.
-                    Menu {
-                        ForEach(SleepTimer.Preset.allCases) { preset in
-                            Button(preset.label) {
-                                sleepTimer.start(minutes: preset.rawValue)
-                                revealControls()
+                // Compact text control row. Scrolls horizontally so no button is ever
+                // clipped off-screen, and the primary transport stays pinned left.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Theme.Spacing.xl) {
+                        nativeTextButton("Play/Pause", systemImage: model.isPlaying ? "pause.fill" : "play.fill") {
+                            model.togglePlayPause(); revealControls()
+                        }
+                        nativeTextButton("−15", systemImage: "gobackward.15") { model.skipBackward(); revealControls() }
+                        nativeTextButton("+15", systemImage: "goforward.15") { model.skipForward(); revealControls() }
+                        if hasNextEpisode {
+                            nativeTextButton("Next", systemImage: "forward.end.fill") { playNextEpisode() }
+                        }
+                        nativeTextButton("Audio & Subtitles", systemImage: "captions.bubble") {
+                            model.showSubtitlePicker = true
+                        }
+                        nativeTextButton(model.fillScreen ? "Fit" : "Fill",
+                                         systemImage: model.fillScreen
+                                            ? "arrow.down.right.and.arrow.up.left"
+                                            : "arrow.up.left.and.arrow.down.right") {
+                            model.fillScreen.toggle(); revealControls()
+                        }
+                        nativeTextButton("Diagnostics", systemImage: "waveform.path.ecg") {
+                            showDiagnostics.toggle(); revealControls()
+                        }
+                        // Sleep timer menu, styled like the other native text actions.
+                        Menu {
+                            ForEach(SleepTimer.Preset.allCases) { preset in
+                                Button(preset.label) {
+                                    sleepTimer.start(minutes: preset.rawValue)
+                                    revealControls()
+                                }
                             }
+                        } label: {
+                            VStack(spacing: 4) {
+                                Image(systemName: sleepTimer.isRunning ? "moon.fill" : "moon")
+                                    .font(.appFont(24, weight: .semibold))
+                                Text(sleepTimer.isRunning ? sleepTimer.display : "Sleep")
+                                    .font(.appFont(14, weight: .medium)).monospacedDigit()
+                                    .lineLimit(1)
+                            }
+                            .foregroundStyle(sleepTimer.isRunning ? Theme.Colors.accent : .white)
+                            .frame(minWidth: Theme.scaled(64, min: 44))
+                            .contentShape(Rectangle())
                         }
-                    } label: {
-                        VStack(spacing: 4) {
-                            Image(systemName: sleepTimer.isRunning ? "moon.fill" : "moon")
-                                .font(.appFont(24, weight: .semibold))
-                            Text(sleepTimer.isRunning ? sleepTimer.display : "Sleep")
-                                .font(.appFont(14, weight: .medium)).monospacedDigit()
-                                .lineLimit(1)
-                        }
-                        .foregroundStyle(sleepTimer.isRunning ? Theme.Colors.accent : .white)
-                        .frame(minWidth: Theme.scaled(64, min: 44))
-                        .contentShape(Rectangle())
+                        .buttonStyle(FrameChipButtonStyle())
                     }
-                    .buttonStyle(FrameChipButtonStyle())
+                    .padding(.horizontal, Theme.Spacing.xs)
                 }
                 .padding(.top, Theme.Spacing.xs)
             }
             .padding(.horizontal, Theme.Spacing.xl)
             .padding(.bottom, Theme.Spacing.xl)
             .padding(.top, Theme.Spacing.md)
+            #if os(iOS)
+            .safeAreaPadding(.bottom)
+            #endif
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 LinearGradient(colors: [.clear, .black.opacity(0.75)],
