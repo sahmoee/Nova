@@ -15,6 +15,7 @@ struct LibraryView: View {
     @EnvironmentObject private var settings: SettingsStore
     @State private var filter: LibraryFilter = .recentlyAdded
     @State private var typeFilter: LibraryTypeFilter = .all
+    @AppStorage("library.hideWatched") private var hideWatched = false
     @State private var selectedItem: MediaItem?
     @State private var detailItem: MediaItem?
     // Batch B: sort, hidden view, tag filter, bulk edit.
@@ -257,6 +258,9 @@ struct LibraryView: View {
             Picker("Sort", selection: $sortOrder) {
                 ForEach(LibrarySortOrder.allCases) { Label($0.title, systemImage: $0.systemImage).tag($0) }
             }
+            Toggle(isOn: $hideWatched) {
+                Label("Hide Watched", systemImage: "checkmark.circle.badge.xmark")
+            }
             Divider()
             Button {
                 bulkEditing.toggle()
@@ -342,6 +346,10 @@ struct LibraryView: View {
         }
         // Hide hidden/archived items unless the user is viewing them.
         result = result.filter { showingHidden ? $0.isHidden : !$0.isHidden }
+        // Optionally hide fully-watched titles.
+        if hideWatched {
+            result = result.filter { !$0.isWatched }
+        }
         // Tag filter, when one is selected.
         if let tag = activeTag {
             result = result.filter { $0.tags.contains { $0.caseInsensitiveCompare(tag) == .orderedSame } }

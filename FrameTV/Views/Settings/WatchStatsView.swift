@@ -15,10 +15,21 @@ struct WatchStatsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                Text("Watch Stats")
-                    .font(Theme.Font.screenTitle())
-                    .screenTitleStyle()
-                    .foregroundStyle(Theme.Colors.textPrimary)
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Watch Stats")
+                        .font(Theme.Font.screenTitle())
+                        .screenTitleStyle()
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    Spacer()
+                    #if os(iOS)
+                    ShareLink(item: statsSummary) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                            .font(.appFont(17, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.accent)
+                    }
+                    .frameRowStyle()
+                    #endif
+                }
 
                 let s = stats
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: Theme.Spacing.md)],
@@ -48,6 +59,24 @@ struct WatchStatsView: View {
             .frame(maxWidth: Theme.contentMaxWidth(900), alignment: .leading)
         }
         .background(Theme.Colors.background.ignoresSafeArea())
+    }
+
+
+    /// A plain-text summary of the stats for the share sheet.
+    private var statsSummary: String {
+        let s = stats
+        var lines = [
+            "My FrameTV Watch Stats",
+            "Watched this month: \(s.watchedThisMonth)",
+            "Watched all time: \(s.watchedAllTime)",
+            "In progress: \(s.inProgress)",
+            "Time watched: \(hours(s.totalHoursWatched))",
+            "Movies: \(s.movies)  Shows: \(s.shows)"
+        ]
+        if let longest = s.longestTitle {
+            lines.append("Longest title: \(longest.title) (\(longest.minutes) min)")
+        }
+        return lines.joined(separator: "\n")
     }
 
     private func hours(_ h: Double) -> String {

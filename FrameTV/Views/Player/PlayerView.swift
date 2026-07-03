@@ -96,6 +96,9 @@ struct PlayerView: View {
         }
         .onAppear {
             SleepTimer.shared.onFire = { [weak model] in model?.pause() }
+            if settings.autoSleepMinutes > 0, !SleepTimer.shared.isRunning {
+                SleepTimer.shared.start(minutes: settings.autoSleepMinutes)
+            }
         }
         .onDisappear {
             SleepTimer.shared.cancel()

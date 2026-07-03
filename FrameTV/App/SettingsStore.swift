@@ -68,6 +68,7 @@ final class SettingsStore: ObservableObject {
         static let tabBarStyle = "settings.tabBarStyle"
         static let uiStyle = "settings.uiStyle"
         static let detailStyle = "settings.detailStyle"
+        static let autoSleepMinutes = "settings.autoSleepMinutes"
     }
 
     // MARK: - Playback
@@ -308,6 +309,12 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    /// A default sleep-timer duration in minutes that starts automatically whenever
+    /// playback begins (0 = off). One-off timers set in the player still override it.
+    @Published var autoSleepMinutes: Int {
+        didSet { defaults.set(autoSleepMinutes, forKey: Key.autoSleepMinutes); CloudSync.shared.setDouble(Double(autoSleepMinutes), forKey: Key.autoSleepMinutes) }
+    }
+
     /// Mirrors the current text-size preferences into Theme's static fields, which
     /// `appFont` reads. Called on init and whenever either preference changes.
     private func applyTextSizeToTheme() {
@@ -403,6 +410,7 @@ final class SettingsStore: ObservableObject {
         self.detailStyle = DetailStyle(
             rawValue: defaults.string(forKey: Key.detailStyle) ?? DetailStyle.cinematic.rawValue
         ) ?? .cinematic
+        self.autoSleepMinutes = defaults.integer(forKey: Key.autoSleepMinutes)
         self.tabBarStyle = TabBarStyle(
             rawValue: defaults.string(forKey: Key.tabBarStyle) ?? TabBarStyle.floatingPill.rawValue
         ) ?? .floatingPill
@@ -496,6 +504,9 @@ final class SettingsStore: ObservableObject {
            let s = LibraryStyle(rawValue: v), libraryStyle != s { libraryStyle = s }
         if let v = cloud.string(forKey: Key.detailStyle),
            let s = DetailStyle(rawValue: v), detailStyle != s { detailStyle = s }
+        if let v = cloud.double(forKey: Key.autoSleepMinutes), autoSleepMinutes != Int(v) {
+            autoSleepMinutes = Int(v)
+        }
         if let v = cloud.string(forKey: Key.tabBarStyle),
            let s = TabBarStyle(rawValue: v), tabBarStyle != s { tabBarStyle = s }
         if let v = cloud.string(forKey: Key.uiStyle),

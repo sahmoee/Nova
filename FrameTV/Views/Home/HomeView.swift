@@ -196,6 +196,15 @@ struct HomeView: View {
                 .tabViewStyle(.automatic)
                 .frame(height: 620)
                 #endif
+                // Gentle auto-advance so the hero rotates like a marquee; any manual
+                // swipe just restarts the interval on the new index.
+                .task(id: heroIndex) {
+                    try? await Task.sleep(for: .seconds(8))
+                    guard !Task.isCancelled, items.count > 1 else { return }
+                    withAnimation(.easeInOut(duration: 0.5)) {
+                        heroIndex = (heroIndex + 1) % items.count
+                    }
+                }
 
                 // Page dots.
                 if items.count > 1 {

@@ -68,6 +68,20 @@ struct PlayerSettingsView: View {
                     }
                 }
 
+                Text("Auto Sleep Timer")
+                    .font(.appFont(22, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .padding(.top, Theme.Spacing.md)
+                Text("Automatically start a sleep timer whenever playback begins. You can still adjust it from the player.")
+                    .font(.appFont(16))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                Picker("Auto Sleep Timer", selection: $settings.autoSleepMinutes) {
+                    ForEach(SleepTimer.Preset.allCases) { preset in
+                        Text(preset.label).tag(preset.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
+
                 Text("External players are opened by their app's link. If an app isn't installed, FrameTV will offer to play in-app instead.")
                     .font(.appFont(14))
                     .foregroundStyle(Theme.Colors.textTertiary)

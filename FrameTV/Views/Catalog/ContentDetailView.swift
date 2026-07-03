@@ -168,6 +168,12 @@ struct ContentDetailView: View {
                     FocusableButton(title: playButtonTitle, systemImage: "play.fill", prominent: true) {
                         streamTarget = StreamTarget(catalog: item, episode: nil)
                     }
+                    .contextMenu {
+                        // Long-press the Play button for the manual stream list.
+                        Button {
+                            streamTarget = StreamTarget(catalog: item, episode: nil, forceManual: true)
+                        } label: { Label("Choose Stream…", systemImage: "list.bullet") }
+                    }
                     .frame(maxWidth: Theme.isCompact ? .infinity : 320)
                     .padding(.top, Theme.Spacing.md)
 

@@ -134,6 +134,23 @@ struct StreamPickerView: View {
         }
     }
 
+
+    /// A one-tap minimum-quality chip. Selecting the active chip (or Any) clears it.
+    private func qualityChip(_ quality: StreamQuality?, label: String) -> some View {
+        let isActive = minQuality == quality
+        return Button {
+            withAnimation { minQuality = quality }
+        } label: {
+            Text(label)
+                .font(.appFont(16, weight: .semibold))
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.vertical, 7)
+                .background(Capsule().fill(isActive ? Theme.Colors.accent : Theme.Colors.card))
+                .foregroundStyle(isActive ? .white : Theme.Colors.textSecondary)
+        }
+        .buttonStyle(FrameChipButtonStyle())
+    }
+
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.md) {
@@ -168,6 +185,31 @@ struct StreamPickerView: View {
                 }
 
                 if showFilters { filterBar }
+
+                // Quick quality chips: one-tap minimum-quality filtering without
+                // opening the full filter sheet. "Any" clears it.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        qualityChip(nil, label: "Any")
+                        ForEach([StreamQuality.uhd4k, .fhd1080, .hd720], id: \.self) { q in
+                            qualityChip(q, label: "\(q.rawValue)+")
+                        }
+                        Button {
+                            withAnimation { cachedOnly.toggle() }
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: cachedOnly ? "bolt.fill" : "bolt")
+                                Text("Cached")
+                            }
+                            .font(.appFont(16, weight: .semibold))
+                            .padding(.horizontal, Theme.Spacing.md)
+                            .padding(.vertical, 7)
+                            .background(Capsule().fill(cachedOnly ? Theme.Colors.accent : Theme.Colors.card))
+                            .foregroundStyle(cachedOnly ? .white : Theme.Colors.textSecondary)
+                        }
+                        .buttonStyle(FrameChipButtonStyle())
+                    }
+                }
 
                 networkBanner
 
