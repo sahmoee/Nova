@@ -197,10 +197,6 @@ final class AISearchService: ObservableObject {
             return words.contains { hay.contains($0) }
         }
     }
-}
-
-private struct AIWorkerResponse: Codable {
-    let titles: [String]
 
     // MARK: - AI capabilities
 
@@ -311,5 +307,9 @@ private struct AIWorkerResponse: Codable {
     func run(_ capability: Capability, userText: String, limit: Int = 24) async throws -> [CatalogItem] {
         try await resolveTitles(for: capability.instruction(for: userText), limit: limit)
     }
+}
+
+private struct AIWorkerResponse: Codable {
+    let titles: [String]
 
 }
