@@ -24,16 +24,29 @@ struct LiveTVView: View {
         ZStack {
             Theme.Colors.appBackground.ignoresSafeArea()
 
-            if sources.isEmpty {
+            if sources.isEmpty && env.liveTVSources.allChannels.isEmpty {
                 emptyState
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
-                        Text("Live TV")
-                            .font(Theme.Font.screenTitle())
-                            .screenTitleStyle()
-                            .foregroundStyle(Theme.Colors.textPrimary)
-                            .padding(.horizontal, Theme.Spacing.edge)
+                        HStack {
+                            Text("Live TV")
+                                .font(Theme.Font.screenTitle())
+                                .screenTitleStyle()
+                                .foregroundStyle(Theme.Colors.textPrimary)
+                            Spacer()
+                            NavigationLink { LiveTVSourcesView() } label: {
+                                Image(systemName: "slider.horizontal.3")
+                                    .font(.appFont(20, weight: .semibold))
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+                                    .padding(Theme.Spacing.sm)
+                                    .background(Theme.Colors.card, in: Circle())
+                            }
+                            .frameIconStyle()
+                        }
+                        .padding(.horizontal, Theme.Spacing.edge)
+
+                        playlistChannelsSection
 
                         ForEach(sources, id: \.catalog.id) { source in
                             channelSection(source)
@@ -58,6 +71,48 @@ struct LiveTVView: View {
             Text(errorMessage ?? "")
         }
         .onAppear(perform: loadSources)
+        .task { await env.liveTVSources.refreshAll() }
+    }
+
+    /// Channels from enabled M3U / Xtream / free FAST sources.
+    @ViewBuilder private var playlistChannelsSection: some View {
+        let channels = env.liveTVSources.allChannels
+        if !channels.isEmpty {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Text("From Your Sources")
+                    .font(.appFont(22, weight: .bold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .padding(.horizontal, Theme.Spacing.edge)
+                LazyVGrid(columns: columns, spacing: Theme.Spacing.md) {
+                    ForEach(channels) { channel in
+                        Button {
+                            playable = env.liveTVSources.makePlayable(channel)
+                        } label: {
+                            VStack(spacing: 6) {
+                                CachedAsyncImage(url: channel.logoURL, maxPixel: 300) { image in
+                                    image.resizable().aspectRatio(contentMode: .fit)
+                                } placeholder: {
+                                    RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                        .fill(Theme.Colors.card)
+                                        .overlay(Image(systemName: "dot.radiowaves.left.and.right")
+                                            .font(.appFont(28)).foregroundStyle(Theme.Colors.textTertiary))
+                                }
+                                .frame(height: 90)
+                                .frame(maxWidth: .infinity)
+                                .background(Theme.Colors.card)
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                                Text(channel.name)
+                                    .font(.appFont(13, weight: .medium))
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        .buttonStyle(FrameListRowStyle())
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.edge)
+            }
+        }
     }
 
     private func channelSection(_ source: (addon: InstalledAddon, catalog: AddonCatalogRef)) -> some View {
@@ -114,11 +169,22 @@ struct LiveTVView: View {
     }
 
     private var emptyState: some View {
-        EmptyStateView(
-            systemImage: "dot.radiowaves.left.and.right",
-            title: "No Live TV addons yet",
-            message: "Add a Stremio addon that provides live channels (for example an IPTV M3U addon or a public channel list) in Settings ▸ Addons. Channels it exposes will appear here."
-        )
+        VStack(spacing: Theme.Spacing.lg) {
+            EmptyStateView(
+                systemImage: "dot.radiowaves.left.and.right",
+                title: "No Live TV yet",
+                message: "Turn on a free channel source or add your own M3U or Xtream-codes playlist. You can also add a Stremio addon that provides live channels under Settings ▸ Addons."
+            )
+            NavigationLink { LiveTVSourcesView() } label: {
+                Label("Choose Sources", systemImage: "slider.horizontal.3")
+                    .font(.appFont(17, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .padding(.vertical, Theme.Spacing.md)
+                    .padding(.horizontal, Theme.Spacing.xl)
+                    .background(Capsule().fill(.white))
+            }
+            .frameRowStyle()
+        }
     }
 
     // MARK: - Loading
