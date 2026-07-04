@@ -44,32 +44,41 @@ struct ContentDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                heroHeader
-                    .frame(maxWidth: .infinity)
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                    heroHeader
+                        .frame(width: proxy.size.width, alignment: .center)
 
-                if item.isSeries {
-                    seriesBody
-                }
+                    if item.isSeries {
+                        seriesBody
+                            .frame(width: proxy.size.width, alignment: .leading)
+                    }
 
-                if !related.isEmpty {
-                    relatedSection
-                }
+                    if !related.isEmpty {
+                        relatedSection
+                            .frame(width: proxy.size.width, alignment: .leading)
+                    }
 
-                if !cast.isEmpty {
-                    castSection
-                }
+                    if !cast.isEmpty {
+                        castSection
+                            .frame(width: proxy.size.width, alignment: .leading)
+                    }
 
-                if isHydrating {
-                    ProgressView().tint(Theme.Colors.accent)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, Theme.Spacing.lg)
+                    if isHydrating {
+                        ProgressView().tint(Theme.Colors.accent)
+                            .frame(width: proxy.size.width)
+                            .padding(.vertical, Theme.Spacing.lg)
+                    }
                 }
+                .frame(width: proxy.size.width, alignment: .leading)
+                .padding(.bottom, Theme.Spacing.xl)
             }
-            .padding(.bottom, Theme.Spacing.xl)
         }
         .background(Theme.Colors.appBackground.ignoresSafeArea())
+        .navigationDestination(for: CatalogItem.self) { rel in
+            ContentDetailView(item: rel)
+        }
         .navigationDestination(item: $streamTarget) { target in
             StreamPickerView(catalog: target.catalog, episode: target.episode,
                              forceManual: target.forceManual)
@@ -210,9 +219,7 @@ struct ContentDetailView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Theme.Spacing.md) {
                     ForEach(related) { rel in
-                        NavigationLink {
-                            ContentDetailView(item: rel)
-                        } label: {
+                        NavigationLink(value: rel) {
                             VStack(alignment: .leading, spacing: 6) {
                                 PosterImage(url: rel.posterURL,
                                             width: Theme.scaled(150, min: 120),
