@@ -27,6 +27,7 @@ final class AppEnvironment: ObservableObject {
     let liveTVSources = LiveTVSourceStore()
     let libraryFolders = LibraryFolderStore()
     let libraryEnricher = LibraryEnricher()
+    let downloadManager = DownloadManager()
     let tmdb: TMDBClient
     let omdb: OMDbClient
     let trakt: TraktClient

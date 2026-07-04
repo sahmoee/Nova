@@ -391,6 +391,9 @@ struct SettingsView: View {
 
     private var librarySection: some View {
         section("Library") {
+            NavigationLink { LibraryFoldersView() } label: {
+                settingRow("Library Folders", systemImage: "folder.badge.plus", detail: "Add folders to scan")
+            }.frameRowStyle()
             NavigationLink { LibraryEnrichView() } label: {
                 settingRow("Clean Up Library", systemImage: "wand.and.stars", detail: "Titles & images")
             }.frameRowStyle()

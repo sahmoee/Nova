@@ -11,6 +11,7 @@ import SwiftUI
 struct LibraryView: View {
     @Binding var path: NavigationPath
     @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var nav: NavigationCoordinator
     @EnvironmentObject private var settings: SettingsStore
     @State private var filter: LibraryFilter = .recentlyAdded
@@ -27,7 +28,14 @@ struct LibraryView: View {
     @State private var showTagPrompt = false
     @State private var newTagText = ""
 
-    private var columns: [GridItem] { Theme.posterGridColumns }
+    private var columns: [GridItem] {
+        #if os(tvOS)
+        return Theme.posterGridColumns
+        #else
+        let count = min(max(settings.libraryColumnCount, 2), 5)
+        return Array(repeating: GridItem(.flexible(), spacing: Theme.Spacing.lg), count: count)
+        #endif
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -55,8 +63,23 @@ struct LibraryView: View {
                                     MediaCard(item: item, seasonGrouped: true) {
                                         if bulkEditing {
                                             toggleSelection(item.id)
+                                        } else if item.isDirectPlay {
+                                            // SMB, direct URL, and live channels already
+                                            // have a playable file, so play it straight
+                                            // away instead of opening the stream finder.
+                                            selectedItem = downloadable(item)
                                         } else {
                                             detailItem = item
+                                        }
+                                    }
+                                    .contextMenu {
+                                        if item.isDirectPlay {
+                                            Button {
+                                                selectedItem = downloadable(item)
+                                            } label: { Label("Play", systemImage: "play.fill") }
+                                            if item.sourceType == .smb || item.sourceType == .directURL {
+                                                downloadMenuItems(for: item)
+                                            }
                                         }
                                     }
                                     .overlay(alignment: .topTrailing) {
@@ -250,6 +273,14 @@ struct LibraryView: View {
             Toggle(isOn: $hideWatched) {
                 Label("Hide Watched", systemImage: "checkmark.circle.badge.xmark")
             }
+            #if !os(tvOS)
+            Picker("Grid Size", selection: $settings.libraryColumnCount) {
+                Label("2 Columns", systemImage: "square.grid.2x2").tag(2)
+                Label("3 Columns", systemImage: "square.grid.3x3").tag(3)
+                Label("4 Columns", systemImage: "square.grid.4x3.fill").tag(4)
+                Label("5 Columns", systemImage: "square.grid.4x3.fill").tag(5)
+            }
+            #endif
             Divider()
             Button {
                 bulkEditing.toggle()
@@ -320,10 +351,35 @@ struct LibraryView: View {
 
     // MARK: - Data
 
+    /// If a local download exists for a direct-play item, swap in the local file URL so
+    /// playback uses the downloaded copy; otherwise play the original (SMB/URL) source.
+    private func downloadable(_ item: MediaItem) -> MediaItem {
+        guard let local = env.downloadManager.localURL(for: item) else { return item }
+        var copy = item
+        copy.playbackURL = local
+        return copy
+    }
+
+    @ViewBuilder private func downloadMenuItems(for item: MediaItem) -> some View {
+        if env.downloadManager.isDownloaded(item) {
+            Button(role: .destructive) {
+                env.downloadManager.deleteDownload(item)
+            } label: { Label("Remove Download", systemImage: "trash") }
+        } else if env.downloadManager.isDownloading(item) {
+            Button {
+                env.downloadManager.cancel(item)
+            } label: { Label("Cancel Download", systemImage: "xmark.circle") }
+        } else {
+            Button {
+                env.downloadManager.download(item)
+            } label: { Label("Download", systemImage: "arrow.down.circle") }
+        }
+    }
+
     private var displayedItems: [MediaItem] {
         let base: [MediaItem]
         switch filter {
-        case .recentlyAdded:     base = library.libraryEntries
+        case .recentlyAdded:     base = library.collapseToShow(library.items.sorted { $0.addedDate > $1.addedDate })
         case .favorites:         base = library.favorites
         case .continueWatching:  base = library.continueWatching
         }
