@@ -74,6 +74,9 @@ struct ContentDetailView: View {
             .padding(.bottom, Theme.Spacing.xl)
         }
         .background(Theme.Colors.appBackground.ignoresSafeArea())
+        .navigationDestination(for: CatalogItem.self) { rel in
+            ContentDetailView(item: rel)
+        }
         .navigationDestination(item: $streamTarget) { target in
             StreamPickerView(catalog: target.catalog, episode: target.episode,
                              forceManual: target.forceManual)
@@ -212,34 +215,39 @@ struct ContentDetailView: View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             sectionHeader("Trailers")
             if let trailer = trailerURL {
-                Button {
-                    #if os(iOS)
-                    UIApplication.shared.open(trailer)
-                    #endif
-                } label: {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                            .fill(Theme.Colors.card)
-                        Image(systemName: "play.circle.fill")
-                            .font(.appFont(44))
-                            .foregroundStyle(.white.opacity(0.9))
-                        VStack {
-                            Spacer()
-                            HStack {
-                                Image(systemName: "play.fill").font(.appFont(14))
-                                Text("\(item.title) — Trailer")
-                                    .font(.appFont(15, weight: .medium)).lineLimit(1)
-                                Spacer()
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Theme.Spacing.md) {
+                        Button {
+                            #if os(iOS)
+                            UIApplication.shared.open(trailer)
+                            #endif
+                        } label: {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                    .fill(Theme.Colors.card)
+                                Image(systemName: "play.circle.fill")
+                                    .font(.appFont(44))
+                                    .foregroundStyle(.white.opacity(0.9))
+                                VStack {
+                                    Spacer()
+                                    HStack {
+                                        Image(systemName: "play.fill").font(.appFont(14))
+                                        Text("\(item.title) — Trailer")
+                                            .font(.appFont(15, weight: .medium)).lineLimit(1)
+                                        Spacer()
+                                    }
+                                    .foregroundStyle(.white)
+                                    .padding(Theme.Spacing.sm)
+                                }
                             }
-                            .foregroundStyle(.white)
-                            .padding(Theme.Spacing.sm)
+                            .frame(width: Theme.scaled(300, min: 260), height: Theme.scaled(169, min: 146))
+                            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                         }
+                        .buttonStyle(FrameListRowStyle())
                     }
-                    .frame(width: Theme.scaled(320, min: 280), height: Theme.scaled(180, min: 158))
-                    .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                    .padding(.horizontal, Theme.Spacing.edge)
+                    .padding(.vertical, Theme.Spacing.xs)
                 }
-                .buttonStyle(FrameListRowStyle())
-                .padding(.horizontal, Theme.Spacing.edge)
             }
         }
     }
@@ -250,9 +258,7 @@ struct ContentDetailView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Theme.Spacing.md) {
                     ForEach(related) { rel in
-                        NavigationLink {
-                            ContentDetailView(item: rel)
-                        } label: {
+                        NavigationLink(value: rel) {
                             VStack(alignment: .leading, spacing: 6) {
                                 PosterImage(url: rel.posterURL,
                                             width: Theme.scaled(150, min: 120),
