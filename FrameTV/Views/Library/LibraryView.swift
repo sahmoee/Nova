@@ -27,7 +27,15 @@ struct LibraryView: View {
     @State private var showTagPrompt = false
     @State private var newTagText = ""
 
-    private var columns: [GridItem] { Theme.posterGridColumns }
+    private var columns: [GridItem] {
+        #if os(tvOS)
+        return Theme.posterGridColumns
+        #else
+        // Fixed column count the user chooses (default 3), with even spacing.
+        let count = min(max(settings.libraryColumnCount, 2), 5)
+        return Array(repeating: GridItem(.flexible(), spacing: Theme.Spacing.lg), count: count)
+        #endif
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -258,6 +266,14 @@ struct LibraryView: View {
             Toggle(isOn: $hideWatched) {
                 Label("Hide Watched", systemImage: "checkmark.circle.badge.xmark")
             }
+            #if !os(tvOS)
+            Picker("Grid Size", selection: $settings.libraryColumnCount) {
+                Label("2 Columns", systemImage: "square.grid.2x2").tag(2)
+                Label("3 Columns", systemImage: "square.grid.3x3").tag(3)
+                Label("4 Columns", systemImage: "square.grid.4x3.fill").tag(4)
+                Label("5 Columns", systemImage: "square.grid.4x3.fill").tag(5)
+            }
+            #endif
             Divider()
             Button {
                 bulkEditing.toggle()
@@ -331,7 +347,7 @@ struct LibraryView: View {
     private var displayedItems: [MediaItem] {
         let base: [MediaItem]
         switch filter {
-        case .recentlyAdded:     base = library.collapseToShow(library.items.sorted { $0.addedDate > $1.addedDate })
+        case .recentlyAdded:     base = library.libraryEntries
         case .favorites:         base = library.favorites
         case .continueWatching:  base = library.continueWatching
         }

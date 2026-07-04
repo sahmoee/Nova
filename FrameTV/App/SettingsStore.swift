@@ -65,6 +65,7 @@ final class SettingsStore: ObservableObject {
         static let textSizeBoost = "settings.textSizeBoost"
         static let homeStyle = "settings.homeStyle"
         static let libraryStyle = "settings.libraryStyle"
+        static let libraryColumnCount = "settings.libraryColumnCount"
         static let tabBarStyle = "settings.tabBarStyle"
         static let uiStyle = "settings.uiStyle"
         static let detailStyle = "settings.detailStyle"
@@ -257,6 +258,17 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(libraryStyle.rawValue, forKey: Key.libraryStyle); CloudSync.shared.setString(libraryStyle.rawValue, forKey: Key.libraryStyle) }
     }
 
+    /// How many poster columns the library grid shows on iPhone/iPad. Default 3.
+    /// Clamped to a sensible range so the grid never looks broken.
+    @Published var libraryColumnCount: Int {
+        didSet {
+            let clamped = min(max(libraryColumnCount, 2), 5)
+            if clamped != libraryColumnCount { libraryColumnCount = clamped; return }
+            defaults.set(libraryColumnCount, forKey: Key.libraryColumnCount)
+            CloudSync.shared.setDouble(Double(libraryColumnCount), forKey: Key.libraryColumnCount)
+        }
+    }
+
     /// The iOS tab bar look: the new floating translucent pill (default) or the
     /// standard system tab bar. tvOS is unaffected (it uses a menu overlay).
     @Published var tabBarStyle: TabBarStyle {
@@ -406,6 +418,8 @@ final class SettingsStore: ObservableObject {
         self.homeStyle = HomeStyle(
             rawValue: defaults.string(forKey: Key.homeStyle) ?? HomeStyle.cinematic.rawValue
         ) ?? .cinematic
+        let storedCols = defaults.object(forKey: Key.libraryColumnCount) as? Int
+        self.libraryColumnCount = storedCols.map { min(max($0, 2), 5) } ?? 3
         self.libraryStyle = LibraryStyle(
             rawValue: defaults.string(forKey: Key.libraryStyle) ?? LibraryStyle.clean.rawValue
         ) ?? .clean
@@ -502,6 +516,10 @@ final class SettingsStore: ObservableObject {
            let s = SearchLayoutStyle(rawValue: v), searchLayout != s { searchLayout = s }
         if let v = cloud.string(forKey: Key.homeStyle),
            let s = HomeStyle(rawValue: v), homeStyle != s { homeStyle = s }
+        if let cloudCols = cloud.double(forKey: Key.libraryColumnCount),
+           cloudCols >= 2, Int(cloudCols) != libraryColumnCount {
+            libraryColumnCount = Int(cloudCols)
+        }
         if let v = cloud.string(forKey: Key.libraryStyle),
            let s = LibraryStyle(rawValue: v), libraryStyle != s { libraryStyle = s }
         if let v = cloud.string(forKey: Key.detailStyle),
