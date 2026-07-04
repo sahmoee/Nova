@@ -24,7 +24,7 @@ final class AppEnvironment: ObservableObject {
 
     // Phase 3: catalog, addons, metadata, scrobbling.
     let addonStore: AddonStore
-    let liveTVSources = LiveTVSourceStore()
+    let libraryEnricher = LibraryEnricher()
     let tmdb: TMDBClient
     let omdb: OMDbClient
     let trakt: TraktClient
