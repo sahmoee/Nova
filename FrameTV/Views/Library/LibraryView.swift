@@ -331,7 +331,7 @@ struct LibraryView: View {
     private var displayedItems: [MediaItem] {
         let base: [MediaItem]
         switch filter {
-        case .recentlyAdded:     base = library.libraryEntries
+        case .recentlyAdded:     base = library.collapseToShow(library.items.sorted { $0.addedDate > $1.addedDate })
         case .favorites:         base = library.favorites
         case .continueWatching:  base = library.continueWatching
         }
