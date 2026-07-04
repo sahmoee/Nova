@@ -52,7 +52,7 @@ final class LibraryFolderStore: ObservableObject {
         folders.removeAll { $0.id == folder.id }; persist()
     }
 
-    private func loadShares() -> [SMBShare] {
+    func loadShares() -> [SMBShare] {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
         guard let url = support?.appendingPathComponent("smb_shares.json"),
               let data = try? Data(contentsOf: url),

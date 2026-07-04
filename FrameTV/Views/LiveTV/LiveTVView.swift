@@ -74,7 +74,6 @@ struct LiveTVView: View {
         .task { await env.liveTVSources.refreshAll() }
     }
 
-    /// Channels from enabled M3U / Xtream / free FAST sources.
     @ViewBuilder private var playlistChannelsSection: some View {
         let channels = env.liveTVSources.allChannels
         if !channels.isEmpty {

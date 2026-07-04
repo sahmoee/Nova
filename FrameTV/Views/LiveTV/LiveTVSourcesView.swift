@@ -2,19 +2,12 @@
 //  LiveTVSourcesView.swift
 //  FrameTV
 //
-//  Enable or disable Live TV sources with a per-source toggle (the picker of which to
-//  enable), and add custom M3U or Xtream-codes playlists. Enabled sources' channels
-//  appear in Live TV.
-//
 
 import SwiftUI
 
 struct LiveTVSourcesView: View {
     @EnvironmentObject private var env: AppEnvironment
-
-    var body: some View {
-        LiveTVSourcesContent(store: env.liveTVSources)
-    }
+    var body: some View { LiveTVSourcesContent(store: env.liveTVSources) }
 }
 
 private struct LiveTVSourcesContent: View {
@@ -32,42 +25,24 @@ private struct LiveTVSourcesContent: View {
                         .screenTitleStyle()
                         .foregroundStyle(Theme.Colors.textPrimary)
                         .padding(.top, Theme.Spacing.lg)
-
                     Text("Turn on the free channel sources you want, or add your own M3U or Xtream-codes playlist. Enabled sources' channels show up under Live TV.")
-                        .font(.appFont(16))
-                        .foregroundStyle(Theme.Colors.textTertiary)
+                        .font(.appFont(16)).foregroundStyle(Theme.Colors.textTertiary)
 
                     let builtIns = store.sources.filter(\.isBuiltIn)
                     if !builtIns.isEmpty {
-                        Text("Free Channels")
-                            .font(.appFont(18, weight: .semibold))
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                        ForEach(builtIns) { source in
-                            sourceRow(source)
-                        }
+                        Text("Free Channels").font(.appFont(18, weight: .semibold)).foregroundStyle(Theme.Colors.textSecondary)
+                        ForEach(builtIns) { sourceRow($0) }
                     }
-
                     let custom = store.sources.filter { !$0.isBuiltIn }
                     if !custom.isEmpty {
-                        Text("My Playlists")
-                            .font(.appFont(18, weight: .semibold))
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                            .padding(.top, Theme.Spacing.sm)
-                        ForEach(custom) { source in
-                            sourceRow(source)
-                        }
+                        Text("My Playlists").font(.appFont(18, weight: .semibold)).foregroundStyle(Theme.Colors.textSecondary).padding(.top, Theme.Spacing.sm)
+                        ForEach(custom) { sourceRow($0) }
                     }
-
                     if let err = store.lastError {
-                        Text(err)
-                            .font(.appFont(14))
-                            .foregroundStyle(Theme.Colors.warning)
+                        Text(err).font(.appFont(14)).foregroundStyle(Theme.Colors.warning)
                     }
-
-                    FocusableButton(title: "Add Playlist", systemImage: "plus", prominent: true) {
-                        showAdd = true
-                    }
-                    .padding(.top, Theme.Spacing.sm)
+                    FocusableButton(title: "Add Playlist", systemImage: "plus", prominent: true) { showAdd = true }
+                        .padding(.top, Theme.Spacing.sm)
                 }
                 .padding(.horizontal, Theme.Spacing.edge)
                 .padding(.bottom, Theme.Spacing.xl)
@@ -78,8 +53,7 @@ private struct LiveTVSourcesContent: View {
             AddLiveTVSourceView { name, url, kind, user, pass in
                 store.addCustom(name: name, url: url, kind: kind, username: user, password: pass)
                 showAdd = false
-            }
-            .environmentObject(env)
+            }.environmentObject(env)
         }
     }
 
@@ -87,51 +61,31 @@ private struct LiveTVSourcesContent: View {
         let channelCount = store.channelsBySource[source.id]?.count
         return HStack(spacing: Theme.Spacing.md) {
             Image(systemName: source.kind == .xtream ? "server.rack" : "dot.radiowaves.left.and.right")
-                .foregroundStyle(Theme.Colors.accent)
-                .frame(width: 28)
+                .foregroundStyle(Theme.Colors.accent).frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
-                Text(source.name)
-                    .font(.appFont(17, weight: .medium))
-                    .foregroundStyle(Theme.Colors.textPrimary)
+                Text(source.name).font(.appFont(17, weight: .medium)).foregroundStyle(Theme.Colors.textPrimary)
                 if source.isEnabled, let n = channelCount {
-                    Text("\(n) channels")
-                        .font(.appFont(13))
-                        .foregroundStyle(Theme.Colors.textTertiary)
+                    Text("\(n) channels").font(.appFont(13)).foregroundStyle(Theme.Colors.textTertiary)
                 } else if !source.isBuiltIn {
-                    Text(source.url)
-                        .font(.appFont(13))
-                        .foregroundStyle(Theme.Colors.textTertiary)
-                        .lineLimit(1)
+                    Text(source.url).font(.appFont(13)).foregroundStyle(Theme.Colors.textTertiary).lineLimit(1)
                 }
             }
             Spacer()
-            Toggle("", isOn: Binding(
-                get: { source.isEnabled },
-                set: { store.setEnabled($0, for: source) }
-            ))
-            .labelsHidden()
-            .tint(Theme.Colors.accent)
+            Toggle("", isOn: Binding(get: { source.isEnabled }, set: { store.setEnabled($0, for: source) }))
+                .labelsHidden().tint(Theme.Colors.accent)
             if !source.isBuiltIn {
-                Button(role: .destructive) {
-                    store.remove(source)
-                } label: {
+                Button(role: .destructive) { store.remove(source) } label: {
                     Image(systemName: "trash").foregroundStyle(Theme.Colors.error)
-                }
-                .buttonStyle(.plain)
+                }.buttonStyle(.plain)
             }
         }
-        .padding(Theme.Spacing.md)
-        .refinedCardBackground()
+        .padding(Theme.Spacing.md).refinedCardBackground()
     }
 }
 
-/// Sheet to add a custom M3U or Xtream-codes playlist.
 private struct AddLiveTVSourceView: View {
     @Environment(\.dismiss) private var dismiss
-
-    /// name, url, kind, username, password
     let onAdd: (String, String, LiveTVSource.Kind, String?, String?) -> Void
-
     @State private var kind: LiveTVSource.Kind = .m3u
     @State private var name = ""
     @State private var url = ""
@@ -147,24 +101,17 @@ private struct AddLiveTVSourceView: View {
                         Picker("Type", selection: $kind) {
                             Text("M3U Playlist").tag(LiveTVSource.Kind.m3u)
                             Text("Xtream Codes").tag(LiveTVSource.Kind.xtream)
-                        }
-                        .pickerStyle(.segmented)
-
+                        }.pickerStyle(.segmented)
                         field("Name", text: $name, placeholder: "My Playlist")
-                        field(kind == .xtream ? "Server URL" : "Playlist URL",
-                              text: $url,
+                        field(kind == .xtream ? "Server URL" : "Playlist URL", text: $url,
                               placeholder: kind == .xtream ? "http://host:port" : "https://…/playlist.m3u")
-
                         if kind == .xtream {
                             field("Username", text: $username, placeholder: "username")
                             secureField("Password", text: $password)
                         }
-
                         Text("Only add playlists you have the right to use, such as your own IPTV subscription or a free public FAST feed.")
-                            .font(.appFont(13))
-                            .foregroundStyle(Theme.Colors.textTertiary)
-                    }
-                    .padding(Theme.Spacing.edge)
+                            .font(.appFont(13)).foregroundStyle(Theme.Colors.textTertiary)
+                    }.padding(Theme.Spacing.edge)
                 }
             }
             .navigationTitle("Add Playlist")
@@ -172,16 +119,11 @@ private struct AddLiveTVSourceView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
-                        onAdd(name, url, kind,
-                              kind == .xtream ? username : nil,
-                              kind == .xtream ? password : nil)
-                    }
-                    .disabled(url.trimmingCharacters(in: .whitespaces).isEmpty)
+                        onAdd(name, url, kind, kind == .xtream ? username : nil, kind == .xtream ? password : nil)
+                    }.disabled(url.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
         }
@@ -189,31 +131,22 @@ private struct AddLiveTVSourceView: View {
 
     private func field(_ label: String, text: Binding<String>, placeholder: String) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Text(label)
-                .font(.appFont(15, weight: .semibold))
-                .foregroundStyle(Theme.Colors.textSecondary)
+            Text(label).font(.appFont(15, weight: .semibold)).foregroundStyle(Theme.Colors.textSecondary)
             TextField(placeholder, text: text)
-                .textFieldStyle(.plain)
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .autocorrectionDisabled(true)
+                .textFieldStyle(.plain).foregroundStyle(Theme.Colors.textPrimary).autocorrectionDisabled(true)
                 #if os(iOS)
                 .textInputAutocapitalization(.never)
                 #endif
-                .padding(Theme.Spacing.md)
-                .refinedCardBackground(cornerRadius: Theme.Radius.button)
+                .padding(Theme.Spacing.md).refinedCardBackground(cornerRadius: Theme.Radius.button)
         }
     }
 
     private func secureField(_ label: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Text(label)
-                .font(.appFont(15, weight: .semibold))
-                .foregroundStyle(Theme.Colors.textSecondary)
+            Text(label).font(.appFont(15, weight: .semibold)).foregroundStyle(Theme.Colors.textSecondary)
             SecureField("password", text: text)
-                .textFieldStyle(.plain)
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .padding(Theme.Spacing.md)
-                .refinedCardBackground(cornerRadius: Theme.Radius.button)
+                .textFieldStyle(.plain).foregroundStyle(Theme.Colors.textPrimary)
+                .padding(Theme.Spacing.md).refinedCardBackground(cornerRadius: Theme.Radius.button)
         }
     }
 }

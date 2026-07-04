@@ -2,44 +2,28 @@
 //  LiveTVSourceStore.swift
 //  FrameTV
 //
-//  Manages Live TV sources: a set of legitimate free (FAST) channel playlists the user
-//  can toggle on, plus any custom M3U or Xtream-codes playlists they add themselves.
-//  Enabled sources are parsed into playable live channels. Only the user's own or
-//  clearly free/licensed playlists are bundled — no third-party pirate lists.
-//
 
 import Foundation
 
-/// A Live TV source: a named playlist URL that can be toggled on or off.
 struct LiveTVSource: Identifiable, Codable, Hashable {
     enum Kind: String, Codable { case m3u, xtream, curated }
-
     var id: UUID
     var name: String
-    /// For m3u/curated: the playlist URL. For xtream: the server base URL.
     var url: String
     var kind: Kind
     var isEnabled: Bool
-    /// True for the bundled, non-removable free sources.
     var isBuiltIn: Bool
-    // Xtream-codes credentials (optional; only for .xtream).
     var username: String?
     var password: String?
 
     init(id: UUID = UUID(), name: String, url: String, kind: Kind,
          isEnabled: Bool = false, isBuiltIn: Bool = false,
          username: String? = nil, password: String? = nil) {
-        self.id = id
-        self.name = name
-        self.url = url
-        self.kind = kind
-        self.isEnabled = isEnabled
-        self.isBuiltIn = isBuiltIn
-        self.username = username
-        self.password = password
+        self.id = id; self.name = name; self.url = url; self.kind = kind
+        self.isEnabled = isEnabled; self.isBuiltIn = isBuiltIn
+        self.username = username; self.password = password
     }
 
-    /// The effective playlist URL to fetch (builds the Xtream get.php URL when needed).
     var playlistURL: URL? {
         switch kind {
         case .m3u, .curated:
@@ -61,7 +45,6 @@ struct LiveTVSource: Identifiable, Codable, Hashable {
     }
 }
 
-/// One parsed channel from an M3U playlist.
 struct LiveTVChannel: Identifiable, Hashable {
     var id: String { url.absoluteString }
     var name: String
@@ -73,7 +56,6 @@ struct LiveTVChannel: Identifiable, Hashable {
 @MainActor
 final class LiveTVSourceStore: ObservableObject {
     @Published var sources: [LiveTVSource] = []
-    /// Channels parsed from all enabled sources, grouped by source id.
     @Published private(set) var channelsBySource: [UUID: [LiveTVChannel]] = [:]
     @Published var isLoading = false
     @Published var lastError: String?
@@ -82,41 +64,14 @@ final class LiveTVSourceStore: ObservableObject {
     private let defaults = UserDefaults.standard
     private let session: URLSession = AppNetworking.shared
 
-    init() {
-        load()
-        seedBuiltInsIfNeeded()
-    }
+    init() { load(); seedBuiltInsIfNeeded() }
 
-    // MARK: - Built-in free (FAST) sources
-
-    /// Legitimate, freely-distributed channel playlists (public-domain / FAST feeds).
-    /// These are off by default; the user opts in. They are not pirate aggregators.
     private static let builtInSources: [LiveTVSource] = [
-        LiveTVSource(
-            name: "Pluto TV (Free)",
-            url: "https://i.mjh.nz/PlutoTV/us.m3u8",
-            kind: .curated, isEnabled: false, isBuiltIn: true
-        ),
-        LiveTVSource(
-            name: "Samsung TV Plus (Free)",
-            url: "https://i.mjh.nz/SamsungTVPlus/us.m3u8",
-            kind: .curated, isEnabled: false, isBuiltIn: true
-        ),
-        LiveTVSource(
-            name: "Plex Free TV",
-            url: "https://i.mjh.nz/Plex/us.m3u8",
-            kind: .curated, isEnabled: false, isBuiltIn: true
-        ),
-        LiveTVSource(
-            name: "Roku Channel (Free)",
-            url: "https://i.mjh.nz/Roku/us.m3u8",
-            kind: .curated, isEnabled: false, isBuiltIn: true
-        ),
-        LiveTVSource(
-            name: "Stirr (Free)",
-            url: "https://i.mjh.nz/Stirr/us.m3u8",
-            kind: .curated, isEnabled: false, isBuiltIn: true
-        )
+        LiveTVSource(name: "Pluto TV (Free)", url: "https://i.mjh.nz/PlutoTV/us.m3u8", kind: .curated, isEnabled: false, isBuiltIn: true),
+        LiveTVSource(name: "Samsung TV Plus (Free)", url: "https://i.mjh.nz/SamsungTVPlus/us.m3u8", kind: .curated, isEnabled: false, isBuiltIn: true),
+        LiveTVSource(name: "Plex Free TV", url: "https://i.mjh.nz/Plex/us.m3u8", kind: .curated, isEnabled: false, isBuiltIn: true),
+        LiveTVSource(name: "Roku Channel (Free)", url: "https://i.mjh.nz/Roku/us.m3u8", kind: .curated, isEnabled: false, isBuiltIn: true),
+        LiveTVSource(name: "Stirr (Free)", url: "https://i.mjh.nz/Stirr/us.m3u8", kind: .curated, isEnabled: false, isBuiltIn: true)
     ]
 
     private func seedBuiltInsIfNeeded() {
@@ -126,8 +81,6 @@ final class LiveTVSourceStore: ObservableObject {
         persist()
     }
 
-    // MARK: - Persistence
-
     private func load() {
         guard let data = defaults.data(forKey: defaultsKey),
               let decoded = try? JSONDecoder().decode([LiveTVSource].self, from: data) else { return }
@@ -135,31 +88,21 @@ final class LiveTVSourceStore: ObservableObject {
     }
 
     private func persist() {
-        if let data = try? JSONEncoder().encode(sources) {
-            defaults.set(data, forKey: defaultsKey)
-        }
+        if let data = try? JSONEncoder().encode(sources) { defaults.set(data, forKey: defaultsKey) }
     }
-
-    // MARK: - Managing sources
 
     func setEnabled(_ enabled: Bool, for source: LiveTVSource) {
         guard let idx = sources.firstIndex(where: { $0.id == source.id }) else { return }
         sources[idx].isEnabled = enabled
         persist()
-        if enabled {
-            Task { await refresh(sources[idx]) }
-        } else {
-            channelsBySource[source.id] = nil
-        }
+        if enabled { Task { await refresh(sources[idx]) } }
+        else { channelsBySource[source.id] = nil }
     }
 
-    func addCustom(name: String, url: String, kind: LiveTVSource.Kind,
-                   username: String? = nil, password: String? = nil) {
-        let source = LiveTVSource(name: name.isEmpty ? "Custom Playlist" : name,
-                                  url: url, kind: kind, isEnabled: true, isBuiltIn: false,
-                                  username: username, password: password)
-        sources.append(source)
-        persist()
+    func addCustom(name: String, url: String, kind: LiveTVSource.Kind, username: String? = nil, password: String? = nil) {
+        let source = LiveTVSource(name: name.isEmpty ? "Custom Playlist" : name, url: url, kind: kind,
+                                  isEnabled: true, isBuiltIn: false, username: username, password: password)
+        sources.append(source); persist()
         Task { await refresh(source) }
     }
 
@@ -170,9 +113,6 @@ final class LiveTVSourceStore: ObservableObject {
         persist()
     }
 
-    // MARK: - Loading channels
-
-    /// All channels from enabled sources, flattened.
     var allChannels: [LiveTVChannel] {
         sources.filter(\.isEnabled).flatMap { channelsBySource[$0.id] ?? [] }
     }
@@ -180,20 +120,16 @@ final class LiveTVSourceStore: ObservableObject {
     func refreshAll() async {
         isLoading = true
         defer { isLoading = false }
-        for source in sources where source.isEnabled {
-            await refresh(source)
-        }
+        for source in sources where source.isEnabled { await refresh(source) }
     }
 
     func refresh(_ source: LiveTVSource) async {
         guard source.isEnabled, let url = source.playlistURL else { return }
         do {
-            var req = URLRequest(url: url)
-            req.timeoutInterval = 30
+            var req = URLRequest(url: url); req.timeoutInterval = 30
             let (data, response) = try await session.data(for: req)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-                lastError = "Couldn't load \(source.name)."
-                return
+                lastError = "Couldn't load \(source.name)."; return
             }
             let text = String(decoding: data, as: UTF8.self)
             channelsBySource[source.id] = Self.parseM3U(text)
@@ -202,16 +138,11 @@ final class LiveTVSourceStore: ObservableObject {
         }
     }
 
-    // MARK: - M3U parsing
-
-    /// Parses a standard #EXTM3U playlist into channels. Handles tvg-logo and
-    /// group-title attributes commonly present in FAST and IPTV playlists.
     static func parseM3U(_ text: String) -> [LiveTVChannel] {
         var channels: [LiveTVChannel] = []
         var pendingName: String?
         var pendingLogo: URL?
         var pendingGroup: String?
-
         for rawLine in text.split(whereSeparator: \.isNewline) {
             let line = rawLine.trimmingCharacters(in: .whitespaces)
             if line.hasPrefix("#EXTINF") {
@@ -236,17 +167,8 @@ final class LiveTVSourceStore: ObservableObject {
         return String(rest[..<endQuote])
     }
 
-    // MARK: - Playable item
-
-    /// Turns a parsed channel into a playable library MediaItem.
     func makePlayable(_ channel: LiveTVChannel) -> MediaItem {
-        MediaItem(
-            title: channel.name,
-            sourceType: .liveTV,
-            playbackURL: channel.url,
-            posterURL: channel.logoURL,
-            legalAccessConfirmed: true,
-            metadata: MediaMetadata()
-        )
+        MediaItem(title: channel.name, sourceType: .liveTV, playbackURL: channel.url,
+                  posterURL: channel.logoURL, legalAccessConfirmed: true, metadata: MediaMetadata())
     }
 }
