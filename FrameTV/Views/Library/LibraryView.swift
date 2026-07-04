@@ -27,15 +27,7 @@ struct LibraryView: View {
     @State private var showTagPrompt = false
     @State private var newTagText = ""
 
-    private var columns: [GridItem] {
-        #if os(tvOS)
-        return Theme.posterGridColumns
-        #else
-        // Fixed column count the user chooses (default 3), with even spacing.
-        let count = min(max(settings.libraryColumnCount, 2), 5)
-        return Array(repeating: GridItem(.flexible(), spacing: Theme.Spacing.lg), count: count)
-        #endif
-    }
+    private var columns: [GridItem] { Theme.posterGridColumns }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -119,21 +111,13 @@ struct LibraryView: View {
             .navigationDestination(item: $selectedItem) { item in
                 PlayerView(item: item)
             }
-            #if os(tvOS)
-            // tvOS sheets render as a hard-to-see partial card with unreliable focus,
-            // so present the library item detail as a full navigation push instead.
-            // Play pushes the player on top (don't pop detail first — popping and
-            // pushing at once in one stack conflicts); backing out returns to detail.
+            // Present the library item detail as a full navigation push on every
+            // platform, matching how Home and Discover open detail. On iPad a plain
+            // sheet renders as a small centered form-sheet card, so a push is used
+            // instead to fill the screen.
             .navigationDestination(item: $detailItem) { item in
                 ContentDetailView(item: item.asCatalogItem())
             }
-            #else
-            .sheet(item: $detailItem) { item in
-                NavigationStack {
-                    ContentDetailView(item: item.asCatalogItem())
-                }
-            }
-            #endif
         }
         .onChange(of: nav.pendingContentKey) { _, key in
             openPendingContent(key)
@@ -266,14 +250,6 @@ struct LibraryView: View {
             Toggle(isOn: $hideWatched) {
                 Label("Hide Watched", systemImage: "checkmark.circle.badge.xmark")
             }
-            #if !os(tvOS)
-            Picker("Grid Size", selection: $settings.libraryColumnCount) {
-                Label("2 Columns", systemImage: "square.grid.2x2").tag(2)
-                Label("3 Columns", systemImage: "square.grid.3x3").tag(3)
-                Label("4 Columns", systemImage: "square.grid.4x3.fill").tag(4)
-                Label("5 Columns", systemImage: "square.grid.4x3.fill").tag(5)
-            }
-            #endif
             Divider()
             Button {
                 bulkEditing.toggle()
