@@ -2,9 +2,7 @@
 //  LibraryFoldersView.swift
 //  FrameTV
 //
-//  Manage folder locations whose videos are scanned into the library. Pick a
-//  configured SMB share, enter the folder path (for example /Movies), and the videos
-//  inside are added to My Library. Rescan any time to pick up new files.
+//  Manage folder locations whose videos are scanned into the library.
 //
 
 import SwiftUI
@@ -151,7 +149,6 @@ private struct LibraryFoldersContent: View {
     }
 }
 
-/// Sheet to add a new library folder: choose a configured SMB share and enter the path.
 private struct AddLibraryFolderView: View {
     @EnvironmentObject private var env: AppEnvironment
     @Environment(\.dismiss) private var dismiss

@@ -9,20 +9,12 @@
 
 import Foundation
 
-/// A saved library folder: an SMB share plus an optional sub-path to scan. Rescanning
-/// walks the folder (recursively, up to a depth limit) and adds every video file found.
 struct LibraryFolder: Identifiable, Codable, Hashable {
     var id: UUID
-    /// The SMB share this folder lives on.
     var shareID: UUID
-    /// Human-readable label shown in Settings.
     var displayName: String
-    /// The folder path within the share to scan (for example "/Movies"). Empty scans
-    /// the share root.
     var path: String
-    /// When the folder was last scanned, if ever.
     var lastScanned: Date?
-    /// How many items were added on the last scan.
     var lastAddedCount: Int
 
     init(id: UUID = UUID(), shareID: UUID, displayName: String, path: String,
@@ -36,27 +28,17 @@ struct LibraryFolder: Identifiable, Codable, Hashable {
     }
 }
 
-/// Stores the user's registered library folders and rescans them into the library.
 @MainActor
 final class LibraryFolderStore: ObservableObject {
     @Published private(set) var folders: [LibraryFolder] = []
-    /// The folder currently being scanned, if any (for progress UI).
     @Published var scanningFolderID: UUID?
-    /// A human-readable status for the in-progress scan.
     @Published var scanStatus: String?
 
     private let defaultsKey = "library.folders.v1"
     private let defaults = UserDefaults.standard
-
-    /// The maximum directory depth walked during a scan, so a huge tree can't hang the
-    /// app. Most media libraries are only two or three levels deep.
     private let maxDepth = 4
 
-    init() {
-        load()
-    }
-
-    // MARK: - Persistence
+    init() { load() }
 
     private func load() {
         guard let data = defaults.data(forKey: defaultsKey),
@@ -69,8 +51,6 @@ final class LibraryFolderStore: ObservableObject {
             defaults.set(data, forKey: defaultsKey)
         }
     }
-
-    // MARK: - Managing folders
 
     func addFolder(shareID: UUID, displayName: String, path: String) -> LibraryFolder {
         let normalized = path.hasPrefix("/") || path.isEmpty ? path : "/" + path
@@ -85,10 +65,6 @@ final class LibraryFolderStore: ObservableObject {
         persist()
     }
 
-    // MARK: - Shares
-
-    /// Reads the SMB shares the user has configured (from the same support file
-    /// SMBSharesModel persists), so a folder can resolve its share without extra wiring.
     private func loadShares() -> [SMBShare] {
         let support = FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -98,14 +74,8 @@ final class LibraryFolderStore: ObservableObject {
         return shares
     }
 
-    /// The SMB shares available to attach a library folder to.
     var availableShares: [SMBShare] { loadShares() }
 
-    // MARK: - Scanning
-
-    /// Rescans a single folder, adding every video file found (recursively) to the
-    /// library. Files already present are skipped by their stable content key, so a
-    /// rescan is safe to run repeatedly. Returns the number of newly added items.
     @discardableResult
     func rescan(_ folder: LibraryFolder, using env: AppEnvironment) async -> Int {
         guard let share = loadShares().first(where: { $0.id == folder.shareID }) else {
@@ -125,8 +95,7 @@ final class LibraryFolderStore: ObservableObject {
         }
 
         var videos: [RemoteFileItem] = []
-        await walk(path: folder.path.isEmpty ? "/" : folder.path,
-                   depth: 0, env: env, into: &videos)
+        await walk(path: folder.path.isEmpty ? "/" : folder.path, depth: 0, env: env, into: &videos)
 
         var added = 0
         for (index, file) in videos.enumerated() {
@@ -148,17 +117,13 @@ final class LibraryFolderStore: ObservableObject {
         return added
     }
 
-    /// Rescans every registered folder. Returns the total number of items added.
     @discardableResult
     func rescanAll(using env: AppEnvironment) async -> Int {
         var total = 0
-        for folder in folders {
-            total += await rescan(folder, using: env)
-        }
+        for folder in folders { total += await rescan(folder, using: env) }
         return total
     }
 
-    /// Recursively collects video files under a path, honoring the depth limit.
     private func walk(path: String, depth: Int, env: AppEnvironment,
                       into videos: inout [RemoteFileItem]) async {
         guard depth <= maxDepth else { return }
@@ -180,7 +145,7 @@ final class LibraryFolderStore: ObservableObject {
             title: MetadataParser.cleanTitle(from: file.name),
             sourceType: .smb,
             playbackURL: url,
-            legalAccessConfirmed: true, // the user owns their own network files
+            legalAccessConfirmed: true,
             metadata: meta
         )
     }
