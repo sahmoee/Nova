@@ -166,7 +166,7 @@ private struct AddLibraryFolderView: View {
     @State private var displayName = ""
     @State private var path = ""
 
-    private var shares: [SMBShare] { store.availableShares }
+    private var shares: [SMBShare] { env.libraryFolders.availableShares }
 
     var body: some View {
         NavigationStack {

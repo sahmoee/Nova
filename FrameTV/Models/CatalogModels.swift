@@ -172,3 +172,28 @@ struct EpisodeInfo: Identifiable, Codable, Hashable {
         return label
     }
 }
+
+
+extension CatalogItem {
+    /// Builds a library MediaItem for this catalog entry. AI results and other
+    /// catalog-sourced titles have no concrete stream yet, so the item is marked as a
+    /// Trakt-style entry whose source is resolved when the user plays it. The
+    /// contentID carries the real identity so the detail screen and stream picker can
+    /// resolve a playable source on demand.
+    func asLibraryItem() -> MediaItem {
+        let placeholder = URL(string: "frametv://catalog/\(contentID.stableKey)")!
+        var meta = MediaMetadata()
+        meta.year = year
+        return MediaItem(
+            title: title,
+            sourceType: .trakt,
+            playbackURL: placeholder,
+            posterURL: posterURL,
+            backdropURL: backdropURL ?? posterURL,
+            metadata: meta,
+            contentID: contentID,
+            seriesTitle: contentID.type == .series ? title : nil
+        )
+    }
+}
+

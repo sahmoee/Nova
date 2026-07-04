@@ -162,7 +162,7 @@ final class LibraryFolderStore: ObservableObject {
                       into videos: inout [RemoteFileItem]) async {
         guard depth <= maxDepth else { return }
         scanStatus = "Scanning \(path)…"
-        let entries = (try? await env.smb.listDirectory(path: path)) ?? []
+        let entries = (try? await env.smb.listDirectory(path)) ?? []
         for entry in entries {
             if entry.isDirectory {
                 await walk(path: entry.path, depth: depth + 1, env: env, into: &videos)

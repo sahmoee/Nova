@@ -21,18 +21,13 @@ struct AIView: View {
     @EnvironmentObject private var nav: NavigationCoordinator
     @EnvironmentObject private var library: LibraryStore
 
-    enum Mode: String, CaseIterable, Identifiable {
-        case discover = "Discover"
-        case library = "My Library"
-        var id: String { rawValue }
-    }
-
-    @State private var mode: Mode = .discover
+    @State private var capability: AISearchService.Capability = .discover
     @State private var prompt = ""
     @State private var catalogResults: [CatalogItem] = []
     @State private var libraryResults: [MediaItem] = []
     @State private var state: ViewState = .idle
     @State private var lastPrompt = ""
+    @State private var savedMessage: String?
     @FocusState private var promptFocused: Bool
 
     enum ViewState: Equatable { case idle, working, results, empty, error(String) }
@@ -40,18 +35,33 @@ struct AIView: View {
     private var columns: [GridItem] { Theme.posterGridColumns }
 
     private var suggestions: [String] {
-        switch mode {
+        switch capability {
         case .discover:
-            return ["Dark sci-fi thrillers",
-                    "A 5-movie Friday night lineup",
-                    "Comfort TV shows",
-                    "Mind-bending movies like Inception",
-                    "Feel-good 90s comedies"]
-        case .library:
-            return ["Something funny but not stupid",
-                    "The show I started recently",
-                    "A movie with aliens",
+            return ["Dark sci-fi thrillers", "Comfort TV shows",
+                    "Mind-bending movies like Inception", "Feel-good 90s comedies"]
+        case .librarySearch:
+            return ["Something funny but not stupid", "A movie with aliens",
                     "Something short to watch tonight"]
+        case .buildCollection:
+            return ["Best heist movies", "Cozy autumn watches", "Great courtroom dramas"]
+        case .buildLineup:
+            return ["Friday night, 3 films", "A horror double feature", "Date night picks"]
+        case .similarTo:
+            return ["More like Inception", "More like Breaking Bad", "More like Studio Ghibli"]
+        case .moodMatch:
+            return ["I feel nostalgic", "I want to be scared", "Something uplifting"]
+        case .franchiseOrder:
+            return ["The MCU in story order", "Star Wars chronological", "The Conjuring universe"]
+        case .hiddenGems:
+            return ["Underrated 2010s sci-fi", "Overlooked thrillers", "Quiet indie dramas"]
+        case .familyFriendly:
+            return ["Fun for a 7 year old", "Whole-family movie night", "Gentle bedtime shows"]
+        case .quickWatch:
+            return ["Under 100 minutes", "A single tight episode", "Quick laughs"]
+        case .surpriseMe:
+            return ["Surprise me", "Something I'd never pick", "Dealer's choice"]
+        case .fillGaps:
+            return ["Classics I should have seen", "Essential 90s films", "Must-see documentaries"]
         }
     }
 
@@ -62,9 +72,14 @@ struct AIView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                         header
-                        modePicker
+                        capabilityPicker
                         promptField
                         suggestionChips
+                        if let savedMessage {
+                            Label(savedMessage, systemImage: "checkmark.circle.fill")
+                                .font(.appFont(15, weight: .medium))
+                                .foregroundStyle(Theme.Colors.accent)
+                        }
                         resultsSection
                     }
                     .padding(Theme.Spacing.edge)
@@ -94,16 +109,31 @@ struct AIView: View {
         }
     }
 
-    private var modePicker: some View {
-        HStack(spacing: Theme.Spacing.sm) {
-            ForEach(Mode.allCases) { m in
-                FocusableButton(title: m.rawValue, prominent: m == mode) {
-                    mode = m
-                    resetResults()
+    private var capabilityPicker: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Theme.Spacing.sm) {
+                ForEach(AISearchService.Capability.allCases) { cap in
+                    Button {
+                        capability = cap
+                        resetResults()
+                    } label: {
+                        Label(cap.rawValue, systemImage: cap.systemImage)
+                            .font(.appFont(15, weight: .semibold))
+                            .foregroundStyle(capability == cap ? .black : Theme.Colors.textPrimary)
+                            .padding(.vertical, Theme.Spacing.sm)
+                            .padding(.horizontal, Theme.Spacing.md)
+                            .background(
+                                Capsule().fill(capability == cap
+                                               ? Theme.Colors.accent
+                                               : Color.white.opacity(0.08))
+                            )
+                    }
+                    .buttonStyle(FrameChipButtonStyle())
                 }
-                .frame(maxWidth: 220)
             }
+            .padding(.horizontal, Theme.Spacing.edge)
         }
+        .padding(.horizontal, -Theme.Spacing.edge)
     }
 
     private var promptField: some View {
@@ -132,9 +162,7 @@ struct AIView: View {
         .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
     }
 
-    private var promptPlaceholder: String {
-        mode == .discover ? "e.g. dark sci-fi thrillers" : "e.g. something funny but not stupid"
-    }
+    private var promptPlaceholder: String { capability.placeholder }
 
     private var suggestionChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -161,13 +189,13 @@ struct AIView: View {
     private var resultsSection: some View {
         switch state {
         case .idle:
-            if !AISearchService.isConfigured && mode == .discover {
+            if !AISearchService.isConfigured && !capability.searchesLibrary {
                 notConfiguredCard
             }
         case .working:
             HStack(spacing: Theme.Spacing.md) {
                 ProgressView().tint(Theme.Colors.accent)
-                Text(mode == .discover ? "Building your picks…" : "Searching your library…")
+                Text(capability.searchesLibrary ? "Searching your library…" : "Building your picks…")
                     .font(.appFont(18))
                     .foregroundStyle(Theme.Colors.textSecondary)
             }
@@ -179,7 +207,8 @@ struct AIView: View {
                         .font(.appFont(20, weight: .semibold))
                         .foregroundStyle(Theme.Colors.textPrimary)
                 }
-                if mode == .discover {
+                if !capability.searchesLibrary {
+                    saveActions
                     LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
                         ForEach(catalogResults) { item in
                             NavigationLink(value: item) {
@@ -200,9 +229,9 @@ struct AIView: View {
             EmptyStateView(
                 systemImage: "sparkles",
                 title: "No matches",
-                message: mode == .discover
-                    ? "AI couldn't turn that into titles we could find. Try rephrasing."
-                    : "Nothing in your library matched that. Try different words."
+                message: capability.searchesLibrary
+                    ? "Nothing in your library matched that. Try different words."
+                    : "AI couldn't turn that into titles we could find. Try rephrasing."
             )
             .frame(height: 320)
         case .error(let msg):
@@ -257,20 +286,25 @@ struct AIView: View {
     // MARK: - Actions
 
     private func resetResults() {
-        catalogResults = []; libraryResults = []; state = .idle; lastPrompt = ""
+        catalogResults = []; libraryResults = []; state = .idle; lastPrompt = ""; savedMessage = nil
     }
 
     private func run() {
         let q = prompt.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return }
+        // Surprise Me can run with no text; everything else needs a prompt.
+        guard !q.isEmpty || capability == .surpriseMe else { return }
         promptFocused = false
         lastPrompt = q
+        savedMessage = nil
         state = .working
         Task {
-            switch mode {
-            case .discover:
+            if capability.searchesLibrary {
+                let items = await env.aiSearch.searchLibrary(q, in: library.items)
+                libraryResults = items
+                state = items.isEmpty ? .empty : .results
+            } else {
                 do {
-                    let items = try await env.aiSearch.resolveTitles(for: q, limit: 24)
+                    let items = try await env.aiSearch.run(capability, userText: q, limit: 24)
                     catalogResults = items
                     state = items.isEmpty ? .empty : .results
                 } catch {
@@ -278,11 +312,75 @@ struct AIView: View {
                         ?? "AI isn't set up. Add your Cloudflare Worker URL in Settings."
                     state = .error(msg)
                 }
-            case .library:
-                let items = await env.aiSearch.searchLibrary(q, in: library.items)
-                libraryResults = items
-                state = items.isEmpty ? .empty : .results
             }
         }
+    }
+
+    // MARK: - Save actions (build / add)
+
+    /// Actions that turn AI results into things in the app: save as a collection, add
+    /// every result to the library, or queue them all up.
+    @ViewBuilder private var saveActions: some View {
+        if capability.producesCollection, !catalogResults.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Button {
+                        saveAsCollection()
+                    } label: {
+                        Label("Save as Collection", systemImage: "rectangle.stack.badge.plus")
+                            .font(.appFont(15, weight: .semibold))
+                    }
+                    .buttonStyle(FrameChipButtonStyle())
+
+                    Button {
+                        addAllToLibrary()
+                    } label: {
+                        Label("Add All to Library", systemImage: "plus.square.on.square")
+                            .font(.appFont(15, weight: .semibold))
+                    }
+                    .buttonStyle(FrameChipButtonStyle())
+
+                    Button {
+                        queueAll()
+                    } label: {
+                        Label("Add All to Queue", systemImage: "text.badge.plus")
+                            .font(.appFont(15, weight: .semibold))
+                    }
+                    .buttonStyle(FrameChipButtonStyle())
+                }
+            }
+            .padding(.bottom, Theme.Spacing.xs)
+        }
+    }
+
+    /// Converts the current catalog results to library items (metadata only; a source
+    /// is resolved when the user plays them).
+    private func resultItems() -> [MediaItem] {
+        catalogResults.map { $0.asLibraryItem() }
+    }
+
+    private func saveAsCollection() {
+        let name = lastPrompt.isEmpty ? capability.rawValue : lastPrompt
+        let collection = library.createCollection(name: name, systemImage: capability.systemImage)
+        for item in resultItems() {
+            library.add(item)
+            library.addToCollection(collection.id, item: item)
+        }
+        savedMessage = "Saved \(catalogResults.count) to the “\(name)” collection."
+    }
+
+    private func addAllToLibrary() {
+        let items = resultItems()
+        for item in items { library.add(item) }
+        savedMessage = "Added \(items.count) to your library."
+    }
+
+    private func queueAll() {
+        let items = resultItems()
+        for item in items {
+            library.add(item)
+            library.addToQueue(item)
+        }
+        savedMessage = "Queued \(items.count) title\(items.count == 1 ? "" : "s")."
     }
 }

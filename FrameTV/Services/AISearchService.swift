@@ -201,4 +201,115 @@ final class AISearchService: ObservableObject {
 
 private struct AIWorkerResponse: Codable {
     let titles: [String]
+
+    // MARK: - AI capabilities
+
+    /// The distinct things AI can do in the app. Each maps a user prompt to a
+    /// specialized instruction so the same Worker returns purpose-built results.
+    enum Capability: String, CaseIterable, Identifiable {
+        case discover        = "Discover"
+        case librarySearch   = "Library Search"
+        case buildCollection = "Build Collection"
+        case buildLineup     = "Movie Night"
+        case similarTo       = "More Like This"
+        case moodMatch       = "By Mood"
+        case franchiseOrder  = "Watch Order"
+        case hiddenGems      = "Hidden Gems"
+        case familyFriendly  = "Family Picks"
+        case quickWatch      = "Short on Time"
+        case surpriseMe      = "Surprise Me"
+        case fillGaps        = "Fill My Gaps"
+
+        var id: String { rawValue }
+
+        var systemImage: String {
+            switch self {
+            case .discover:        return "sparkles"
+            case .librarySearch:   return "magnifyingglass"
+            case .buildCollection: return "rectangle.stack.badge.plus"
+            case .buildLineup:     return "popcorn"
+            case .similarTo:       return "square.on.square"
+            case .moodMatch:       return "theatermasks"
+            case .franchiseOrder:  return "list.number"
+            case .hiddenGems:      return "diamond"
+            case .familyFriendly:  return "figure.2.and.child.holdinghands"
+            case .quickWatch:      return "timer"
+            case .surpriseMe:      return "dice"
+            case .fillGaps:        return "puzzlepiece.extension"
+            }
+        }
+
+        /// A short prompt hint shown in the field.
+        var placeholder: String {
+            switch self {
+            case .discover:        return "e.g. dark sci-fi thrillers"
+            case .librarySearch:   return "e.g. something funny but not stupid"
+            case .buildCollection: return "e.g. best heist movies"
+            case .buildLineup:     return "e.g. cozy Friday night, 3 films"
+            case .similarTo:       return "e.g. more like Inception"
+            case .moodMatch:       return "e.g. I feel nostalgic"
+            case .franchiseOrder:  return "e.g. the MCU in story order"
+            case .hiddenGems:      return "e.g. underrated 2010s sci-fi"
+            case .familyFriendly:  return "e.g. fun for a 7 year old"
+            case .quickWatch:      return "e.g. under 100 minutes tonight"
+            case .surpriseMe:      return "anything — tap Go"
+            case .fillGaps:        return "e.g. classics I should have seen"
+            }
+        }
+
+        /// Whether this capability searches the user's own library (versus the
+        /// wider catalog).
+        var searchesLibrary: Bool { self == .librarySearch }
+
+        /// Whether the results can be saved as a new collection.
+        var producesCollection: Bool {
+            switch self {
+            case .buildCollection, .buildLineup, .similarTo, .moodMatch,
+                 .franchiseOrder, .hiddenGems, .familyFriendly, .quickWatch,
+                 .surpriseMe, .fillGaps:
+                return true
+            case .discover, .librarySearch:
+                return false
+            }
+        }
+
+        /// Turns the user's words into a specialized instruction for the Worker.
+        func instruction(for userText: String) -> String {
+            let text = userText.trimmingCharacters(in: .whitespacesAndNewlines)
+            switch self {
+            case .discover:
+                return text
+            case .librarySearch:
+                return text
+            case .buildCollection:
+                return "Build a themed collection of movies and shows for: \(text). Return a cohesive set of titles."
+            case .buildLineup:
+                return "Plan a movie-night lineup for: \(text). Order the titles so they flow well back to back."
+            case .similarTo:
+                return "List titles that are similar in tone, theme, and style to: \(text)."
+            case .moodMatch:
+                return "Recommend titles that fit this mood or feeling: \(text)."
+            case .franchiseOrder:
+                return "List the titles for \(text) in the ideal watch order. Return them in order."
+            case .hiddenGems:
+                return "Suggest lesser-known, underrated, high-quality titles for: \(text)."
+            case .familyFriendly:
+                return "Suggest age-appropriate, family-friendly titles for: \(text)."
+            case .quickWatch:
+                return "Suggest shorter titles that fit a limited time for: \(text)."
+            case .surpriseMe:
+                let seed = text.isEmpty ? "a great, well-reviewed mix across genres" : text
+                return "Surprise me with an eclectic, high-quality set of titles: \(seed)."
+            case .fillGaps:
+                return "Suggest well-regarded essential titles someone may have missed for: \(text)."
+            }
+        }
+    }
+
+    /// Runs a capability: builds the specialized instruction and resolves catalog
+    /// titles. Library-search capabilities are handled separately by the view.
+    func run(_ capability: Capability, userText: String, limit: Int = 24) async throws -> [CatalogItem] {
+        try await resolveTitles(for: capability.instruction(for: userText), limit: limit)
+    }
+
 }
