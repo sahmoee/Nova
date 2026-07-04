@@ -24,10 +24,6 @@ private struct LibraryFoldersContent: View {
     @State private var lastResult: String?
 
     var body: some View {
-        content
-    }
-
-    private var content: some View {
         ZStack {
             Theme.Colors.appBackground.ignoresSafeArea()
             ScrollView {

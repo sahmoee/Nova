@@ -85,7 +85,7 @@ final class LibraryFolderStore: ObservableObject {
         persist()
     }
 
-    // MARK: - Scanning
+    // MARK: - Shares
 
     /// Reads the SMB shares the user has configured (from the same support file
     /// SMBSharesModel persists), so a folder can resolve its share without extra wiring.
@@ -100,6 +100,8 @@ final class LibraryFolderStore: ObservableObject {
 
     /// The SMB shares available to attach a library folder to.
     var availableShares: [SMBShare] { loadShares() }
+
+    // MARK: - Scanning
 
     /// Rescans a single folder, adding every video file found (recursively) to the
     /// library. Files already present are skipped by their stable content key, so a
@@ -138,7 +140,6 @@ final class LibraryFolderStore: ObservableObject {
             }
         }
 
-        // Record scan results.
         if let idx = folders.firstIndex(where: { $0.id == folder.id }) {
             folders[idx].lastScanned = Date()
             folders[idx].lastAddedCount = added
