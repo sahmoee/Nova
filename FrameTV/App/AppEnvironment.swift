@@ -24,7 +24,7 @@ final class AppEnvironment: ObservableObject {
 
     // Phase 3: catalog, addons, metadata, scrobbling.
     let addonStore: AddonStore
-    let liveTVSources: LiveTVSourceStore
+    let libraryFolders: LibraryFolderStore
     let tmdb: TMDBClient
     let omdb: OMDbClient
     let trakt: TraktClient
@@ -42,7 +42,7 @@ final class AppEnvironment: ObservableObject {
         self.progress = PlaybackProgressStore(library: lib)
         self.settings = SettingsStore()
         self.showSettings = ShowSettingsStore()
-        self.liveTVSources = LiveTVSourceStore()
+        self.libraryFolders = LibraryFolderStore()
 
         let rd = RealDebridClient()
         self.realDebrid = rd
