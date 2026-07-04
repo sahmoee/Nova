@@ -1,3 +1,6 @@
+07:03:26 22:40 — v1.7 (build 6) — Version
+Small change or fix
+
 07:03:26 16:22 — v1.6 (build 6) — Version
 Small change or fix
 
