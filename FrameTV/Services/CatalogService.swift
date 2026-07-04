@@ -166,8 +166,11 @@ final class CatalogService: ObservableObject {
         }
 
         if await openSubtitles.hasKey, let imdb = content.imdb {
+            // Request several common languages so more subtitle options surface. The
+            // player lets the viewer pick; their preferred language is applied there.
+            let langs = ["en", "es", "fr", "de", "pt", "it"]
             if let osSubs = try? await openSubtitles.search(
-                imdbID: imdb, episode: episode, languages: ["en"]
+                imdbID: imdb, episode: episode, languages: langs
             ) {
                 tracks.append(contentsOf: osSubs)
             }
