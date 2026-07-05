@@ -4,16 +4,14 @@
 //
 //  Downloads a playable file (SMB, direct URL) to local storage so it can be watched
 //  offline. Progress is published for UI. Downloaded files live in the app's Documents
-//  /Downloads folder, keyed by the item's content key.
+//  /Downloads folder, keyed by the item's id.
 //
 
 import Foundation
 
 @MainActor
 final class DownloadManager: ObservableObject {
-    /// Active download progress by item id (0...1).
     @Published private(set) var progress: [UUID: Double] = [:]
-    /// Local file URLs for completed downloads, by item id.
     @Published private(set) var completed: [UUID: URL] = [:]
     @Published var lastError: String?
 
@@ -30,36 +28,21 @@ final class DownloadManager: ObservableObject {
         return dir
     }
 
-    init() {
-        indexExisting()
-    }
+    init() { indexExisting() }
 
-    /// Populates `completed` from any files already on disk.
     private func indexExisting() {
         guard let files = try? fileManager.contentsOfDirectory(at: downloadsDir,
                                                                includingPropertiesForKeys: nil) else { return }
         for file in files {
-            // File names are "<uuid>.<ext>"; recover the id.
             let base = file.deletingPathExtension().lastPathComponent
-            if let id = UUID(uuidString: base) {
-                completed[id] = file
-            }
+            if let id = UUID(uuidString: base) { completed[id] = file }
         }
     }
 
-    func isDownloaded(_ item: MediaItem) -> Bool {
-        completed[item.id] != nil
-    }
+    func isDownloaded(_ item: MediaItem) -> Bool { completed[item.id] != nil }
+    func localURL(for item: MediaItem) -> URL? { completed[item.id] }
+    func isDownloading(_ item: MediaItem) -> Bool { progress[item.id] != nil }
 
-    func localURL(for item: MediaItem) -> URL? {
-        completed[item.id]
-    }
-
-    func isDownloading(_ item: MediaItem) -> Bool {
-        progress[item.id] != nil
-    }
-
-    /// Starts downloading the item's file. No-op if already downloaded or in progress.
     func download(_ item: MediaItem) {
         guard completed[item.id] == nil, tasks[item.id] == nil else { return }
         let ext = item.playbackURL.pathExtension.isEmpty ? "mp4" : item.playbackURL.pathExtension
@@ -121,7 +104,6 @@ final class DownloadManager: ObservableObject {
     }
 }
 
-/// URLSession delegate bridging download callbacks to the manager.
 private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate {
     let onProgress: (Double) -> Void
     let onFinish: (URL) -> Void
@@ -144,9 +126,7 @@ private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate {
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
                     didFinishDownloadingTo location: URL) {
-        // Move synchronously to a stable temp location before the delegate returns.
-        let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         do {
             try FileManager.default.moveItem(at: location, to: tmp)
             onFinish(tmp)
