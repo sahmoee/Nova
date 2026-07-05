@@ -54,8 +54,6 @@ struct FocusableButtonStyle: ButtonStyle {
 
         private var background: some ShapeStyle {
             #if os(tvOS)
-            // Apple TV app style: the focused button fills white; unfocused stays a
-            // dim translucent pill. Prominent buttons are white when focused too.
             if active { return AnyShapeStyle(Color.white) }
             if prominent { return AnyShapeStyle(Color.white.opacity(0.24)) }
             return AnyShapeStyle(Color.white.opacity(0.12))

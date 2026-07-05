@@ -46,7 +46,6 @@ struct FrameRowButtonStyle: ButtonStyle {
 
         private var rowFill: AnyShapeStyle {
             #if os(tvOS)
-            // Apple TV app style: focus brightens the row surface itself.
             if active { return AnyShapeStyle(Color.white.opacity(0.22)) }
             return AnyShapeStyle(Color.white.opacity(0.08))
             #else

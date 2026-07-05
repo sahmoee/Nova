@@ -250,7 +250,6 @@ enum Theme {
         /// Focus scale applied on highlight (tvOS only; subtle on iOS).
         static var focusScale: CGFloat {
             #if os(tvOS)
-            // Apple TV app: a restrained lift.
             return 1.05
             #else
             return Theme.isCompact ? 1.0 : 1.08
@@ -293,7 +292,6 @@ enum Theme {
         static func cardSubtitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(18), weight: .regular) }
         static func screenTitle() -> SwiftUI.Font {
             #if os(tvOS)
-            // Apple TV app: large but restrained - bold, not heavy.
             return .system(size: Theme.dynamicFontSize(52), weight: .bold)
             #else
             return .system(size: Theme.dynamicFontSize(56), weight: .heavy)
@@ -485,7 +483,6 @@ extension View {
     func refinedCardBackground(cornerRadius: CGFloat = Theme.Radius.card) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         #if os(tvOS)
-        // Apple TV app style: flat translucent panels over the black canvas.
         return self
             .background(Color.white.opacity(0.08), in: shape)
             .overlay(shape.strokeBorder(Color.white.opacity(0.06), lineWidth: 1))

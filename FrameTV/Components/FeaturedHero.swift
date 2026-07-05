@@ -131,8 +131,6 @@ private struct HeroPlayButtonStyle: ButtonStyle {
         var body: some View {
             configuration.label
                 #if os(tvOS)
-                // Apple TV app style: the Play button stays white; focus lifts it
-                // with a deep shadow instead of recoloring it.
                 .background(.white, in: Capsule())
                 .foregroundStyle(.black)
                 .scaleEffect(active ? 1.1 : 1.0)

@@ -63,12 +63,9 @@ struct MediaCard: View {
         .accessibilityAddTraits(.isButton)
         .scaleEffect(focused ? Theme.CardSize.focusScale : 1.0)
         #if os(tvOS)
-        // Apple TV app style: focus lifts the card with a deep soft shadow and a
-        // clean white ring — light, not color, signals focus.
         .shadow(color: .black.opacity(focused ? 0.7 : 0.0),
                 radius: focused ? 30 : 0, x: 0, y: 18)
         #else
-        // iOS keeps the soft black drop plus an artwork-tinted glow.
         .shadow(color: .black.opacity(focused ? 0.65 : 0.0),
                 radius: focused ? 28 : 0, x: 0, y: 14)
         .shadow(color: focused ? accent.opacity(0.5) : .clear,
@@ -82,7 +79,6 @@ struct MediaCard: View {
         }
     }
 
-    /// Focus ring color: pure white on tvOS (Apple TV app style), accent on iOS.
     private var focusStrokeColor: Color {
         #if os(tvOS)
         return focused ? .white : Theme.Colors.separator

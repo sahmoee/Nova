@@ -2,11 +2,10 @@
 //  TVMenuOverlay.swift
 //  FrameTV
 //
-//  tvOS-only. Replaces the always-visible TabView tab bar with a menu that is
-//  summoned by pressing the Menu / TV button on the Siri Remote. The selected
-//  screen fills the display; pressing Menu brings up this overlay to switch
-//  sections, and choosing one (or pressing Menu again) dismisses it back to the
-//  content.
+//  tvOS-only. Summoned by the Menu / TV button, styled like the Apple TV app's
+//  top tab bar: a translucent capsule bar pinned near the top of the screen with
+//  text pills for each section. The focused pill fills white with black text;
+//  the current section shows a subtle underline marker when unfocused.
 //
 
 #if os(tvOS)
@@ -16,111 +15,93 @@ struct TVMenuOverlay: View {
     @Binding var selection: AppTab
     var onDismiss: () -> Void
 
-    @Environment(\.dynamicAccent) private var accent
     @Namespace private var menuScope
     @FocusState private var focusedTab: AppTab?
 
     var body: some View {
-        ZStack {
-            // Dim the content behind the menu so it reads as a layer on top. This
-            // also catches clicks outside the menu to dismiss it.
-            Color.black.opacity(0.6)
+        ZStack(alignment: .top) {
+            // Dim and blur the content behind so the bar reads as a layer above,
+            // exactly like the system tab bar treatment.
+            LinearGradient(colors: [.black.opacity(0.72), .black.opacity(0.25), .clear],
+                           startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
 
-            VStack(spacing: Theme.Spacing.xl) {
-                HStack(spacing: Theme.Spacing.sm) {
-                    Image(systemName: "film.stack")
-                        .font(.appFont(34, weight: .bold))
-                        .foregroundStyle(accent)
-                    Text("Frame")
-                        .font(.appFont(40, weight: .bold))
-                        .foregroundStyle(Theme.Colors.textPrimary)
+            // The Apple-TV-style top bar: one capsule row of text pills.
+            HStack(spacing: Theme.Spacing.sm) {
+                ForEach(AppTab.allCases, id: \.self) { tab in
+                    tabPill(tab)
                 }
-
-                // The row of tiles is one focus section so left/right movement stays
-                // within it and wraps naturally across the four items.
-                HStack(spacing: Theme.Spacing.lg) {
-                    ForEach(AppTab.allCases, id: \.self) { tab in
-                        menuButton(tab)
-                    }
-                }
-                .focusSection()
             }
-            .padding(.horizontal, Theme.Spacing.xl)
-            .padding(.vertical, Theme.Spacing.xl)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.5), radius: 40, y: 20)
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.vertical, Theme.Spacing.sm)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 1))
+            .shadow(color: .black.opacity(0.45), radius: 30, y: 14)
+            .padding(.top, Theme.Spacing.xl)
+            .focusSection()
         }
         // Confine the tvOS focus engine to this overlay so the content behind it
         // can't receive focus or remote movement.
         .focusScope(menuScope)
-        // Pressing Menu again while the overlay is up dismisses it.
+        // Pressing Menu again while the bar is up dismisses it.
         .onExitCommand { onDismiss() }
-        // Land focus on the current section as soon as the menu appears.
+        // Land focus on the current section as soon as the bar appears.
         .onAppear { focusedTab = selection }
-        // If focus ever escapes to nil while the menu is open, pull it back.
+        // If focus ever escapes to nil while the bar is open, pull it back.
         .onChange(of: focusedTab) { _, newValue in
             if newValue == nil { focusedTab = selection }
         }
     }
 
-    private func menuButton(_ tab: AppTab) -> some View {
+    private func tabPill(_ tab: AppTab) -> some View {
         Button {
             selection = tab
             onDismiss()
         } label: {
-            VStack(spacing: Theme.Spacing.sm) {
+            HStack(spacing: 8) {
                 Image(systemName: tab.systemImage)
-                    .font(.appFont(40, weight: .semibold))
+                    .font(.appFont(22, weight: .semibold))
                     .symbolRenderingMode(.hierarchical)
                 Text(tab.title)
                     .font(.appFont(24, weight: .semibold))
             }
-            .frame(width: 220, height: 150)
-            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .padding(.horizontal, Theme.Spacing.lg)
+            .padding(.vertical, Theme.Spacing.sm)
+            .contentShape(Capsule())
         }
-        .buttonStyle(TVMenuButtonStyle(isSelected: tab == selection))
+        .buttonStyle(TVTabPillStyle(isSelected: tab == selection))
         .focused($focusedTab, equals: tab)
-        // The current section is the default focus target when the menu opens.
+        // The current section is the default focus target when the bar opens.
         .prefersDefaultFocus(tab == selection, in: menuScope)
     }
 }
 
-/// Focus style for the menu tiles: accent fill + lift on focus, a subtle marker on
-/// the currently active section, and no tvOS default white card.
-private struct TVMenuButtonStyle: ButtonStyle {
+/// Apple TV app tab pill: focused = white fill, black text, gentle lift; the
+/// active-but-unfocused section keeps a soft white wash so it reads as current.
+private struct TVTabPillStyle: ButtonStyle {
     var isSelected: Bool
 
     func makeBody(configuration: ButtonStyleConfiguration) -> some View {
-        TVMenuButtonBody(configuration: configuration, isSelected: isSelected)
+        TVTabPillBody(configuration: configuration, isSelected: isSelected)
     }
 }
 
-private struct TVMenuButtonBody: View {
+private struct TVTabPillBody: View {
     let configuration: ButtonStyleConfiguration
     let isSelected: Bool
     @Environment(\.isFocused) private var isFocused
-    @Environment(\.dynamicAccent) private var accent
 
     var body: some View {
         configuration.label
-            .foregroundStyle(isFocused ? .black : (isSelected ? .white : Theme.Colors.textSecondary))
+            .foregroundStyle(isFocused ? .black : (isSelected ? .white : Color.white.opacity(0.65)))
             .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(isFocused ? Color.white : (isSelected ? Color.white.opacity(0.18) : Color.white.opacity(0.08)))
+                Capsule().fill(isFocused ? Color.white
+                               : (isSelected ? Color.white.opacity(0.16) : Color.clear))
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .strokeBorder(isSelected && !isFocused ? Color.white.opacity(0.5) : .clear, lineWidth: 2)
-            )
-            .shadow(color: isFocused ? Color.black.opacity(0.55) : .clear,
-                    radius: isFocused ? 24 : 0, y: isFocused ? 10 : 0)
-            .scaleEffect(isFocused ? 1.07 : 1.0)
-            .animation(.easeOut(duration: 0.18), value: isFocused)
+            .shadow(color: isFocused ? Color.black.opacity(0.5) : .clear,
+                    radius: isFocused ? 18 : 0, y: isFocused ? 8 : 0)
+            .scaleEffect(isFocused ? 1.06 : 1.0)
+            .animation(.easeOut(duration: 0.16), value: isFocused)
     }
 }
 #endif
