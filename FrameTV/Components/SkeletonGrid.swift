@@ -2,8 +2,8 @@
 //  SkeletonGrid.swift
 //  FrameTV
 //
-//  A shimmering placeholder grid shown while real poster content loads, so screens
-//  fade from a structured skeleton into content instead of a blank spinner.
+//  Shimmering placeholder grid and row shown while real poster content loads, so
+//  screens fade from a structured skeleton into content instead of a blank spinner.
 //
 
 import SwiftUI
