@@ -4,28 +4,43 @@ here = os.path.dirname(os.path.abspath(__file__))
 pbx = os.path.join(here, "FrameTV.xcodeproj", "project.pbxproj")
 s = open(pbx).read()
 def gen(): return uuid.uuid4().hex[:24].upper()
-ls = re.search(r"([0-9A-F]{24}) /\* LibraryStore\.swift \*/ = \{isa = PBXFileReference", s)
-if not ls: raise SystemExit(0)
-fileref_ls = ls.group(1)
-mc = re.search(r"([0-9A-F]{24}) /\* MediaCard\.swift \*/ = \{isa = PBXFileReference", s)
-mc_ref = mc.group(1) if mc else fileref_ls
-bf_guids = re.findall(r"([0-9A-F]{24}) /\* LibraryStore\.swift in Sources \*/,", s)
-files = [("SkeletonGrid.swift", mc_ref, "MediaCard.swift"),
-         ("Haptics.swift", fileref_ls, "LibraryStore.swift")]
-changed=False
-for fname, sib_ref, sib_name in files:
-    if f"{fname} in Sources" in s: continue
-    changed=True
+changed = False
+
+# Haptics.swift belongs in the Utilities group (anchor LanguageNames.swift).
+util = re.search(r"([0-9A-F]{24}) /\* LanguageNames\.swift \*/ = \{isa = PBXFileReference", s)
+if util and "Haptics.swift in Sources" not in s:
+    util_ref = util.group(1)
+    bf = re.findall(r"([0-9A-F]{24}) /\* LanguageNames\.swift in Sources \*/,", s)
     fref = gen()
-    anchor = f'\t\t{fileref_ls} /* LibraryStore.swift */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; }};\n'
-    s = s.replace(anchor, anchor + f'\t\t{fref} /* {fname} */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = {fname}; sourceTree = "<group>"; }};\n', 1)
-    sib = f'\t\t\t\t{sib_ref} /* {sib_name} */,\n'
-    if sib in s: s = s.replace(sib, sib + f'\t\t\t\t{fref} /* {fname} */,\n', 1)
-    for bf_old in bf_guids:
-        bf_new = gen()
-        da = f'\t\t{bf_old} /* LibraryStore.swift in Sources */ = {{isa = PBXBuildFile; fileRef = {fileref_ls} /* LibraryStore.swift */; }};\n'
-        s = s.replace(da, da + f'\t\t{bf_new} /* {fname} in Sources */ = {{isa = PBXBuildFile; fileRef = {fref} /* {fname} */; }};\n', 1)
-        pa = f'\t\t\t\t{bf_old} /* LibraryStore.swift in Sources */,\n'
-        s = s.replace(pa, pa + f'\t\t\t\t{bf_new} /* {fname} in Sources */,\n', 1)
+    a = f'\t\t{util_ref} /* LanguageNames.swift */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageNames.swift; sourceTree = "<group>"; }};\n'
+    s = s.replace(a, a + f'\t\t{fref} /* Haptics.swift */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; }};\n', 1)
+    g = f'\t\t\t\t{util_ref} /* LanguageNames.swift */,\n'
+    s = s.replace(g, g + f'\t\t\t\t{fref} /* Haptics.swift */,\n', 1)
+    for o in bf:
+        n = gen()
+        da = f'\t\t{o} /* LanguageNames.swift in Sources */ = {{isa = PBXBuildFile; fileRef = {util_ref} /* LanguageNames.swift */; }};\n'
+        s = s.replace(da, da + f'\t\t{n} /* Haptics.swift in Sources */ = {{isa = PBXBuildFile; fileRef = {fref} /* Haptics.swift */; }};\n', 1)
+        pa = f'\t\t\t\t{o} /* LanguageNames.swift in Sources */,\n'
+        s = s.replace(pa, pa + f'\t\t\t\t{n} /* Haptics.swift in Sources */,\n', 1)
+    changed = True
+
+# SkeletonGrid.swift belongs in the Components group (anchor MediaCard.swift).
+mc = re.search(r"([0-9A-F]{24}) /\* MediaCard\.swift \*/ = \{isa = PBXFileReference", s)
+if mc and "SkeletonGrid.swift in Sources" not in s:
+    mc_ref = mc.group(1)
+    bf = re.findall(r"([0-9A-F]{24}) /\* MediaCard\.swift in Sources \*/,", s)
+    fref = gen()
+    a = f'\t\t{mc_ref} /* MediaCard.swift */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaCard.swift; sourceTree = "<group>"; }};\n'
+    s = s.replace(a, a + f'\t\t{fref} /* SkeletonGrid.swift */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonGrid.swift; sourceTree = "<group>"; }};\n', 1)
+    g = f'\t\t\t\t{mc_ref} /* MediaCard.swift */,\n'
+    s = s.replace(g, g + f'\t\t\t\t{fref} /* SkeletonGrid.swift */,\n', 1)
+    for o in bf:
+        n = gen()
+        da = f'\t\t{o} /* MediaCard.swift in Sources */ = {{isa = PBXBuildFile; fileRef = {mc_ref} /* MediaCard.swift */; }};\n'
+        s = s.replace(da, da + f'\t\t{n} /* SkeletonGrid.swift in Sources */ = {{isa = PBXBuildFile; fileRef = {fref} /* SkeletonGrid.swift */; }};\n', 1)
+        pa = f'\t\t\t\t{o} /* MediaCard.swift in Sources */,\n'
+        s = s.replace(pa, pa + f'\t\t\t\t{n} /* SkeletonGrid.swift in Sources */,\n', 1)
+    changed = True
+
 if changed: open(pbx,"w").write(s); print("Registered perf files")
 else: print("Already registered")
