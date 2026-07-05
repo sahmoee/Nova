@@ -120,7 +120,6 @@ final class LiveTVSourceStore: ObservableObject {
     func refreshAll() async {
         isLoading = true
         defer { isLoading = false }
-        // Fetch all enabled sources concurrently so a slow one doesn't block the rest.
         await withTaskGroup(of: Void.self) { group in
             for source in sources where source.isEnabled {
                 group.addTask { await self.refresh(source) }

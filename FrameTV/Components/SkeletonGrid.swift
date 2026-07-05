@@ -2,9 +2,6 @@
 //  SkeletonGrid.swift
 //  FrameTV
 //
-//  Shimmering placeholder grid and row shown while real poster content loads, so
-//  screens fade from a structured skeleton into content instead of a blank spinner.
-//
 
 import SwiftUI
 
@@ -36,15 +33,13 @@ struct SkeletonGrid: View {
 
 struct SkeletonRow: View {
     var count: Int = 6
-
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: Theme.Spacing.md) {
                 ForEach(0..<count, id: \.self) { _ in
                     RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                         .fill(Theme.Colors.card)
-                        .frame(width: Theme.CardSize.posterWidth,
-                               height: Theme.CardSize.posterHeight)
+                        .frame(width: Theme.CardSize.posterWidth, height: Theme.CardSize.posterHeight)
                         .shimmering()
                 }
             }

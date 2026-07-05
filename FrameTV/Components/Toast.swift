@@ -73,21 +73,6 @@ enum Haptics {
     enum Kind { case success, warning, error, light }
     enum Impact { case light, medium, rigid, soft }
 
-    static func play(_ kind: Kind) {
-        #if os(iOS)
-        switch kind {
-        case .success:
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-        case .warning:
-            UINotificationFeedbackGenerator().notificationOccurred(.warning)
-        case .error:
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
-        case .light:
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        }
-        #endif
-    }
-
     static func impact(_ style: Impact = .light) {
         #if os(iOS)
         let mapped: UIImpactFeedbackGenerator.FeedbackStyle
@@ -101,27 +86,24 @@ enum Haptics {
         #endif
     }
 
-    static func success() {
-        #if os(iOS)
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        #endif
-    }
-
-    static func warning() {
-        #if os(iOS)
-        UINotificationFeedbackGenerator().notificationOccurred(.warning)
-        #endif
-    }
-
-    static func error() {
-        #if os(iOS)
-        UINotificationFeedbackGenerator().notificationOccurred(.error)
-        #endif
-    }
-
     static func selection() {
         #if os(iOS)
         UISelectionFeedbackGenerator().selectionChanged()
+        #endif
+    }
+
+    static func play(_ kind: Kind) {
+        #if os(iOS)
+        switch kind {
+        case .success:
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        case .warning:
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        case .error:
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+        case .light:
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
         #endif
     }
 }

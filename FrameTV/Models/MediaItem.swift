@@ -195,8 +195,7 @@ struct MediaItem: Identifiable, Codable, Hashable {
     }
 
     /// True when the item already carries a directly playable file/stream (a local
-    /// network share, a direct URL, or a live channel), so it can play immediately
-    /// without going through stream resolution.
+    /// network share, a direct URL, or a live channel).
     var isDirectPlay: Bool {
         switch sourceType {
         case .smb, .directURL, .liveTV: return true

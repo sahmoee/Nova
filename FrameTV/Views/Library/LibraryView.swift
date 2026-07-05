@@ -64,22 +64,9 @@ struct LibraryView: View {
                                         if bulkEditing {
                                             toggleSelection(item.id)
                                         } else if item.isDirectPlay {
-                                            // SMB, direct URL, and live channels already
-                                            // have a playable file, so play it straight
-                                            // away instead of opening the stream finder.
                                             selectedItem = downloadable(item)
                                         } else {
                                             detailItem = item
-                                        }
-                                    }
-                                    .contextMenu {
-                                        if item.isDirectPlay {
-                                            Button {
-                                                selectedItem = downloadable(item)
-                                            } label: { Label("Play", systemImage: "play.fill") }
-                                            if item.sourceType == .smb || item.sourceType == .directURL {
-                                                downloadMenuItems(for: item)
-                                            }
                                         }
                                     }
                                     .overlay(alignment: .topTrailing) {
@@ -100,6 +87,14 @@ struct LibraryView: View {
                                         }
                                     }
                                     .contextMenu {
+                                        if item.isDirectPlay {
+                                            Button {
+                                                selectedItem = downloadable(item)
+                                            } label: { Label("Play", systemImage: "play.fill") }
+                                            if item.sourceType == .smb || item.sourceType == .directURL {
+                                                downloadMenuItems(for: item)
+                                            }
+                                        }
                                         if item.hasResumePoint {
                                             Button(role: .destructive) {
                                                 withAnimation { library.clearProgress(for: item.id) }
@@ -136,7 +131,6 @@ struct LibraryView: View {
                             }
                             .padding(.horizontal, Theme.Spacing.edge)
                             .padding(.vertical, Theme.Spacing.md)
-                            .animation(.easeInOut(duration: 0.25), value: displayedItems.count)
                         }
                     }
                 }
@@ -157,7 +151,6 @@ struct LibraryView: View {
         }
         .onAppear { openPendingContent(nav.pendingContentKey) }
         .onChange(of: displayedItems) { _, items in
-            // Warm the image cache for the visible library so posters appear instantly.
             ImageLoader.shared.prefetch(items.compactMap(\.posterURL), maxPixel: 700)
         }
     }
@@ -365,8 +358,6 @@ struct LibraryView: View {
 
     // MARK: - Data
 
-    /// If a local download exists for a direct-play item, swap in the local file URL so
-    /// playback uses the downloaded copy; otherwise play the original (SMB/URL) source.
     private func downloadable(_ item: MediaItem) -> MediaItem {
         guard let local = env.downloadManager.localURL(for: item) else { return item }
         var copy = item

@@ -2,10 +2,6 @@
 //  DownloadManager.swift
 //  FrameTV
 //
-//  Downloads a playable file (SMB, direct URL) to local storage so it can be watched
-//  offline. Progress is published for UI. Downloaded files live in the app's Documents
-//  /Downloads folder, keyed by the item's id.
-//
 
 import Foundation
 
@@ -112,9 +108,7 @@ private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate {
     init(onProgress: @escaping (Double) -> Void,
          onFinish: @escaping (URL) -> Void,
          onError: @escaping (String) -> Void) {
-        self.onProgress = onProgress
-        self.onFinish = onFinish
-        self.onError = onError
+        self.onProgress = onProgress; self.onFinish = onFinish; self.onError = onError
     }
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
@@ -127,12 +121,8 @@ private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate {
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
                     didFinishDownloadingTo location: URL) {
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        do {
-            try FileManager.default.moveItem(at: location, to: tmp)
-            onFinish(tmp)
-        } catch {
-            onError("Download failed to save: \(error.localizedDescription)")
-        }
+        do { try FileManager.default.moveItem(at: location, to: tmp); onFinish(tmp) }
+        catch { onError("Download failed to save: \(error.localizedDescription)") }
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {

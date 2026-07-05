@@ -45,8 +45,6 @@ actor ImageLoader {
         try? FileManager.default.createDirectory(at: diskDir, withIntermediateDirectories: true)
 
         #if os(iOS)
-        // Drop the in-memory decoded images when the system is under memory pressure,
-        // keeping the (cheap) disk cache. Prevents image growth from causing jetsams.
         Task { @MainActor in
             NotificationCenter.default.addObserver(
                 forName: UIApplication.didReceiveMemoryWarningNotification,
