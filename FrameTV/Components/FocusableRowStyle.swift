@@ -44,24 +44,49 @@ struct FrameRowButtonStyle: ButtonStyle {
             #endif
         }
 
-        var body: some View {
+        private var rowFill: AnyShapeStyle {
+            #if os(tvOS)
+            // Apple TV app style: focus brightens the row surface itself.
+            if active { return AnyShapeStyle(Color.white.opacity(0.22)) }
+            return AnyShapeStyle(Color.white.opacity(0.08))
+            #else
+            if active { return AnyShapeStyle(accent.opacity(0.22)) }
             let refined = Theme.uiStyle == .refined
+            return refined ? AnyShapeStyle(Theme.Colors.cardGradient)
+                           : AnyShapeStyle(Theme.Colors.card)
+            #endif
+        }
+
+        private var rowStroke: Color {
+            #if os(tvOS)
+            return active ? Color.white : Color.white.opacity(0.08)
+            #else
+            let refined = Theme.uiStyle == .refined
+            return active ? accent : Color.white.opacity(refined ? 0.08 : 0.06)
+            #endif
+        }
+
+        private var rowShadow: Color {
+            #if os(tvOS)
+            return active ? Color.black.opacity(0.55) : .clear
+            #else
+            return active ? accent.opacity(0.4) : .clear
+            #endif
+        }
+
+        var body: some View {
             return configuration.label
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.vertical, Theme.Spacing.sm)
                 .background(
                     RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .fill(active ? AnyShapeStyle(accent.opacity(0.22))
-                                     : (refined ? AnyShapeStyle(Theme.Colors.cardGradient)
-                                                : AnyShapeStyle(Theme.Colors.card)))
+                        .fill(rowFill)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .strokeBorder(active ? accent : Color.white.opacity(refined ? 0.08 : 0.06),
-                                      lineWidth: active ? 2.5 : 1)
+                        .strokeBorder(rowStroke, lineWidth: active ? 2.5 : 1)
                 )
-                .shadow(color: active ? accent.opacity(0.4) : .clear,
-                        radius: active ? 22 : 0, y: active ? 8 : 0)
+                .shadow(color: rowShadow, radius: active ? 22 : 0, y: active ? 8 : 0)
                 .scaleEffect(active ? 1.035 : 1.0)
                 .animation(.easeOut(duration: 0.2), value: active)
         }
@@ -97,12 +122,28 @@ struct FrameChipButtonStyle: ButtonStyle {
             #endif
         }
 
+        private var chipRing: Color {
+            #if os(tvOS)
+            return .white
+            #else
+            return accent
+            #endif
+        }
+
+        private var chipShadow: Color {
+            #if os(tvOS)
+            return Color.black.opacity(0.5)
+            #else
+            return accent.opacity(0.45)
+            #endif
+        }
+
         var body: some View {
             configuration.label
                 .overlay(
-                    Capsule().strokeBorder(active ? accent : .clear, lineWidth: 3)
+                    Capsule().strokeBorder(active ? chipRing : .clear, lineWidth: 3)
                 )
-                .shadow(color: active ? accent.opacity(0.45) : .clear,
+                .shadow(color: active ? chipShadow : .clear,
                         radius: active ? 18 : 0, y: active ? 6 : 0)
                 .scaleEffect(active ? 1.08 : 1.0)
                 .animation(.easeOut(duration: 0.18), value: active)
@@ -117,13 +158,29 @@ struct FocusHighlight: ViewModifier {
     @Environment(\.isFocused) private var isFocused
     @Environment(\.dynamicAccent) private var accent
 
+    private var ringColor: Color {
+        #if os(tvOS)
+        return .white
+        #else
+        return accent
+        #endif
+    }
+
+    private var glowColor: Color {
+        #if os(tvOS)
+        return Color.black.opacity(0.55)
+        #else
+        return accent.opacity(0.45)
+        #endif
+    }
+
     func body(content: Content) -> some View {
         content
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(isFocused ? accent : .clear, lineWidth: 4)
+                    .strokeBorder(isFocused ? ringColor : .clear, lineWidth: 4)
             )
-            .shadow(color: isFocused ? accent.opacity(0.45) : .clear,
+            .shadow(color: isFocused ? glowColor : .clear,
                     radius: isFocused ? 26 : 0, y: isFocused ? 10 : 0)
             .scaleEffect(isFocused ? 1.06 : 1.0)
             .animation(.easeOut(duration: 0.2), value: isFocused)

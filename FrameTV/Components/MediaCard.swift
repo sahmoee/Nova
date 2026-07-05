@@ -7,22 +7,12 @@
 
 import SwiftUI
 
-struct MediaCard: View, Equatable {
+struct MediaCard: View {
     let item: MediaItem
     var wide: Bool = false
     /// When true, an episode is shown as its season entry (series name + "Season N").
     var seasonGrouped: Bool = false
     let action: () -> Void
-
-    static func == (lhs: MediaCard, rhs: MediaCard) -> Bool {
-        lhs.item.id == rhs.item.id
-            && lhs.item.title == rhs.item.title
-            && lhs.item.posterURL == rhs.item.posterURL
-            && lhs.item.lastPlayedPosition == rhs.item.lastPlayedPosition
-            && lhs.item.isFavorite == rhs.item.isFavorite
-            && lhs.wide == rhs.wide
-            && lhs.seasonGrouped == rhs.seasonGrouped
-    }
 
     @FocusState private var focused: Bool
     @Environment(\.dynamicAccent) private var accent
@@ -59,10 +49,7 @@ struct MediaCard: View, Equatable {
     }
 
     var body: some View {
-        Button(action: {
-            Haptics.selection()
-            action()
-        }) {
+        Button(action: action) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 artwork
                 titleBlock
@@ -75,17 +62,33 @@ struct MediaCard: View, Equatable {
         .accessibilityLabel(accessibilityText)
         .accessibilityAddTraits(.isButton)
         .scaleEffect(focused ? Theme.CardSize.focusScale : 1.0)
-        // Apple TV style: a soft black drop plus a colored glow in the artwork's accent.
+        #if os(tvOS)
+        // Apple TV app style: focus lifts the card with a deep soft shadow and a
+        // clean white ring — light, not color, signals focus.
+        .shadow(color: .black.opacity(focused ? 0.7 : 0.0),
+                radius: focused ? 30 : 0, x: 0, y: 18)
+        #else
+        // iOS keeps the soft black drop plus an artwork-tinted glow.
         .shadow(color: .black.opacity(focused ? 0.65 : 0.0),
                 radius: focused ? 28 : 0, x: 0, y: 14)
         .shadow(color: focused ? accent.opacity(0.5) : .clear,
                 radius: focused ? 30 : 0, x: 0, y: 0)
+        #endif
         .animation(.easeOut(duration: 0.18), value: focused)
         .zIndex(focused ? 1 : 0)
         .onChange(of: focused) { _, isFocused in
             // When a card gains focus, tint the UI with its artwork color.
             if isFocused { AccentManager.shared.deriveAccent(from: item.posterURL) }
         }
+    }
+
+    /// Focus ring color: pure white on tvOS (Apple TV app style), accent on iOS.
+    private var focusStrokeColor: Color {
+        #if os(tvOS)
+        return focused ? .white : Theme.Colors.separator
+        #else
+        return focused ? accent : Theme.Colors.separator
+        #endif
     }
 
     // MARK: - Artwork
@@ -98,8 +101,7 @@ struct MediaCard: View, Equatable {
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .stroke(focused ? accent : Theme.Colors.separator,
-                                lineWidth: focused ? 4 : 1)
+                        .stroke(focusStrokeColor, lineWidth: focused ? 4 : 1)
                 )
 
             // Source chip + favorite marker.

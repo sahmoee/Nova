@@ -29,6 +29,9 @@ struct VLCPlayerView: View {
 
     @StateObject private var model: VLCPlayerModel
     @State private var controlsVisible = false
+    #if os(tvOS)
+    @FocusState private var playPauseFocused: Bool
+    #endif
     @State private var showDiagnostics = false
     @AppStorage("player.minimalControls") private var minimalControls = false
     @State private var resumePromptPosition: TimeInterval?
@@ -103,20 +106,21 @@ struct VLCPlayerView: View {
 
                 #if os(iOS)
                 #else
-                // tvOS: left/right swipes on the remote touchpad skip; up/down or
-                // select reveal the controls. Play/pause toggles playback. The catcher
-                // only takes focus while controls are hidden - once they're visible,
-                // focus moves to the overlay buttons (top bar and transport).
+                // tvOS: while controls are hidden, left/right swipes skip silently
+                // (like the Apple TV app); select, up, or down reveals the control
+                // overlay and moves focus onto it so play/pause and subtitles are
+                // reachable. Once visible, this catcher gives up focus entirely.
                 Color.clear
                     .focusable(!controlsVisible)
                     .onMoveCommand { direction in
                         switch direction {
-                        case .left:  model.skipBackward(10); revealControls()
-                        case .right: model.skipForward(10); revealControls()
+                        case .left:  model.skipBackward(10)
+                        case .right: model.skipForward(10)
                         default:     revealControls()
                         }
                     }
-                    .onPlayPauseCommand { model.togglePlayPause(); revealControls() }
+                    .onTapGesture { revealControls() }
+                    .onPlayPauseCommand { model.togglePlayPause() }
                 #endif
             case .failed(let message):
                 ErrorStateView(
@@ -421,6 +425,9 @@ struct VLCPlayerView: View {
                     controlButton(model.isPlaying ? "pause.fill" : "play.fill", large: true) {
                         model.togglePlayPause(); revealControls()
                     }
+                    #if os(tvOS)
+                    .focused($playPauseFocused)
+                    #endif
                     if !minimalControls {
                         controlButton("goforward.15") { model.skipForward() }
                         if hasNextEpisode {
@@ -642,6 +649,14 @@ struct VLCPlayerView: View {
     private func revealControls() {
         controlsVisible = true
         scheduleHideControls()
+        #if os(tvOS)
+        // Give SwiftUI a beat to make the overlay focusable, then land focus on
+        // play/pause so the transport and subtitles are immediately reachable.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 80_000_000)
+            playPauseFocused = true
+        }
+        #endif
     }
 
     private func hideControls() {

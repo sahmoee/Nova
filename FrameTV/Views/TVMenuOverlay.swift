@@ -108,16 +108,16 @@ private struct TVMenuButtonBody: View {
 
     var body: some View {
         configuration.label
-            .foregroundStyle(isFocused ? .white : (isSelected ? accent : Theme.Colors.textSecondary))
+            .foregroundStyle(isFocused ? .black : (isSelected ? .white : Theme.Colors.textSecondary))
             .background(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(isFocused ? accent : (isSelected ? accent.opacity(0.18) : Theme.Colors.card))
+                    .fill(isFocused ? Color.white : (isSelected ? Color.white.opacity(0.18) : Color.white.opacity(0.08)))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .strokeBorder(isSelected && !isFocused ? accent : .clear, lineWidth: 2)
+                    .strokeBorder(isSelected && !isFocused ? Color.white.opacity(0.5) : .clear, lineWidth: 2)
             )
-            .shadow(color: isFocused ? accent.opacity(0.45) : .clear,
+            .shadow(color: isFocused ? Color.black.opacity(0.55) : .clear,
                     radius: isFocused ? 24 : 0, y: isFocused ? 10 : 0)
             .scaleEffect(isFocused ? 1.07 : 1.0)
             .animation(.easeOut(duration: 0.18), value: isFocused)

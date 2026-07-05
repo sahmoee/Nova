@@ -53,6 +53,13 @@ struct FocusableButtonStyle: ButtonStyle {
         }
 
         private var background: some ShapeStyle {
+            #if os(tvOS)
+            // Apple TV app style: the focused button fills white; unfocused stays a
+            // dim translucent pill. Prominent buttons are white when focused too.
+            if active { return AnyShapeStyle(Color.white) }
+            if prominent { return AnyShapeStyle(Color.white.opacity(0.24)) }
+            return AnyShapeStyle(Color.white.opacity(0.12))
+            #else
             if prominent {
                 if Theme.uiStyle == .refined {
                     return AnyShapeStyle(
@@ -63,11 +70,16 @@ struct FocusableButtonStyle: ButtonStyle {
                 return AnyShapeStyle(accent)
             }
             return AnyShapeStyle(active ? accent.opacity(0.9) : Theme.Colors.card)
+            #endif
         }
 
         private var foreground: Color {
+            #if os(tvOS)
+            return active ? .black : .white
+            #else
             if prominent { return .white }
             return active ? .white : Theme.Colors.textPrimary
+            #endif
         }
 
         var body: some View {
@@ -78,6 +90,9 @@ struct FocusableButtonStyle: ButtonStyle {
                 .background(background)
                 .foregroundStyle(foreground)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                #if os(tvOS)
+                .shadow(color: .black.opacity(active ? 0.55 : 0), radius: active ? 18 : 0, y: active ? 10 : 0)
+                #else
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
                         .stroke(active ? accent : (refined && !prominent ? Color.white.opacity(0.06) : .clear),
@@ -86,6 +101,7 @@ struct FocusableButtonStyle: ButtonStyle {
                 .shadow(color: prominent && refined ? accent.opacity(0.35) : (active ? accent.opacity(0.45) : .clear),
                         radius: prominent && refined ? 14 : (active ? 20 : 0),
                         y: prominent && refined ? 5 : (active ? 6 : 0))
+                #endif
                 .scaleEffect(active ? 1.06 : 1.0)
                 .animation(.easeOut(duration: 0.18), value: active)
         }
