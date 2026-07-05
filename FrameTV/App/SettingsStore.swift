@@ -65,6 +65,8 @@ final class SettingsStore: ObservableObject {
         static let textSizeBoost = "settings.textSizeBoost"
         static let homeStyle = "settings.homeStyle"
         static let libraryStyle = "settings.libraryStyle"
+        static let showTraktInLibrary = "settings.showTraktInLibrary"
+        static let pinnedCollections = "settings.pinnedCollections"
         static let libraryColumnCount = "settings.libraryColumnCount"
         static let tabBarStyle = "settings.tabBarStyle"
         static let uiStyle = "settings.uiStyle"
@@ -269,6 +271,23 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    /// Whether the Library shows Trakt tabs (Watchlist / Trending) alongside the
+    /// local filters. Off by default until the user opts in.
+    @Published var showTraktInLibrary: Bool {
+        didSet { defaults.set(showTraktInLibrary, forKey: Key.showTraktInLibrary); CloudSync.shared.setBool(showTraktInLibrary, forKey: Key.showTraktInLibrary) }
+    }
+
+    /// Collections the user has pinned as Library filter pills. Stored as UUID
+    /// strings; unpinned collections stay accessible from the Collections manager.
+    @Published var pinnedCollections: [String] {
+        didSet {
+            defaults.set(pinnedCollections, forKey: Key.pinnedCollections)
+            if let data = try? JSONEncoder().encode(pinnedCollections) {
+                CloudSync.shared.setData(data, forKey: Key.pinnedCollections)
+            }
+        }
+    }
+
     /// The iOS tab bar look: the new floating translucent pill (default) or the
     /// standard system tab bar. tvOS is unaffected (it uses a menu overlay).
     @Published var tabBarStyle: TabBarStyle {
@@ -420,6 +439,8 @@ final class SettingsStore: ObservableObject {
         ) ?? .cinematic
         let storedCols = defaults.object(forKey: Key.libraryColumnCount) as? Int
         self.libraryColumnCount = storedCols.map { min(max($0, 2), 5) } ?? 3
+        self.showTraktInLibrary = defaults.bool(forKey: Key.showTraktInLibrary)
+        self.pinnedCollections = defaults.stringArray(forKey: Key.pinnedCollections) ?? []
         self.libraryStyle = LibraryStyle(
             rawValue: defaults.string(forKey: Key.libraryStyle) ?? LibraryStyle.clean.rawValue
         ) ?? .clean

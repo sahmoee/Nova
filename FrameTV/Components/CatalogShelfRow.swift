@@ -21,20 +21,26 @@ struct CatalogShelfRow: View {
 
     var body: some View {
         Group {
-            if !loaded || !items.isEmpty {
+            if !loaded || !items.isEmpty || shelf.kind.sourceLabel == "Trakt" {
                 VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                     header
                     if loaded {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            LazyHStack(spacing: Theme.Spacing.md) {
-                                ForEach(items) { item in
-                                    NavigationLink(value: item) {
-                                        posterCard(item)
+                        if items.isEmpty {
+                            // Trakt shelves never disappear: show why they're empty so
+                            // the row is always present and discoverable.
+                            traktEmptyHint
+                        } else {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                LazyHStack(spacing: Theme.Spacing.md) {
+                                    ForEach(items) { item in
+                                        NavigationLink(value: item) {
+                                            posterCard(item)
+                                        }
+                                        .buttonStyle(FrameListRowStyle())
                                     }
-                                    .buttonStyle(FrameListRowStyle())
                                 }
+                                .padding(.horizontal, Theme.Spacing.edge)
                             }
-                            .padding(.horizontal, Theme.Spacing.edge)
                         }
                     } else {
                         loadingRow
@@ -67,6 +73,22 @@ struct CatalogShelfRow: View {
             Spacer()
         }
         .padding(.horizontal, Theme.Spacing.edge)
+    }
+
+        /// Shown when a Trakt shelf loads empty (not connected, or list empty) so the
+    /// row never silently disappears from Discover or Home.
+    private var traktEmptyHint: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: "person.crop.circle.badge.questionmark")
+                .font(.appFont(20))
+                .foregroundStyle(Theme.Colors.textTertiary)
+            Text("Connect Trakt in Settings, or add titles to this list, to fill this row.")
+                .font(.appFont(15))
+                .foregroundStyle(Theme.Colors.textSecondary)
+            Spacer()
+        }
+        .padding(.horizontal, Theme.Spacing.edge)
+        .padding(.vertical, Theme.Spacing.sm)
     }
 
     private var loadingRow: some View {
