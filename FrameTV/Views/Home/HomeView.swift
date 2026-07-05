@@ -64,7 +64,7 @@ struct HomeView: View {
 
     private var classicContent: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
                 if !env.tmdb.hasKey {
                     setupBanner
                 }
@@ -126,7 +126,7 @@ struct HomeView: View {
 
     private var cinematicContent: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
                 if !env.tmdb.hasKey {
                     setupBanner
                 }
@@ -186,6 +186,26 @@ struct HomeView: View {
             header
         } else {
             VStack(spacing: Theme.Spacing.sm) {
+                #if os(tvOS)
+                // On tvOS a paged TabView injects a _UIReplicantView into the hosting
+                // controller (console warnings) and draws its own top page indicator.
+                // Show a single hero for the current index instead; the custom dots
+                // below are the only indicator.
+                let current = items[min(heroIndex, items.count - 1)]
+                FeaturedHero(item: current) { play($0) }
+                    .overlay(alignment: .topTrailing) { customizeButton }
+                    .overlay(alignment: .topLeading) { brandMark }
+                    .frame(height: 620)
+                    .id(current.id)
+                    .transition(.opacity)
+                    .task(id: heroIndex) {
+                        try? await Task.sleep(for: .seconds(8))
+                        guard !Task.isCancelled, items.count > 1 else { return }
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                            heroIndex = (heroIndex + 1) % items.count
+                        }
+                    }
+                #else
                 TabView(selection: $heroIndex) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
                         FeaturedHero(item: item) { play($0) }
@@ -194,13 +214,8 @@ struct HomeView: View {
                             .tag(idx)
                     }
                 }
-                #if os(iOS)
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .frame(height: Theme.isCompact ? 300 : 440)
-                #else
-                .tabViewStyle(.automatic)
-                .frame(height: 620)
-                #endif
                 // Gentle auto-advance so the hero rotates like a marquee; any manual
                 // swipe just restarts the interval on the new index.
                 .task(id: heroIndex) {
@@ -211,6 +226,7 @@ struct HomeView: View {
                         heroIndex = (heroIndex + 1) % items.count
                     }
                 }
+                #endif
 
                 // Page dots.
                 if items.count > 1 {
