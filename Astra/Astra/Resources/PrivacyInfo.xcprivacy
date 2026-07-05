@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Astra privacy manifest (PrivacyInfo.xcprivacy).
+	  Astra has no analytics, no third-party SDKs that collect data, and no tracking.
+	  It stores the user's library/settings locally and only contacts services the user
+	  configures. This manifest declares that, plus the "required reason" APIs it uses.
+
+	  IMPORTANT: In Xcode, add this file to BOTH the iOS and tvOS targets (File Inspector >
+	  Target Membership), so it ships inside each app bundle.
+	-->
+
+	<!-- The app does not track users across apps/websites owned by other companies. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+
+	<!-- No tracking domains. -->
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<!--
+	  Data the app collects. Astra does not collect data in the App Store privacy
+	  sense: nothing is sent to the developer, there is no analytics, and credentials
+	  stay in the Keychain / on device. Library and search data only leave the device
+	  when the user enables optional AI by configuring their own Worker, and in that case
+	  the data goes to the user's own service, not to the developer. So this array is
+	  empty (no developer data collection).
+	-->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+
+	<!--
+	  Required-reason API declarations. Each API Apple flags must list an approved reason.
+	-->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<!-- UserDefaults: used to store this app's own settings and preferences. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+
+		<!--
+		  File timestamp APIs: used to read/write timestamps of files inside the app's
+		  own container (e.g. cache freshness for offline metadata).
+		-->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
