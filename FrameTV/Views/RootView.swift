@@ -21,6 +21,7 @@ struct RootView: View {
     @AppStorage("hasSeenPersonalMediaDisclosure") private var hasSeenDisclosure = false
     @State private var reopenItem: MediaItem?
     @State private var showTVMenu = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         rootContent
@@ -46,6 +47,16 @@ struct RootView: View {
                 }
             }
             .onAppear(perform: maybeOfferRestore)
+            .onAppear(perform: autoSyncFromCloud)
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    autoSyncFromCloud()
+                } else if phase == .background {
+                    // Keep the cloud snapshot fresh so other devices pull this
+                    // device's latest preferences, sources, and addons on open.
+                    BackupManager.shared.createBackup()
+                }
+            }
             .onAppear(perform: maybeShowWhatsNew)
             .sheet(isPresented: $showWhatsNew) {
                 WhatsNewView(note: WhatsNewTracker.shared.currentNote) {
@@ -277,6 +288,15 @@ struct RootView: View {
         guard !offerRestore else { return }
         if WhatsNewTracker.shared.shouldShow() {
             showWhatsNew = true
+        }
+    }
+
+    /// Applies any newer iCloud snapshot from the user's other devices silently, so
+    /// preferences, sources, and addons follow them across iPhone, iPad, and Apple TV
+    /// automatically on open. Secrets stay opt-in via the explicit restore flow.
+    private func autoSyncFromCloud() {
+        if BackupManager.shared.autoSyncOnLaunch() {
+            ToastCenter.shared.show("Synced from iCloud", systemImage: "checkmark.icloud.fill")
         }
     }
 

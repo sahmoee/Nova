@@ -82,6 +82,13 @@ final class CloudSync: ObservableObject {
         store.synchronize()
     }
 
+    /// Pulls the latest values down from iCloud. `synchronize()` both pushes pending
+    /// writes and makes the newest server values available locally, so this is used
+    /// on launch/foreground before reading a snapshot.
+    func pull() {
+        store.synchronize()
+    }
+
     // MARK: - Coalesced flush
     //
     // iCloud KVS throttles synchronize() calls, so instead of flushing on every
