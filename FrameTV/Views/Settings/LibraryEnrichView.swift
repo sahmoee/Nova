@@ -50,10 +50,14 @@ private struct LibraryEnrichContent: View {
                         .opacity((AISearchService.isConfigured && cleanTitles) ? 1 : 0.5)
 
                     if enricher.isRunning {
-                        HStack(spacing: Theme.Spacing.sm) {
-                            ProgressView().tint(Theme.Colors.accent)
-                            Text(enricher.progress ?? "Working…")
-                                .font(.appFont(15)).foregroundStyle(Theme.Colors.textSecondary)
+                        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                            HStack(spacing: Theme.Spacing.sm) {
+                                ProgressView().tint(Theme.Colors.accent)
+                                Text(enricher.progress ?? "Working…")
+                                    .font(.appFont(15)).foregroundStyle(Theme.Colors.textSecondary)
+                            }
+                            ProgressView(value: enricher.fractionComplete)
+                                .tint(Theme.Colors.accent)
                         }
                     } else if let summary = enricher.lastSummary {
                         Label(summary, systemImage: "checkmark.circle.fill")

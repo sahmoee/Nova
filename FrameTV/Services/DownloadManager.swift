@@ -18,6 +18,7 @@ final class DownloadManager: ObservableObject {
     @Published var lastError: String?
 
     private var tasks: [UUID: URLSessionDownloadTask] = [:]
+    private var sessions: [UUID: URLSession] = [:]
     private let fileManager = FileManager.default
 
     private var downloadsDir: URL {
@@ -74,6 +75,8 @@ final class DownloadManager: ObservableObject {
                     guard let self else { return }
                     self.tasks[item.id] = nil
                     self.progress[item.id] = nil
+                    self.sessions[item.id]?.finishTasksAndInvalidate()
+                    self.sessions[item.id] = nil
                     do {
                         if self.fileManager.fileExists(atPath: dest.path) {
                             try self.fileManager.removeItem(at: dest)
@@ -89,11 +92,14 @@ final class DownloadManager: ObservableObject {
                 Task { @MainActor in
                     self?.tasks[item.id] = nil
                     self?.progress[item.id] = nil
+                    self?.sessions[item.id]?.finishTasksAndInvalidate()
+                    self?.sessions[item.id] = nil
                     self?.lastError = message
                 }
             }
         )
         let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        sessions[item.id] = session
         let task = session.downloadTask(with: item.playbackURL)
         tasks[item.id] = task
         task.resume()
@@ -102,6 +108,8 @@ final class DownloadManager: ObservableObject {
     func cancel(_ item: MediaItem) {
         tasks[item.id]?.cancel()
         tasks[item.id] = nil
+        sessions[item.id]?.invalidateAndCancel()
+        sessions[item.id] = nil
         progress[item.id] = nil
     }
 

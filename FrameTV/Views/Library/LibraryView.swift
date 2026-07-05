@@ -89,6 +89,14 @@ struct LibraryView: View {
                                                 .foregroundStyle(selectedIDs.contains(item.id) ? Theme.Colors.accent : .white)
                                                 .padding(8)
                                                 .shadow(radius: 3)
+                                        } else if env.downloadManager.isDownloading(item) {
+                                            downloadBadge(for: item)
+                                        } else if env.downloadManager.isDownloaded(item) {
+                                            Image(systemName: "arrow.down.circle.fill")
+                                                .font(.appFont(20))
+                                                .foregroundStyle(Theme.Colors.accent)
+                                                .padding(8)
+                                                .shadow(radius: 3)
                                         }
                                     }
                                     .contextMenu {
@@ -100,6 +108,7 @@ struct LibraryView: View {
                                             }
                                         }
                                         Button {
+                                            Haptics.impact(.light)
                                             library.toggleFavorite(item)
                                         } label: {
                                             Label(item.isFavorite ? "Unfavorite" : "Favorite",
@@ -127,6 +136,7 @@ struct LibraryView: View {
                             }
                             .padding(.horizontal, Theme.Spacing.edge)
                             .padding(.vertical, Theme.Spacing.md)
+                            .animation(.easeInOut(duration: 0.25), value: displayedItems.count)
                         }
                     }
                 }
@@ -146,6 +156,10 @@ struct LibraryView: View {
             openPendingContent(key)
         }
         .onAppear { openPendingContent(nav.pendingContentKey) }
+        .onChange(of: displayedItems) { _, items in
+            // Warm the image cache for the visible library so posters appear instantly.
+            ImageLoader.shared.prefetch(items.compactMap(\.posterURL), maxPixel: 700)
+        }
     }
 
     /// Opens the library item matching a deep-link content key, then clears the
@@ -360,6 +374,20 @@ struct LibraryView: View {
         return copy
     }
 
+    @ViewBuilder private func downloadBadge(for item: MediaItem) -> some View {
+        let fraction = env.downloadManager.progress[item.id] ?? 0
+        ZStack {
+            Circle().fill(.black.opacity(0.55)).frame(width: 34, height: 34)
+            Circle()
+                .trim(from: 0, to: max(0.02, fraction))
+                .stroke(Theme.Colors.accent, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .frame(width: 26, height: 26)
+        }
+        .padding(8)
+        .shadow(radius: 3)
+    }
+
     @ViewBuilder private func downloadMenuItems(for item: MediaItem) -> some View {
         if env.downloadManager.isDownloaded(item) {
             Button(role: .destructive) {
@@ -371,6 +399,7 @@ struct LibraryView: View {
             } label: { Label("Cancel Download", systemImage: "xmark.circle") }
         } else {
             Button {
+                Haptics.impact(.medium)
                 env.downloadManager.download(item)
             } label: { Label("Download", systemImage: "arrow.down.circle") }
         }

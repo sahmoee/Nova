@@ -19,6 +19,7 @@ struct HomeView: View {
     @State private var detailTarget: CatalogItem?
     @State private var showCustomize = false
     @State private var heroIndex = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showQueue = false
 
     var body: some View {
@@ -63,7 +64,7 @@ struct HomeView: View {
 
     private var classicContent: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
+            LazyVStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
                 if !env.tmdb.hasKey {
                     setupBanner
                 }
@@ -125,7 +126,7 @@ struct HomeView: View {
 
     private var cinematicContent: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
+            LazyVStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
                 if !env.tmdb.hasKey {
                     setupBanner
                 }
@@ -203,6 +204,7 @@ struct HomeView: View {
                 // Gentle auto-advance so the hero rotates like a marquee; any manual
                 // swipe just restarts the interval on the new index.
                 .task(id: heroIndex) {
+                    guard !reduceMotion else { return }
                     try? await Task.sleep(for: .seconds(8))
                     guard !Task.isCancelled, items.count > 1 else { return }
                     withAnimation(.easeInOut(duration: 0.5)) {

@@ -11,6 +11,7 @@ import SwiftUI
 
 struct LoadingView: View {
     var message: String = "Loading…"
+    @State private var appeared = false
 
     var body: some View {
         VStack(spacing: Theme.Spacing.md) {
@@ -22,6 +23,8 @@ struct LoadingView: View {
                 .foregroundStyle(Theme.Colors.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .opacity(appeared ? 1 : 0)
+        .task { withAnimation(.easeOut(duration: 0.3)) { appeared = true } }
     }
 }
 
@@ -33,12 +36,14 @@ struct EmptyStateView: View {
     var message: String
     var actionTitle: String? = nil
     var action: (() -> Void)? = nil
+    @State private var appeared = false
 
     var body: some View {
         VStack(spacing: Theme.Spacing.md) {
             Image(systemName: systemImage)
                 .font(.appFont(72))
                 .foregroundStyle(Theme.Colors.textTertiary)
+                .scaleEffect(appeared ? 1 : 0.85)
             Text(title)
                 .font(.appFont(30, weight: .bold))
                 .foregroundStyle(Theme.Colors.textPrimary)
@@ -55,6 +60,8 @@ struct EmptyStateView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(Theme.Spacing.xl)
+        .opacity(appeared ? 1 : 0)
+        .task { withAnimation(.easeOut(duration: 0.35)) { appeared = true } }
     }
 }
 

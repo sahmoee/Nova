@@ -7,12 +7,22 @@
 
 import SwiftUI
 
-struct MediaCard: View {
+struct MediaCard: View, Equatable {
     let item: MediaItem
     var wide: Bool = false
     /// When true, an episode is shown as its season entry (series name + "Season N").
     var seasonGrouped: Bool = false
     let action: () -> Void
+
+    static func == (lhs: MediaCard, rhs: MediaCard) -> Bool {
+        lhs.item.id == rhs.item.id
+            && lhs.item.title == rhs.item.title
+            && lhs.item.posterURL == rhs.item.posterURL
+            && lhs.item.lastPlayedPosition == rhs.item.lastPlayedPosition
+            && lhs.item.isFavorite == rhs.item.isFavorite
+            && lhs.wide == rhs.wide
+            && lhs.seasonGrouped == rhs.seasonGrouped
+    }
 
     @FocusState private var focused: Bool
     @Environment(\.dynamicAccent) private var accent
@@ -49,7 +59,10 @@ struct MediaCard: View {
     }
 
     var body: some View {
-        Button(action: action) {
+        Button(action: {
+            Haptics.selection()
+            action()
+        }) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 artwork
                 titleBlock

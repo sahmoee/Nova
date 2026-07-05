@@ -76,7 +76,15 @@ struct LiveTVView: View {
 
     @ViewBuilder private var playlistChannelsSection: some View {
         let channels = env.liveTVSources.allChannels
-        if !channels.isEmpty {
+        if channels.isEmpty && env.liveTVSources.isLoading {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Text("From Your Sources")
+                    .font(.appFont(22, weight: .bold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .padding(.horizontal, Theme.Spacing.edge)
+                SkeletonRow(count: 6)
+            }
+        } else if !channels.isEmpty {
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 Text("From Your Sources")
                     .font(.appFont(22, weight: .bold))
