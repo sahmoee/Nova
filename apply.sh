@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$SCRIPT_DIR")"
 cd "$REPO_ROOT"
 
-TARGET="FrameTV/Services/DownloadManager.swift"
+TARGET="Astra/Services/DownloadManager.swift"
 if [[ -f "$TARGET" ]]; then
   rm -f "$TARGET"
   echo "Deleted $TARGET"

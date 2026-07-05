@@ -1,7 +1,7 @@
 /**
- * FrameTV AI Worker
+ * Astra AI Worker
  * -----------------
- * A small Cloudflare Worker that sits between the FrameTV app and the Anthropic API.
+ * A small Cloudflare Worker that sits between the Astra app and the Anthropic API.
  * The app never holds your Anthropic API key; this Worker does, in an environment
  * secret. The app talks to this Worker; the Worker talks to Claude.
  *
@@ -24,10 +24,10 @@
  *
  * SECURITY
  *   - ANTHROPIC_API_KEY is read from the environment (a Wrangler secret). Never hard-code it.
- *   - Optional FRAMETV_SHARED_TOKEN: if set, requests must send header
+ *   - Optional ASTRA_SHARED_TOKEN: if set, requests must send header
  *       Authorization: Bearer <token>
  *     This stops strangers who find your Worker URL from spending your API credits.
- *     (The app does not send this header yet; leave FRAMETV_SHARED_TOKEN unset for now,
+ *     (The app does not send this header yet; leave ASTRA_SHARED_TOKEN unset for now,
  *      or add the header in the app before enabling it.)
  *
  * MODEL
@@ -57,10 +57,10 @@ export default {
     }
 
     // Optional shared-token gate.
-    if (env.FRAMETV_SHARED_TOKEN) {
+    if (env.ASTRA_SHARED_TOKEN) {
       const auth = request.headers.get("Authorization") || "";
       const token = auth.replace(/^Bearer\s+/i, "");
-      if (token !== env.FRAMETV_SHARED_TOKEN) {
+      if (token !== env.ASTRA_SHARED_TOKEN) {
         return json({ error: "Unauthorized" }, 401);
       }
     }

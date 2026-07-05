@@ -11,7 +11,7 @@ cd "$REPO_ROOT"
 # showed ghost entries named like App Icon - App Store, App Icon - App Store 1, and
 # App Icon - App Store 2 with unassigned slots. The single correct App Store icon now
 # lives in App Store.imagestack, so purge the strays before committing.
-BRAND="FrameTV/Resources/Assets-tvOS.xcassets/App Icon & Top Shelf Image.brandassets"
+BRAND="Astra/Resources/Assets-tvOS.xcassets/App Icon & Top Shelf Image.brandassets"
 if [[ -d "$BRAND" ]]; then
   find "$BRAND" -maxdepth 1 -type d -name "App Icon - App Store*.imagestack" -print -exec rm -rf {} + 2>/dev/null || true
 fi

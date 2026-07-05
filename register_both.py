@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import re, uuid, os
 here = os.path.dirname(os.path.abspath(__file__))
-pbx = os.path.join(here, "FrameTV.xcodeproj", "project.pbxproj")
+pbx = os.path.join(here, "Astra.xcodeproj", "project.pbxproj")
 s = open(pbx).read()
 def gen(): return uuid.uuid4().hex[:24].upper()
 
@@ -36,7 +36,7 @@ print("DownloadManager:", "registered" if c1 else "already present")
 print("SkeletonGrid:", "registered" if c2 else "already present")
 
 # Ensure AppEnvironment creates the download manager.
-env = os.path.join(here, "FrameTV", "App", "AppEnvironment.swift")
+env = os.path.join(here, "Astra", "App", "AppEnvironment.swift")
 if os.path.exists(env):
     e = open(env).read()
     if "downloadManager" not in e and "let libraryEnricher = LibraryEnricher()" in e:

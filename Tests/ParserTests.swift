@@ -8,7 +8,7 @@
 //
 
 import XCTest
-@testable import FrameTV
+@testable import Astra
 
 final class StreamRankerTests: XCTestCase {
 

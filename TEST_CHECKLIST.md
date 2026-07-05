@@ -1,4 +1,4 @@
-# FrameTV — Test Checklist
+# Astra — Test Checklist
 
 A manual pass to run on the **Apple TV simulator** and on a **physical Apple TV**, plus a quick
 iOS/iPadOS smoke test. Check each item; note anything that fails for follow-up.
@@ -6,8 +6,8 @@ iOS/iPadOS smoke test. Check each item; note anything that fails for follow-up.
 ## Setup
 
 - [ ] Project opens in Xcode with no missing-file (red) references.
-- [ ] **FrameTV-tvOS** scheme builds and runs on an Apple TV simulator (for example Apple TV 4K).
-- [ ] **FrameTV-iOS** scheme builds and runs on an iPhone simulator.
+- [ ] **Astra-tvOS** scheme builds and runs on an Apple TV simulator (for example Apple TV 4K).
+- [ ] **Astra-iOS** scheme builds and runs on an iPhone simulator.
 - [ ] On first launch, the Home screen shows seeded public-domain sample videos.
 
 ## Navigation & focus (tvOS)
@@ -86,7 +86,7 @@ iOS/iPadOS smoke test. Check each item; note anything that fails for follow-up.
 
 ### Credentials & config
 - [ ] Settings ▸ Metadata & Accounts saves a TMDB key (shows "Set" badge afterward).
-- [ ] A FrameTVConfig.json placed in Documents is picked up as a fallback when no in-app key is set.
+- [ ] A AstraConfig.json placed in Documents is picked up as a fallback when no in-app key is set.
 - [ ] In-app keys take priority over the config file.
 
 ### Discover & detail

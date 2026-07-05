@@ -16,7 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$SCRIPT_DIR")"
 cd "$REPO_ROOT"
 
-PBX="FrameTV.xcodeproj/project.pbxproj"
+PBX="Astra.xcodeproj/project.pbxproj"
 if [[ ! -f "$PBX" ]]; then
   echo "error: project file not found at $PBX" >&2
   exit 1

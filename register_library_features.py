@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import re, uuid, os
 here=os.path.dirname(os.path.abspath(__file__))
-pbx=os.path.join(here,"FrameTV.xcodeproj","project.pbxproj")
+pbx=os.path.join(here,"Astra.xcodeproj","project.pbxproj")
 s=open(pbx).read()
 def gen(): return uuid.uuid4().hex[:24].upper()
 def register(s, fname, anchor):
