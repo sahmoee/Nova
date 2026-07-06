@@ -333,7 +333,7 @@ actor TMDBClient {
                 try await self.session.data(for: req)
             }
         } catch {
-            FrameLog.network.error("TMDB request failed: \(error.localizedDescription, privacy: .public)")
+            AstraLog.network.error("TMDB request failed: \(error.localizedDescription, privacy: .public)")
             throw TMDBError.network(error)
         }
         guard let http = response as? HTTPURLResponse else { throw TMDBError.http(-1) }

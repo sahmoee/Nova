@@ -114,17 +114,17 @@ struct SettingsView: View {
             NavigationLink { SetupChecklistView() } label: {
                 settingRow("Setup Checklist", systemImage: "checklist",
                            detail: "Get started")
-            }.frameRowStyle()
+            }.astraRowStyle()
             NavigationLink { SourcesView(path: $sourcesPath) } label: {
                 settingRow("Sources & Health", systemImage: "point.3.connected.trianglepath.dotted",
                            detail: sourcesHealthDetail)
-            }.frameRowStyle()
+            }.astraRowStyle()
 
             if !settings.reviewSafeMode {
                 NavigationLink { RealDebridView() } label: {
                     settingRow("Real-Debrid Account", systemImage: "arrow.down.circle",
                                detail: KeychainStore.shared.realDebridToken == nil ? "Not connected" : "Connected")
-                }.frameRowStyle()
+                }.astraRowStyle()
             }
 
             // SMB Shares temporarily hidden while the SMB sign-in issue is sorted out.
@@ -133,30 +133,30 @@ struct SettingsView: View {
                 NavigationLink { AddonsView() } label: {
                     settingRow("Addons", systemImage: "puzzlepiece.extension",
                                detail: "\(env.addonStore.addons.count) installed")
-                }.frameRowStyle()
+                }.astraRowStyle()
             }
 
             NavigationLink { DirectURLView() } label: {
                 settingRow("Play from URL", systemImage: "link",
                            detail: "Open a direct video link")
-            }.frameRowStyle()
+            }.astraRowStyle()
 
             if !settings.reviewSafeMode {
                 NavigationLink { MagnetView() } label: {
                     settingRow("Play from Magnet", systemImage: "scope",
                                detail: "Via Real-Debrid")
-                }.frameRowStyle()
+                }.astraRowStyle()
             }
 
             NavigationLink { AccountsView() } label: {
                 settingRow("Metadata & Accounts", systemImage: "key",
                            detail: "TMDB · Trakt · Subtitles")
-            }.frameRowStyle()
+            }.astraRowStyle()
 
             NavigationLink { AISearchSettingsView() } label: {
                 settingRow("AI Search", systemImage: "sparkles",
                            detail: AISearchService.isConfigured ? "Ready" : "Set up")
-            }.frameRowStyle()
+            }.astraRowStyle()
         }
     }
 
@@ -165,14 +165,14 @@ struct SettingsView: View {
             NavigationLink { BackupView() } label: {
                 settingRow("iCloud Backup & Restore", systemImage: "icloud.and.arrow.up",
                            detail: backupDetail)
-            }.frameRowStyle()
+            }.astraRowStyle()
 
             NavigationLink {
                 WhatsNewView(note: WhatsNewTracker.shared.currentNote) {}
             } label: {
                 settingRow("What's New", systemImage: "sparkles",
                            detail: "Version \(WhatsNewTracker.shared.currentVersion) · Build \(WhatsNewTracker.shared.currentBuild)")
-            }.frameRowStyle()
+            }.astraRowStyle()
         }
     }
 
@@ -259,7 +259,7 @@ struct SettingsView: View {
             NavigationLink { PlayerSettingsView() } label: {
                 settingRow("Player", systemImage: "play.rectangle.on.rectangle",
                            detail: playerDetail)
-            }.frameRowStyle()
+            }.astraRowStyle()
             toggleRow("Resume Playback", systemImage: "play.circle",
                       isOn: $settings.resumePlaybackEnabled)
             toggleRow("Auto-Play Next Episode", systemImage: "forward.end",
@@ -391,19 +391,16 @@ struct SettingsView: View {
 
     private var librarySection: some View {
         section("Library") {
-            NavigationLink { LibraryFoldersView() } label: {
-                settingRow("Library Folders", systemImage: "folder.badge.plus", detail: "Add folders to scan")
-            }.frameRowStyle()
             NavigationLink { LibraryEnrichView() } label: {
                 settingRow("Clean Up Library", systemImage: "wand.and.stars", detail: "Titles & images")
-            }.frameRowStyle()
+            }.astraRowStyle()
             NavigationLink { LibraryQualityView() } label: {
                 settingRow("Library Health", systemImage: "checkmark.seal", detail: "Scan & fix")
-            }.frameRowStyle()
+            }.astraRowStyle()
             NavigationLink { DuplicatesView() } label: {
                 settingRow("Duplicate Cleanup", systemImage: "arrow.triangle.merge",
                            detail: duplicateCountDetail)
-            }.frameRowStyle()
+            }.astraRowStyle()
             toggleRow("Safe Mode", systemImage: "exclamationmark.shield",
                       isOn: $settings.safeMode)
             if settings.safeMode {
@@ -432,7 +429,7 @@ struct SettingsView: View {
                       isOn: $settings.requireLegalConfirmation)
             NavigationLink { PrivacyLegalView() } label: {
                 settingRow("Privacy & Legal Info", systemImage: "hand.raised", detail: "View")
-            }.frameRowStyle()
+            }.astraRowStyle()
         }
     }
 
@@ -441,11 +438,11 @@ struct SettingsView: View {
             NavigationLink { GuestModeView() } label: {
                 settingRow("Guest Mode", systemImage: "person.2",
                            detail: settings.guestMode ? "On" : "Off")
-            }.frameRowStyle()
+            }.astraRowStyle()
             if !settings.guestMode {
                 NavigationLink { DebugReportView() } label: {
                     settingRow("Debug Report", systemImage: "ladybug", detail: "Export")
-                }.frameRowStyle()
+                }.astraRowStyle()
             }
         }
     }
@@ -538,6 +535,6 @@ struct SettingsView: View {
             .padding(.vertical, Theme.Spacing.xs)
             .contentShape(Rectangle())
         }
-        .frameRowStyle()
+        .astraRowStyle()
     }
 }

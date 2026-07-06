@@ -102,7 +102,7 @@ final class LibraryStore: ObservableObject {
         // Skip if the payload exceeds iCloud KVS's per-value limit (~1MB); the local
         // file still holds everything, we just can't mirror an oversized library.
         guard data.count < 900_000 else {
-            FrameLog.sync.error("Library too large to sync to iCloud (\(data.count) bytes)")
+            AstraLog.sync.error("Library too large to sync to iCloud (\(data.count) bytes)")
             return
         }
         let rev = Date().timeIntervalSince1970
@@ -350,7 +350,7 @@ final class LibraryStore: ObservableObject {
                 subtitle = parts.joined(separator: " · ")
             }
             let key = item.contentID?.stableKey ?? item.contentKey
-            let link = "astra://\(isShow ? "show" : "movie")/\(key)"
+            let link = "frametv://\(isShow ? "show" : "movie")/\(key)"
             return WidgetEntry(
                 id: item.contentKey,
                 title: item.seriesTitle ?? item.title,
@@ -668,7 +668,6 @@ final class LibraryStore: ObservableObject {
     var libraryEntries: [MediaItem] {
         let sorted = items.sorted { $0.addedDate > $1.addedDate }
         var seenSeasonKeys = Set<String>()
-        var movieSlots: [String: Int] = [:]   // dedupe key -> index in result
         var result: [MediaItem] = []
         for item in sorted {
             if let ep = item.episode {
@@ -681,42 +680,10 @@ final class LibraryStore: ObservableObject {
                     result.append(item)   // first (most recent) episode represents the season
                 }
             } else {
-                // Movies: never show the same title twice. Prefer a real content ID,
-                // falling back to normalized title + year so two copies of the same
-                // film from different sources collapse into one card. The copy that
-                // was played most recently (or has resume progress) wins.
-                let key: String
-                if let raw = item.contentID?.stableKey, !raw.hasPrefix("unknown:") {
-                    key = raw
-                } else {
-                    let year = item.metadata.year.map(String.init) ?? ""
-                    key = "movie:\(item.title.lowercased())|\(year)"
-                }
-                if let slot = movieSlots[key] {
-                    let existing = result[slot]
-                    if prefersForDedupe(item, over: existing) {
-                        result[slot] = item
-                    }
-                } else {
-                    movieSlots[key] = result.count
-                    result.append(item)
-                }
+                result.append(item)       // movies and non-episodic content stay individual
             }
         }
         return result
-    }
-
-    /// True when `candidate` should represent the deduped entry instead of `current`:
-    /// the more recently played copy wins; with no play history on either, playback
-    /// progress wins; otherwise the newest addition (already first in sort) stays.
-    private func prefersForDedupe(_ candidate: MediaItem, over current: MediaItem) -> Bool {
-        switch (candidate.lastPlayedDate, current.lastPlayedDate) {
-        case let (c?, e?): return c > e
-        case (.some, .none): return true
-        case (.none, .some): return false
-        case (.none, .none):
-            return candidate.lastPlayedPosition > 0 && current.lastPlayedPosition == 0
-        }
     }
 
     func items(for source: SourceType) -> [MediaItem] {

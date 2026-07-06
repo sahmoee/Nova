@@ -19,7 +19,6 @@ struct HomeView: View {
     @State private var detailTarget: CatalogItem?
     @State private var showCustomize = false
     @State private var heroIndex = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showQueue = false
 
     var body: some View {
@@ -88,7 +87,7 @@ struct HomeView: View {
                             Button("Manage") { showQueue = true }
                                 .font(.appFont(17, weight: .semibold))
                                 .foregroundStyle(Theme.Colors.accent)
-                                .buttonStyle(FrameChipButtonStyle())
+                                .buttonStyle(AstraChipButtonStyle())
                         }
                         .padding(.horizontal, Theme.Spacing.edge)
                         MediaRow(title: "",
@@ -147,7 +146,7 @@ struct HomeView: View {
                             Button("Manage") { showQueue = true }
                                 .font(.appFont(17, weight: .semibold))
                                 .foregroundStyle(Theme.Colors.accent)
-                                .buttonStyle(FrameChipButtonStyle())
+                                .buttonStyle(AstraChipButtonStyle())
                         }
                         .padding(.horizontal, Theme.Spacing.edge)
                         MediaRow(title: "",
@@ -186,26 +185,6 @@ struct HomeView: View {
             header
         } else {
             VStack(spacing: Theme.Spacing.sm) {
-                #if os(tvOS)
-                // On tvOS a paged TabView injects a _UIReplicantView into the hosting
-                // controller (console warnings) and draws its own top page indicator.
-                // Show a single hero for the current index instead; the custom dots
-                // below are the only indicator.
-                let current = items[min(heroIndex, items.count - 1)]
-                FeaturedHero(item: current) { play($0) }
-                    .overlay(alignment: .topTrailing) { customizeButton }
-                    .overlay(alignment: .topLeading) { brandMark }
-                    .frame(height: 620)
-                    .id(current.id)
-                    .transition(.opacity)
-                    .task(id: heroIndex) {
-                        try? await Task.sleep(for: .seconds(8))
-                        guard !Task.isCancelled, items.count > 1 else { return }
-                        withAnimation(.easeInOut(duration: 0.5)) {
-                            heroIndex = (heroIndex + 1) % items.count
-                        }
-                    }
-                #else
                 TabView(selection: $heroIndex) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
                         FeaturedHero(item: item) { play($0) }
@@ -214,19 +193,22 @@ struct HomeView: View {
                             .tag(idx)
                     }
                 }
+                #if os(iOS)
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .frame(height: Theme.isCompact ? 300 : 440)
+                #else
+                .tabViewStyle(.automatic)
+                .frame(height: 620)
+                #endif
                 // Gentle auto-advance so the hero rotates like a marquee; any manual
                 // swipe just restarts the interval on the new index.
                 .task(id: heroIndex) {
-                    guard !reduceMotion else { return }
                     try? await Task.sleep(for: .seconds(8))
                     guard !Task.isCancelled, items.count > 1 else { return }
                     withAnimation(.easeInOut(duration: 0.5)) {
                         heroIndex = (heroIndex + 1) % items.count
                     }
                 }
-                #endif
 
                 // Page dots.
                 if items.count > 1 {
@@ -261,7 +243,7 @@ struct HomeView: View {
                         Button { openDiscover(tile) } label: {
                             discoverTileCard(tile)
                         }
-                        .frameRowStyle()
+                        .astraRowStyle()
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.edge)
@@ -402,7 +384,7 @@ struct HomeView: View {
                 .padding(Theme.Spacing.sm)
                 .background(.ultraThinMaterial, in: Circle())
         }
-        .frameIconStyle()
+        .astraIconStyle()
         .padding(.horizontal, Theme.Spacing.edge)
         .padding(.top, Theme.Spacing.sm)
         #if os(tvOS)
@@ -434,7 +416,7 @@ struct HomeView: View {
                     .padding(Theme.Spacing.sm)
                     .background(Theme.Colors.card, in: Circle())
             }
-            .frameIconStyle()
+            .astraIconStyle()
         }
         .padding(.horizontal, Theme.Spacing.edge)
         .padding(.top, Theme.Spacing.lg)
@@ -487,7 +469,7 @@ struct HomeView: View {
             .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
             .padding(.horizontal, Theme.Spacing.edge)
         }
-        .frameRowStyle()
+        .astraRowStyle()
     }
 
     /// The Continue Watching shelf with resume badges and per-item Restart/Remove.

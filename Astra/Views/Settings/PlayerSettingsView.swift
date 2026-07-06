@@ -159,6 +159,6 @@ struct PlayerSettingsView: View {
             .refinedCardBackground()
             .contentShape(Rectangle())
         }
-        .buttonStyle(FrameListRowStyle())
+        .buttonStyle(AstraListRowStyle())
     }
 }

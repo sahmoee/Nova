@@ -139,7 +139,7 @@ struct MagnetView: View {
                     .padding(.vertical, Theme.Spacing.xs)
                     .contentShape(Rectangle())
                 }
-                .frameRowStyle()
+                .astraRowStyle()
             }
 
             FocusableButton(title: "Add Selected", systemImage: "plus", prominent: true) {

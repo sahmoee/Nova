@@ -105,10 +105,6 @@ final class BackupManager: ObservableObject {
 
     @Published private(set) var lastBackupDate: Date?
 
-    /// The createdAt of the cloud snapshot last auto-applied on this device, so the
-    /// same snapshot isn't re-applied on every launch. Stored per device in defaults.
-    private let lastAutoSyncKey = "backup.lastAutoSyncedSnapshot"
-
     private let keychain = KeychainStore.shared
 
     init() {
@@ -194,45 +190,8 @@ final class BackupManager: ObservableObject {
             CloudSync.shared.setData(data, forKey: Self.cloudKey)
             CloudSync.shared.flush()
             lastBackupDate = snap.createdAt
-            FrameLog.sync.info("Created backup snapshot (\(snap.secrets.count) secrets)")
+            AstraLog.sync.info("Created backup snapshot (\(snap.secrets.count) secrets)")
         }
-    }
-
-    // MARK: - Automatic sync
-
-    /// Called when the app becomes active (launch and foreground). If iCloud holds a
-    /// snapshot from another device that is newer than what this device last applied,
-    /// its safe categories (preferences, sources, addons) are applied silently so the
-    /// setup follows the user across iPhone, iPad, and Apple TV without any prompt.
-    ///
-    /// Secrets (passwords, tokens) are never auto-applied; those stay opt-in via the
-    /// explicit restore flow. Returns true if anything was applied.
-    @discardableResult
-    func autoSyncOnLaunch() -> Bool {
-        CloudSync.shared.pull()
-        guard let snap = loadSnapshotFromCloud() else { return false }
-
-        let defaults = UserDefaults.standard
-        let stamp = ISO8601DateFormatter().string(from: snap.createdAt)
-
-        // Don't reapply a snapshot this device authored or already synced.
-        if snap.deviceName == deviceName(), defaults.string(forKey: lastAutoSyncKey) == nil {
-            // First run on the authoring device: mark as synced, nothing to pull.
-            defaults.set(stamp, forKey: lastAutoSyncKey)
-            return false
-        }
-        if defaults.string(forKey: lastAutoSyncKey) == stamp { return false }
-
-        // Apply everything except secrets.
-        let contents = availableContents(in: snap).subtracting(.secrets)
-        guard !contents.isEmpty else {
-            defaults.set(stamp, forKey: lastAutoSyncKey)
-            return false
-        }
-        apply(snap, restoring: contents)
-        defaults.set(stamp, forKey: lastAutoSyncKey)
-        FrameLog.sync.info("Auto-synced snapshot from \(snap.deviceName, privacy: .public)")
-        return true
     }
 
     // MARK: - Restore
@@ -260,7 +219,7 @@ final class BackupManager: ObservableObject {
             CloudSync.shared.setData(data, forKey: "cloud.addons")
         }
         CloudSync.shared.flush()
-        FrameLog.sync.info("Restored backup snapshot from \(snap.deviceName, privacy: .public)")
+        AstraLog.sync.info("Restored backup snapshot from \(snap.deviceName, privacy: .public)")
         return true
     }
 
@@ -322,7 +281,7 @@ final class BackupManager: ObservableObject {
 
     // MARK: - Export / Import (shareable file)
 
-    /// Builds a snapshot of the current setup and writes it to a temporary .astra
+    /// Builds a snapshot of the current setup and writes it to a temporary .frametv
     /// file suitable for sharing. The caller chooses which categories to include via
     /// `contents`. By default secrets are excluded so the file is safe to share; a
     /// household can opt to include secrets to move logins between trusted devices.
@@ -356,13 +315,13 @@ final class BackupManager: ObservableObject {
         let stamp = ISO8601DateFormatter().string(from: snap.createdAt)
             .replacingOccurrences(of: ":", with: "-")
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("Astra-\(stamp).astra")
+            .appendingPathComponent("Astra-\(stamp).frametv")
         do {
             try data.write(to: url, options: .atomic)
-            FrameLog.sync.info("Exported snapshot file (secrets included: \(contents.contains(.secrets), privacy: .public))")
+            AstraLog.sync.info("Exported snapshot file (secrets included: \(contents.contains(.secrets), privacy: .public))")
             return url
         } catch {
-            FrameLog.sync.error("Failed to write snapshot export: \(String(describing: error), privacy: .public)")
+            AstraLog.sync.error("Failed to write snapshot export: \(String(describing: error), privacy: .public)")
             return nil
         }
     }
@@ -390,7 +349,7 @@ final class BackupManager: ObservableObject {
             guard (try? JSONDecoder().decode(BackupSnapshot.self, from: data)) != nil else { return nil }
             return data
         } catch {
-            FrameLog.sync.error("Snapshot download failed: \(String(describing: error), privacy: .public)")
+            AstraLog.sync.error("Snapshot download failed: \(String(describing: error), privacy: .public)")
             return nil
         }
     }
@@ -406,11 +365,11 @@ final class BackupManager: ObservableObject {
     @discardableResult
     func importSnapshotData(_ data: Data, restoring contents: BackupContents = .all) -> Bool {
         guard let snap = try? JSONDecoder().decode(BackupSnapshot.self, from: data) else {
-            FrameLog.sync.error("Snapshot import failed: unreadable data")
+            AstraLog.sync.error("Snapshot import failed: unreadable data")
             return false
         }
         apply(snap, restoring: contents)
-        FrameLog.sync.info("Imported snapshot from data (selected categories)")
+        AstraLog.sync.info("Imported snapshot from data (selected categories)")
         return true
     }
 
@@ -433,11 +392,11 @@ final class BackupManager: ObservableObject {
 
         guard let data = try? Data(contentsOf: url),
               let snap = try? JSONDecoder().decode(BackupSnapshot.self, from: data) else {
-            FrameLog.sync.error("Snapshot import failed: unreadable file")
+            AstraLog.sync.error("Snapshot import failed: unreadable file")
             return false
         }
         apply(snap, restoring: contents)
-        FrameLog.sync.info("Imported snapshot file (selected categories)")
+        AstraLog.sync.info("Imported snapshot file (selected categories)")
         return true
     }
 

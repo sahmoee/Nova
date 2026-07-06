@@ -67,7 +67,7 @@ struct AISearchSettingsView: View {
                         .font(.appFont(18, weight: .semibold))
                         .foregroundStyle(Theme.Colors.accent)
                 }
-                .frameRowStyle()
+                .astraRowStyle()
 
                 if showWorkerCode { workerInstructions }
             }

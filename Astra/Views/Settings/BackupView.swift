@@ -226,7 +226,7 @@ struct BackupView: View {
         }
         // URL entry for restoring from a link.
         .alert("Restore from a Link", isPresented: $showURLEntry) {
-            TextField("https://example.com/backup.astra", text: $urlText)
+            TextField("https://example.com/backup.frametv", text: $urlText)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
             Button("Download") {

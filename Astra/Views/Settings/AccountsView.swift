@@ -4,7 +4,7 @@
 //
 //  Metadata & account credentials. Lets the user enter a TMDB API key, Trakt
 //  client id/secret (then connect via device code), and an OpenSubtitles key.
-//  Values are stored in the Keychain; a AstraConfig.json file can supply fallbacks.
+//  Values are stored in the Keychain; an AstraConfig.json file can supply fallbacks.
 //
 
 import SwiftUI
@@ -66,7 +66,7 @@ struct AccountsView: View {
                     .padding(Theme.Spacing.md)
                     .refinedCardBackground()
                 }
-                .frameRowStyle()
+                .astraRowStyle()
 
                 Divider().overlay(Theme.Colors.card)
 
@@ -134,7 +134,7 @@ struct AccountsView: View {
             .foregroundStyle(Theme.Colors.accent)
             .padding(.vertical, Theme.Spacing.xs)
         }
-        .frameRowStyle()
+        .astraRowStyle()
     }
 
     private func credentialField(title: String,

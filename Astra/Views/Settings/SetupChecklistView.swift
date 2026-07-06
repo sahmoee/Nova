@@ -101,7 +101,7 @@ struct SetupChecklistView: View {
             .padding(Theme.Spacing.md)
             .refinedCardBackground()
         }
-        .frameRowStyle()
+        .astraRowStyle()
     }
 
     // MARK: - Steps

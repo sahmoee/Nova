@@ -150,7 +150,7 @@ actor SMBStreamServer {
                 await sendData(conn, chunk)
             }
         } catch {
-            FrameLog.network.error("SMB stream read failed: \(error.localizedDescription, privacy: .public)")
+            AstraLog.network.error("SMB stream read failed: \(error.localizedDescription, privacy: .public)")
         }
         conn.cancel()
     }

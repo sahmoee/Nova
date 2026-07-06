@@ -157,7 +157,7 @@ struct StreamPickerView: View {
                 .background(Capsule().fill(isActive ? Theme.Colors.accent : Theme.Colors.card))
                 .foregroundStyle(isActive ? .white : Theme.Colors.textSecondary)
         }
-        .buttonStyle(FrameChipButtonStyle())
+        .buttonStyle(AstraChipButtonStyle())
     }
 
     private var content: some View {
@@ -181,7 +181,7 @@ struct StreamPickerView: View {
                         .font(.appFont(18, weight: .semibold))
                         .foregroundStyle(groupBySource ? Theme.Colors.accent : Theme.Colors.textSecondary)
                     }
-                    .frameRowStyle()
+                    .astraRowStyle()
                     Button { withAnimation { showFilters.toggle() } } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "line.3.horizontal.decrease.circle\(anyFilterActive ? ".fill" : "")")
@@ -190,7 +190,7 @@ struct StreamPickerView: View {
                         .font(.appFont(18, weight: .semibold))
                         .foregroundStyle(anyFilterActive ? Theme.Colors.accent : Theme.Colors.textSecondary)
                     }
-                    .frameRowStyle()
+                    .astraRowStyle()
                 }
 
                 if showFilters { filterBar }
@@ -216,7 +216,7 @@ struct StreamPickerView: View {
                             .background(Capsule().fill(cachedOnly ? Theme.Colors.accent : Theme.Colors.card))
                             .foregroundStyle(cachedOnly ? .white : Theme.Colors.textSecondary)
                         }
-                        .buttonStyle(FrameChipButtonStyle())
+                        .buttonStyle(AstraChipButtonStyle())
                     }
                 }
 
@@ -543,7 +543,7 @@ struct StreamPickerView: View {
             .padding(.vertical, Theme.Spacing.xs)
             .contentShape(Rectangle())
         }
-        .frameRowStyle()
+        .astraRowStyle()
         .disabled(resolvingStreamID != nil)
     }
 

@@ -21,7 +21,7 @@ import Foundation
 enum PendingRoute {
     private static let key = "pendingDeepLinkRoute"
 
-    /// Store a astra:// URL string to be routed on next activation.
+    /// Store a frametv:// URL string to be routed on next activation.
     static func set(_ urlString: String) {
         UserDefaults.standard.set(urlString, forKey: key)
     }
@@ -44,7 +44,7 @@ struct ContinueWatchingIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        PendingRoute.set("astra://continue")
+        PendingRoute.set("frametv://continue")
         return .result()
     }
 }
@@ -57,7 +57,7 @@ struct OpenLibraryIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        PendingRoute.set("astra://library")
+        PendingRoute.set("frametv://library")
         return .result()
     }
 }
@@ -70,7 +70,7 @@ struct OpenDiscoverIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        PendingRoute.set("astra://discover")
+        PendingRoute.set("frametv://discover")
         return .result()
     }
 }
@@ -83,7 +83,7 @@ struct OpenAIIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        PendingRoute.set("astra://ai")
+        PendingRoute.set("frametv://ai")
         return .result()
     }
 }

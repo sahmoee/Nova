@@ -127,6 +127,6 @@ struct BackupContentsPicker: View {
             .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
             .contentShape(Rectangle())
         }
-        .buttonStyle(FrameListRowStyle())
+        .buttonStyle(AstraListRowStyle())
     }
 }

@@ -94,11 +94,11 @@ private struct LibraryFoldersContent: View {
                         lastResult = "Added \(n) item\(n == 1 ? "" : "s") from \(folder.displayName)."
                     }
                 } label: { Label("Rescan", systemImage: "arrow.clockwise").font(.appFont(15, weight: .semibold)) }
-                .buttonStyle(FrameChipButtonStyle()).disabled(scanning)
+                .buttonStyle(AstraChipButtonStyle()).disabled(scanning)
                 Button(role: .destructive) { store.removeFolder(folder) } label: {
                     Label("Remove", systemImage: "trash").font(.appFont(15, weight: .semibold)).foregroundStyle(Theme.Colors.error)
                 }
-                .buttonStyle(FrameChipButtonStyle()).disabled(scanning)
+                .buttonStyle(AstraChipButtonStyle()).disabled(scanning)
             }
         }
         .padding(Theme.Spacing.md).refinedCardBackground()

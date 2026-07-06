@@ -27,7 +27,7 @@ struct WatchStatsView: View {
                             .font(.appFont(17, weight: .semibold))
                             .foregroundStyle(Theme.Colors.accent)
                     }
-                    .frameRowStyle()
+                    .astraRowStyle()
                     #endif
                 }
 

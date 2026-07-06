@@ -42,7 +42,7 @@ struct LiveTVView: View {
                                     .padding(Theme.Spacing.sm)
                                     .background(Theme.Colors.card, in: Circle())
                             }
-                            .frameIconStyle()
+                            .astraIconStyle()
                         }
                         .padding(.horizontal, Theme.Spacing.edge)
 
@@ -76,15 +76,7 @@ struct LiveTVView: View {
 
     @ViewBuilder private var playlistChannelsSection: some View {
         let channels = env.liveTVSources.allChannels
-        if channels.isEmpty && env.liveTVSources.isLoading {
-            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                Text("From Your Sources")
-                    .font(.appFont(22, weight: .bold))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .padding(.horizontal, Theme.Spacing.edge)
-                SkeletonRow(count: 6)
-            }
-        } else if !channels.isEmpty {
+        if !channels.isEmpty {
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 Text("From Your Sources")
                     .font(.appFont(22, weight: .bold))
@@ -114,7 +106,7 @@ struct LiveTVView: View {
                                     .lineLimit(1)
                             }
                         }
-                        .buttonStyle(FrameListRowStyle())
+                        .buttonStyle(AstraListRowStyle())
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.edge)
@@ -141,7 +133,7 @@ struct LiveTVView: View {
                 LazyVGrid(columns: columns, spacing: Theme.Spacing.md) {
                     ForEach(list) { channel in
                         Button { play(channel) } label: { channelCard(channel) }
-                            .buttonStyle(FrameListRowStyle())
+                            .buttonStyle(AstraListRowStyle())
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.edge)
@@ -190,7 +182,7 @@ struct LiveTVView: View {
                     .padding(.horizontal, Theme.Spacing.xl)
                     .background(Capsule().fill(.white))
             }
-            .frameRowStyle()
+            .astraRowStyle()
         }
     }
 

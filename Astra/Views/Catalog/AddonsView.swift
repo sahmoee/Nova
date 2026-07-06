@@ -257,7 +257,7 @@ struct AddonsView: View {
                     .padding(.vertical, Theme.Spacing.xs)
                     .contentShape(Rectangle())
                 }
-                .frameRowStyle()
+                .astraRowStyle()
             }
         }
         .padding(.top, Theme.Spacing.md)

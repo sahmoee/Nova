@@ -50,7 +50,7 @@ struct DiscoverView: View {
                 .padding(.vertical, Theme.Spacing.xs)
                 .contentShape(Rectangle())
             }
-            .frameRowStyle()
+            .astraRowStyle()
 
             if shelfStore.enabledShelves.isEmpty {
                 hint
@@ -178,7 +178,7 @@ struct DiscoverView: View {
                         .font(.appFont(22))
                         .foregroundStyle(Theme.Colors.textTertiary)
                 }
-                .frameIconStyle()
+                .astraIconStyle()
             }
             // AI (natural-language) search via the user's Worker.
             Button {
@@ -188,7 +188,7 @@ struct DiscoverView: View {
                     .font(.appFont(22))
                     .foregroundStyle(aiSearching ? Theme.Colors.textTertiary : Theme.Colors.accent)
             }
-            .frameIconStyle()
+            .astraIconStyle()
             .disabled(aiSearching || query.trimmingCharacters(in: .whitespaces).count < 2)
         }
         .padding(Theme.Spacing.md)
@@ -230,7 +230,7 @@ struct DiscoverView: View {
                         .padding(Theme.Spacing.md)
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(FrameListRowStyle())
+                    .buttonStyle(AstraListRowStyle())
                 }
                 if !recentSearches.isEmpty {
                     Button("Clear recent searches") { recentSearchesRaw = "" }
@@ -259,7 +259,7 @@ struct DiscoverView: View {
                         .padding(Theme.Spacing.md)
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(FrameListRowStyle())
+                    .buttonStyle(AstraListRowStyle())
                 }
             }
             .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
@@ -291,7 +291,7 @@ struct DiscoverView: View {
         EmptyStateView(
             systemImage: "key",
             title: "Add a TMDB key to search",
-            message: "Search needs a free TMDB API key. Add one in Settings ▸ Metadata & Accounts, or drop a AstraConfig.json next to the app."
+            message: "Search needs a free TMDB API key. Add one in Settings ▸ Metadata & Accounts, or drop an AstraConfig.json next to the app."
         )
         .frame(height: 400)
     }
@@ -354,7 +354,7 @@ struct DiscoverView: View {
                         NavigationLink(value: item) {
                             posterCard(item)
                         }
-                        .buttonStyle(FrameListRowStyle())
+                        .buttonStyle(AstraListRowStyle())
                     }
                 }
                 .padding(.vertical, Theme.Spacing.xs)
@@ -370,7 +370,7 @@ struct DiscoverView: View {
                 NavigationLink(value: item) {
                     posterCard(item)
                 }
-                .buttonStyle(FrameListRowStyle())
+                .buttonStyle(AstraListRowStyle())
             }
         }
         // Warm poster images ahead of scroll so the grid stays smooth.

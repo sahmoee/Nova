@@ -156,7 +156,7 @@ struct ContentDetailView: View {
                     .padding(.horizontal, Theme.Spacing.xl)
                     .background(Capsule().fill(.white))
                 }
-                .buttonStyle(FrameChipButtonStyle())
+                .buttonStyle(AstraChipButtonStyle())
                 .contextMenu {
                     Button {
                         streamTarget = StreamTarget(catalog: item, episode: nil, forceManual: true)
@@ -171,7 +171,7 @@ struct ContentDetailView: View {
                         .background(Circle().fill(isWatched ? .white : Color.white.opacity(0.16)))
                         .overlay(Circle().strokeBorder(Color.white.opacity(0.25), lineWidth: 1))
                 }
-                .buttonStyle(FrameChipButtonStyle())
+                .buttonStyle(AstraChipButtonStyle())
             }
 
             // Overview + year.
@@ -231,7 +231,7 @@ struct ContentDetailView: View {
                                     .frame(width: Theme.scaled(150, min: 120), alignment: .leading)
                             }
                         }
-                        .buttonStyle(FrameListRowStyle())
+                        .buttonStyle(AstraListRowStyle())
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.edge)
@@ -496,7 +496,7 @@ struct ContentDetailView: View {
             )
             .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
-        .buttonStyle(FrameListRowStyle())
+        .buttonStyle(AstraListRowStyle())
     }
 
     // MARK: - Collection picker
@@ -602,7 +602,7 @@ struct ContentDetailView: View {
         MediaItem(
             title: item.title,
             sourceType: item.isSeries ? .addon : .addon,
-            playbackURL: URL(string: "astra://catalog/\(item.contentID.stableKey)")!,
+            playbackURL: URL(string: "frametv://catalog/\(item.contentID.stableKey)")!,
             posterURL: item.posterURL,
             backdropURL: item.backdropURL,
             legalAccessConfirmed: true,
@@ -731,7 +731,7 @@ struct ContentDetailView: View {
                 .foregroundStyle(isActive ? .white : Theme.Colors.textSecondary)
                 .contentShape(Capsule())
         }
-        .buttonStyle(FrameChipButtonStyle())
+        .buttonStyle(AstraChipButtonStyle())
     }
 
     /// A wide episode card: the still fills it with the episode number, title, and
@@ -808,7 +808,7 @@ struct ContentDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
-        .buttonStyle(FrameListRowStyle())
+        .buttonStyle(AstraListRowStyle())
     }
 
     private func episodeRow(_ ep: EpisodeInfo) -> some View {
@@ -863,7 +863,7 @@ struct ContentDetailView: View {
             .padding(.vertical, Theme.Spacing.xs)
             .contentShape(Rectangle())
         }
-        .frameRowStyle()
+        .astraRowStyle()
         .contextMenu {
             // Long-press an episode to flip its watched state. Episodes that have
             // never been played aren't in the library yet and can't be marked.

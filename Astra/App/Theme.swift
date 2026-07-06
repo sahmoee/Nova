@@ -147,30 +147,15 @@ enum Theme {
         /// The app-wide background: a soft, slow vertical gradient from the deep base
         /// up to a slightly elevated tone, with a faint cool cast. Sits behind every
         /// screen so the whole app feels like one continuous, gently-lit surface.
-        static let appBackground: LinearGradient = {
-            #if os(tvOS)
-            // Apple TV app style: a near-black, uniform canvas so artwork carries
-            // all the color and focused elements pop with light, not hue.
-            return LinearGradient(
-                stops: [
-                    .init(color: Color(red: 0.03, green: 0.03, blue: 0.04), location: 0.0),
-                    .init(color: Color(red: 0.05, green: 0.05, blue: 0.06), location: 1.0)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            #else
-            return LinearGradient(
-                stops: [
-                    .init(color: background, location: 0.0),
-                    .init(color: Color(red: 0.06, green: 0.06, blue: 0.09), location: 0.55),
-                    .init(color: backgroundElevated, location: 1.0)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            #endif
-        }()
+        static let appBackground = LinearGradient(
+            stops: [
+                .init(color: background, location: 0.0),
+                .init(color: Color(red: 0.06, green: 0.06, blue: 0.09), location: 0.55),
+                .init(color: backgroundElevated, location: 1.0)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
 
         /// A soft surface gradient for cards/sheets — subtle top-light, so panels read
         /// as gently raised rather than flat blocks.
@@ -248,13 +233,7 @@ enum Theme {
         static var sourceHeight: CGFloat { Theme.scaled(200, min: 120) }
 
         /// Focus scale applied on highlight (tvOS only; subtle on iOS).
-        static var focusScale: CGFloat {
-            #if os(tvOS)
-            return 1.05
-            #else
-            return Theme.isCompact ? 1.0 : 1.08
-            #endif
-        }
+        static var focusScale: CGFloat { Theme.isCompact ? 1.0 : 1.08 }
     }
 
     // MARK: - Adaptive grids
@@ -281,22 +260,10 @@ enum Theme {
     // MARK: - Typography helpers
 
     enum Font {
-        static func sectionTitle() -> SwiftUI.Font {
-            #if os(tvOS)
-            return .system(size: Theme.dynamicFontSize(29), weight: .semibold)
-            #else
-            return .system(size: Theme.dynamicFontSize(30), weight: .bold)
-            #endif
-        }
+        static func sectionTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(30), weight: .bold) }
         static func cardTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(22), weight: .semibold) }
         static func cardSubtitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(18), weight: .regular) }
-        static func screenTitle() -> SwiftUI.Font {
-            #if os(tvOS)
-            return .system(size: Theme.dynamicFontSize(52), weight: .bold)
-            #else
-            return .system(size: Theme.dynamicFontSize(56), weight: .heavy)
-            #endif
-        }
+        static func screenTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(56), weight: .heavy) }
     }
 }
 
@@ -482,11 +449,6 @@ extension View {
     /// doesn't shift any layout.
     func refinedCardBackground(cornerRadius: CGFloat = Theme.Radius.card) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        #if os(tvOS)
-        return self
-            .background(Color.white.opacity(0.08), in: shape)
-            .overlay(shape.strokeBorder(Color.white.opacity(0.06), lineWidth: 1))
-        #else
         return self
             .background(
                 Theme.uiStyle == .refined
@@ -498,6 +460,5 @@ extension View {
                 shape.strokeBorder(Color.white.opacity(Theme.uiStyle == .refined ? 0.07 : 0.0),
                                    lineWidth: 1)
             )
-        #endif
     }
 }

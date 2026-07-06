@@ -9,7 +9,6 @@ import Foundation
 final class LibraryEnricher: ObservableObject {
     @Published var isRunning = false
     @Published var progress: String?
-    @Published var fractionComplete: Double = 0
     @Published var lastSummary: String?
 
     private let session: URLSession = AppNetworking.shared
@@ -24,8 +23,7 @@ final class LibraryEnricher: ObservableObject {
         guard !isRunning else { return }
         isRunning = true
         progress = "Starting…"
-        fractionComplete = 0
-        defer { isRunning = false; progress = nil; fractionComplete = 0 }
+        defer { isRunning = false; progress = nil }
 
         let items = env.library.items
         var titlesFixed = 0
@@ -33,7 +31,6 @@ final class LibraryEnricher: ObservableObject {
 
         for (index, original) in items.enumerated() {
             progress = "Processing \(index + 1) of \(items.count)…"
-            fractionComplete = items.isEmpty ? 1 : Double(index + 1) / Double(items.count)
             var item = original
             var changed = false
 

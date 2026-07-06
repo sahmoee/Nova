@@ -36,7 +36,7 @@ wrangler login
 wrangler secret put ANTHROPIC_API_KEY
 
 # 4. (Optional but recommended) lock the Worker to your app with a shared token
-wrangler secret put ASTRA_SHARED_TOKEN
+wrangler secret put FRAMETV_SHARED_TOKEN
 #    -> paste any long random string. Leave this step out for now unless/until
 #       the app sends the matching Authorization header (see "Securing it" below).
 
@@ -47,7 +47,7 @@ wrangler deploy
 After deploy, Wrangler prints your Worker URL, e.g.:
 
 ```
-https://astra-ai-worker.<your-subdomain>.workers.dev
+https://frametv-ai-worker.<your-subdomain>.workers.dev
 ```
 
 **Put that URL into the app:** Settings → AI Search → Worker URL. That single URL powers
@@ -58,11 +58,11 @@ filter and troubleshooting helpers.
 
 ```bash
 # Health check (no AI call, no key needed beyond deploy):
-curl https://astra-ai-worker.<your-subdomain>.workers.dev/health
+curl https://frametv-ai-worker.<your-subdomain>.workers.dev/health
 # -> {"ok":true,"model":"claude-sonnet-4-6"}
 
 # Title generation (the main flow the app uses today):
-curl -X POST https://astra-ai-worker.<your-subdomain>.workers.dev/ \
+curl -X POST https://frametv-ai-worker.<your-subdomain>.workers.dev/ \
   -H "Content-Type: application/json" \
   -d '{"query":"dark sci-fi thrillers"}'
 # -> {"titles":["Blade Runner 2049","Ex Machina", ...]}
@@ -122,7 +122,7 @@ Set with `wrangler secret put <NAME>` (secrets) — never put these in `wrangler
 | Name | Type | Required | What it is |
 |---|---|---|---|
 | `ANTHROPIC_API_KEY` | secret | **Yes** | Your Anthropic API key. The Worker sends it to the Anthropic API as `x-api-key`. The app never sees it. |
-| `ASTRA_SHARED_TOKEN` | secret | No | If set, every request must include `Authorization: Bearer <token>`. Stops strangers who find your Worker URL from spending your credits. Leave unset until the app sends this header. |
+| `FRAMETV_SHARED_TOKEN` | secret | No | If set, every request must include `Authorization: Bearer <token>`. Stops strangers who find your Worker URL from spending your credits. Leave unset until the app sends this header. |
 | `MODEL` | var (in `wrangler.toml`) | No | Which Claude model to use. Defaults to `claude-sonnet-4-6`. |
 
 There is **no signing key, certificate, or app-side secret** to manage for the Worker
@@ -136,7 +136,7 @@ Xcode with your Developer Team ID — it has nothing to do with this Worker.
 A Worker URL is effectively public — anyone who has it can POST to it and spend your
 Anthropic credits. Two ways to reduce that risk:
 
-1. **Shared token (built in):** set `ASTRA_SHARED_TOKEN`, then have the app send
+1. **Shared token (built in):** set `FRAMETV_SHARED_TOKEN`, then have the app send
    `Authorization: Bearer <same token>`. Until the app sends that header, leave the
    secret unset (otherwise every request returns 401).
 2. **Keep the URL private:** since you configure the URL in the app yourself and it isn't

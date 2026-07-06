@@ -11,13 +11,9 @@ import SwiftUI
 struct LibraryView: View {
     @Binding var path: NavigationPath
     @EnvironmentObject private var library: LibraryStore
-    @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var nav: NavigationCoordinator
     @EnvironmentObject private var settings: SettingsStore
     @State private var filter: LibraryFilter = .recentlyAdded
-    @State private var traktCatalog: [CatalogItem] = []
-    @State private var traktLoading = false
-    @State private var showCollectionPicker = false
     @State private var typeFilter: LibraryTypeFilter = .all
     @AppStorage("library.hideWatched") private var hideWatched = false
     @State private var selectedItem: MediaItem?
@@ -44,9 +40,7 @@ struct LibraryView: View {
                     case .classic: classicHeader
                     }
 
-                    if isTraktTab {
-                        ScrollView { traktGrid }
-                    } else if displayedItems.isEmpty {
+                    if displayedItems.isEmpty {
                         EmptyStateView(
                             systemImage: emptyIcon,
                             title: emptyTitle,
@@ -124,21 +118,11 @@ struct LibraryView: View {
             .navigationDestination(item: $detailItem) { item in
                 ContentDetailView(item: item.asCatalogItem())
             }
-            .navigationDestination(for: CatalogItem.self) { item in
-                ContentDetailView(item: item)
-            }
         }
         .onChange(of: nav.pendingContentKey) { _, key in
             openPendingContent(key)
         }
         .onAppear { openPendingContent(nav.pendingContentKey) }
-        .onChange(of: displayedItems) { _, items in
-            ImageLoader.shared.prefetch(items.compactMap(\.posterURL), maxPixel: 700)
-        }
-        .task(id: filter) { await loadTraktIfNeeded() }
-        .sheet(isPresented: $showCollectionPicker) {
-            CollectionPickerSheet()
-        }
     }
 
     /// Opens the library item matching a deep-link content key, then clears the
@@ -180,8 +164,8 @@ struct LibraryView: View {
                     .font(.appFont(20))
                     .foregroundStyle(Theme.Colors.accent)
             }
-            Button {
-                showCollectionPicker = true
+            NavigationLink {
+                CollectionsView()
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "rectangle.stack")
@@ -190,7 +174,7 @@ struct LibraryView: View {
                 .font(.appFont(18, weight: .semibold))
                 .foregroundStyle(Theme.Colors.accent)
             }
-            .frameRowStyle()
+            .astraRowStyle()
         }
         .padding(.horizontal, Theme.Spacing.edge)
         .padding(.top, Theme.Spacing.lg)
@@ -213,7 +197,7 @@ struct LibraryView: View {
                         .font(.appFont(17, weight: .semibold))
                         .foregroundStyle(Theme.Colors.accent)
                 }
-                .frameRowStyle()
+                .astraRowStyle()
                 .padding(.trailing, Theme.Spacing.edge)
             }
         }
@@ -256,8 +240,8 @@ struct LibraryView: View {
     private var optionsMenu: some View {
         Menu {
             Picker("View", selection: $filter) {
-                ForEach(activeFilters) { f in
-                    Label(filterTitle(f), systemImage: filterIcon(f)).tag(f)
+                ForEach(LibraryFilter.allCases) { f in
+                    Label(f.title, systemImage: filterIcon(f)).tag(f)
                 }
             }
             Picker("Sort", selection: $sortOrder) {
@@ -274,18 +258,10 @@ struct LibraryView: View {
                 Label(bulkEditing ? "Done Editing" : "Select Items",
                       systemImage: bulkEditing ? "checkmark.circle.fill" : "checklist")
             }
-            Button {
-                showCollectionPicker = true
+            NavigationLink {
+                CollectionsView()
             } label: {
                 Label("Collections", systemImage: "rectangle.stack")
-            }
-            Toggle(isOn: $settings.showTraktInLibrary) {
-                Label("Trakt Tabs", systemImage: "text.badge.star")
-            }
-            NavigationLink {
-                LibraryEnrichView()
-            } label: {
-                Label("Clean Up Library (AI)", systemImage: "wand.and.stars")
             }
             if filter == .continueWatching && !displayedItems.isEmpty {
                 Button(role: .destructive) {
@@ -301,7 +277,7 @@ struct LibraryView: View {
                 .padding(Theme.Spacing.sm)
                 .background(Theme.Colors.card, in: Circle())
         }
-        .frameIconStyle()
+        .astraIconStyle()
     }
 
     private func filterIcon(_ f: LibraryFilter) -> String {
@@ -309,9 +285,6 @@ struct LibraryView: View {
         case .recentlyAdded:    return "clock"
         case .favorites:        return "star"
         case .continueWatching: return "play.circle"
-        case .traktWatchlist:   return "text.badge.star"
-        case .traktTrending:    return "flame"
-        case .collection:       return "rectangle.stack"
         }
     }
 
@@ -321,8 +294,8 @@ struct LibraryView: View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Theme.Spacing.sm) {
-                    ForEach(activeFilters) { f in
-                        FocusableButton(title: filterTitle(f), prominent: f == filter) {
+                    ForEach(LibraryFilter.allCases) { f in
+                        FocusableButton(title: f.title, prominent: f == filter) {
                             filter = f
                         }
                     }
@@ -347,100 +320,12 @@ struct LibraryView: View {
 
     // MARK: - Data
 
-    /// Loads the active Trakt tab's items (with TMDB artwork) when selected.
-    private func loadTraktIfNeeded() async {
-        guard filter == .traktWatchlist || filter == .traktTrending else { return }
-        traktLoading = true
-        defer { traktLoading = false }
-        let raw: [CatalogItem]
-        if filter == .traktWatchlist {
-            raw = (try? await env.trakt.watchlist()) ?? []
-        } else {
-            raw = (try? await env.trakt.trendingShows()) ?? []
-        }
-        traktCatalog = await env.tmdb.enrichArtwork(raw)
-    }
-
-    /// A Discover-style poster grid for the Trakt tabs inside the Library.
-    @ViewBuilder private var traktGrid: some View {
-        if traktLoading && traktCatalog.isEmpty {
-            SkeletonGrid(columns: columns)
-        } else if traktCatalog.isEmpty {
-            EmptyStateView(
-                systemImage: "text.badge.star",
-                title: "Nothing here yet",
-                message: "Connect Trakt in Settings and add titles to see them here."
-            )
-        } else {
-            LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
-                ForEach(traktCatalog) { item in
-                    NavigationLink(value: item) {
-                        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                            CachedAsyncImage(url: item.posterURL, maxPixel: 700) { image in
-                                image.resizable().aspectRatio(contentMode: .fill)
-                            } placeholder: {
-                                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                                    .fill(Theme.Colors.card)
-                            }
-                            .aspectRatio(2.0 / 3.0, contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-                            Text(item.title)
-                                .font(.appFont(15, weight: .medium))
-                                .foregroundStyle(Theme.Colors.textPrimary)
-                                .lineLimit(1)
-                        }
-                    }
-                    .buttonStyle(FrameListRowStyle())
-                }
-            }
-            .padding(.horizontal, Theme.Spacing.edge)
-            .padding(.vertical, Theme.Spacing.md)
-        }
-    }
-
-    private var isTraktTab: Bool {
-        filter == .traktWatchlist || filter == .traktTrending
-    }
-
-    /// The pills shown in the filter bar: the three local views, optional Trakt tabs,
-    /// and any collections the user pinned from the Collections manager.
-    private var activeFilters: [LibraryFilter] {
-        var f = LibraryFilter.allCases
-        if settings.showTraktInLibrary {
-            f.append(.traktWatchlist)
-            f.append(.traktTrending)
-        }
-        for idString in settings.pinnedCollections {
-            if let id = UUID(uuidString: idString),
-               library.collections.contains(where: { $0.id == id }) {
-                f.append(.collection(id))
-            }
-        }
-        return f
-    }
-
-    private func filterTitle(_ f: LibraryFilter) -> String {
-        if case .collection(let id) = f,
-           let c = library.collections.first(where: { $0.id == id }) {
-            return c.name
-        }
-        return f.title
-    }
-
     private var displayedItems: [MediaItem] {
         let base: [MediaItem]
         switch filter {
         case .recentlyAdded:     base = library.libraryEntries
         case .favorites:         base = library.favorites
         case .continueWatching:  base = library.continueWatching
-        case .traktWatchlist, .traktTrending:
-            base = []   // Trakt tabs render their own catalog grid
-        case .collection(let id):
-            if let c = library.collections.first(where: { $0.id == id }) {
-                base = library.items(in: c)
-            } else {
-                base = []
-            }
         }
         var result: [MediaItem]
         switch typeFilter {
@@ -657,9 +542,6 @@ enum LibraryFilter: Hashable, Identifiable, CaseIterable {
     case recentlyAdded
     case favorites
     case continueWatching
-    case traktWatchlist
-    case traktTrending
-    case collection(UUID)
 
     static var allCases: [LibraryFilter] {
         [.recentlyAdded, .favorites, .continueWatching]
@@ -670,9 +552,6 @@ enum LibraryFilter: Hashable, Identifiable, CaseIterable {
         case .recentlyAdded:     return "recent"
         case .favorites:         return "fav"
         case .continueWatching:  return "continue"
-        case .traktWatchlist:    return "trakt-watchlist"
-        case .traktTrending:     return "trakt-trending"
-        case .collection(let id): return "collection-\(id.uuidString)"
         }
     }
 
@@ -681,9 +560,6 @@ enum LibraryFilter: Hashable, Identifiable, CaseIterable {
         case .recentlyAdded:     return "Recently Added"
         case .favorites:         return "Favorites"
         case .continueWatching:  return "Continue Watching"
-        case .traktWatchlist:    return "Trakt Watchlist"
-        case .traktTrending:     return "Trakt Trending"
-        case .collection:        return "Collection"
         }
     }
 }

@@ -82,6 +82,6 @@ struct SubtitlePickerView: View {
             )
             .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
-        .buttonStyle(FrameListRowStyle())
+        .buttonStyle(AstraListRowStyle())
     }
 }

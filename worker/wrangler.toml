@@ -1,4 +1,4 @@
-name = "astra-ai-worker"
+name = "frametv-ai-worker"
 main = "worker.js"
 compatibility_date = "2025-01-01"
 
@@ -13,6 +13,6 @@ MODEL = "claude-sonnet-4-6"
 #
 #   npx wrangler secret put ANTHROPIC_API_KEY
 #   # (optional, to lock the Worker to your app:)
-#   npx wrangler secret put ASTRA_SHARED_TOKEN
+#   npx wrangler secret put FRAMETV_SHARED_TOKEN
 #
 # See README.md for the full setup walkthrough.

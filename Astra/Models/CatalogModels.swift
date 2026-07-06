@@ -181,7 +181,7 @@ extension CatalogItem {
     /// contentID carries the real identity so the detail screen and stream picker can
     /// resolve a playable source on demand.
     func asLibraryItem() -> MediaItem {
-        let placeholder = URL(string: "astra://catalog/\(contentID.stableKey)")!
+        let placeholder = URL(string: "frametv://catalog/\(contentID.stableKey)")!
         var meta = MediaMetadata()
         meta.year = year
         return MediaItem(

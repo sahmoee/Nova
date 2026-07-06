@@ -62,29 +62,17 @@ struct MediaCard: View {
         .accessibilityLabel(accessibilityText)
         .accessibilityAddTraits(.isButton)
         .scaleEffect(focused ? Theme.CardSize.focusScale : 1.0)
-        #if os(tvOS)
-        .shadow(color: .black.opacity(focused ? 0.7 : 0.0),
-                radius: focused ? 30 : 0, x: 0, y: 18)
-        #else
+        // Apple TV style: a soft black drop plus a colored glow in the artwork's accent.
         .shadow(color: .black.opacity(focused ? 0.65 : 0.0),
                 radius: focused ? 28 : 0, x: 0, y: 14)
         .shadow(color: focused ? accent.opacity(0.5) : .clear,
                 radius: focused ? 30 : 0, x: 0, y: 0)
-        #endif
         .animation(.easeOut(duration: 0.18), value: focused)
         .zIndex(focused ? 1 : 0)
         .onChange(of: focused) { _, isFocused in
             // When a card gains focus, tint the UI with its artwork color.
             if isFocused { AccentManager.shared.deriveAccent(from: item.posterURL) }
         }
-    }
-
-    private var focusStrokeColor: Color {
-        #if os(tvOS)
-        return focused ? .white : Theme.Colors.separator
-        #else
-        return focused ? accent : Theme.Colors.separator
-        #endif
     }
 
     // MARK: - Artwork
@@ -97,7 +85,8 @@ struct MediaCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .stroke(focusStrokeColor, lineWidth: focused ? 4 : 1)
+                        .stroke(focused ? accent : Theme.Colors.separator,
+                                lineWidth: focused ? 4 : 1)
                 )
 
             // Source chip + favorite marker.

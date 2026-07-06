@@ -130,18 +130,11 @@ private struct HeroPlayButtonStyle: ButtonStyle {
 
         var body: some View {
             configuration.label
-                #if os(tvOS)
-                .background(.white, in: Capsule())
-                .foregroundStyle(.black)
-                .scaleEffect(active ? 1.1 : 1.0)
-                .shadow(color: .black.opacity(active ? 0.6 : 0), radius: active ? 22 : 0, y: active ? 12 : 0)
-                #else
                 .background(active ? accent : .white, in: Capsule())
                 .foregroundStyle(active ? .white : .black)
                 .scaleEffect(active ? 1.06 : 1.0)
                 .shadow(color: active ? accent.opacity(0.5) : .clear,
                         radius: active ? 20 : 0, y: 6)
-                #endif
                 .animation(.easeOut(duration: 0.18), value: active)
         }
     }

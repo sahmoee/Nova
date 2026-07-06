@@ -64,7 +64,7 @@ actor OMDbClient {
             let decoded = try JSONDecoder().decode(OMDbResponse.self, from: data)
             return decoded.toExternalRatings()
         } catch {
-            FrameLog.network.error("OMDb request failed: \(error.localizedDescription, privacy: .public)")
+            AstraLog.network.error("OMDb request failed: \(error.localizedDescription, privacy: .public)")
             return ExternalRatings()
         }
     }

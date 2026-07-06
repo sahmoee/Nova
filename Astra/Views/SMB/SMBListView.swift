@@ -355,7 +355,7 @@ final class SMBSharesModel: ObservableObject {
             do {
                 try KeychainStore.shared.set(password, for: share.keychainAccount)
             } catch {
-                FrameLog.network.error("Failed to save SMB password to Keychain: \(String(describing: error), privacy: .public)")
+                AstraLog.network.error("Failed to save SMB password to Keychain: \(String(describing: error), privacy: .public)")
             }
         }
         persist()

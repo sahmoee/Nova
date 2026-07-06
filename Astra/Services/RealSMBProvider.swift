@@ -52,13 +52,13 @@ actor RealSMBProvider: SMBProviding {
         do {
             try await manager.connectShare(name: share.shareName)
         } catch {
-            FrameLog.network.error("SMB connect failed for user length \(user.count, privacy: .public), password length \(password.count, privacy: .public): \(String(describing: error), privacy: .public)")
+            AstraLog.network.error("SMB connect failed for user length \(user.count, privacy: .public), password length \(password.count, privacy: .public): \(String(describing: error), privacy: .public)")
             throw mapError(error)
         }
 
         client = manager
         connectedShare = share
-        FrameLog.network.info("Connected to SMB share \(share.shareName, privacy: .public)")
+        AstraLog.network.info("Connected to SMB share \(share.shareName, privacy: .public)")
     }
 
     /// Connects to the server (no specific share) and lists its shares so the user

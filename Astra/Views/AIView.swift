@@ -128,7 +128,7 @@ struct AIView: View {
                                                : Color.white.opacity(0.08))
                             )
                     }
-                    .buttonStyle(FrameChipButtonStyle())
+                    .buttonStyle(AstraChipButtonStyle())
                 }
             }
             .padding(.horizontal, Theme.Spacing.edge)
@@ -155,7 +155,7 @@ struct AIView: View {
             Button { run() } label: {
                 Text("Go").font(.appFont(18, weight: .bold))
             }
-            .frameRowStyle()
+            .astraRowStyle()
             .disabled(prompt.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         .padding(Theme.Spacing.md)
@@ -330,7 +330,7 @@ struct AIView: View {
                         Label("Save as Collection", systemImage: "rectangle.stack.badge.plus")
                             .font(.appFont(15, weight: .semibold))
                     }
-                    .buttonStyle(FrameChipButtonStyle())
+                    .buttonStyle(AstraChipButtonStyle())
 
                     Button {
                         addAllToLibrary()
@@ -338,7 +338,7 @@ struct AIView: View {
                         Label("Add All to Library", systemImage: "plus.square.on.square")
                             .font(.appFont(15, weight: .semibold))
                     }
-                    .buttonStyle(FrameChipButtonStyle())
+                    .buttonStyle(AstraChipButtonStyle())
 
                     Button {
                         queueAll()
@@ -346,7 +346,7 @@ struct AIView: View {
                         Label("Add All to Queue", systemImage: "text.badge.plus")
                             .font(.appFont(15, weight: .semibold))
                     }
-                    .buttonStyle(FrameChipButtonStyle())
+                    .buttonStyle(AstraChipButtonStyle())
                 }
             }
             .padding(.bottom, Theme.Spacing.xs)

@@ -5,18 +5,18 @@
 //  Small helpers for resilient networking:
 //    - `withRetry` runs an async throwing operation with a bounded number of
 //      retries and exponential backoff, for transient failures on flaky networks.
-//    - `FrameLog` is a thin os.Logger wrapper so failures are diagnosable instead of
+//    - `AstraLog` is a thin os.Logger wrapper so failures are diagnosable instead of
 //      being silently swallowed by `try?`.
 //
 
 import Foundation
 import os
 
-enum FrameLog {
-    static let network = Logger(subsystem: "com.astra.app", category: "network")
-    static let catalog = Logger(subsystem: "com.astra.app", category: "catalog")
-    static let player  = Logger(subsystem: "com.astra.app", category: "player")
-    static let sync    = Logger(subsystem: "com.astra.app", category: "sync")
+enum AstraLog {
+    static let network = Logger(subsystem: "com.frametv.app", category: "network")
+    static let catalog = Logger(subsystem: "com.frametv.app", category: "catalog")
+    static let player  = Logger(subsystem: "com.frametv.app", category: "player")
+    static let sync    = Logger(subsystem: "com.frametv.app", category: "sync")
 }
 
 /// Runs `operation`, retrying up to `maxAttempts` times with exponential backoff

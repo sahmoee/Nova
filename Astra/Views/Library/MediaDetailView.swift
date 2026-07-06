@@ -203,7 +203,7 @@ struct MediaDetailView: View {
             )
             .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
-        .buttonStyle(FrameListRowStyle())
+        .buttonStyle(AstraListRowStyle())
     }
 
     /// A secondary action tile: accent icon, bold title, muted subtitle.
@@ -234,7 +234,7 @@ struct MediaDetailView: View {
             .refinedCardBackground()
             .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
-        .buttonStyle(FrameListRowStyle())
+        .buttonStyle(AstraListRowStyle())
     }
 
     /// Older library items (added before episodes used show art) may have an episode

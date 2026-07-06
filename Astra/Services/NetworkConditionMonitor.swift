@@ -33,7 +33,7 @@ final class NetworkConditionMonitor: ObservableObject {
     }
 
     private let monitor = NWPathMonitor()
-    private let queue = DispatchQueue(label: "com.astra.network.monitor")
+    private let queue = DispatchQueue(label: "com.frametv.network.monitor")
 
     private init() {
         monitor.pathUpdateHandler = { [weak self] path in
