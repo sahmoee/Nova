@@ -52,7 +52,7 @@ struct MenuOverlay: View {
     private var panel: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Astra")
-                .font(.appFont(Theme.isCompact ? 22 : 30, weight: .bold))
+                .font(.appFont(Theme.isCompact ? 28 : 30, weight: .bold))
                 .foregroundStyle(Theme.Colors.textPrimary)
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.top, Theme.Spacing.md)
@@ -82,15 +82,18 @@ struct MenuOverlay: View {
         } label: {
             HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: tab.systemImage)
-                    .font(.appFont(Theme.isCompact ? 18 : 24, weight: .semibold))
+                    .font(.appFont(Theme.isCompact ? 24 : 24, weight: .semibold))
                     .symbolRenderingMode(.hierarchical)
-                    .frame(width: Theme.isCompact ? 26 : 34)
+                    .frame(width: Theme.isCompact ? 32 : 34)
                 Text(tab.title)
-                    .font(.appFont(Theme.isCompact ? 18 : 24, weight: .semibold))
-                Spacer(minLength: 0)
+                    .font(.appFont(Theme.isCompact ? 24 : 24, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.horizontal, Theme.Spacing.md)
-            .padding(.vertical, Theme.isCompact ? Theme.Spacing.sm : Theme.Spacing.md)
+            .padding(.vertical, Theme.isCompact ? Theme.Spacing.md : Theme.Spacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
         }
         .buttonStyle(MenuRowStyle(isSelected: tab == selection, accent: accent))
@@ -105,7 +108,7 @@ struct MenuOverlay: View {
         #if os(tvOS)
         return 520
         #else
-        return 300
+        return 240
         #endif
     }
 
