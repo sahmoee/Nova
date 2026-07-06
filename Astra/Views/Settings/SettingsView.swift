@@ -301,11 +301,6 @@ struct SettingsView: View {
             pickerRow("Detail Style", systemImage: "rectangle.portrait.on.rectangle.portrait",
                       selection: $settings.detailStyle,
                       options: DetailStyle.allCases) { $0.displayName }
-            #if os(iOS)
-            pickerRow("Tab Bar Style", systemImage: "square.bottomthird.inset.filled",
-                      selection: $settings.tabBarStyle,
-                      options: TabBarStyle.allCases) { $0.displayName }
-            #endif
             pickerRow("Search Layout", systemImage: "square.grid.2x2",
                       selection: $settings.searchLayout,
                       options: SearchLayoutStyle.allCases) { $0.displayName }

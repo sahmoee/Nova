@@ -20,7 +20,6 @@ struct RootView: View {
     @State private var showWhatsNew = false
     @AppStorage("hasSeenPersonalMediaDisclosure") private var hasSeenDisclosure = false
     @State private var reopenItem: MediaItem?
-    @State private var showTVMenu = false
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -83,83 +82,47 @@ struct RootView: View {
 
     // MARK: - Platform root
 
-    #if os(tvOS)
-    /// tvOS: only the active screen is shown full-screen. Pressing the Menu / TV
-    /// button summons a menu overlay to switch sections, instead of an always-on
-    /// tab bar. While a video plays, Menu is handled by the player, not here.
+    /// All platforms now share the same navigation: a persistent source-list
+    /// sidebar (the same one the iPad has always used) with the selected section
+    /// in the detail column. iPhone gets it as a slide-over drawer, iPad and Apple
+    /// TV as a fixed left rail. This unifies the tab menu across iOS, iPadOS, and
+    /// tvOS so every device navigates the same way.
     @ViewBuilder
     private var rootContent: some View {
-        ZStack {
-            Theme.Colors.appBackground.ignoresSafeArea()
-
-            activeScreen
-                .ignoresSafeArea(.container, edges: .bottom)
-                // While the menu overlay is up, take the underlying screen out of the
-                // focus engine entirely so remote swipes can't move items behind it.
-                .disabled(showTVMenu && !nowPlaying.playerPresented)
-                .accessibilityHidden(showTVMenu && !nowPlaying.playerPresented)
-
-            if showTVMenu && !nowPlaying.playerPresented {
-                TVMenuOverlay(selection: nav.selectionBinding) {
-                    withAnimation(.easeOut(duration: 0.2)) { showTVMenu = false }
+        #if os(tvOS)
+        // tvOS: the sidebar rail is the section switcher. The Menu / TV button is
+        // still captured so a pushed detail pops one level before focus returns to
+        // the rail; the player owns the button while playing.
+        sidebarRoot
+            .onExitCommand {
+                if nowPlaying.playerPresented {
+                    // Player handles its own exit; do nothing here.
+                } else if !nav.isAtRoot(nav.selection) {
+                    nav.popOne(nav.selection)
                 }
-                .transition(.opacity)
-                .zIndex(10)
+                // At a screen root the focus engine returns to the sidebar rail on
+                // its own, so there's nothing to summon.
             }
-        }
-        // Capture the Menu / TV button. Priority: if the menu overlay is open, close
-        // it; if a detail screen is pushed, go back one level; otherwise (at a screen
-        // root) summon the section menu. The player owns the button while playing.
-        .onExitCommand {
-            if showTVMenu {
-                withAnimation(.easeOut(duration: 0.2)) { showTVMenu = false }
-            } else if nowPlaying.playerPresented {
-                // Player handles its own exit; do nothing here.
-            } else if !nav.isAtRoot(nav.selection) {
-                nav.popOne(nav.selection)
-            } else {
-                withAnimation(.easeOut(duration: 0.2)) { showTVMenu = true }
-            }
-        }
-        .overlay(alignment: .bottom) { nowPlayingBar }
+        #else
+        sidebarRoot
+        #endif
     }
 
+    /// The shared source-list sidebar root (like Files, Music, and the App Store on
+    /// iPad) used by iPhone, iPad, and Apple TV. The selected section renders in the
+    /// detail column with the Now Playing bar pinned to its bottom.
     @ViewBuilder
-    private var activeScreen: some View {
-        switch nav.selection {
-        case .home:     HomeView(path: $nav.homePath)
-        case .discover: DiscoverView(path: $nav.discoverPath)
-        case .ai:       AIView(path: $nav.aiPath)
-        case .library:  LibraryView(path: $nav.libraryPath)
-        case .settings: SettingsView(path: $nav.settingsPath)
-        }
-    }
-    #else
-    /// iOS / iPadOS: either the standard bottom tab bar or a floating pill.
-    @ViewBuilder
-    private var rootContent: some View {
-        if Theme.isPad {
-            iPadSidebarRoot
-        } else {
-            switch settings.tabBarStyle {
-            case .system:       systemTabBar
-            case .floatingPill: floatingPillRoot
-            }
-        }
-    }
-
-    /// iPad-specific root: a persistent source-list sidebar (like Files, Music, and
-    /// the App Store on iPad) with the selected section in the detail column.
-    @ViewBuilder
-    private var iPadSidebarRoot: some View {
-        NavigationSplitView {
+    private var sidebarRoot: some View {
+        NavigationSplitView(columnVisibility: sidebarColumnVisibility) {
             List(AppTab.allCases, id: \.self, selection: sidebarSelection) { tab in
                 Label(tab.title, systemImage: tab.systemImage)
                     .font(.appFont(19, weight: .medium))
                     .tag(tab)
             }
             .navigationTitle("Astra")
+            #if os(iOS)
             .listStyle(.sidebar)
+            #endif
         } detail: {
             ZStack(alignment: .bottom) {
                 Theme.Colors.appBackground.ignoresSafeArea()
@@ -170,74 +133,32 @@ struct RootView: View {
         .tint(Theme.Colors.accent)
     }
 
+    /// iPad and Apple TV keep both the sidebar and detail visible side-by-side;
+    /// iPhone shows the detail full-screen with the sidebar available as a drawer.
+    private var sidebarColumnVisibility: Binding<NavigationSplitViewVisibility> {
+        #if os(tvOS)
+        .constant(.all)
+        #else
+        .constant(Theme.isPad ? .all : .automatic)
+        #endif
+    }
+
     private var sidebarSelection: Binding<AppTab?> {
         Binding(
             get: { nav.selection },
-            set: { if let t = $0 { nav.selection = t } }
+            set: { if let t = $0 {
+                // Re-selecting the current section pops it to root, matching the
+                // old tab-bar behavior.
+                if t == nav.selection {
+                    nav.popToRoot(t)
+                } else {
+                    nav.selection = t
+                }
+            } }
         )
     }
 
-    /// The standard system bottom tab bar.
-    @ViewBuilder
-    private var systemTabBar: some View {
-        TabView(selection: nav.selectionBinding) {
-            HomeView(path: $nav.homePath)
-                .tabItem { Label(AppTab.home.title, systemImage: AppTab.home.systemImage) }
-                .tag(AppTab.home)
-
-            DiscoverView(path: $nav.discoverPath)
-                .tabItem { Label(AppTab.discover.title, systemImage: AppTab.discover.systemImage) }
-                .tag(AppTab.discover)
-
-            AIView(path: $nav.aiPath)
-                .tabItem { Label(AppTab.ai.title, systemImage: AppTab.ai.systemImage) }
-                .tag(AppTab.ai)
-
-            LibraryView(path: $nav.libraryPath)
-                .tabItem { Label(AppTab.library.title, systemImage: AppTab.library.systemImage) }
-                .tag(AppTab.library)
-
-            SettingsView(path: $nav.settingsPath)
-                .tabItem { Label(AppTab.settings.title, systemImage: AppTab.settings.systemImage) }
-                .tag(AppTab.settings)
-        }
-        .background(Theme.Colors.appBackground.ignoresSafeArea())
-        .toolbar(nowPlaying.playerPresented ? .hidden : .visible, for: .tabBar)
-        .safeAreaInset(edge: .bottom) {
-            nowPlayingBar
-        }
-    }
-
-    /// The floating-pill root: the active screen fills the window, with a translucent
-    /// rounded pill floating above the bottom for tab switching. The pill hides while
-    /// the player is on screen.
-    @ViewBuilder
-    private var floatingPillRoot: some View {
-        ZStack(alignment: .bottom) {
-            Theme.Colors.appBackground.ignoresSafeArea()
-
-            activeScreen
-                // Reserve space at the bottom so scroll content comes to rest above
-                // the floating pill instead of hiding beneath it. Scales with text
-                // size. Collapses to zero while the player is up (pill is hidden).
-                .safeAreaInset(edge: .bottom) {
-                    Color.clear.frame(height: nowPlaying.playerPresented ? 0 : Theme.scaled(78, min: 64))
-                }
-
-            VStack(spacing: 0) {
-                nowPlayingBar
-                if !nowPlaying.playerPresented {
-                    FloatingTabPill(selection: nav.selectionBinding)
-                        .padding(.horizontal, Theme.Spacing.md)
-                        .padding(.bottom, Theme.Spacing.xs)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            }
-        }
-    }
-
-    /// The active screen for the floating-pill root (mirrors the tvOS switch).
-    #if os(iOS)
+    /// The active screen for the detail column.
     @ViewBuilder
     private var activeScreen: some View {
         switch nav.selection {
@@ -248,8 +169,6 @@ struct RootView: View {
         case .settings: SettingsView(path: $nav.settingsPath)
         }
     }
-    #endif
-    #endif
 
     /// A "Now Playing" mini-bar shown above the tab bar while something is playing.
     /// Tapping it reopens the player. Only shows when there's a current item and the
@@ -348,55 +267,3 @@ struct RootView: View {
         }
     }
 }
-
-#if os(iOS)
-/// A floating, translucent, rounded tab pill for iOS. Shows all five tabs; the active
-/// one is tinted with the app accent. Re-tapping the active tab pops it to root via the
-/// same selection binding the system tab bar uses.
-struct FloatingTabPill: View {
-    @Binding var selection: AppTab
-    @Environment(\.dynamicAccent) private var accent
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(AppTab.allCases, id: \.self) { tab in
-                Button {
-                    selection = tab
-                } label: {
-                    VStack(spacing: 3) {
-                        Image(systemName: tab.systemImage)
-                            .font(.system(size: 20, weight: .semibold))
-                        Text(tab.title)
-                            .font(.system(size: 11, weight: .medium))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-                    .foregroundStyle(selection == tab ? accent : Color.white.opacity(0.6))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background {
-                        if selection == tab {
-                            Capsule(style: .continuous)
-                                .fill(accent.opacity(0.14))
-                                .padding(.vertical, 4)
-                                .padding(.horizontal, 2)
-                        }
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 6)
-        .background(
-            Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    Capsule(style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
-                )
-                .shadow(color: .black.opacity(0.4), radius: 20, y: 8)
-        )
-    }
-}
-#endif
