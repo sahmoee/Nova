@@ -82,17 +82,17 @@ struct MenuOverlay: View {
         } label: {
             HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: tab.systemImage)
-                    .font(.appFont(Theme.isCompact ? 24 : 24, weight: .semibold))
+                    .font(.appFont(24, weight: .semibold))
                     .symbolRenderingMode(.hierarchical)
                     .frame(width: Theme.isCompact ? 32 : 34)
                 Text(tab.title)
-                    .font(.appFont(Theme.isCompact ? 24 : 24, weight: .semibold))
+                    .font(.appFont(24, weight: .semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.horizontal, Theme.Spacing.md)
-            .padding(.vertical, Theme.isCompact ? Theme.Spacing.md : Theme.Spacing.md)
+            .padding(.vertical, Theme.Spacing.md)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
         }
