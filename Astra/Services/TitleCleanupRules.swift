@@ -45,6 +45,26 @@ struct TitleCleanupRule: Codable, Hashable, Identifiable {
     }
 }
 
+/// A helpful starter set covering the most common release-name junk. Declared at file
+/// scope (not on the actor-isolated store) so both the store and the nonisolated
+/// snapshot can reference it from any context.
+private func defaultCleanupRules() -> [TitleCleanupRule] {
+    [
+        TitleCleanupRule(ruleDescription: "Remove resolution tags like 1080p, 720p, 2160p, 4K",
+                         pattern: #"\b(2160p|1080p|720p|480p|4k)\b"#, replacement: ""),
+        TitleCleanupRule(ruleDescription: "Remove source tags like BluRay, WEB-DL, HDRip, WEBRip",
+                         pattern: #"\b(bluray|blu-ray|web-?dl|webrip|hdrip|dvdrip|brrip|hdtv)\b"#, replacement: ""),
+        TitleCleanupRule(ruleDescription: "Remove codec and audio tags like x264, x265, HEVC, DDP5.1, AAC",
+                         pattern: #"\b(x264|x265|h\.?264|h\.?265|hevc|ddp?5\.1|dts|aac|ac3|atmos|truehd)\b"#, replacement: ""),
+        TitleCleanupRule(ruleDescription: "Remove anything in brackets or braces, like [group] or {info}",
+                         pattern: #"[\[\{][^\]\}]*[\]\}]"#, replacement: ""),
+        TitleCleanupRule(ruleDescription: "Remove a trailing release-group tag after a dash (e.g. -RARBG)",
+                         pattern: #"-\s*[A-Za-z0-9]+\s*$"#, replacement: ""),
+        TitleCleanupRule(ruleDescription: "Collapse multiple spaces into one",
+                         pattern: #"\s{2,}"#, replacement: " "),
+    ]
+}
+
 @MainActor
 final class TitleCleanupRulesStore: ObservableObject {
     static let shared = TitleCleanupRulesStore()
@@ -53,9 +73,12 @@ final class TitleCleanupRulesStore: ObservableObject {
         didSet { persist(); TitleCleanupRulesStore.snapshot = rules }
     }
 
-    /// A plain-array snapshot of the enabled rules, kept in sync so non-actor code
-    /// (like MetadataParser.cleanTitle) can apply them without hopping actors.
-    nonisolated(unsafe) static var snapshot: [TitleCleanupRule] = TitleCleanupRulesStore.defaults
+    /// A plain-array snapshot of the rules, kept in sync so non-actor code (like
+    /// MetadataParser.cleanTitle) can apply them without hopping actors.
+    nonisolated(unsafe) static var snapshot: [TitleCleanupRule] = defaultCleanupRules()
+
+    /// The starter rule set. Nonisolated so it's reachable from any context.
+    nonisolated static var defaults: [TitleCleanupRule] { defaultCleanupRules() }
 
     /// Applies the current snapshot rules in order. Safe to call from anywhere.
     nonisolated static func applySnapshot(to input: String) -> String {
@@ -76,7 +99,7 @@ final class TitleCleanupRulesStore: ObservableObject {
            !decoded.isEmpty {
             rules = decoded
         } else {
-            rules = TitleCleanupRulesStore.defaults
+            rules = defaultCleanupRules()
         }
         TitleCleanupRulesStore.snapshot = rules
 
@@ -93,25 +116,6 @@ final class TitleCleanupRulesStore: ObservableObject {
             }
     }
 
-    /// A helpful starter set covering the most common release-name junk. Each has a
-    /// description so the list is self-explanatory.
-    static var defaults: [TitleCleanupRule] {
-        [
-            TitleCleanupRule(ruleDescription: "Remove resolution tags like 1080p, 720p, 2160p, 4K",
-                             pattern: #"\b(2160p|1080p|720p|480p|4k)\b"#, replacement: ""),
-            TitleCleanupRule(ruleDescription: "Remove source tags like BluRay, WEB-DL, HDRip, WEBRip",
-                             pattern: #"\b(bluray|blu-ray|web-?dl|webrip|hdrip|dvdrip|brrip|hdtv)\b"#, replacement: ""),
-            TitleCleanupRule(ruleDescription: "Remove codec and audio tags like x264, x265, HEVC, DDP5.1, AAC",
-                             pattern: #"\b(x264|x265|h\.?264|h\.?265|hevc|ddp?5\.1|dts|aac|ac3|atmos|truehd)\b"#, replacement: ""),
-            TitleCleanupRule(ruleDescription: "Remove anything in brackets or braces, like [group] or {info}",
-                             pattern: #"[\[\{][^\]\}]*[\]\}]"#, replacement: ""),
-            TitleCleanupRule(ruleDescription: "Remove a trailing release-group tag after a dash (e.g. -RARBG)",
-                             pattern: #"-\s*[A-Za-z0-9]+\s*$"#, replacement: ""),
-            TitleCleanupRule(ruleDescription: "Collapse multiple spaces into one",
-                             pattern: #"\s{2,}"#, replacement: " "),
-        ]
-    }
-
     /// Runs the enabled rules in order over an already space-normalized title.
     func clean(_ input: String) -> String {
         var result = input
@@ -124,7 +128,7 @@ final class TitleCleanupRulesStore: ObservableObject {
     func add(_ rule: TitleCleanupRule) { rules.append(rule) }
     func remove(_ id: UUID) { rules.removeAll { $0.id == id } }
     func move(from: IndexSet, to: Int) { rules.move(fromOffsets: from, toOffset: to) }
-    func resetToDefaults() { rules = TitleCleanupRulesStore.defaults }
+    func resetToDefaults() { rules = defaultCleanupRules() }
 
     private func persist() {
         guard !isApplyingRemote else { return }
