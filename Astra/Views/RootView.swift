@@ -6,10 +6,10 @@
 //  active section pops its navigation stack back to root (an easy way to escape any
 //  stuck detail/error screen).
 //
-//  All platforms navigate through a single shared pop-up menu (MenuOverlay) that
-//  slides over the current screen instead of switching to a separate screen. On
-//  iOS/iPadOS a small floating Menu button summons it; on tvOS the Menu / TV button
-//  summons it.
+//  iPad keeps its persistent NavigationSplitView sidebar. iPhone and Apple TV use a
+//  shared pop-up menu (MenuOverlay) that slides over the current screen instead of
+//  switching to a separate screen. On iPhone a small floating Menu button summons
+//  it; on tvOS the Menu / TV button summons it.
 //
 
 import SwiftUI
@@ -86,10 +86,10 @@ struct RootView: View {
             }
     }
 
-    // MARK: - Platform root
+    // MARK: - Shared menu plumbing
 
     /// A binding that both switches sections and pops the current section to root
-    /// when re-selected. Shared by the menu overlay across every platform.
+    /// when re-selected. Used by the pop-up menu on iPhone and tvOS.
     private var menuSelection: Binding<AppTab> {
         Binding(
             get: { nav.selection },
@@ -104,6 +104,8 @@ struct RootView: View {
     }
 
     private var menuIsOpen: Bool { showMenu && !nowPlaying.playerPresented }
+
+    // MARK: - Platform root
 
     #if os(tvOS)
     /// tvOS: the active screen is shown full-screen. The Menu / TV button summons the
@@ -145,11 +147,62 @@ struct RootView: View {
         }
         .overlay(alignment: .bottom) { nowPlayingBar }
     }
+
+    @ViewBuilder
+    private var activeScreen: some View {
+        switch nav.selection {
+        case .home:     HomeView(path: $nav.homePath)
+        case .discover: DiscoverView(path: $nav.discoverPath)
+        case .ai:       AIView(path: $nav.aiPath)
+        case .library:  LibraryView(path: $nav.libraryPath)
+        case .settings: SettingsView(path: $nav.settingsPath)
+        }
+    }
     #else
-    /// iOS / iPadOS: the active screen fills the window. A small floating Menu button
-    /// summons the shared pop-up menu; tapping the backdrop dismisses it.
+    /// iOS / iPadOS. iPad keeps its persistent sidebar; iPhone uses the pop-up menu.
     @ViewBuilder
     private var rootContent: some View {
+        if Theme.isPad {
+            iPadSidebarRoot
+        } else {
+            iPhoneMenuRoot
+        }
+    }
+
+    /// iPad-specific root: a persistent source-list sidebar (like Files, Music, and
+    /// the App Store on iPad) with the selected section in the detail column.
+    /// Unchanged from before.
+    @ViewBuilder
+    private var iPadSidebarRoot: some View {
+        NavigationSplitView {
+            List(AppTab.allCases, id: \.self, selection: sidebarSelection) { tab in
+                Label(tab.title, systemImage: tab.systemImage)
+                    .font(.appFont(19, weight: .medium))
+                    .tag(tab)
+            }
+            .navigationTitle("Astra")
+            .listStyle(.sidebar)
+        } detail: {
+            ZStack(alignment: .bottom) {
+                Theme.Colors.appBackground.ignoresSafeArea()
+                activeScreen
+                    .safeAreaInset(edge: .bottom) { nowPlayingBar }
+            }
+        }
+        .tint(Theme.Colors.accent)
+    }
+
+    private var sidebarSelection: Binding<AppTab?> {
+        Binding(
+            get: { nav.selection },
+            set: { if let t = $0 { nav.selection = t } }
+        )
+    }
+
+    /// iPhone root: the active screen fills the window. A small floating Menu button
+    /// summons the shared pop-up menu; tapping the backdrop dismisses it.
+    @ViewBuilder
+    private var iPhoneMenuRoot: some View {
         ZStack(alignment: .bottomLeading) {
             Theme.Colors.appBackground.ignoresSafeArea()
 
@@ -185,9 +238,7 @@ struct RootView: View {
             }
         }
     }
-    #endif
 
-    /// The active section screen, shared by every platform.
     @ViewBuilder
     private var activeScreen: some View {
         switch nav.selection {
@@ -198,6 +249,7 @@ struct RootView: View {
         case .settings: SettingsView(path: $nav.settingsPath)
         }
     }
+    #endif
 
     /// A "Now Playing" mini-bar shown while something is playing. Tapping it reopens
     /// the player. Only shows when there's a current item and the player isn't already

@@ -2,13 +2,14 @@
 //  MenuOverlay.swift
 //  Astra
 //
-//  A shared, in-place navigation menu used on iOS, iPadOS, and tvOS. It is a
-//  slide-over / pop-up panel that overlays the current screen instead of pushing
-//  a separate navigation screen: a dimmed backdrop plus a translucent card of
-//  section rows that slides in from the leading edge. Picking a section switches
-//  to it and dismisses the panel; picking the current section pops it to root.
+//  A shared, in-place navigation menu used on iPhone and tvOS (iPad keeps its
+//  persistent NavigationSplitView sidebar). It is a slide-over / pop-up panel that
+//  overlays the current screen instead of pushing a separate navigation screen: a
+//  dimmed backdrop plus a translucent card of section rows that slides in from the
+//  leading edge. Picking a section switches to it and dismisses the panel; picking
+//  the current section pops it to root.
 //
-//  On iOS/iPadOS the panel is summoned by a small floating menu button and can be
+//  On iPhone the panel is summoned by a small floating menu button and can be
 //  dismissed by tapping the backdrop. On tvOS it is summoned by the Menu / TV
 //  button (handled in RootView) and dismissed with Menu again.
 //
@@ -26,7 +27,7 @@ struct MenuOverlay: View {
 
     var body: some View {
         ZStack(alignment: .leading) {
-            // Dimmed backdrop. Tapping it closes the panel (iOS/iPadOS). On tvOS the
+            // Dimmed backdrop. Tapping it closes the panel (iPhone). On tvOS the
             // backdrop is non-interactive; the Menu button closes the panel.
             Color.black.opacity(0.45)
                 .ignoresSafeArea()
@@ -76,10 +77,6 @@ struct MenuOverlay: View {
 
     private func menuRow(_ tab: AppTab) -> some View {
         Button {
-            if tab == selection {
-                // Re-selecting pops that section to root (handled by the caller's
-                // binding), matching the old tab-bar behavior.
-            }
             selection = tab
             onDismiss()
         } label: {
@@ -96,11 +93,9 @@ struct MenuOverlay: View {
             .padding(.vertical, Theme.isCompact ? Theme.Spacing.sm : Theme.Spacing.md)
             .contentShape(Rectangle())
         }
+        .buttonStyle(MenuRowStyle(isSelected: tab == selection, accent: accent))
         #if os(tvOS)
-        .buttonStyle(MenuRowStyle(isSelected: tab == selection, accent: accent))
         .focused($focusedTab, equals: tab)
-        #else
-        .buttonStyle(MenuRowStyle(isSelected: tab == selection, accent: accent))
         #endif
     }
 
@@ -110,7 +105,7 @@ struct MenuOverlay: View {
         #if os(tvOS)
         return 520
         #else
-        return Theme.isPad ? 360 : 300
+        return 300
         #endif
     }
 
@@ -168,12 +163,11 @@ private struct MenuRowBody: View {
 }
 
 #if os(iOS)
-/// A small floating capsule button that summons the menu overlay. Sits above the
-/// bottom-leading corner, out of the way of content, and hides while the player is
-/// on screen (handled by the caller).
+/// A small floating capsule button that summons the menu overlay on iPhone. Sits
+/// above the bottom-leading corner, out of the way of content, and hides while the
+/// player is on screen (handled by the caller).
 struct MenuButton: View {
     var action: () -> Void
-    @Environment(\.dynamicAccent) private var accent
 
     var body: some View {
         Button(action: action) {
