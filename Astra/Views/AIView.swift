@@ -62,6 +62,28 @@ struct AIView: View {
             return ["Surprise me", "Something I'd never pick", "Dealer's choice"]
         case .fillGaps:
             return ["Classics I should have seen", "Essential 90s films", "Must-see documentaries"]
+        case .buildShelf:
+            return ["Neo-noir crime", "Cozy sci-fi", "Feel-good comedies"]
+        case .doubleFeature:
+            return ["A horror double bill", "Two space epics", "Classic and remake"]
+        case .bingeQueue:
+            return ["Bingeable sci-fi series", "Addictive crime dramas", "Bingeable sitcoms"]
+        case .decade:
+            return ["The best of the 90s", "Essential 80s films", "2010s standouts"]
+        case .director:
+            return ["Denis Villeneuve films", "Christopher Nolan movies", "Studio Ghibli"]
+        case .criticPicks:
+            return ["Award-winning dramas", "Best Picture winners", "Critically acclaimed sci-fi"]
+        case .genreBlend:
+            return ["Romantic comedies with sci-fi", "Horror comedies", "Action thrillers with heart"]
+        case .foreign:
+            return ["Korean thrillers", "French New Wave", "Japanese animation"]
+        case .comfortWatch:
+            return ["Cozy rewatchable shows", "Comfort movies", "Easy background TV"]
+        case .soundtrack:
+            return ["Films with iconic scores", "Great musicals", "Movies with killer soundtracks"]
+        case .basedOnBooks:
+            return ["Great book adaptations", "Novels made into films", "Book-to-series adaptations"]
         }
     }
 
@@ -324,16 +346,6 @@ struct AIView: View {
         if capability.producesCollection, !catalogResults.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Theme.Spacing.sm) {
-                    if capability.producesShelf {
-                        Button {
-                            saveAsShelf()
-                        } label: {
-                            Label("Save as Home Shelf", systemImage: "rectangle.grid.1x2")
-                                .font(.appFont(15, weight: .semibold))
-                        }
-                        .buttonStyle(AstraChipButtonStyle())
-                    }
-
                     Button {
                         saveAsCollection()
                     } label: {
@@ -377,17 +389,6 @@ struct AIView: View {
             library.addToCollection(collection.id, item: item)
         }
         savedMessage = "Saved \(catalogResults.count) to the “\(name)” collection."
-    }
-
-    /// Saves the AI prompt as a live Home shelf. The shelf re-resolves its prompt via
-    /// the AI service each time Home loads, so it stays fresh.
-    private func saveAsShelf() {
-        let prompt = lastPrompt.isEmpty ? capability.rawValue : lastPrompt
-        let title = prompt.capitalized
-        HomeShelfStore.shared.shelves.append(
-            ShelfConfig(kind: .aiShelf(prompt: prompt), title: title, isEnabled: true)
-        )
-        savedMessage = "Added “\(title)” as a Home shelf."
     }
 
     private func addAllToLibrary() {
