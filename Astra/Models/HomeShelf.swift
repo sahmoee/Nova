@@ -22,6 +22,7 @@ enum ShelfKind: Codable, Hashable {
     case tmdbPopularShows
     case tmdbAiringToday
     case addonCatalog(addonID: UUID, type: String, catalogID: String)
+    case aiShelf(prompt: String)
 
     var defaultTitle: String {
         switch self {
@@ -35,6 +36,7 @@ enum ShelfKind: Codable, Hashable {
         case .tmdbPopularShows:   return "Popular Shows"
         case .tmdbAiringToday:    return "On TV Today"
         case .addonCatalog:       return "Addon Catalog"
+        case .aiShelf(let prompt): return prompt.isEmpty ? "AI Shelf" : prompt.capitalized
         }
     }
 
@@ -43,6 +45,7 @@ enum ShelfKind: Codable, Hashable {
         switch self {
         case .traktWatchlist, .traktTrendingShows: return "Trakt"
         case .addonCatalog:                        return "Addon"
+        case .aiShelf:                             return "AI"
         default:                                   return "TMDB"
         }
     }

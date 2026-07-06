@@ -324,6 +324,16 @@ struct AIView: View {
         if capability.producesCollection, !catalogResults.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Theme.Spacing.sm) {
+                    if capability.producesShelf {
+                        Button {
+                            saveAsShelf()
+                        } label: {
+                            Label("Save as Home Shelf", systemImage: "rectangle.grid.1x2")
+                                .font(.appFont(15, weight: .semibold))
+                        }
+                        .buttonStyle(AstraChipButtonStyle())
+                    }
+
                     Button {
                         saveAsCollection()
                     } label: {
@@ -367,6 +377,17 @@ struct AIView: View {
             library.addToCollection(collection.id, item: item)
         }
         savedMessage = "Saved \(catalogResults.count) to the “\(name)” collection."
+    }
+
+    /// Saves the AI prompt as a live Home shelf. The shelf re-resolves its prompt via
+    /// the AI service each time Home loads, so it stays fresh.
+    private func saveAsShelf() {
+        let prompt = lastPrompt.isEmpty ? capability.rawValue : lastPrompt
+        let title = prompt.capitalized
+        HomeShelfStore.shared.shelves.append(
+            ShelfConfig(kind: .aiShelf(prompt: prompt), title: title, isEnabled: true)
+        )
+        savedMessage = "Added “\(title)” as a Home shelf."
     }
 
     private func addAllToLibrary() {

@@ -15,6 +15,9 @@ final class ShelfLoader {
     private let trakt: TraktClient
     private let addonClient: StremioAddonClient
     private let addonStore: AddonStore
+    /// Resolves an AI shelf prompt into catalog items. Set by AppEnvironment after
+    /// the AI service is constructed (avoids an init ordering dependency).
+    var aiResolver: ((String) async -> [CatalogItem])?
 
     // Short-lived cache so Home and Discover share results within a session.
     private let cache = TTLCache<String, [CatalogItem]>(ttl: 60 * 10)   // 10 min
@@ -72,6 +75,7 @@ final class ShelfLoader {
     private func cacheKey(for kind: ShelfKind) -> String {
         switch kind {
         case .addonCatalog(let a, let t, let c): return "addon:\(a):\(t):\(c)"
+        case .aiShelf(let prompt): return "ai:\(prompt)"
         default: return String(describing: kind)
         }
     }
@@ -98,6 +102,8 @@ final class ShelfLoader {
             if SafeMode.isOn { return [] }
             guard let addon = addonStore.addons.first(where: { $0.id == addonID }) else { return [] }
             return (try? await addonClient.catalog(from: addon, type: type, catalogID: catalogID)) ?? []
+        case .aiShelf(let prompt):
+            return await aiResolver?(prompt) ?? []
         }
     }
 

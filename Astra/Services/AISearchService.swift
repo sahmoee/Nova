@@ -215,6 +215,17 @@ final class AISearchService: ObservableObject {
         case quickWatch      = "Short on Time"
         case surpriseMe      = "Surprise Me"
         case fillGaps        = "Fill My Gaps"
+        case buildShelf      = "Build a Shelf"
+        case doubleFeature   = "Double Feature"
+        case bingeQueue      = "Binge Queue"
+        case decade          = "By Decade"
+        case director        = "By Director or Cast"
+        case criticPicks     = "Critically Acclaimed"
+        case genreBlend      = "Genre Blend"
+        case foreign         = "Foreign & World"
+        case comfortWatch    = "Comfort Watch"
+        case soundtrack      = "Great Soundtracks"
+        case basedOnBooks    = "Based on Books"
 
         var id: String { rawValue }
 
@@ -232,6 +243,17 @@ final class AISearchService: ObservableObject {
             case .quickWatch:      return "timer"
             case .surpriseMe:      return "dice"
             case .fillGaps:        return "puzzlepiece.extension"
+            case .buildShelf:      return "rectangle.grid.1x2"
+            case .doubleFeature:   return "film.stack"
+            case .bingeQueue:      return "rectangle.stack.badge.play"
+            case .decade:          return "calendar"
+            case .director:        return "person.crop.rectangle"
+            case .criticPicks:     return "rosette"
+            case .genreBlend:      return "wand.and.rays"
+            case .foreign:         return "globe"
+            case .comfortWatch:    return "cup.and.saucer"
+            case .soundtrack:      return "music.note.list"
+            case .basedOnBooks:    return "book"
             }
         }
 
@@ -250,6 +272,17 @@ final class AISearchService: ObservableObject {
             case .quickWatch:      return "e.g. under 100 minutes tonight"
             case .surpriseMe:      return "anything — tap Go"
             case .fillGaps:        return "e.g. classics I should have seen"
+            case .buildShelf:      return "e.g. neo-noir crime, save as a shelf"
+            case .doubleFeature:   return "e.g. a horror double bill"
+            case .bingeQueue:      return "e.g. bingeable sci-fi series"
+            case .decade:          return "e.g. the best of the 90s"
+            case .director:        return "e.g. Denis Villeneuve films"
+            case .criticPicks:     return "e.g. award-winning dramas"
+            case .genreBlend:      return "e.g. romantic comedies with sci-fi"
+            case .foreign:         return "e.g. Korean thrillers"
+            case .comfortWatch:    return "e.g. cozy rewatchable shows"
+            case .soundtrack:      return "e.g. films with iconic scores"
+            case .basedOnBooks:    return "e.g. great book-to-film adaptations"
             }
         }
 
@@ -257,12 +290,17 @@ final class AISearchService: ObservableObject {
         /// wider catalog).
         var searchesLibrary: Bool { self == .librarySearch }
 
+        /// Whether the results can be saved as a Home shelf.
+        var producesShelf: Bool { self == .buildShelf }
+
         /// Whether the results can be saved as a new collection.
         var producesCollection: Bool {
             switch self {
             case .buildCollection, .buildLineup, .similarTo, .moodMatch,
                  .franchiseOrder, .hiddenGems, .familyFriendly, .quickWatch,
-                 .surpriseMe, .fillGaps:
+                 .surpriseMe, .fillGaps, .buildShelf, .doubleFeature, .bingeQueue,
+                 .decade, .director, .criticPicks, .genreBlend, .foreign,
+                 .comfortWatch, .soundtrack, .basedOnBooks:
                 return true
             case .discover, .librarySearch:
                 return false
@@ -298,6 +336,28 @@ final class AISearchService: ObservableObject {
                 return "Surprise me with an eclectic, high-quality set of titles: \(seed)."
             case .fillGaps:
                 return "Suggest well-regarded essential titles someone may have missed for: \(text)."
+            case .buildShelf:
+                return "Build a themed shelf of movies and shows for: \(text). Return a cohesive, well-rounded set."
+            case .doubleFeature:
+                return "Pick a double feature (two titles) that pair perfectly for: \(text). Return exactly two."
+            case .bingeQueue:
+                return "Build a binge queue of highly bingeable series for: \(text). Order them best first."
+            case .decade:
+                return "List the standout titles from the era or decade described: \(text)."
+            case .director:
+                return "List notable titles by the director, creator, or cast member described: \(text)."
+            case .criticPicks:
+                return "List critically acclaimed, award-recognized titles for: \(text)."
+            case .genreBlend:
+                return "List titles that blend the genres described: \(text)."
+            case .foreign:
+                return "List great non-English or world-cinema titles for: \(text)."
+            case .comfortWatch:
+                return "List cozy, easy, rewatchable comfort titles for: \(text)."
+            case .soundtrack:
+                return "List titles famous for their music or score for: \(text)."
+            case .basedOnBooks:
+                return "List well-regarded titles adapted from books for: \(text)."
             }
         }
     }

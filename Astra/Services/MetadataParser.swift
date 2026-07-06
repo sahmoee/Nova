@@ -99,6 +99,8 @@ enum MetadataParser {
         if let r = name.range(of: #"[sS]\d{1,2}[eE]\d{1,3}"#, options: .regularExpression) {
             name = String(name[..<r.lowerBound])
         }
+        // Apply the user's custom cleanup rules (with descriptions), then trim.
+        name = TitleCleanupRulesStore.applySnapshot(to: name)
         return name.trimmingCharacters(in: .whitespaces)
     }
 }

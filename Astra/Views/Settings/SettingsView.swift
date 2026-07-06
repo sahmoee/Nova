@@ -157,6 +157,11 @@ struct SettingsView: View {
                 settingRow("AI Search", systemImage: "sparkles",
                            detail: AISearchService.isConfigured ? "Ready" : "Set up")
             }.astraRowStyle()
+
+            NavigationLink { TitleCleanupRulesView() } label: {
+                settingRow("Cleanup Rules", systemImage: "textformat.abc.dottedunderline",
+                           detail: "Regex title cleanup")
+            }.astraRowStyle()
         }
     }
 

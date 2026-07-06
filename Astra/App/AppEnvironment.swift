@@ -27,7 +27,6 @@ final class AppEnvironment: ObservableObject {
     let liveTVSources = LiveTVSourceStore()
     let libraryFolders = LibraryFolderStore()
     let libraryEnricher = LibraryEnricher()
-    let downloadManager = DownloadManager()
     let tmdb: TMDBClient
     let omdb: OMDbClient
     let trakt: TraktClient
@@ -84,6 +83,11 @@ final class AppEnvironment: ObservableObject {
         )
 
         self.aiSearch = AISearchService(tmdb: tmdbClient)
+        // Let AI-generated shelves resolve through the AI service.
+        self.shelfLoader.aiResolver = { [weak aiSearch = self.aiSearch] prompt in
+            guard let aiSearch else { return [] }
+            return (try? await aiSearch.run(.buildShelf, userText: prompt)) ?? []
+        }
 
         // Library intentionally starts empty — it fills as the user plays or
         // favorites content. No sample/placeholder items are seeded.
