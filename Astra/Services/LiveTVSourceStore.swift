@@ -120,7 +120,11 @@ final class LiveTVSourceStore: ObservableObject {
     func refreshAll() async {
         isLoading = true
         defer { isLoading = false }
-        for source in sources where source.isEnabled { await refresh(source) }
+        await withTaskGroup(of: Void.self) { group in
+            for source in sources where source.isEnabled {
+                group.addTask { await self.refresh(source) }
+            }
+        }
     }
 
     func refresh(_ source: LiveTVSource) async {

@@ -71,6 +71,26 @@ extension View {
 
 enum Haptics {
     enum Kind { case success, warning, error, light }
+    enum Impact { case light, medium, rigid, soft }
+
+    static func impact(_ style: Impact = .light) {
+        #if os(iOS)
+        let mapped: UIImpactFeedbackGenerator.FeedbackStyle
+        switch style {
+        case .light: mapped = .light
+        case .medium: mapped = .medium
+        case .rigid: mapped = .rigid
+        case .soft: mapped = .soft
+        }
+        UIImpactFeedbackGenerator(style: mapped).impactOccurred()
+        #endif
+    }
+
+    static func selection() {
+        #if os(iOS)
+        UISelectionFeedbackGenerator().selectionChanged()
+        #endif
+    }
 
     static func play(_ kind: Kind) {
         #if os(iOS)

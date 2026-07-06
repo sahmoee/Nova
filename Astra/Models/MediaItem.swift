@@ -194,6 +194,15 @@ struct MediaItem: Identifiable, Codable, Hashable {
         contentID?.type == .series || episode != nil || seriesTitle != nil
     }
 
+    /// True when the item already carries a directly playable file/stream (SMB share,
+    /// direct URL, or live channel) rather than something that needs stream resolution.
+    var isDirectPlay: Bool {
+        switch sourceType {
+        case .smb, .directURL, .liveTV: return true
+        case .realDebrid, .addon, .trakt: return false
+        }
+    }
+
     /// Builds a CatalogItem so this library item opens the full detail screen used by
     /// Discover and Home (season and episode rails for shows). Uses the show title
     /// for episodes.

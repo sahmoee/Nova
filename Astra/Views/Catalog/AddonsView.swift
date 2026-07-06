@@ -15,6 +15,9 @@ import UniformTypeIdentifiers
 import UIKit
 #endif
 
+/// Signals that an addon install exceeded the client-side ceiling.
+private enum AddonInstallTimeout: Error { case timedOut }
+
 struct AddonsView: View {
     @EnvironmentObject private var env: AppEnvironment
     @State private var showAdd = false
@@ -389,14 +392,24 @@ struct AddAddonView: View {
     }
 
     private var normalizedURL: URL? {
-        var s = urlText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !s.isEmpty else { return nil }
-        if !s.lowercased().hasPrefix("http") { s = "https://" + s }
-        if !s.lowercased().hasSuffix("manifest.json") {
-            if !s.hasSuffix("/") { s += "/" }
-            s += "manifest.json"
+        var text = urlText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return nil }
+        // Some aggregators (AIOStreams, Comet) hand the user only an opaque config
+        // id from their configure page. If the field holds a bare token and this
+        // preset has a known host, expand it into a real manifest URL so the install
+        // doesn't hang resolving the token as a hostname.
+        let looksBare = !text.lowercased().hasPrefix("http") && !text.contains("/") && !text.contains(".")
+        if looksBare, let host = preset?.hostForBareConfig {
+            text = "\(host)/\(text)/manifest.json"
+        } else {
+            if !text.lowercased().hasPrefix("http") { text = "https://" + text }
+            text = text.replacingOccurrences(of: "stremio://", with: "https://")
+            if !text.lowercased().hasSuffix("manifest.json") {
+                if !text.hasSuffix("/") { text += "/" }
+                text += "manifest.json"
+            }
         }
-        return URL(string: s)
+        return URL(string: text)
     }
 
     private func install(_ explicitURL: URL? = nil) {
@@ -405,8 +418,25 @@ struct AddAddonView: View {
         errorMessage = nil
         Task {
             do {
-                _ = try await env.addonStore.install(manifestURL: url)
+                // Race the install against a hard 25s ceiling so the button can never
+                // stick on Installing if the network stalls beyond the request timeout.
+                try await withThrowingTaskGroup(of: Void.self) { group in
+                    group.addTask { _ = try await env.addonStore.install(manifestURL: url) }
+                    group.addTask {
+                        try await Task.sleep(nanoseconds: 25_000_000_000)
+                        throw AddonInstallTimeout.timedOut
+                    }
+                    try await group.next()
+                    group.cancelAll()
+                }
                 await MainActor.run { isInstalling = false; dismiss() }
+            } catch is CancellationError {
+                await MainActor.run { isInstalling = false }
+            } catch AddonInstallTimeout.timedOut {
+                await MainActor.run {
+                    isInstalling = false
+                    errorMessage = "That took too long. Check the URL is a full manifest link and the instance is reachable."
+                }
             } catch {
                 await MainActor.run {
                     isInstalling = false

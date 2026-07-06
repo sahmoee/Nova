@@ -21,20 +21,25 @@ struct CatalogShelfRow: View {
 
     var body: some View {
         Group {
-            if !loaded || !items.isEmpty {
+            if !loaded || !items.isEmpty || shelf.kind.sourceLabel == "Trakt" {
                 VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                     header
                     if loaded {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            LazyHStack(spacing: Theme.Spacing.md) {
-                                ForEach(items) { item in
-                                    NavigationLink(value: item) {
-                                        posterCard(item)
+                        if items.isEmpty {
+                            // Trakt shelves never disappear: show why they're empty.
+                            traktEmptyHint
+                        } else {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                LazyHStack(spacing: Theme.Spacing.md) {
+                                    ForEach(items) { item in
+                                        NavigationLink(value: item) {
+                                            posterCard(item)
+                                        }
+                                        .buttonStyle(AstraListRowStyle())
                                     }
-                                    .buttonStyle(AstraListRowStyle())
                                 }
+                                .padding(.horizontal, Theme.Spacing.edge)
                             }
-                            .padding(.horizontal, Theme.Spacing.edge)
                         }
                     } else {
                         loadingRow
@@ -69,7 +74,21 @@ struct CatalogShelfRow: View {
         .padding(.horizontal, Theme.Spacing.edge)
     }
 
-    private var loadingRow: some View {
+    private var traktEmptyHint: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: "person.crop.circle.badge.questionmark")
+                .font(.appFont(20))
+                .foregroundStyle(Theme.Colors.textTertiary)
+            Text("Connect Trakt in Settings, or add titles to this list, to fill this row.")
+                .font(.appFont(15))
+                .foregroundStyle(Theme.Colors.textSecondary)
+            Spacer()
+        }
+        .padding(.horizontal, Theme.Spacing.edge)
+        .padding(.vertical, Theme.Spacing.sm)
+    }
+
+        private var loadingRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: Theme.Spacing.md) {
                 ForEach(0..<5, id: \.self) { _ in

@@ -105,6 +105,9 @@ final class BackupManager: ObservableObject {
 
     @Published private(set) var lastBackupDate: Date?
 
+    /// Tracks the createdAt of the last cloud snapshot auto-applied on this device.
+    private let lastAutoSyncKey = "backup.lastAutoSyncedSnapshot"
+
     private let keychain = KeychainStore.shared
 
     init() {
@@ -208,6 +211,31 @@ final class BackupManager: ObservableObject {
     /// Restores the selected categories from the iCloud snapshot onto this device.
     /// Returns true on success. By default everything is restored, including logins.
     @discardableResult
+    /// Applies a newer iCloud snapshot from the user's other devices silently on
+    /// launch/foreground, so preferences, sources, and addons follow them across
+    /// iPhone, iPad, and Apple TV. Secrets stay opt-in. Applied at most once per
+    /// snapshot per device. Returns true if anything was applied.
+    @discardableResult
+    func autoSyncOnLaunch() -> Bool {
+        CloudSync.shared.pull()
+        guard let snap = loadSnapshotFromCloud() else { return false }
+        let defaults = UserDefaults.standard
+        let stamp = ISO8601DateFormatter().string(from: snap.createdAt)
+        if snap.deviceName == deviceName(), defaults.string(forKey: lastAutoSyncKey) == nil {
+            defaults.set(stamp, forKey: lastAutoSyncKey)
+            return false
+        }
+        if defaults.string(forKey: lastAutoSyncKey) == stamp { return false }
+        let contents = availableContents(in: snap).subtracting(.secrets)
+        guard !contents.isEmpty else {
+            defaults.set(stamp, forKey: lastAutoSyncKey)
+            return false
+        }
+        apply(snap, restoring: contents)
+        defaults.set(stamp, forKey: lastAutoSyncKey)
+        return true
+    }
+
     func restoreFromCloud(restoring contents: BackupContents = .all) -> Bool {
         guard let snap = loadSnapshotFromCloud() else { return false }
         apply(snap, restoring: contents)

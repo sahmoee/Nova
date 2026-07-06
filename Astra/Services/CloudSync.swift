@@ -76,6 +76,11 @@ final class CloudSync: ObservableObject {
     func object(forKey key: String) -> Any? { store.object(forKey: key) }
 
     /// Pushes any pending changes to iCloud immediately.
+    /// Pulls the newest iCloud values down before reading a snapshot.
+    func pull() {
+        store.synchronize()
+    }
+
     func flush() {
         flushWorkItem?.cancel()
         flushWorkItem = nil

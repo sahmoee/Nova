@@ -21,6 +21,7 @@ struct RootView: View {
     @AppStorage("hasSeenPersonalMediaDisclosure") private var hasSeenDisclosure = false
     @State private var reopenItem: MediaItem?
     @State private var showTVMenu = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         rootContent
@@ -46,6 +47,14 @@ struct RootView: View {
                 }
             }
             .onAppear(perform: maybeOfferRestore)
+            .onAppear(perform: autoSyncFromCloud)
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    autoSyncFromCloud()
+                } else if phase == .background {
+                    BackupManager.shared.createBackup()
+                }
+            }
             .onAppear(perform: maybeShowWhatsNew)
             .sheet(isPresented: $showWhatsNew) {
                 WhatsNewView(note: WhatsNewTracker.shared.currentNote) {
@@ -129,10 +138,43 @@ struct RootView: View {
     /// iOS / iPadOS: either the standard bottom tab bar or a floating pill.
     @ViewBuilder
     private var rootContent: some View {
-        switch settings.tabBarStyle {
-        case .system:       systemTabBar
-        case .floatingPill: floatingPillRoot
+        if Theme.isPad {
+            iPadSidebarRoot
+        } else {
+            switch settings.tabBarStyle {
+            case .system:       systemTabBar
+            case .floatingPill: floatingPillRoot
+            }
         }
+    }
+
+    /// iPad-specific root: a persistent source-list sidebar (like Files, Music, and
+    /// the App Store on iPad) with the selected section in the detail column.
+    @ViewBuilder
+    private var iPadSidebarRoot: some View {
+        NavigationSplitView {
+            List(AppTab.allCases, id: \.self, selection: sidebarSelection) { tab in
+                Label(tab.title, systemImage: tab.systemImage)
+                    .font(.appFont(19, weight: .medium))
+                    .tag(tab)
+            }
+            .navigationTitle("Astra")
+            .listStyle(.sidebar)
+        } detail: {
+            ZStack(alignment: .bottom) {
+                Theme.Colors.appBackground.ignoresSafeArea()
+                activeScreen
+                    .safeAreaInset(edge: .bottom) { nowPlayingBar }
+            }
+        }
+        .tint(Theme.Colors.accent)
+    }
+
+    private var sidebarSelection: Binding<AppTab?> {
+        Binding(
+            get: { nav.selection },
+            set: { if let t = $0 { nav.selection = t } }
+        )
     }
 
     /// The standard system bottom tab bar.
@@ -282,6 +324,14 @@ struct RootView: View {
 
     /// On a fresh install (no prior launch) with an iCloud snapshot present and no
     /// local library yet, offer a one-time restore.
+    /// Applies any newer iCloud snapshot from the user's other devices silently so
+    /// preferences, sources, and addons follow them across iPhone, iPad, and Apple TV.
+    private func autoSyncFromCloud() {
+        if BackupManager.shared.autoSyncOnLaunch() {
+            ToastCenter.shared.show("Synced from iCloud", systemImage: "checkmark.icloud.fill")
+        }
+    }
+
     private func maybeOfferRestore() {
         let defaults = UserDefaults.standard
         let launchedKey = "app.hasLaunchedBefore"

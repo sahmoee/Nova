@@ -66,6 +66,9 @@ final class SettingsStore: ObservableObject {
         static let homeStyle = "settings.homeStyle"
         static let libraryStyle = "settings.libraryStyle"
         static let libraryColumnCount = "settings.libraryColumnCount"
+        static let showSMBSeparately = "settings.showSMBSeparately"
+        static let showTraktInLibrary = "settings.showTraktInLibrary"
+        static let pinnedCollections = "settings.pinnedCollections"
         static let tabBarStyle = "settings.tabBarStyle"
         static let uiStyle = "settings.uiStyle"
         static let detailStyle = "settings.detailStyle"
@@ -260,6 +263,26 @@ final class SettingsStore: ObservableObject {
 
     /// How many poster columns the library grid shows on iPhone/iPad. Default 3.
     /// Clamped to a sensible range so the grid never looks broken.
+    /// Shows a dedicated Network (SMB) tab in the Library separating SMB items.
+    @Published var showSMBSeparately: Bool {
+        didSet { defaults.set(showSMBSeparately, forKey: Key.showSMBSeparately); CloudSync.shared.setBool(showSMBSeparately, forKey: Key.showSMBSeparately) }
+    }
+
+    /// Shows optional Trakt tabs (Watchlist / Trending) in the Library.
+    @Published var showTraktInLibrary: Bool {
+        didSet { defaults.set(showTraktInLibrary, forKey: Key.showTraktInLibrary); CloudSync.shared.setBool(showTraktInLibrary, forKey: Key.showTraktInLibrary) }
+    }
+
+    /// Collections pinned as Library filter pills (UUID strings).
+    @Published var pinnedCollections: [String] {
+        didSet {
+            defaults.set(pinnedCollections, forKey: Key.pinnedCollections)
+            if let data = try? JSONEncoder().encode(pinnedCollections) {
+                CloudSync.shared.setData(data, forKey: Key.pinnedCollections)
+            }
+        }
+    }
+
     @Published var libraryColumnCount: Int {
         didSet {
             let clamped = min(max(libraryColumnCount, 2), 5)
@@ -420,6 +443,9 @@ final class SettingsStore: ObservableObject {
         ) ?? .cinematic
         let storedCols = defaults.object(forKey: Key.libraryColumnCount) as? Int
         self.libraryColumnCount = storedCols.map { min(max($0, 2), 5) } ?? 3
+        self.showSMBSeparately = defaults.bool(forKey: Key.showSMBSeparately)
+        self.showTraktInLibrary = defaults.bool(forKey: Key.showTraktInLibrary)
+        self.pinnedCollections = defaults.stringArray(forKey: Key.pinnedCollections) ?? []
         self.libraryStyle = LibraryStyle(
             rawValue: defaults.string(forKey: Key.libraryStyle) ?? LibraryStyle.clean.rawValue
         ) ?? .clean

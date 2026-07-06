@@ -9,6 +9,7 @@ import Foundation
 final class LibraryEnricher: ObservableObject {
     @Published var isRunning = false
     @Published var progress: String?
+    @Published var fractionComplete: Double = 0
     @Published var lastSummary: String?
 
     private let session: URLSession = AppNetworking.shared
@@ -30,6 +31,7 @@ final class LibraryEnricher: ObservableObject {
         var imagesAdded = 0
 
         for (index, original) in items.enumerated() {
+            fractionComplete = items.isEmpty ? 1 : Double(index + 1) / Double(items.count)
             progress = "Processing \(index + 1) of \(items.count)…"
             var item = original
             var changed = false

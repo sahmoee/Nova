@@ -668,6 +668,7 @@ final class LibraryStore: ObservableObject {
     var libraryEntries: [MediaItem] {
         let sorted = items.sorted { $0.addedDate > $1.addedDate }
         var seenSeasonKeys = Set<String>()
+        var movieSlots: [String: Int] = [:]
         var result: [MediaItem] = []
         for item in sorted {
             if let ep = item.episode {
@@ -680,10 +681,36 @@ final class LibraryStore: ObservableObject {
                     result.append(item)   // first (most recent) episode represents the season
                 }
             } else {
-                result.append(item)       // movies and non-episodic content stay individual
+                // Movies: never show the same title twice. Prefer a real content ID,
+                // falling back to normalized title + year. The recently played copy wins.
+                let key: String
+                if let raw = item.contentID?.stableKey, !raw.hasPrefix("unknown:") {
+                    key = raw
+                } else {
+                    let year = item.metadata.year.map(String.init) ?? ""
+                    key = "movie:\(item.title.lowercased())|\(year)"
+                }
+                if let slot = movieSlots[key] {
+                    if prefersForDedupe(item, over: result[slot]) { result[slot] = item }
+                } else {
+                    movieSlots[key] = result.count
+                    result.append(item)
+                }
             }
         }
         return result
+    }
+
+    /// True when candidate should represent the deduped entry: the more recently
+    /// played copy wins; then playback progress; otherwise the newest addition stays.
+    private func prefersForDedupe(_ candidate: MediaItem, over current: MediaItem) -> Bool {
+        switch (candidate.lastPlayedDate, current.lastPlayedDate) {
+        case let (c?, e?): return c > e
+        case (.some, .none): return true
+        case (.none, .some): return false
+        case (.none, .none):
+            return candidate.lastPlayedPosition > 0 && current.lastPlayedPosition == 0
+        }
     }
 
     func items(for source: SourceType) -> [MediaItem] {

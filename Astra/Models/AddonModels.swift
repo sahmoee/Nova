@@ -355,6 +355,16 @@ enum AddonPreset: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The host used to expand a pasted bare config id into a full manifest URL, for
+    /// aggregators whose configure page hands the user only an opaque id.
+    var hostForBareConfig: String? {
+        switch self {
+        case .aioStreams: return "https://aiostreams.elfhosted.com"
+        case .comet:      return "https://comet.elfhosted.com"
+        default:          return nil
+        }
+    }
+
     /// A hint URL template shown as a placeholder.
     var placeholderURL: String {
         switch self {

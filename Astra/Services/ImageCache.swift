@@ -43,6 +43,21 @@ actor ImageLoader {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
         diskDir = caches.appendingPathComponent("frametv-images", isDirectory: true)
         try? FileManager.default.createDirectory(at: diskDir, withIntermediateDirectories: true)
+
+        #if os(iOS)
+        Task { @MainActor in
+            NotificationCenter.default.addObserver(
+                forName: UIApplication.didReceiveMemoryWarningNotification,
+                object: nil, queue: .main) { _ in
+                Task { await ImageLoader.shared.purgeMemory() }
+            }
+        }
+        #endif
+    }
+
+    /// Clears the in-memory image cache; the disk cache is retained.
+    func purgeMemory() {
+        memory.removeAllObjects()
     }
 
     /// Loads an image, downsampled to roughly `maxPixel` on the long edge. Decoding a
@@ -147,10 +162,13 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
         Group {
             if let loaded {
                 content(Image(uiImage: loaded).interpolation(.high).antialiased(true))
+                    .transition(.opacity)
             } else {
                 placeholder()
+                    .transition(.opacity)
             }
         }
+        .animation(.easeOut(duration: 0.25), value: loaded != nil)
         .task(id: url) {
             loaded = nil
             failed = false
