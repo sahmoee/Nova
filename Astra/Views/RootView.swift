@@ -2,9 +2,14 @@
 //  RootView.swift
 //  Astra
 //
-//  Top-level tab navigation. Owns a NavigationCoordinator so that re-tapping the
-//  active tab pops its navigation stack back to root (a standard iOS behavior and
-//  an easy way to escape any stuck detail/error screen).
+//  Top-level navigation. Owns a NavigationCoordinator so that re-selecting the
+//  active section pops its navigation stack back to root (an easy way to escape any
+//  stuck detail/error screen).
+//
+//  All platforms navigate through a single shared pop-up menu (MenuOverlay) that
+//  slides over the current screen instead of switching to a separate screen. On
+//  iOS/iPadOS a small floating Menu button summons it; on tvOS the Menu / TV button
+//  summons it.
 //
 
 import SwiftUI
@@ -20,6 +25,7 @@ struct RootView: View {
     @State private var showWhatsNew = false
     @AppStorage("hasSeenPersonalMediaDisclosure") private var hasSeenDisclosure = false
     @State private var reopenItem: MediaItem?
+    @State private var showMenu = false
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -82,83 +88,106 @@ struct RootView: View {
 
     // MARK: - Platform root
 
-    /// All platforms now share the same navigation: a persistent source-list
-    /// sidebar (the same one the iPad has always used) with the selected section
-    /// in the detail column. iPhone gets it as a slide-over drawer, iPad and Apple
-    /// TV as a fixed left rail. This unifies the tab menu across iOS, iPadOS, and
-    /// tvOS so every device navigates the same way.
-    @ViewBuilder
-    private var rootContent: some View {
-        #if os(tvOS)
-        // tvOS: the sidebar rail is the section switcher. The Menu / TV button is
-        // still captured so a pushed detail pops one level before focus returns to
-        // the rail; the player owns the button while playing.
-        sidebarRoot
-            .onExitCommand {
-                if nowPlaying.playerPresented {
-                    // Player handles its own exit; do nothing here.
-                } else if !nav.isAtRoot(nav.selection) {
-                    nav.popOne(nav.selection)
-                }
-                // At a screen root the focus engine returns to the sidebar rail on
-                // its own, so there's nothing to summon.
-            }
-        #else
-        sidebarRoot
-        #endif
-    }
-
-    /// The shared source-list sidebar root (like Files, Music, and the App Store on
-    /// iPad) used by iPhone, iPad, and Apple TV. The selected section renders in the
-    /// detail column with the Now Playing bar pinned to its bottom.
-    @ViewBuilder
-    private var sidebarRoot: some View {
-        NavigationSplitView(columnVisibility: sidebarColumnVisibility) {
-            List(AppTab.allCases, id: \.self, selection: sidebarSelection) { tab in
-                Label(tab.title, systemImage: tab.systemImage)
-                    .font(.appFont(19, weight: .medium))
-                    .tag(tab)
-            }
-            .navigationTitle("Astra")
-            #if os(iOS)
-            .listStyle(.sidebar)
-            #endif
-        } detail: {
-            ZStack(alignment: .bottom) {
-                Theme.Colors.appBackground.ignoresSafeArea()
-                activeScreen
-                    .safeAreaInset(edge: .bottom) { nowPlayingBar }
-            }
-        }
-        .tint(Theme.Colors.accent)
-    }
-
-    /// iPad and Apple TV keep both the sidebar and detail visible side-by-side;
-    /// iPhone shows the detail full-screen with the sidebar available as a drawer.
-    private var sidebarColumnVisibility: Binding<NavigationSplitViewVisibility> {
-        #if os(tvOS)
-        .constant(.all)
-        #else
-        .constant(Theme.isPad ? .all : .automatic)
-        #endif
-    }
-
-    private var sidebarSelection: Binding<AppTab?> {
+    /// A binding that both switches sections and pops the current section to root
+    /// when re-selected. Shared by the menu overlay across every platform.
+    private var menuSelection: Binding<AppTab> {
         Binding(
             get: { nav.selection },
-            set: { if let t = $0 {
-                // Re-selecting the current section pops it to root, matching the
-                // old tab-bar behavior.
-                if t == nav.selection {
-                    nav.popToRoot(t)
+            set: { newValue in
+                if newValue == nav.selection {
+                    nav.popToRoot(newValue)
                 } else {
-                    nav.selection = t
+                    nav.selection = newValue
                 }
-            } }
+            }
         )
     }
 
-    /// The active screen for the detail column.
+    private var menuIsOpen: Bool { showMenu && !nowPlaying.playerPresented }
+
+    #if os(tvOS)
+    /// tvOS: the active screen is shown full-screen. The Menu / TV button summons the
+    /// shared pop-up menu to switch sections. While a video plays, Menu is handled by
+    /// the player, not here.
+    @ViewBuilder
+    private var rootContent: some View {
+        ZStack {
+            Theme.Colors.appBackground.ignoresSafeArea()
+
+            activeScreen
+                .ignoresSafeArea(.container, edges: .bottom)
+                // While the menu is up, take the underlying screen out of the focus
+                // engine so remote swipes can't move items behind it.
+                .disabled(menuIsOpen)
+                .accessibilityHidden(menuIsOpen)
+
+            if menuIsOpen {
+                MenuOverlay(selection: menuSelection) {
+                    withAnimation(.easeOut(duration: 0.2)) { showMenu = false }
+                }
+                .transition(.opacity)
+                .zIndex(10)
+            }
+        }
+        // Capture the Menu / TV button. Priority: if the menu is open, close it; if a
+        // detail screen is pushed, go back one level; otherwise (at a screen root)
+        // summon the section menu. The player owns the button while playing.
+        .onExitCommand {
+            if showMenu {
+                withAnimation(.easeOut(duration: 0.2)) { showMenu = false }
+            } else if nowPlaying.playerPresented {
+                // Player handles its own exit; do nothing here.
+            } else if !nav.isAtRoot(nav.selection) {
+                nav.popOne(nav.selection)
+            } else {
+                withAnimation(.easeOut(duration: 0.2)) { showMenu = true }
+            }
+        }
+        .overlay(alignment: .bottom) { nowPlayingBar }
+    }
+    #else
+    /// iOS / iPadOS: the active screen fills the window. A small floating Menu button
+    /// summons the shared pop-up menu; tapping the backdrop dismisses it.
+    @ViewBuilder
+    private var rootContent: some View {
+        ZStack(alignment: .bottomLeading) {
+            Theme.Colors.appBackground.ignoresSafeArea()
+
+            activeScreen
+                // Reserve a little space at the bottom so scroll content rests above
+                // the floating menu button. Collapses while the player is up.
+                .safeAreaInset(edge: .bottom) {
+                    Color.clear.frame(height: nowPlaying.playerPresented ? 0 : Theme.scaled(64, min: 52))
+                }
+                .disabled(menuIsOpen)
+                .accessibilityHidden(menuIsOpen)
+
+            // Now Playing bar + floating Menu button stack at the bottom.
+            VStack(alignment: .leading, spacing: 0) {
+                nowPlayingBar
+                if !nowPlaying.playerPresented {
+                    MenuButton {
+                        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                            showMenu = true
+                        }
+                    }
+                    .padding(.leading, Theme.Spacing.md)
+                    .padding(.bottom, Theme.Spacing.sm)
+                }
+            }
+
+            if menuIsOpen {
+                MenuOverlay(selection: menuSelection) {
+                    withAnimation(.easeOut(duration: 0.2)) { showMenu = false }
+                }
+                .transition(.opacity)
+                .zIndex(10)
+            }
+        }
+    }
+    #endif
+
+    /// The active section screen, shared by every platform.
     @ViewBuilder
     private var activeScreen: some View {
         switch nav.selection {
@@ -170,9 +199,9 @@ struct RootView: View {
         }
     }
 
-    /// A "Now Playing" mini-bar shown above the tab bar while something is playing.
-    /// Tapping it reopens the player. Only shows when there's a current item and the
-    /// player isn't already on screen (the player covers full screen).
+    /// A "Now Playing" mini-bar shown while something is playing. Tapping it reopens
+    /// the player. Only shows when there's a current item and the player isn't already
+    /// on screen (the player covers full screen).
     @ViewBuilder
     private var nowPlayingBar: some View {
         if let item = nowPlaying.current, reopenItem == nil, !nowPlaying.playerPresented {
