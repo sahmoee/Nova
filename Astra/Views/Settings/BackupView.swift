@@ -268,8 +268,7 @@ struct BackupView: View {
     }
 
     private func dateText(_ date: Date) -> String {
-        let fmt = DateFormatter(); fmt.dateStyle = .medium; fmt.timeStyle = .short
-        return fmt.string(from: date)
+        date.mediumDateTimeText
     }
 }
 

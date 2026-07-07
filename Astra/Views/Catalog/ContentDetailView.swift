@@ -888,8 +888,7 @@ struct ContentDetailView: View {
             parts.append("\(minutes) min")
         }
         if let air = ep.airDate {
-            let fmt = DateFormatter(); fmt.dateStyle = .medium
-            parts.append("Aired \(fmt.string(from: air))")
+            parts.append("Aired \(air.mediumDateText)")
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }

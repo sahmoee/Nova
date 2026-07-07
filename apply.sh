@@ -1,20 +1,17 @@
-#!/usr/bin/env bash
-# apply.sh - run this BEFORE commit.sh.
-# Deletes DownloadManager.swift, which has been fully removed from the app.
-# The delta cannot delete a file on the Mac by itself (BuildBuddy only rsyncs
-# files present in the delta), so this step performs the removal. commit.sh
-# then stages it via git add -A.
-set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$SCRIPT_DIR")"
-cd "$REPO_ROOT"
+#!/bin/bash
+# Deletes stale duplicate files that are not compiled by the project. BuildBuddy
+# rsyncs only files present in the delta, so deletions must happen here.
+set -e
+cd "$(dirname "$0")"
 
-TARGET="Astra/Services/DownloadManager.swift"
-if [[ -f "$TARGET" ]]; then
-  rm -f "$TARGET"
-  echo "Deleted $TARGET"
-else
-  echo "$TARGET already absent - nothing to delete."
-fi
+# Deep-nested stale AppEnvironment copy from an old restructure (the compiled copy
+# lives at Astra/App/AppEnvironment.swift and is untouched).
+rm -f "Astra/Astra/App/AppEnvironment.swift"
+rmdir "Astra/Astra/App" 2>/dev/null || true
+rmdir "Astra/Astra" 2>/dev/null || true
 
-echo "apply.sh done. Now run commit.sh to stage and commit the removal."
+# Orphan duplicate of the Live TV sources view (the compiled copy lives at
+# Astra/Views/LiveTV/LiveTVSourcesView.swift).
+rm -f "Astra/Services/LiveTVSourcesView.swift"
+
+echo "apply.sh: removed stale duplicate files."

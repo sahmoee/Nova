@@ -183,8 +183,7 @@ struct SettingsView: View {
 
     private var backupDetail: String {
         if let date = BackupManager.shared.lastBackupDate {
-            let fmt = DateFormatter(); fmt.dateStyle = .medium; fmt.timeStyle = .short
-            return "Last: \(fmt.string(from: date))"
+            return "Last: \(date.mediumDateTimeText)"
         }
         return "Not backed up"
     }
@@ -301,6 +300,11 @@ struct SettingsView: View {
             pickerRow("Detail Style", systemImage: "rectangle.portrait.on.rectangle.portrait",
                       selection: $settings.detailStyle,
                       options: DetailStyle.allCases) { $0.displayName }
+            #if os(iOS)
+            pickerRow("Tab Bar Style", systemImage: "square.bottomthird.inset.filled",
+                      selection: $settings.tabBarStyle,
+                      options: TabBarStyle.allCases) { $0.displayName }
+            #endif
             pickerRow("Search Layout", systemImage: "square.grid.2x2",
                       selection: $settings.searchLayout,
                       options: SearchLayoutStyle.allCases) { $0.displayName }
