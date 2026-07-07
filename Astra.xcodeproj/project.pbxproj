@@ -118,6 +118,10 @@
 		5D8673E9711C9E2B7D105343 /* AISearchSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F15861ED4C9FDFCA38AE4F6C /* AISearchSettingsView.swift */; };
 		5DE9463C7417AE4616433269 /* StreamResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02CE2BC66986B738CE05444C /* StreamResolver.swift */; };
 		5E3135736CAEECE7A6F8B173 /* DeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08358916D1F1D69D44FB6CA0 /* DeepLink.swift */; };
+		016D44CEC3A625BC31EC4D33 /* CollectionPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0CB13C2E1D3A27BA21C7FB5 /* CollectionPickerSheet.swift */; };
+		32B921547DCA569746AA435A /* CollectionPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0CB13C2E1D3A27BA21C7FB5 /* CollectionPickerSheet.swift */; };
+		2142EDD740B60D168C9AC79E /* SkeletonGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = D42E17E7EECCF171207407F4 /* SkeletonGrid.swift */; };
+		241DFE26B65FFAFCC0FA9FE4 /* SkeletonGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = D42E17E7EECCF171207407F4 /* SkeletonGrid.swift */; };
 		5E998F87B065B1F447B634EF /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C23B60F65D2B45B9C58BB8 /* LibraryView.swift */; };
 		5FE1D8A523A4F4F2442F0669 /* AccentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 744ED6AB3E35952BC5C636AA /* AccentManager.swift */; };
 		60B33A17570A6922751C73FD /* SkipSegmentProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E8A1B16D0BE98A202EE1956 /* SkipSegmentProvider.swift */; };
@@ -402,6 +406,8 @@
 		44483A3741A3146721D8B9CC /* HomeShelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeShelf.swift; sourceTree = "<group>"; };
 		4455167B362AA66733DE71F5 /* PlayerMemory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerMemory.swift; sourceTree = "<group>"; };
 		47F79402BB28EE3F82626E35 /* Astra.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Astra.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F0CB13C2E1D3A27BA21C7FB5 /* CollectionPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionPickerSheet.swift; sourceTree = "<group>"; };
+		D42E17E7EECCF171207407F4 /* SkeletonGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonGrid.swift; sourceTree = "<group>"; };
 		48C23B60F65D2B45B9C58BB8 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		4974EDA4C5B58142AA007C8D /* DuplicatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuplicatesView.swift; sourceTree = "<group>"; };
 		4A0B45864E7DD91D45DA6D93 /* DirectURLView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectURLView.swift; sourceTree = "<group>"; };
@@ -573,6 +579,7 @@
 				EBB22B0CB6ED38942A23EEF9 /* FocusableRowStyle.swift */,
 				BC4024AFCF34AA9000C433D8 /* KeyboardDismiss.swift */,
 				0891FE55B78DCC3DE872A952 /* LegalConfirmToggle.swift */,
+				D42E17E7EECCF171207407F4 /* SkeletonGrid.swift */,
 				B6307E16A16FB54315B4AF2C /* MediaCard.swift */,
 				8243FC1919BC503B71FAB073 /* MediaRow.swift */,
 				C55499A51559CA657E707F1E /* Polish.swift */,
@@ -799,6 +806,7 @@
 		E6791EDF17521B8CF106D159 /* Library */ = {
 			isa = PBXGroup;
 			children = (
+				F0CB13C2E1D3A27BA21C7FB5 /* CollectionPickerSheet.swift */,
 				48C23B60F65D2B45B9C58BB8 /* LibraryView.swift */,
 				4974EDA4C5B58142AA007C8D /* DuplicatesView.swift */,
 				FD28AB0F57F8C90396EEF8DA /* CollectionsView.swift */,
@@ -1136,6 +1144,8 @@
 				A2EB5267A9DC87BC759411DF /* HomeCustomizeView.swift in Sources */,
 				A493BA90E230EDB0DA1C73A0 /* HomeView.swift in Sources */,
 				7D6B4F6262C091675FFE9E31 /* LibraryView.swift in Sources */,
+				241DFE26B65FFAFCC0FA9FE4 /* SkeletonGrid.swift in Sources */,
+				32B921547DCA569746AA435A /* CollectionPickerSheet.swift in Sources */,
 				C8001EDB4BC9800A86024F43 /* MediaDetailView.swift in Sources */,
 				1F177667C9BFCDAFC7E9BADA /* LiveTVView.swift in Sources */,
 				729AF76932E5133FDF326261 /* MagnetView.swift in Sources */,
@@ -1289,6 +1299,8 @@
 				3F0DF8BB27FF3691AC6208CE /* HomeCustomizeView.swift in Sources */,
 				8DC104DDB6B1EB11C5BA7C2A /* HomeView.swift in Sources */,
 				5E998F87B065B1F447B634EF /* LibraryView.swift in Sources */,
+				2142EDD740B60D168C9AC79E /* SkeletonGrid.swift in Sources */,
+				016D44CEC3A625BC31EC4D33 /* CollectionPickerSheet.swift in Sources */,
 				67092C0D61E015BF61191A07 /* MediaDetailView.swift in Sources */,
 				9624D3CFD7743615282BF2BE /* LiveTVView.swift in Sources */,
 				0699C22B6BD9C841D4DB3F95 /* MagnetView.swift in Sources */,
