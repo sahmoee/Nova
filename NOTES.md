@@ -1,78 +1,61 @@
-# Astra — Bundle ID Guard + WidgetKit note
+# Astra — Bundle ID Rename (off com.frametv)
 
-Two things from the screenshot: the Astra bundle identifier reverting, and the
-red WidgetKit reference.
+## What your audit actually revealed
 
-## 1. Bundle identifier keeps reverting
+Nothing is randomly reverting. The three ids are **consistent** — 2x each is
+just Debug + Release agreeing per target:
 
-Astra's General tab shows `com.frametv.app.ios` — the FrameTV repo's id, not
-Astra's. It "reverts" because Xcode stores `PRODUCT_BUNDLE_IDENTIFIER` **per
-build configuration** (Debug / Release / etc.), not once. The General tab shows
-only the selected config, so if one config disagrees the value snaps back when
-you switch config, build, or reopen. Root causes, in order:
+    com.frametv.app.ios          -> iOS app
+    com.frametv.app.ios.widgets  -> widget extension (nested under the app id)
+    com.frametv.app.tvos         -> tvOS app
 
-1. **Per-config mismatch** — Debug and Release hold different ids (most common).
-2. **Duplicated target** — a target copied from FrameTV inherited its id.
-3. **.xcconfig override** — an xcconfig sets the id and wins over the General tab.
-4. **Committed pbxproj** — you change it in Xcode but don't commit, then a branch
-   switch / `git checkout` restores the old value. Looks identical to a revert.
+They're all wrong the same way: Astra was cloned from FrameTV and the bundle ids
+were never renamed. That's why it "looked like" FrameTV in the General tab —
+it literally is FrameTV's identifier, stably.
 
-### Fix — run the guard
+Because the widget id must stay a **child** of the app id, the earlier guard's
+`--set` (one id everywhere) would break the extension. This script does an exact
+per-target swap that keeps the nesting.
 
-`bundleid-guard.sh` is read-only until you ask it to write.
+## Run it
 
 ```
-# Audit: shows every id in the project + flags mismatches, xcconfig overrides,
-# and uncommitted pbxproj state. Auto-finds Astra.xcodeproj if run beside it.
-./bundleid-guard.sh --project /Users/owens/Documents/Astra/Astra.xcodeproj
+# Preview (writes nothing):
+/Users/owens/Documents/Astra/astra-rename-bundleids.sh
 
-# Preview pinning Astra to its correct id (writes nothing):
-./bundleid-guard.sh --project .../Astra.xcodeproj --set com.astra.app.ios
+# Apply the default rename to the com.astra.app prefix (makes a .bak):
+/Users/owens/Documents/Astra/astra-rename-bundleids.sh --apply
 
-# Apply it across all configs (makes a .bak first):
-./bundleid-guard.sh --project .../Astra.xcodeproj --set com.astra.app.ios --apply
+# Or choose your own prefix:
+/Users/owens/Documents/Astra/astra-rename-bundleids.sh --prefix com.yourco.astra --apply
 ```
 
-Pick the actual id you want for Astra — `com.astra.app.ios` is just a sensible
-guess mirroring the FrameTV pattern. If the widget extension needs its own id
-(it must be `<app-id>.SomeSuffix`, e.g. `com.astra.app.ios.AstraWidgets`), set
-the main app first, then fix the extension's line by hand — see the audit output
-for exactly which lines exist.
+Default result:
 
-### Make the fix stick
+    com.frametv.app.ios          -> com.astra.app.ios
+    com.frametv.app.ios.widgets  -> com.astra.app.ios.widgets
+    com.frametv.app.tvos         -> com.astra.app.tvos
 
-After `--apply`, **commit project.pbxproj immediately**. An uncommitted change
-is the #1 way this silently reverts on the next checkout:
+Pick the prefix you actually want before applying — `com.astra.app` is a
+placeholder mirroring the old pattern.
+
+## Make it stick
+
+After `--apply`, reopen Astra, confirm each target's id in General, then commit
+the pbxproj so a checkout can't undo it:
 
 ```
 git -C /Users/owens/Documents/Astra add Astra.xcodeproj/project.pbxproj
 git -C /Users/owens/Documents/Astra commit -F - <<'MSG'
-Pin bundle identifier to com.astra.app.ios across all configs
+Rename bundle identifiers from com.frametv to com.astra.app
 MSG
 ```
 
-(`-F` matches your CommitSafety habit — no shell metacharacters in the message.)
+(`-F` keeps the message free of shell metacharacters, per CommitSafety.)
 
-## 2. Why WidgetKit is red
+## If these ids are already registered
 
-WidgetKit is Apple's system framework for Home Screen / Lock Screen / StandBy
-widgets and Live Activities — it's what `AstraWidgetsExtension` is built on.
-
-It's **red** because the file reference is broken: Xcode has a reference to
-WidgetKit but can't find it at the recorded path. Red = "referenced, not found."
-SwiftUI right below it is normal, so it's specifically WidgetKit's link that's
-dangling. Usual causes: the framework was linked from a specific/older SDK path
-that moved, or added by absolute path instead of resolved from the current SDK.
-
-### Fix
-
-1. Select the red **WidgetKit** in the Frameworks group and delete the reference
-   (Remove Reference — this does not delete anything on disk).
-2. Select the target that needs it (the widgets extension) →
-   **General → Frameworks, Libraries, and Embedded Content** (or
-   **Build Phases → Link Binary With Libraries**) → **+** → add
-   **WidgetKit.framework**, letting Xcode resolve it from the SDK.
-3. As a system framework it should be **Do Not Embed**.
-
-A red system framework won't always break the build if it's still linked
-elsewhere, but clean it up so it isn't hiding a real linkage problem.
+If you've made App IDs / provisioning profiles or App Store Connect records
+under the old com.frametv ids, renaming means creating new App IDs for the new
+identifiers and regenerating profiles. If the app was never shipped under the
+frametv ids, there's nothing else to update.
