@@ -1,61 +1,59 @@
-# Astra — Bundle ID Rename (off com.frametv)
+# Astra — MenuOverlay build fix
 
-## What your audit actually revealed
+## What was wrong
 
-Nothing is randomly reverting. The three ids are **consistent** — 2x each is
-just Debug + Release agreeing per target:
+The three errors on `RootView` were one root cause:
 
-    com.frametv.app.ios          -> iOS app
-    com.frametv.app.ios.widgets  -> widget extension (nested under the app id)
-    com.frametv.app.tvos         -> tvOS app
+    Cannot find 'MenuOverlay' in scope
+    Type '()' cannot conform to 'View'
+    Missing argument for parameter #1 in call
 
-They're all wrong the same way: Astra was cloned from FrameTV and the bundle ids
-were never renamed. That's why it "looked like" FrameTV in the General tab —
-it literally is FrameTV's identifier, stably.
+`MenuOverlay.swift` existed on disk and was correct — but it was **not a member
+of any target**. In `Astra.xcodeproj/project.pbxproj` it had no
+`PBXFileReference`, no group entry, and no entry in any `Sources` build phase.
+So the compiler never saw `MenuOverlay` (or `MenuButton`, defined in the same
+file), and every use in `RootView` failed. The `Type '()' cannot conform to
+'View'` and `Missing argument` errors were cascades from that missing type, not
+separate bugs.
 
-Because the widget id must stay a **child** of the app id, the earlier guard's
-`--set` (one id everywhere) would break the extension. This script does an exact
-per-target swap that keeps the nesting.
+By contrast `TVMenuOverlay.swift` and `RootView.swift` were correctly compiled
+into both the Astra-iOS and Astra-tvOS targets — which is why only MenuOverlay
+was missing.
 
-## Run it
+## What was changed
 
-```
-# Preview (writes nothing):
-/Users/owens/Documents/Astra/astra-rename-bundleids.sh
+Only `Astra.xcodeproj/project.pbxproj` was edited. `MenuOverlay.swift` was added
+to the project with:
 
-# Apply the default rename to the com.astra.app prefix (makes a .bak):
-/Users/owens/Documents/Astra/astra-rename-bundleids.sh --apply
+- a `PBXFileReference` (new GUID `3942CEEC0089118857658DE6`)
+- a child entry in the `Views` group (so it now appears in the navigator)
+- a `Sources` build-file entry in **Astra-iOS** (phase `DD00A89A…`)
+- a `Sources` build-file entry in **Astra-tvOS** (phase `C71A22D7…`)
 
-# Or choose your own prefix:
-/Users/owens/Documents/Astra/astra-rename-bundleids.sh --prefix com.yourco.astra --apply
-```
+No Swift source was modified — `MenuOverlay.swift` is included here only for
+reference. `TVMenuOverlay.swift`, `RootView.swift`, and everything else are
+untouched.
 
-Default result:
+Verified after patching: brace/paren balance intact; the new file reference and
+both build-file GUIDs resolve; each Sources phase points at the correct target.
 
-    com.frametv.app.ios          -> com.astra.app.ios
-    com.frametv.app.ios.widgets  -> com.astra.app.ios.widgets
-    com.frametv.app.tvos         -> com.astra.app.tvos
+## How to apply
 
-Pick the prefix you actually want before applying — `com.astra.app` is a
-placeholder mirroring the old pattern.
+Replace your project file with the corrected one:
 
-## Make it stick
+    cp Astra.xcodeproj/project.pbxproj /Users/owens/Documents/Astra/Astra.xcodeproj/project.pbxproj
 
-After `--apply`, reopen Astra, confirm each target's id in General, then commit
-the pbxproj so a checkout can't undo it:
+Then in Xcode: Product -> Clean Build Folder (Shift-Cmd-K), build. The three
+issues should be gone and `MenuOverlay.swift` will now show under Views.
 
-```
-git -C /Users/owens/Documents/Astra add Astra.xcodeproj/project.pbxproj
-git -C /Users/owens/Documents/Astra commit -F - <<'MSG'
-Rename bundle identifiers from com.frametv to com.astra.app
-MSG
-```
+If instead you'd rather fix it by hand in Xcode: select `MenuOverlay.swift` in
+the navigator, open the File Inspector (right panel), and under **Target
+Membership** tick both **Astra-iOS** and **Astra-tvOS**. That does the same thing
+this patch does.
 
-(`-F` keeps the message free of shell metacharacters, per CommitSafety.)
+## Commit so it sticks
 
-## If these ids are already registered
-
-If you've made App IDs / provisioning profiles or App Store Connect records
-under the old com.frametv ids, renaming means creating new App IDs for the new
-identifiers and regenerating profiles. If the app was never shipped under the
-frametv ids, there's nothing else to update.
+    git -C /Users/owens/Documents/Astra add Astra.xcodeproj/project.pbxproj
+    git -C /Users/owens/Documents/Astra commit -F - <<'MSG'
+    Add MenuOverlay.swift to Astra-iOS and Astra-tvOS targets
+    MSG

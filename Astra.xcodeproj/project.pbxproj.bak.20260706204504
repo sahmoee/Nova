@@ -95,8 +95,6 @@
 		43F7457EF95AB5BB4CA1B757 /* SmartCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D8791D2C0BB4A9D0FE60D1F /* SmartCollection.swift */; };
 		4528FAF801A99356AC8D0DEB /* WatchStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = D51ED4505C44CB38C11CFFD5 /* WatchStats.swift */; };
 		4548E40572EB4136A06D37FB /* NetworkConditionMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12CF2CBBF0D640129C7C3AFF /* NetworkConditionMonitor.swift */; };
-		6947F02DB24BA8E2AA538145 /* MenuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3942CEEC0089118857658DE6 /* MenuOverlay.swift */; };
-		F716773D49C7ACCAD7EB3B32 /* MenuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3942CEEC0089118857658DE6 /* MenuOverlay.swift */; };
 		461E5E225F00C1107816A2BA /* TVMenuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E4179DF87A747B60F1ACC11 /* TVMenuOverlay.swift */; };
 		482D06AC4A4E0A6FEB079033 /* DirectURLView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0B45864E7DD91D45DA6D93 /* DirectURLView.swift */; };
 		4993E89F3D2E42C297BD3EB3 /* TitleCleanupRulesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D53DECC849A43B0AF78E58C /* TitleCleanupRulesView.swift */; };
@@ -442,7 +440,6 @@
 		86F479B94958CAD981263A79 /* CodableFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableFileStore.swift; sourceTree = "<group>"; };
 		8A2B55877B32EE0F21EC00D5 /* SafeMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafeMode.swift; sourceTree = "<group>"; };
 		8D8791D2C0BB4A9D0FE60D1F /* SmartCollection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartCollection.swift; sourceTree = "<group>"; };
-		3942CEEC0089118857658DE6 /* MenuOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuOverlay.swift; sourceTree = "<group>"; };
 		8E4179DF87A747B60F1ACC11 /* TVMenuOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVMenuOverlay.swift; sourceTree = "<group>"; };
 		8E6B8309B22416370BC7095A /* WidgetShared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetShared.swift; sourceTree = "<group>"; };
 		8F16D56BBEF5E4054DEC43DE /* ShelfLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelfLoader.swift; sourceTree = "<group>"; };
@@ -823,7 +820,6 @@
 				54DF98E49C2F8631D90C0346 /* RootView.swift */,
 				4BBA535D3FA0EA37713AD2EA /* AIView.swift */,
 				E739E2597C4A8700F5D8AA04 /* Sources/SourcesView.swift */,
-				3942CEEC0089118857658DE6 /* MenuOverlay.swift */,
 				8E4179DF87A747B60F1ACC11 /* TVMenuOverlay.swift */,
 			);
 			path = Views;
@@ -1146,7 +1142,6 @@
 				B3AB2DE1C16ED5D713F012AA /* VLCPlayerView.swift in Sources */,
 				422E272C61B9C61EA8B43C72 /* RealDebridView.swift in Sources */,
 				E05708A1F10187F58F19BBE5 /* RootView.swift in Sources */,
-				F716773D49C7ACCAD7EB3B32 /* MenuOverlay.swift in Sources */,
 				80B3FC10984EEC33B6878437 /* LibraryCleanupView.swift in Sources */,
 				C80A91673773529F7461CEAA /* WatchStatsView.swift in Sources */,
 				E47F8A472D84DF7649820F8F /* LibraryCleanup.swift in Sources */,
@@ -1299,7 +1294,6 @@
 				1F1481FC0213B8203BEF8292 /* VLCPlayerView.swift in Sources */,
 				8623F8CB9AA2D4D15153872F /* RealDebridView.swift in Sources */,
 				B5106F76484EE4EE3CE94440 /* RootView.swift in Sources */,
-				6947F02DB24BA8E2AA538145 /* MenuOverlay.swift in Sources */,
 				6618369DEDE46EBBE278B7D2 /* LibraryCleanupView.swift in Sources */,
 				23852832972D648A4E0ED79D /* WatchStatsView.swift in Sources */,
 				D25FD312E828F2D1D8CF7608 /* LibraryCleanup.swift in Sources */,
@@ -1422,7 +1416,7 @@
 				INFOPLIST_FILE = "Astra/Resources/Info-tvOS.plist";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				MARKETING_VERSION = 1.7;
-				PRODUCT_BUNDLE_IDENTIFIER = com.astra.app.tvos;
+				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.tvos;
 				PRODUCT_NAME = Astra;
 				SDKROOT = appletvos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1446,7 +1440,7 @@
 				INFOPLIST_FILE = "Astra/Resources/Info-tvOS.plist";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				MARKETING_VERSION = 1.7;
-				PRODUCT_BUNDLE_IDENTIFIER = com.astra.app.tvos;
+				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.tvos;
 				PRODUCT_NAME = Astra;
 				SDKROOT = appletvos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1484,7 +1478,7 @@
 				);
 				MARKETING_VERSION = 1.7;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.astra.app.ios.widgets;
+				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1527,7 +1521,7 @@
 				);
 				MARKETING_VERSION = 1.7;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.astra.app.ios.widgets;
+				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1555,7 +1549,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				MARKETING_VERSION = 1.7;
-				PRODUCT_BUNDLE_IDENTIFIER = com.astra.app.ios;
+				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.ios;
 				PRODUCT_NAME = Astra;
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1579,7 +1573,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				MARKETING_VERSION = 1.7;
-				PRODUCT_BUNDLE_IDENTIFIER = com.astra.app.ios;
+				PRODUCT_BUNDLE_IDENTIFIER = com.frametv.app.ios;
 				PRODUCT_NAME = Astra;
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
