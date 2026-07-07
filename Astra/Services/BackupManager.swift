@@ -3,10 +3,15 @@
 //  Astra
 //
 //  Creates a single "snapshot" that captures everything needed to reproduce the
-//  user's setup on another device: preferences, SMB sources (with passwords),
-//  installed addons, and all API keys / tokens from the Keychain. The snapshot is
-//  stored in iCloud key-value storage so it follows the user's Apple ID, and can
-//  be restored manually or offered automatically on a fresh install.
+//  user's setup on another device: preferences, SMB sources (with passwords), Live
+//  TV playlists (with any logins), installed addons, and all accounts / API keys /
+//  tokens from the Keychain. The snapshot is stored in iCloud key-value storage so
+//  it follows the user's Apple ID, and can be restored manually or offered
+//  automatically on a fresh install.
+//
+//  Snapshots are platform-neutral JSON, so a snapshot written on iPhone, iPad, or
+//  Apple TV restores on any of the others. Every field is optional, so snapshots
+//  stay forward and backward compatible across app versions.
 //
 //  Secrets are included because the whole point is to move logins between the
 //  user's own devices via their private iCloud. The snapshot lives only in the
@@ -27,15 +32,19 @@ private extension NSNumber {
 // MARK: - Snapshot model
 
 struct BackupSnapshot: Codable {
-    var version: Int = 1
+    // v2 adds liveTVJSON. Older apps ignore unknown/optional fields, and this app
+    // treats every snapshot field as optional, so v1 and v2 snapshots restore on
+    // any device (iPhone, iPad, Apple TV) regardless of which version wrote them.
+    var version: Int = 2
     var createdAt: Date = Date()
     var deviceName: String = ""
 
     /// Non-secret preference key/values mirrored from iCloud KVS / UserDefaults.
     var settings: [String: BackupValue] = [:]
-    /// Raw JSON for SMB shares and addons (as stored locally).
+    /// Raw JSON for SMB shares, addons, and Live TV sources (as stored locally).
     var smbSharesJSON: Data?
     var addonsJSON: Data?
+    var liveTVJSON: Data?
     /// Keychain secrets: account -> value. Includes API keys, tokens, and the
     /// per-share SMB passwords (accounts of the form "smb.<uuid>").
     var secrets: [String: String] = [:]
@@ -74,13 +83,13 @@ struct BackupContents: OptionSet, Hashable {
              detail: "App settings: playback, subtitles, quality, and your home and discover shelves.",
              systemImage: "slider.horizontal.3", sensitive: false),
         Item(option: .sources, title: "Sources",
-             detail: "Your SMB network shares (addresses and usernames).",
+             detail: "Your SMB network shares and Live TV playlists (addresses and usernames).",
              systemImage: "externaldrive.connected.to.line.below", sensitive: false),
         Item(option: .addons, title: "Addons",
              detail: "Installed addon catalogs and their configuration.",
              systemImage: "puzzlepiece.extension", sensitive: false),
         Item(option: .secrets, title: "Logins & API keys",
-             detail: "Passwords, tokens, and API keys (Trakt, Real-Debrid, TMDB, SMB share passwords). Only share with people you trust.",
+             detail: "All accounts, passwords, tokens, and API keys (Trakt, Real-Debrid, TMDB, OpenSubtitles, OMDb, SMB and Live TV passwords). Only share with people you trust.",
              systemImage: "key.fill", sensitive: true)
     ]
 }
@@ -177,6 +186,9 @@ final class BackupManager: ObservableObject {
         // Sources + addons: copy the raw JSON files if present.
         snap.smbSharesJSON = readSupportFile("smb_shares.json")
         snap.addonsJSON = readSupportFile("addons.json")
+        // Live TV sources (with any usernames/passwords) go in full — the iCloud
+        // snapshot lives only in the user's private iCloud.
+        snap.liveTVJSON = liveTVJSON()
 
         // Secrets from Keychain.
         let shareIDs = smbShareIDs(from: snap.smbSharesJSON)
@@ -241,6 +253,9 @@ final class BackupManager: ObservableObject {
         if contents.contains(.sources), let data = snap.smbSharesJSON {
             CloudSync.shared.setData(data, forKey: "cloud.smbShares")
         }
+        if contents.contains(.sources), let data = snap.liveTVJSON {
+            CloudSync.shared.setData(data, forKey: LiveTVSourceStore.cloudKey)
+        }
         if contents.contains(.addons), let data = snap.addonsJSON {
             CloudSync.shared.setData(data, forKey: "cloud.addons")
         }
@@ -259,7 +274,7 @@ final class BackupManager: ObservableObject {
     /// always present; sources/addons only if the user has configured them.
     func currentDeviceContents() -> BackupContents {
         var c: BackupContents = [.preferences]
-        if readSupportFile("smb_shares.json") != nil { c.insert(.sources) }
+        if readSupportFile("smb_shares.json") != nil || liveTVJSON() != nil { c.insert(.sources) }
         if readSupportFile("addons.json") != nil { c.insert(.addons) }
         // Secrets are offerable if any credential exists in the Keychain.
         let shareIDs = smbShareIDs(from: readSupportFile("smb_shares.json"))
@@ -280,6 +295,28 @@ final class BackupManager: ObservableObject {
         guard let json,
               let shares = try? JSONDecoder().decode([SMBShare].self, from: json) else { return [] }
         return shares.map { $0.id }
+    }
+
+    /// The current Live TV source list as JSON, read straight from its iCloud KVS
+    /// mirror (falling back to the local UserDefaults copy). Only user-added sources
+    /// are worth moving; built-ins are re-seeded on every device anyway, but keeping
+    /// them is harmless and keeps the blob self-contained.
+    private func liveTVJSON() -> Data? {
+        if let data = CloudSync.shared.data(forKey: LiveTVSourceStore.cloudKey) { return data }
+        return UserDefaults.standard.data(forKey: "livetv.sources.v1")
+    }
+
+    /// Returns a copy of a Live TV source JSON blob with any embedded usernames and
+    /// passwords removed, so the source list can travel without its logins when the
+    /// user hasn't opted into including secrets.
+    private func liveTVJSONStrippingCredentials(_ data: Data?) -> Data? {
+        guard let data,
+              var sources = try? JSONDecoder().decode([LiveTVSource].self, from: data) else { return data }
+        for i in sources.indices {
+            sources[i].username = nil
+            sources[i].password = nil
+        }
+        return try? JSONEncoder().encode(sources)
     }
 
     private func supportURL(_ name: String) -> URL {
@@ -324,6 +361,12 @@ final class BackupManager: ObservableObject {
         }
         if contents.contains(.sources) {
             snap.smbSharesJSON = readSupportFile("smb_shares.json")
+            // Live TV goes with the sources category. Its embedded usernames and
+            // passwords are only kept when the user also opts into secrets.
+            let liveTV = liveTVJSON()
+            snap.liveTVJSON = contents.contains(.secrets)
+                ? liveTV
+                : liveTVJSONStrippingCredentials(liveTV)
         }
         if contents.contains(.addons) {
             snap.addonsJSON = readSupportFile("addons.json")
@@ -403,7 +446,7 @@ final class BackupManager: ObservableObject {
     private func availableContents(in snap: BackupSnapshot) -> BackupContents {
         var c: BackupContents = []
         if !snap.settings.isEmpty { c.insert(.preferences) }
-        if snap.smbSharesJSON != nil { c.insert(.sources) }
+        if snap.smbSharesJSON != nil || snap.liveTVJSON != nil { c.insert(.sources) }
         if snap.addonsJSON != nil { c.insert(.addons) }
         if !snap.secrets.isEmpty { c.insert(.secrets) }
         return c
@@ -441,6 +484,12 @@ final class BackupManager: ObservableObject {
         }
         if contents.contains(.sources), let smb = snap.smbSharesJSON {
             writeSupportFile("smb_shares.json", smb)
+        }
+        if contents.contains(.sources), let liveTV = snap.liveTVJSON {
+            // Restore Live TV both locally and to its iCloud mirror so the store
+            // and every other device converge on it.
+            UserDefaults.standard.set(liveTV, forKey: "livetv.sources.v1")
+            CloudSync.shared.setData(liveTV, forKey: LiveTVSourceStore.cloudKey)
         }
         if contents.contains(.addons), let addons = snap.addonsJSON {
             writeSupportFile("addons.json", addons)

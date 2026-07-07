@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import Combine
 
 struct LiveTVSource: Identifiable, Codable, Hashable {
     enum Kind: String, Codable { case m3u, xtream, curated }
@@ -61,10 +62,26 @@ final class LiveTVSourceStore: ObservableObject {
     @Published var lastError: String?
 
     private let defaultsKey = "livetv.sources.v1"
+    /// iCloud KVS key for the Live TV source list, so it syncs across devices in
+    /// real time like SMB shares and addons.
+    static let cloudKey = "cloud.livetv.sources.v1"
     private let defaults = UserDefaults.standard
     private let session: URLSession = AppNetworking.shared
+    private var cancellables = Set<AnyCancellable>()
 
-    init() { load(); seedBuiltInsIfNeeded() }
+    init() {
+        load()
+        mergeFromCloud()
+        seedBuiltInsIfNeeded()
+
+        // Live updates when another device changes the Live TV source list.
+        CloudSync.shared.externalChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] keys in
+                if keys.contains(Self.cloudKey) { self?.mergeFromCloud() }
+            }
+            .store(in: &cancellables)
+    }
 
     private static let builtInSources: [LiveTVSource] = [
         LiveTVSource(name: "Pluto TV (Free)", url: "https://i.mjh.nz/PlutoTV/us.m3u8", kind: .curated, isEnabled: false, isBuiltIn: true),
@@ -88,7 +105,25 @@ final class LiveTVSourceStore: ObservableObject {
     }
 
     private func persist() {
-        if let data = try? JSONEncoder().encode(sources) { defaults.set(data, forKey: defaultsKey) }
+        guard let data = try? JSONEncoder().encode(sources) else { return }
+        defaults.set(data, forKey: defaultsKey)
+        // Mirror to iCloud so other devices pick up the change in real time.
+        CloudSync.shared.setData(data, forKey: Self.cloudKey)
+    }
+
+    /// Pulls the iCloud Live TV source list if present and different, and adopts it.
+    /// Built-in curated sources are re-seeded afterward so they're never lost.
+    private func mergeFromCloud() {
+        guard let data = CloudSync.shared.data(forKey: Self.cloudKey),
+              let cloudSources = try? JSONDecoder().decode([LiveTVSource].self, from: data),
+              cloudSources != sources else { return }
+        sources = cloudSources
+        // Persist locally without re-pushing identical data to the cloud.
+        if let encoded = try? JSONEncoder().encode(sources) {
+            defaults.set(encoded, forKey: defaultsKey)
+        }
+        // Refresh channels for any enabled sources adopted from the cloud.
+        Task { await refreshAll() }
     }
 
     func setEnabled(_ enabled: Bool, for source: LiveTVSource) {
