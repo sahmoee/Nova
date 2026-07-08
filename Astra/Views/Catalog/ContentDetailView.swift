@@ -1057,12 +1057,22 @@ struct PosterImage: View {
     let url: URL?
     var width: CGFloat
     var height: CGFloat
+    /// When set, missing artwork renders the app's generated title poster instead
+    /// of a generic film glyph — one fallback path shared with MediaCard.
+    var title: String? = nil
+    var year: Int? = nil
 
     var body: some View {
-        CachedAsyncImage(url: url, maxPixel: 900) { image in
-            image.resizable().aspectRatio(contentMode: .fill)
-        } placeholder: {
-            placeholder.shimmering()
+        Group {
+            if url == nil, let title {
+                GeneratedPoster(title: title, year: year)
+            } else {
+                CachedAsyncImage(url: url, maxPixel: 900) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    placeholder.shimmering()
+                }
+            }
         }
         .frame(width: width, height: height)
         .clipped()

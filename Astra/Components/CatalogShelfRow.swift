@@ -152,15 +152,6 @@ struct CatalogShelfRow: View {
     }
 
     private func posterCard(_ item: CatalogItem) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            PosterImage(url: item.posterURL,
-                        width: Theme.CardSize.posterWidth * 0.8,
-                        height: Theme.CardSize.posterWidth * 0.8 * 1.5)
-            Text(item.title)
-                .font(.appFont(17, weight: .semibold))
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .lineLimit(1)
-                .frame(width: Theme.CardSize.posterWidth * 0.8, alignment: .leading)
-        }
+        CatalogPosterCard(item: item, scale: 0.8)
     }
 }

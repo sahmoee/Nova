@@ -461,3 +461,113 @@ extension View {
             )
     }
 }
+
+
+// MARK: - Surface & header polish (merged from Components/Polish.swift)
+
+
+// MARK: - Card surface
+
+struct CardSurface: ViewModifier {
+    var padding: CGFloat? = nil
+
+    func body(content: Content) -> some View {
+        content
+            .padding(padding ?? Theme.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                    .fill(Theme.Colors.card)
+            )
+    }
+}
+
+extension View {
+    /// Standard card background + padding used across rows and tiles.
+    func cardSurface(padding: CGFloat? = nil) -> some View {
+        modifier(CardSurface(padding: padding))
+    }
+}
+
+// MARK: - Section header
+
+/// A consistent section header (title with optional trailing accessory), used to
+/// break long screens into labelled groups.
+struct SectionHeader<Accessory: View>: View {
+    let title: String
+    var systemImage: String? = nil
+    @ViewBuilder var accessory: () -> Accessory
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.sm) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.appFont(20, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accent)
+            }
+            Text(title)
+                .font(.appFont(24, weight: .bold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+            Spacer(minLength: 0)
+            accessory()
+        }
+        .padding(.bottom, Theme.Spacing.xs)
+    }
+}
+
+extension SectionHeader where Accessory == EmptyView {
+    init(_ title: String, systemImage: String? = nil) {
+        self.init(title: title, systemImage: systemImage, accessory: { EmptyView() })
+    }
+}
+
+// MARK: - Press state (iOS)
+
+/// Adds a subtle scale + opacity change while pressed on iOS, matching the tvOS
+/// focus animation. No-op styling on tvOS where focus handles this.
+struct PressableButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !Theme.isReduceMotion ? 0.97 : 1)
+            .opacity(configuration.isPressed ? 0.85 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+extension ButtonStyle where Self == PressableButtonStyle {
+    static var pressable: PressableButtonStyle { PressableButtonStyle() }
+}
+
+
+// MARK: - Destructive confirmation
+
+/// One reusable delete-confirmation pattern: presents an alert naming the thing
+/// being deleted, with a destructive Delete and a Cancel.
+struct ConfirmDeleteModifier: ViewModifier {
+    let title: String
+    let itemName: String
+    let message: String
+    @Binding var isPresented: Bool
+    let onDelete: () -> Void
+
+    func body(content: Content) -> some View {
+        content.alert(title, isPresented: $isPresented) {
+            Button("Delete \u{201C}\(itemName)\u{201D}", role: .destructive, action: onDelete)
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text(message)
+        }
+    }
+}
+
+extension View {
+    /// Attaches the app-standard destructive confirmation alert.
+    func confirmDelete(_ title: String = "Delete?",
+                       itemName: String,
+                       message: String,
+                       isPresented: Binding<Bool>,
+                       onDelete: @escaping () -> Void) -> some View {
+        modifier(ConfirmDeleteModifier(title: title, itemName: itemName,
+                                       message: message, isPresented: isPresented,
+                                       onDelete: onDelete))
+    }
+}

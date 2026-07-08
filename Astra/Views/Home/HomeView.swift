@@ -83,38 +83,7 @@ struct HomeView: View {
                 if !library.continueWatching.isEmpty {
                     continueWatchingRow
                 }
-                if !library.queuedItems.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        HStack {
-                            Text("Up Next in Queue")
-                                .font(Theme.Font.sectionTitle())
-                                .foregroundStyle(Theme.Colors.textPrimary)
-                            Spacer()
-                            Button("Manage") { showQueue = true }
-                                .font(.appFont(17, weight: .semibold))
-                                .foregroundStyle(Theme.Colors.accent)
-                                .buttonStyle(AstraChipButtonStyle())
-                        }
-                        .padding(.horizontal, Theme.Spacing.edge)
-                        MediaRow(title: "",
-                                 items: Array(library.queuedItems.prefix(20))) { openDetail($0) }
-                    }
-                }
-
-                Group {
-                    ForEach(shelfStore.enabledShelves) { shelf in
-                        CatalogShelfRow(shelf: shelf)
-                    }
-                }
-                .id(shelfRefreshToken)
-                if !library.recentlyAdded.isEmpty {
-                    MediaRow(title: "Recently Added",
-                             items: library.recentlyAdded) { openDetail($0) }
-                }
-                if !library.favorites.isEmpty {
-                    MediaRow(title: "Favorites",
-                             items: library.favorites) { openDetail($0) }
-                }
+                sharedRows
             }
             .padding(.bottom, Theme.Spacing.lg)
         }
@@ -146,38 +115,7 @@ struct HomeView: View {
                     continueWatchingRow
                 }
 
-                if !library.queuedItems.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        HStack {
-                            Text("Up Next in Queue")
-                                .font(Theme.Font.sectionTitle())
-                                .foregroundStyle(Theme.Colors.textPrimary)
-                            Spacer()
-                            Button("Manage") { showQueue = true }
-                                .font(.appFont(17, weight: .semibold))
-                                .foregroundStyle(Theme.Colors.accent)
-                                .buttonStyle(AstraChipButtonStyle())
-                        }
-                        .padding(.horizontal, Theme.Spacing.edge)
-                        MediaRow(title: "",
-                                 items: Array(library.queuedItems.prefix(20))) { openDetail($0) }
-                    }
-                }
-
-                Group {
-                    ForEach(shelfStore.enabledShelves) { shelf in
-                        CatalogShelfRow(shelf: shelf)
-                    }
-                }
-                .id(shelfRefreshToken)
-                if !library.recentlyAdded.isEmpty {
-                    MediaRow(title: "Recently Added",
-                             items: library.recentlyAdded) { openDetail($0) }
-                }
-                if !library.favorites.isEmpty {
-                    MediaRow(title: "Favorites",
-                             items: library.favorites) { openDetail($0) }
-                }
+                sharedRows
             }
             .padding(.bottom, Theme.Spacing.lg)
         }
@@ -280,6 +218,42 @@ struct HomeView: View {
         #else
         return Theme.isCompact ? 480 : 540
         #endif
+    }
+
+    /// The rows below the hero, shared verbatim by the classic and cinematic
+    /// layouts so there is exactly one implementation of Queue, shelves, Recently
+    /// Added, and Favorites.
+    @ViewBuilder
+    private var sharedRows: some View {
+        if !library.queuedItems.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                SectionHeader(title: "Up Next in Queue") {
+                    Button("Manage") { showQueue = true }
+                        .font(.appFont(17, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.accent)
+                        .buttonStyle(AstraChipButtonStyle())
+                }
+                .padding(.horizontal, Theme.Spacing.edge)
+                MediaRow(title: "",
+                         items: Array(library.queuedItems.prefix(20))) { openDetail($0) }
+            }
+        }
+
+        Group {
+            ForEach(shelfStore.enabledShelves) { shelf in
+                CatalogShelfRow(shelf: shelf)
+            }
+        }
+        .id(shelfRefreshToken)
+
+        if !library.recentlyAdded.isEmpty {
+            MediaRow(title: "Recently Added",
+                     items: library.recentlyAdded) { openDetail($0) }
+        }
+        if !library.favorites.isEmpty {
+            MediaRow(title: "Favorites",
+                     items: library.favorites) { openDetail($0) }
+        }
     }
 
     /// Why-am-I-seeing-this chip for a hero item.

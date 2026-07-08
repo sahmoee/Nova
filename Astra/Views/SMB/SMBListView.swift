@@ -23,10 +23,22 @@ struct SMBListView: View {
 
             VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                 ScreenHeader(title: "SMB Shares") {
-                    FocusableButton(title: "Add Share", systemImage: "plus", prominent: true) {
-                        showingAdd = true
+                    HStack(spacing: Theme.Spacing.sm) {
+                        // The SMB diagnostic wizard lives here now instead of being
+                        // a separate destination to hunt for in Settings.
+                        NavigationLink {
+                            SMBCheckerView()
+                        } label: {
+                            Label("Diagnose", systemImage: "stethoscope")
+                                .font(.appFont(16, weight: .semibold))
+                                .foregroundStyle(Theme.Colors.accent)
+                        }
+                        .buttonStyle(AstraChipButtonStyle())
+                        FocusableButton(title: "Add Share", systemImage: "plus", prominent: true) {
+                            showingAdd = true
+                        }
+                        .frame(maxWidth: Theme.isCompact ? .infinity : 280)
                     }
-                    .frame(maxWidth: Theme.isCompact ? .infinity : 280)
                 }
                 .padding(.horizontal, Theme.Spacing.edge)
                 .padding(.top, Theme.Spacing.lg)

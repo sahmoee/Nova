@@ -345,20 +345,19 @@ struct AIView: View {
                 }
             }
         case .empty:
-            EmptyStateView(
+            ContentStateView(state: .empty(
                 systemImage: "sparkles",
                 title: "No matches",
                 message: capability.searchesLibrary
                     ? "Nothing in your library matched that. Try different words."
-                    : "AI couldn't turn that into titles we could find. Try rephrasing."
-            )
-            .frame(height: 320)
+                    : "AI couldn't turn that into titles we could find. Try rephrasing."))
+                .frame(height: 320)
         case .error(let msg):
-            EmptyStateView(systemImage: "exclamationmark.triangle",
-                           title: "AI search unavailable",
-                           message: msg,
-                           actionTitle: "Set Up AI",
-                           action: { nav.selection = .settings })
+            ContentStateView(state: .error(
+                title: "AI search unavailable",
+                message: msg,
+                actionTitle: "Set Up AI",
+                action: { nav.selection = .settings }))
                 .frame(height: 320)
         }
     }
@@ -414,18 +413,9 @@ struct AIView: View {
 
     // MARK: - Cards
 
-    /// A poster + title card for an AI-suggested catalog item.
+    /// A poster + title card for an AI-suggested catalog item (shared component).
     private func catalogCard(_ item: CatalogItem) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            PosterImage(url: item.posterURL,
-                        width: Theme.CardSize.posterWidth,
-                        height: Theme.CardSize.posterHeight)
-            Text(item.title)
-                .font(.appFont(17, weight: .medium))
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .lineLimit(1)
-                .frame(width: Theme.CardSize.posterWidth, alignment: .leading)
-        }
+        CatalogPosterCard(item: item)
     }
 
     /// One-tap add for a single AI result, without opening its detail screen.

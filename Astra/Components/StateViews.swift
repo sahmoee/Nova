@@ -117,3 +117,33 @@ struct ErrorStateView: View {
         .padding(Theme.Spacing.xl)
     }
 }
+
+
+// MARK: - Unified state wrapper
+
+/// One enum-driven view for the loading / empty / error triad, so screens don't
+/// hand-assemble slightly different versions of the same three states.
+struct ContentStateView: View {
+    enum State {
+        case loading(message: String = "Loading…")
+        case empty(systemImage: String = "tray", title: String, message: String,
+                   actionTitle: String? = nil, action: (() -> Void)? = nil)
+        case error(title: String, message: String,
+                   actionTitle: String? = nil, action: (() -> Void)? = nil)
+    }
+
+    let state: State
+
+    var body: some View {
+        switch state {
+        case .loading(let message):
+            LoadingView(message: message)
+        case .empty(let symbol, let title, let message, let actionTitle, let action):
+            EmptyStateView(systemImage: symbol, title: title, message: message,
+                           actionTitle: actionTitle, action: action)
+        case .error(let title, let message, let actionTitle, let action):
+            EmptyStateView(systemImage: "exclamationmark.triangle", title: title,
+                           message: message, actionTitle: actionTitle, action: action)
+        }
+    }
+}

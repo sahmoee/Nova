@@ -253,3 +253,30 @@ struct MediaCard: View {
         .padding(.top, 4)
     }
 }
+
+
+// MARK: - Catalog poster card (shared)
+
+/// The poster + one-line-title card used for CatalogItems everywhere (shelf rows,
+/// AI results, search grids), so sizing and typography stay identical.
+struct CatalogPosterCard: View {
+    let item: CatalogItem
+    var scale: CGFloat = 1.0
+
+    private var width: CGFloat { Theme.CardSize.posterWidth * scale }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            PosterImage(url: item.posterURL,
+                        width: width,
+                        height: width * 1.5,
+                        title: item.title,
+                        year: item.year)
+            Text(item.title)
+                .font(.appFont(17, weight: .medium))
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .lineLimit(1)
+                .frame(width: width, alignment: .leading)
+        }
+    }
+}

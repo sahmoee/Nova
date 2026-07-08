@@ -33,6 +33,8 @@ struct LibraryView: View {
 
     private var columns: [GridItem] { Theme.posterGridColumns }
 
+    @State private var showStats = false
+
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
@@ -113,6 +115,9 @@ struct LibraryView: View {
                         }
                     }
                 }
+            }
+            .sheet(isPresented: $showStats) {
+                NavigationStack { WatchStatsView() }
             }
             .navigationDestination(item: $selectedItem) { item in
                 PlayerView(item: item)
@@ -253,6 +258,12 @@ HStack(spacing: 6) {
     /// The consolidated options menu behind the sliders icon in the clean header.
     private var optionsMenu: some View {
         Menu {
+            Button {
+                showStats = true
+            } label: {
+                Label("Your Watch Stats", systemImage: "chart.bar.xaxis")
+            }
+            Divider()
             Picker("View", selection: $filter) {
                 ForEach(activeFilters) { f in
                     Label(filterTitle(f), systemImage: filterIcon(f)).tag(f)

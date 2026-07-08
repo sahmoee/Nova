@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var confirmClearLibrary = false
     @State private var confirmClearHistory = false
     @State private var expandedSections: [String: Bool] = [:]
+    @State private var inlineWorkerURL = ""
     @State private var settingsSearch = ""
     @State private var sourcesPath = NavigationPath()
 
@@ -145,17 +146,10 @@ struct SettingsView: View {
                 }.astraRowStyle()
             }
 
-            NavigationLink { DirectURLView() } label: {
-                settingRow("Play from URL", systemImage: "link",
-                           detail: "Open a direct video link")
+            NavigationLink { PlayFromLinkView() } label: {
+                settingRow("Play from Link", systemImage: "link",
+                           detail: settings.reviewSafeMode ? "Direct video links" : "URL or magnet")
             }.astraRowStyle()
-
-            if !settings.reviewSafeMode {
-                NavigationLink { MagnetView() } label: {
-                    settingRow("Play from Magnet", systemImage: "scope",
-                               detail: "Via Real-Debrid")
-                }.astraRowStyle()
-            }
 
             NavigationLink { AccountsView() } label: {
                 settingRow("Metadata & Accounts", systemImage: "key",
@@ -169,25 +163,42 @@ struct SettingsView: View {
                                ? Theme.Colors.success : Theme.Colors.warning)
             }.astraRowStyle()
 
-            NavigationLink { TitleCleanupRulesView() } label: {
-                settingRow("Cleanup Rules", systemImage: "textformat.abc.dottedunderline",
-                           detail: "Regex title cleanup")
-            }.astraRowStyle()
+            // Quick inline setup: paste the Worker URL right here; the full screen
+            // above keeps the guided instructions and worker code.
+            if !AISearchService.isConfigured {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Image(systemName: "link")
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                    TextField("Paste AI Worker URL", text: $inlineWorkerURL)
+                        .font(.appFont(16))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .autocorrectionDisabled(true)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        #endif
+                    Button("Save") {
+                        AISearchService.workerURLString = inlineWorkerURL
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                        ToastCenter.shared.show("AI Worker URL saved")
+                    }
+                    .font(.appFont(15, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accent)
+                    .buttonStyle(AstraChipButtonStyle())
+                    .disabled(inlineWorkerURL.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                .padding(Theme.Spacing.sm)
+                .background(Theme.Colors.card,
+                            in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            }
+
         }
     }
 
     private var backupSection: some View {
-        section("Backup & Sync") {
+        section("Sync & Backup") {
             NavigationLink { BackupView() } label: {
                 settingRow("iCloud Backup & Restore", systemImage: "icloud.and.arrow.up",
                            detail: backupDetail)
-            }.astraRowStyle()
-
-            NavigationLink {
-                WhatsNewView(note: WhatsNewTracker.shared.currentNote) {}
-            } label: {
-                settingRow("What's New", systemImage: "sparkles",
-                           detail: "Version \(WhatsNewTracker.shared.currentVersion) · Build \(WhatsNewTracker.shared.currentBuild)")
             }.astraRowStyle()
         }
     }
@@ -217,6 +228,8 @@ struct SettingsView: View {
                       selection: $settings.preferredSourceKind,
                       options: SourceKindPreference.allCases,
                       label: { $0.displayName })
+
+            sourcePriorityRows
 
             pickerRow("Max File Size", systemImage: "internaldrive",
                       selection: $settings.maxStreamSizeGB,
@@ -267,6 +280,70 @@ struct SettingsView: View {
         }
         .padding(Theme.Spacing.md)
         .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+    }
+
+    /// Reorderable source fallback chain (57): earlier kinds are preferred by the
+    /// stream ranker. Kept compact: up/down arrows instead of a drag list.
+    private var sourcePriorityRows: some View {
+        let kinds: [SourceKind] = [.cloud, .torrent, .localSMB, .directURL]
+        let current = settings.sourceKindPriority.compactMap(SourceKind.init(rawValue:))
+        let ordered = current.isEmpty ? kinds : current + kinds.filter { !current.contains($0) }
+        return VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            Text("Source Priority")
+                .font(.appFont(17, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textSecondary)
+            ForEach(Array(ordered.enumerated()), id: \.element) { index, kind in
+                HStack {
+                    Text("\(index + 1).")
+                        .font(.appFont(16, weight: .bold))
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                        .frame(width: 26, alignment: .leading)
+                    Text(sourceKindLabel(kind))
+                        .font(.appFont(18))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    Spacer()
+                    Button {
+                        moveSourcePriority(kind, up: true, in: ordered)
+                    } label: {
+                        Image(systemName: "chevron.up").font(.appFont(15, weight: .semibold))
+                    }
+                    .buttonStyle(AstraChipButtonStyle())
+                    .disabled(index == 0)
+                    Button {
+                        moveSourcePriority(kind, up: false, in: ordered)
+                    } label: {
+                        Image(systemName: "chevron.down").font(.appFont(15, weight: .semibold))
+                    }
+                    .buttonStyle(AstraChipButtonStyle())
+                    .disabled(index == ordered.count - 1)
+                }
+                .padding(.vertical, 2)
+            }
+            Text("Streams from higher sources rank first when quality is comparable.")
+                .font(.appFont(13))
+                .foregroundStyle(Theme.Colors.textTertiary)
+        }
+        .padding(.vertical, Theme.Spacing.xs)
+    }
+
+    private func sourceKindLabel(_ kind: SourceKind) -> String {
+        switch kind {
+        case .cloud:     return "Cloud (Debrid)"
+        case .torrent:   return "Torrent"
+        case .localSMB:  return "SMB / Local"
+        case .directURL: return "Direct URL"
+        case .liveTV:    return "Live TV"
+        case .unknown:   return "Other"
+        }
+    }
+
+    private func moveSourcePriority(_ kind: SourceKind, up: Bool, in ordered: [SourceKind]) {
+        var list = ordered
+        guard let idx = list.firstIndex(of: kind) else { return }
+        let target = up ? idx - 1 : idx + 1
+        guard list.indices.contains(target) else { return }
+        list.swapAt(idx, target)
+        settings.sourceKindPriority = list.map(\.rawValue)
     }
 
     private var playbackSection: some View {
@@ -406,14 +483,8 @@ struct SettingsView: View {
 
     private var librarySection: some View {
         section("Library") {
-            NavigationLink { LibraryEnrichView() } label: {
-                settingRow("Clean Up Library", systemImage: "wand.and.stars", detail: "Titles & images")
-            }.astraRowStyle()
-            NavigationLink { LibraryQualityView() } label: {
-                settingRow("Library Health", systemImage: "checkmark.seal", detail: "Scan & fix")
-            }.astraRowStyle()
-            NavigationLink { DuplicatesView() } label: {
-                settingRow("Duplicate Cleanup", systemImage: "arrow.triangle.merge",
+            NavigationLink { LibraryHealthView() } label: {
+                settingRow("Library Health", systemImage: "checkmark.seal",
                            detail: duplicateCountDetail)
             }.astraRowStyle()
             toggleRow("Safe Mode", systemImage: "exclamationmark.shield",
@@ -440,6 +511,13 @@ struct SettingsView: View {
 
     private var privacyLegalSection: some View {
         section("Privacy & Legal") {
+            NavigationLink {
+                WhatsNewView(note: WhatsNewTracker.shared.currentNote) {}
+            } label: {
+                settingRow("What's New", systemImage: "sparkles",
+                           detail: "Version \(WhatsNewTracker.shared.currentVersion) · Build \(WhatsNewTracker.shared.currentBuild)")
+            }.astraRowStyle()
+
             toggleRow("Require Legal Confirmation", systemImage: "checkmark.shield",
                       isOn: $settings.requireLegalConfirmation)
             NavigationLink { PrivacyLegalView() } label: {

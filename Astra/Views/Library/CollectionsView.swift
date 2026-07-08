@@ -11,6 +11,7 @@ import SwiftUI
 
 struct CollectionsView: View {
     @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var env: AppEnvironment
     @State private var showingNewCollection = false
     @State private var newName = ""
     @State private var selectedItem: MediaItem?
@@ -30,6 +31,9 @@ struct CollectionsView: View {
 
                     // Smart Collections: auto-updating groups based on simple rules.
                     smartSection
+
+                    // Trakt lists rendered as read-only collections.
+                    traktSection
 
                     if library.collections.isEmpty {
                         emptyState
@@ -224,15 +228,52 @@ struct CollectionsView: View {
         .accessibilityLabel("Delete \(collection.name)")
     }
 
+    // MARK: - Trakt
+
+    /// When Trakt is connected, its watchlist appears here as a read-only
+    /// collection so all "groups of titles" live on one screen.
+    @ViewBuilder private var traktSection: some View {
+        let connected = AppConfig.shared.value(for: .traktAccessToken)?.isEmpty == false
+        if connected {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                SectionHeader(title: "From Trakt")
+                    .padding(.horizontal, Theme.Spacing.edge)
+                LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
+                    NavigationLink {
+                        TraktWatchlistCollectionView()
+                    } label: {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                    .fill(Theme.Colors.cardGradient)
+                                    .aspectRatio(1.6, contentMode: .fit)
+                                Image(systemName: "text.badge.star")
+                                    .font(.appFont(44, weight: .semibold))
+                                    .foregroundStyle(Theme.Colors.accent)
+                            }
+                            Text("Trakt Watchlist")
+                                .font(.appFont(20, weight: .semibold))
+                                .foregroundStyle(Theme.Colors.textPrimary)
+                                .lineLimit(1)
+                            Text("Synced from Trakt")
+                                .font(.appFont(15))
+                                .foregroundStyle(Theme.Colors.textTertiary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, Theme.Spacing.edge)
+            }
+        }
+    }
+
     // MARK: - Smart collections
 
     @ViewBuilder private var smartSection: some View {
         let smarts = SmartCollection.presets.filter { !$0.items(from: library.items).isEmpty }
         if !smarts.isEmpty {
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                Text("Smart Collections")
-                    .font(.appFont(22, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.textPrimary)
+                SectionHeader(title: "Smart Collections")
                     .padding(.horizontal, Theme.Spacing.edge)
                 LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
                     ForEach(smarts) { smart in
@@ -270,17 +311,74 @@ struct CollectionsView: View {
     }
 }
 
-/// Shows the items inside a single collection.
+// MARK: - Generic media grid detail
+
+/// One grid screen for anything that is "a titled list of library items": manual
+/// collections and smart collections both render through this, so empty states,
+/// grids, and context menus stay identical.
+struct MediaGridDetailView: View {
+    let title: String
+    let emptySymbol: String
+    let emptyTitle: String
+    let emptyMessage: String
+    let items: [MediaItem]
+    var onPlay: (MediaItem) -> Void
+    /// Optional per-item context-menu content (e.g. Remove from Collection).
+    var itemMenu: ((MediaItem) -> AnyView)? = nil
+    /// Optional trailing-toolbar content (e.g. a delete button).
+    var toolbarContent: (() -> AnyView)? = nil
+
+    private var columns: [GridItem] { Theme.posterGridColumns }
+
+    var body: some View {
+        ZStack {
+            Theme.Colors.appBackground.ignoresSafeArea()
+            ScrollView {
+                if items.isEmpty {
+                    VStack(spacing: Theme.Spacing.md) {
+                        Image(systemName: emptySymbol)
+                            .font(.appFont(52))
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                        Text(emptyTitle)
+                            .font(.appFont(22, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                        Text(emptyMessage)
+                            .font(.appFont(18))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, Theme.Spacing.xl)
+                } else {
+                    LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
+                        ForEach(items) { item in
+                            if let itemMenu {
+                                MediaCard(item: item) { onPlay(item) }
+                                    .contextMenu { itemMenu(item) }
+                            } else {
+                                MediaCard(item: item) { onPlay(item) }
+                            }
+                        }
+                    }
+                    .padding(Theme.Spacing.edge)
+                }
+            }
+        }
+        .navigationTitle(title)
+        .toolbar {
+            if let toolbarContent {
+                toolbarContent()
+            }
+        }
+    }
+}
+
+/// Shows the items inside a single collection (thin wrapper over the grid).
 struct CollectionDetailView: View {
     let collection: MediaCollection
     var onPlay: (MediaItem) -> Void
     @EnvironmentObject private var library: LibraryStore
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingDelete = false
-
-    private var columns: [GridItem] {
-        Theme.posterGridColumns
-    }
 
     private var items: [MediaItem] {
         // Re-read from the store so removals reflect immediately.
@@ -289,103 +387,104 @@ struct CollectionDetailView: View {
     }
 
     var body: some View {
-        ZStack {
-            Theme.Colors.appBackground.ignoresSafeArea()
-            ScrollView {
-                if items.isEmpty {
-                    VStack(spacing: Theme.Spacing.md) {
-                        Image(systemName: collection.systemImage)
-                            .font(.appFont(52))
-                            .foregroundStyle(Theme.Colors.textTertiary)
-                        Text("This collection is empty")
-                            .font(.appFont(22, weight: .semibold))
-                            .foregroundStyle(Theme.Colors.textPrimary)
-                        Text("Add titles to it from a movie or show's menu.")
-                            .font(.appFont(18))
-                            .foregroundStyle(Theme.Colors.textSecondary)
+        MediaGridDetailView(
+            title: collection.name,
+            emptySymbol: collection.systemImage,
+            emptyTitle: "This collection is empty",
+            emptyMessage: "Add titles to it from a movie or show's menu.",
+            items: items,
+            onPlay: onPlay,
+            itemMenu: { item in
+                AnyView(
+                    Button(role: .destructive) {
+                        library.removeFromCollection(collection.id, contentKey: item.contentKey)
+                    } label: {
+                        Label("Remove from Collection", systemImage: "minus.circle")
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, Theme.Spacing.xl)
-                } else {
-                    LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
-                        ForEach(items) { item in
-                            MediaCard(item: item) { onPlay(item) }
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        library.removeFromCollection(collection.id, contentKey: item.contentKey)
-                                    } label: {
-                                        Label("Remove from Collection", systemImage: "minus.circle")
-                                    }
-                                }
-                        }
+                )
+            },
+            toolbarContent: {
+                AnyView(
+                    Button(role: .destructive) {
+                        confirmingDelete = true
+                    } label: {
+                        Image(systemName: "trash")
                     }
-                    .padding(Theme.Spacing.edge)
-                }
+                )
             }
-        }
-        .navigationTitle(collection.name)
-        .toolbar {
-            Button(role: .destructive) {
-                confirmingDelete = true
-            } label: {
-                Image(systemName: "trash")
-            }
-        }
-        .alert("Delete Collection?", isPresented: $confirmingDelete) {
-            Button("Delete “\(collection.name)”", role: .destructive) {
-                library.deleteCollection(collection.id)
-                dismiss()
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("“\(collection.name)” will be deleted. Its titles stay in your library.")
+        )
+        .confirmDelete("Delete Collection?",
+                       itemName: collection.name,
+                       message: "“\(collection.name)” will be deleted. Its titles stay in your library.",
+                       isPresented: $confirmingDelete) {
+            library.deleteCollection(collection.id)
+            dismiss()
         }
     }
 }
 
 // MARK: - Smart collection detail
 
-/// Shows the live contents of a smart collection, re-evaluated from the library each
-/// time it appears so it always reflects the current state.
+/// Live contents of a smart collection (thin wrapper over the same grid).
 struct SmartCollectionDetailView: View {
     let smart: SmartCollection
     var onPlay: (MediaItem) -> Void
     @EnvironmentObject private var library: LibraryStore
 
-    private var columns: [GridItem] { Theme.posterGridColumns }
-
-    private var items: [MediaItem] {
-        smart.items(from: library.items)
+    var body: some View {
+        MediaGridDetailView(
+            title: smart.name,
+            emptySymbol: smart.systemImage,
+            emptyTitle: "Nothing here right now",
+            emptyMessage: "This updates automatically as your library changes.",
+            items: smart.items(from: library.items),
+            onPlay: onPlay
+        )
     }
+}
+
+
+// MARK: - Trakt watchlist as a collection
+
+/// Read-only grid of the user's Trakt watchlist, artwork-enriched via TMDB.
+/// Tapping a title opens the standard detail screen.
+struct TraktWatchlistCollectionView: View {
+    @EnvironmentObject private var env: AppEnvironment
+    @State private var items: [CatalogItem] = []
+    @State private var loading = true
 
     var body: some View {
         ZStack {
             Theme.Colors.appBackground.ignoresSafeArea()
             ScrollView {
-                if items.isEmpty {
-                    VStack(spacing: Theme.Spacing.md) {
-                        Image(systemName: smart.systemImage)
-                            .font(.appFont(52))
-                            .foregroundStyle(Theme.Colors.textTertiary)
-                        Text("Nothing here right now")
-                            .font(.appFont(22, weight: .semibold))
-                            .foregroundStyle(Theme.Colors.textPrimary)
-                        Text("This updates automatically as your library changes.")
-                            .font(.appFont(18))
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, Theme.Spacing.xl)
+                if loading {
+                    LoadingView(message: "Loading your watchlist…")
+                        .frame(minHeight: 320)
+                } else if items.isEmpty {
+                    EmptyStateView(systemImage: "text.badge.star",
+                                   title: "Watchlist is empty",
+                                   message: "Titles you add on Trakt appear here automatically.")
+                        .frame(minHeight: 320)
                 } else {
-                    LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
+                    LazyVGrid(columns: Theme.posterGridColumns, spacing: Theme.Spacing.lg) {
                         ForEach(items) { item in
-                            MediaCard(item: item) { onPlay(item) }
+                            NavigationLink {
+                                ContentDetailView(item: item)
+                            } label: {
+                                CatalogPosterCard(item: item)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                     .padding(Theme.Spacing.edge)
                 }
             }
         }
-        .navigationTitle(smart.name)
+        .navigationTitle("Trakt Watchlist")
+        .task {
+            let list = (try? await env.trakt.watchlist()) ?? []
+            items = await env.tmdb.enrichArtwork(list)
+            loading = false
+        }
     }
 }
