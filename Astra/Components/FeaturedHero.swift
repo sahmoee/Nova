@@ -12,6 +12,8 @@ import SwiftUI
 
 struct FeaturedHero: View {
     let item: MediaItem
+    /// Optional explicit height override. When nil, the platform default is used.
+    var height: CGFloat? = nil
     var onPlay: (MediaItem) -> Void
 
     @Environment(\.dynamicAccent) private var accent
@@ -20,19 +22,19 @@ struct FeaturedHero: View {
         GeometryReader { geo in
             heroContent(width: geo.size.width)
         }
-        // A sensible fixed height that scales with the platform; on iPhone this keeps
-        // the hero to roughly a third of a typical screen instead of dominating it.
+        // A tall, cinematic height that scales with the platform so the artwork fills
+        // the top of the screen instead of leaving blank space beneath it.
         .frame(height: heroHeight)
     }
 
-    /// Hero height tuned per platform. iPhone/iPad get a compact banner; tvOS gets the
-    /// full cinematic height.
+    /// Hero height tuned per platform, unless the caller passed an explicit height.
+    /// iPhone/iPad get a tall cinematic banner; tvOS gets the full cinematic height.
     private var heroHeight: CGFloat {
+        if let height { return height }
         #if os(tvOS)
         return 560
         #else
-        // Cap to a comfortable banner height on handhelds.
-        return Theme.isCompact ? 230 : 380
+        return Theme.isCompact ? 400 : 460
         #endif
     }
 

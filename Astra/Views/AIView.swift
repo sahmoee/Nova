@@ -2,11 +2,11 @@
 //  AIView.swift
 //  Astra
 //
-//  The AI tab. One place for AI-assisted discovery and library search:
-//   - Generate a themed shelf or playlist from a prompt ("dark sci-fi thrillers",
-//     "5-movie Friday night lineup"), resolved to real titles via TMDB.
-//   - Search your own library by vibe or fuzzy memory ("the show I started last week",
-//     "something funny but not stupid").
+//  The AI tab. Opens on a browsable menu of every AI feature, organized into
+//  groups, so everything AI can do is visible at a glance — no typing required to
+//  get started. Tap a feature, tap a ready-made suggestion (or write your own
+//  prompt), and the results can be saved as a Home shelf, a collection, library
+//  additions, or a queue in one tap.
 //
 //  Everything routes through AISearchService and the user's Cloudflare Worker. When the
 //  Worker isn't configured, the screen explains how to set it up and library search
@@ -22,17 +22,24 @@ struct AIView: View {
     @EnvironmentObject private var library: LibraryStore
 
     @State private var capability: AISearchService.Capability = .discover
+    @State private var browsing = true
     @State private var prompt = ""
     @State private var catalogResults: [CatalogItem] = []
     @State private var libraryResults: [MediaItem] = []
     @State private var state: ViewState = .idle
     @State private var lastPrompt = ""
     @State private var savedMessage: String?
+    @State private var playerItem: MediaItem?
     @FocusState private var promptFocused: Bool
 
     enum ViewState: Equatable { case idle, working, results, empty, error(String) }
 
     private var columns: [GridItem] { Theme.posterGridColumns }
+
+    private var featureColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: Theme.isCompact ? 160 : 240),
+                  spacing: Theme.Spacing.md)]
+    }
 
     private var suggestions: [String] {
         switch capability {
@@ -93,16 +100,23 @@ struct AIView: View {
                 Theme.Colors.appBackground.ignoresSafeArea()
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                        header
-                        capabilityPicker
-                        promptField
-                        suggestionChips
-                        if let savedMessage {
-                            Label(savedMessage, systemImage: "checkmark.circle.fill")
-                                .font(.appFont(15, weight: .medium))
-                                .foregroundStyle(Theme.Colors.accent)
+                        if browsing {
+                            header
+                            if !AISearchService.isConfigured {
+                                setupBanner
+                            }
+                            featureMenu
+                        } else {
+                            activeFeatureHeader
+                            promptField
+                            suggestionChips
+                            if let savedMessage {
+                                Label(savedMessage, systemImage: "checkmark.circle.fill")
+                                    .font(.appFont(15, weight: .medium))
+                                    .foregroundStyle(Theme.Colors.accent)
+                            }
+                            resultsSection
                         }
-                        resultsSection
                     }
                     .padding(Theme.Spacing.edge)
                     .frame(maxWidth: Theme.contentMaxWidth(1500), alignment: .leading)
@@ -117,7 +131,7 @@ struct AIView: View {
         }
     }
 
-    @State private var playerItem: MediaItem?
+    // MARK: - Headers
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -125,38 +139,104 @@ struct AIView: View {
                 .font(Theme.Font.screenTitle())
                 .screenTitleStyle()
                 .foregroundStyle(Theme.Colors.textPrimary)
-            Text("Describe what you're in the mood for, and let AI build it.")
+            Text("Everything AI can do, in one place. Pick a feature to start — most need just one tap.")
                 .font(.appFont(18))
                 .foregroundStyle(Theme.Colors.textSecondary)
         }
     }
 
-    private var capabilityPicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+    /// Shown once a feature is chosen: the feature's name plus a way back to the menu.
+    private var activeFeatureHeader: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Button {
+                browsing = true
+                resetResults()
+            } label: {
+                Label("All AI Features", systemImage: "chevron.left")
+                    .font(.appFont(16, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accent)
+            }
+            .buttonStyle(AstraChipButtonStyle())
+
             HStack(spacing: Theme.Spacing.sm) {
-                ForEach(AISearchService.Capability.allCases) { cap in
-                    Button {
-                        capability = cap
-                        resetResults()
-                    } label: {
-                        Label(cap.rawValue, systemImage: cap.systemImage)
-                            .font(.appFont(15, weight: .semibold))
-                            .foregroundStyle(capability == cap ? .black : Theme.Colors.textPrimary)
-                            .padding(.vertical, Theme.Spacing.sm)
-                            .padding(.horizontal, Theme.Spacing.md)
-                            .background(
-                                Capsule().fill(capability == cap
-                                               ? Theme.Colors.accent
-                                               : Color.white.opacity(0.08))
-                            )
-                    }
-                    .buttonStyle(AstraChipButtonStyle())
+                Image(systemName: capability.systemImage)
+                    .font(.appFont(30, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(capability.rawValue)
+                        .font(Theme.Font.sectionTitle())
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    Text(capability.blurb)
+                        .font(.appFont(16))
+                        .foregroundStyle(Theme.Colors.textSecondary)
                 }
             }
-            .padding(.horizontal, Theme.Spacing.edge)
         }
-        .padding(.horizontal, -Theme.Spacing.edge)
     }
+
+    // MARK: - Feature menu
+
+    /// The browsable directory of every AI capability, grouped so features read as a
+    /// well-organized list instead of an endless row of chips.
+    private var featureMenu: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+            ForEach(AISearchService.Capability.Category.allCases) { category in
+                let caps = AISearchService.Capability.allCases.filter { $0.category == category }
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                    Label(category.rawValue, systemImage: category.systemImage)
+                        .font(.appFont(21, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    LazyVGrid(columns: featureColumns, spacing: Theme.Spacing.md) {
+                        ForEach(caps) { cap in
+                            Button {
+                                select(cap)
+                            } label: {
+                                featureCard(cap)
+                            }
+                            .buttonStyle(AstraChipButtonStyle())
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func featureCard(_ cap: AISearchService.Capability) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            Image(systemName: cap.systemImage)
+                .font(.appFont(26, weight: .semibold))
+                .foregroundStyle(Theme.Colors.accent)
+                .frame(height: 32)
+            Text(cap.rawValue)
+                .font(.appFont(18, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Text(cap.blurb)
+                .font(.appFont(14))
+                .foregroundStyle(Theme.Colors.textSecondary)
+                .lineLimit(2, reservesSpace: true)
+                .multilineTextAlignment(.leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Theme.Spacing.md)
+        .background(Theme.Colors.card,
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+    }
+
+    private func select(_ cap: AISearchService.Capability) {
+        capability = cap
+        resetResults()
+        browsing = false
+        // Surprise Me needs no prompt at all — run it immediately.
+        if cap == .surpriseMe {
+            run()
+        } else {
+            promptFocused = true
+        }
+    }
+
+    // MARK: - Prompt input
 
     private var promptField: some View {
         HStack(spacing: Theme.Spacing.sm) {
@@ -178,7 +258,7 @@ struct AIView: View {
                 Text("Go").font(.appFont(18, weight: .bold))
             }
             .astraRowStyle()
-            .disabled(prompt.trimmingCharacters(in: .whitespaces).isEmpty)
+            .disabled(prompt.trimmingCharacters(in: .whitespaces).isEmpty && capability != .surpriseMe)
         }
         .padding(Theme.Spacing.md)
         .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
@@ -206,6 +286,8 @@ struct AIView: View {
             }
         }
     }
+
+    // MARK: - Results
 
     @ViewBuilder
     private var resultsSection: some View {
@@ -266,6 +348,32 @@ struct AIView: View {
         }
     }
 
+    /// A compact banner on the menu screen when the Worker isn't configured yet.
+    /// Library search still works without it, so this informs rather than blocks.
+    private var setupBanner: some View {
+        HStack(spacing: Theme.Spacing.md) {
+            Image(systemName: "wand.and.stars")
+                .font(.appFont(28))
+                .foregroundStyle(Theme.Colors.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Set up AI to unlock every feature")
+                    .font(.appFont(17, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Text("Add your Cloudflare Worker URL in Settings. Library Search works without it.")
+                    .font(.appFont(14))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+            Spacer()
+            Button("Set Up") { nav.selection = .settings }
+                .font(.appFont(15, weight: .semibold))
+                .foregroundStyle(Theme.Colors.accent)
+                .buttonStyle(AstraChipButtonStyle())
+        }
+        .padding(Theme.Spacing.md)
+        .background(Theme.Colors.card,
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+    }
+
     private var notConfiguredCard: some View {
         VStack(spacing: Theme.Spacing.md) {
             Image(systemName: "sparkles")
@@ -275,7 +383,7 @@ struct AIView: View {
                 .font(.appFont(22, weight: .semibold))
                 .foregroundStyle(Theme.Colors.textPrimary)
                 .multilineTextAlignment(.center)
-            Text("AI Discover uses your own Cloudflare Worker. Add its URL in Settings to generate themed shelves and playlists. Library search below works without it.")
+            Text("AI Discover uses your own Cloudflare Worker. Add its URL in Settings to generate themed shelves and playlists. Library search works without it.")
                 .font(.appFont(17))
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
@@ -309,6 +417,7 @@ struct AIView: View {
 
     private func resetResults() {
         catalogResults = []; libraryResults = []; state = .idle; lastPrompt = ""; savedMessage = nil
+        prompt = ""
     }
 
     private func run() {
@@ -340,12 +449,21 @@ struct AIView: View {
 
     // MARK: - Save actions (build / add)
 
-    /// Actions that turn AI results into things in the app: save as a collection, add
-    /// every result to the library, or queue them all up.
+    /// Actions that turn AI results into things in the app: pin them to Home as a
+    /// living AI shelf, save them as a collection, add every result to the library,
+    /// or queue them all up. Building shelves and collections is one tap from here.
     @ViewBuilder private var saveActions: some View {
         if capability.producesCollection, !catalogResults.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Theme.Spacing.sm) {
+                    Button {
+                        saveAsShelf()
+                    } label: {
+                        Label("Add as Home Shelf", systemImage: "rectangle.grid.1x2")
+                            .font(.appFont(15, weight: .semibold))
+                    }
+                    .buttonStyle(AstraChipButtonStyle())
+
                     Button {
                         saveAsCollection()
                     } label: {
@@ -379,6 +497,17 @@ struct AIView: View {
     /// is resolved when the user plays them).
     private func resultItems() -> [MediaItem] {
         catalogResults.map { $0.asLibraryItem() }
+    }
+
+    /// Pins the current prompt to Home as a living AI shelf. The shelf stores the
+    /// specialized instruction, so it reloads fresh picks for the same idea over time.
+    private func saveAsShelf() {
+        let name = (lastPrompt.isEmpty ? capability.rawValue : lastPrompt).capitalized
+        let shelfPrompt = capability.instruction(for: lastPrompt)
+        HomeShelfStore.shared.shelves.append(
+            ShelfConfig(kind: .aiShelf(prompt: shelfPrompt), title: name)
+        )
+        savedMessage = "Added “\(name)” to Home. Manage it anytime in Customize Home."
     }
 
     private func saveAsCollection() {

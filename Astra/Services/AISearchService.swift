@@ -286,6 +286,73 @@ final class AISearchService: ObservableObject {
             }
         }
 
+        // MARK: Feature menu metadata
+
+        /// Groups used to present the AI features as an organized, browsable menu.
+        enum Category: String, CaseIterable, Identifiable {
+            case build     = "Build & Organize"
+            case discover  = "Discover Something New"
+            case taste     = "By Taste & Mood"
+            case practical = "Practical Picks"
+
+            var id: String { rawValue }
+
+            var systemImage: String {
+                switch self {
+                case .build:     return "rectangle.stack.badge.plus"
+                case .discover:  return "sparkles"
+                case .taste:     return "theatermasks"
+                case .practical: return "checklist"
+                }
+            }
+        }
+
+        /// Which menu group this capability belongs to.
+        var category: Category {
+            switch self {
+            case .buildShelf, .buildCollection, .buildLineup, .bingeQueue,
+                 .doubleFeature, .franchiseOrder:
+                return .build
+            case .discover, .surpriseMe, .hiddenGems, .fillGaps, .foreign,
+                 .criticPicks, .basedOnBooks, .soundtrack:
+                return .discover
+            case .similarTo, .moodMatch, .genreBlend, .decade, .director,
+                 .comfortWatch:
+                return .taste
+            case .librarySearch, .familyFriendly, .quickWatch:
+                return .practical
+            }
+        }
+
+        /// One-line description shown on the feature's card in the AI menu.
+        var blurb: String {
+            switch self {
+            case .discover:        return "Describe a vibe and get real titles."
+            case .librarySearch:   return "Find things you own by fuzzy memory."
+            case .buildCollection: return "Create a themed collection in one tap."
+            case .buildLineup:     return "Plan a movie night that flows."
+            case .similarTo:       return "More titles like one you love."
+            case .moodMatch:       return "Tell it how you feel; it picks."
+            case .franchiseOrder:  return "Any saga in the ideal watch order."
+            case .hiddenGems:      return "Underrated titles worth your time."
+            case .familyFriendly:  return "Safe picks for any age."
+            case .quickWatch:      return "Great picks when time is short."
+            case .surpriseMe:      return "Zero effort. Tap and go."
+            case .fillGaps:        return "Essentials you have missed."
+            case .buildShelf:      return "Generate a living shelf for Home."
+            case .doubleFeature:   return "Two titles that pair perfectly."
+            case .bingeQueue:      return "Series you will not want to stop."
+            case .decade:          return "The best of any era."
+            case .director:        return "Explore a filmmaker or star."
+            case .criticPicks:     return "Award winners and acclaim."
+            case .genreBlend:      return "Mash two genres together."
+            case .foreign:         return "Standouts from world cinema."
+            case .comfortWatch:    return "Cozy, easy, rewatchable."
+            case .soundtrack:      return "Films with unforgettable music."
+            case .basedOnBooks:    return "Great page-to-screen adaptations."
+            }
+        }
+
         /// Whether this capability searches the user's own library (versus the
         /// wider catalog).
         var searchesLibrary: Bool { self == .librarySearch }

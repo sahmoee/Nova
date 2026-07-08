@@ -183,17 +183,17 @@ struct HomeView: View {
             VStack(spacing: Theme.Spacing.sm) {
                 TabView(selection: $heroIndex) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
-                        FeaturedHero(item: item) { play($0) }
+                        FeaturedHero(item: item, height: heroCarouselHeight) { play($0) }
                             .overlay(alignment: .topTrailing) { customizeButton }
                             .tag(idx)
                     }
                 }
                 #if os(iOS)
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                .frame(height: Theme.isCompact ? 300 : 440)
+                .frame(height: heroCarouselHeight)
                 #else
                 .tabViewStyle(.automatic)
-                .frame(height: 620)
+                .frame(height: heroCarouselHeight)
                 #endif
                 // Gentle auto-advance so the hero rotates like a marquee; any manual
                 // swipe just restarts the interval on the new index.
@@ -222,6 +222,17 @@ struct HomeView: View {
                 }
             }
         }
+    }
+
+    /// The hero carousel height: tall and cinematic so the artwork fills the top of
+    /// the screen rather than sitting as a short banner above blank space. The
+    /// FeaturedHero inside is given the same height so image and frame always match.
+    private var heroCarouselHeight: CGFloat {
+        #if os(tvOS)
+        return 620
+        #else
+        return Theme.isCompact ? 480 : 540
+        #endif
     }
 
     // MARK: - Featured hero selection

@@ -14,6 +14,8 @@ struct CollectionsView: View {
     @State private var showingNewCollection = false
     @State private var newName = ""
     @State private var selectedItem: MediaItem?
+    @State private var editing = false
+    @State private var pendingDelete: MediaCollection?
 
     private var columns: [GridItem] {
         [GridItem(.adaptive(minimum: Theme.isCompact ? 160 : 260), spacing: Theme.Spacing.lg)]
@@ -34,13 +36,24 @@ struct CollectionsView: View {
                     } else {
                         LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
                             ForEach(library.collections) { collection in
-                                NavigationLink {
-                                    CollectionDetailView(collection: collection,
-                                                         onPlay: { selectedItem = $0 })
-                                } label: {
+                                if editing {
+                                    // Edit mode: tiles stop navigating and grow a
+                                    // delete badge, so removing collections is a
+                                    // visible one-tap action rather than a hidden
+                                    // long-press.
                                     collectionTile(collection)
+                                        .overlay(alignment: .topTrailing) {
+                                            deleteBadge(for: collection)
+                                        }
+                                } else {
+                                    NavigationLink {
+                                        CollectionDetailView(collection: collection,
+                                                             onPlay: { selectedItem = $0 })
+                                    } label: {
+                                        collectionTile(collection)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                         .padding(.horizontal, Theme.Spacing.edge)
@@ -54,9 +67,27 @@ struct CollectionsView: View {
             PlayerView(item: item)
         }
         .toolbar {
+            if !library.collections.isEmpty {
+                Button(editing ? "Done" : "Edit") {
+                    withAnimation { editing.toggle() }
+                }
+            }
             Button { showingNewCollection = true } label: {
                 Image(systemName: "plus")
             }
+        }
+        .alert("Delete Collection?",
+               isPresented: Binding(get: { pendingDelete != nil },
+                                    set: { if !$0 { pendingDelete = nil } }),
+               presenting: pendingDelete) { collection in
+            Button("Delete “\(collection.name)”", role: .destructive) {
+                library.deleteCollection(collection.id)
+                pendingDelete = nil
+                if library.collections.isEmpty { editing = false }
+            }
+            Button("Cancel", role: .cancel) { pendingDelete = nil }
+        } message: { collection in
+            Text("“\(collection.name)” will be deleted. Its titles stay in your library.")
         }
         .alert("New Collection", isPresented: $showingNewCollection) {
             TextField("Name", text: $newName)
@@ -122,11 +153,28 @@ struct CollectionsView: View {
         }
         .contextMenu {
             Button(role: .destructive) {
-                library.deleteCollection(collection.id)
+                pendingDelete = collection
             } label: {
                 Label("Delete Collection", systemImage: "trash")
             }
         }
+    }
+
+    /// The red delete button shown on each tile while editing. Deletion always
+    /// confirms first, so a stray tap can't wipe a collection.
+    private func deleteBadge(for collection: MediaCollection) -> some View {
+        Button {
+            pendingDelete = collection
+        } label: {
+            Image(systemName: "trash.circle.fill")
+                .font(.appFont(32))
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(.white, .red)
+                .shadow(color: .black.opacity(0.4), radius: 4)
+        }
+        .buttonStyle(.plain)
+        .padding(Theme.Spacing.xs)
+        .accessibilityLabel("Delete \(collection.name)")
     }
 
     // MARK: - Smart collections
@@ -180,6 +228,8 @@ struct CollectionDetailView: View {
     let collection: MediaCollection
     var onPlay: (MediaItem) -> Void
     @EnvironmentObject private var library: LibraryStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var confirmingDelete = false
 
     private var columns: [GridItem] {
         Theme.posterGridColumns
@@ -227,6 +277,22 @@ struct CollectionDetailView: View {
             }
         }
         .navigationTitle(collection.name)
+        .toolbar {
+            Button(role: .destructive) {
+                confirmingDelete = true
+            } label: {
+                Image(systemName: "trash")
+            }
+        }
+        .alert("Delete Collection?", isPresented: $confirmingDelete) {
+            Button("Delete “\(collection.name)”", role: .destructive) {
+                library.deleteCollection(collection.id)
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("“\(collection.name)” will be deleted. Its titles stay in your library.")
+        }
     }
 }
 
