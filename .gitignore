@@ -8,3 +8,6 @@ xcuserdata/
 .swiftpm/
 Packages/
 .buildbuddy-backups/
+
+commit.sh
+COMMIT_MSG.txt
