@@ -86,6 +86,26 @@ export default {
       if (token !== env.FRAMETV_SHARED_TOKEN) return json({ error: "Unauthorized" }, 401);
     }
 
+    // --- Snapshot sharing (peer-to-peer restore codes) ---------------------
+    // These endpoints let one person share their backup snapshot with another via a
+    // short code. They do NOT need the Anthropic key, so they're handled before that
+    // check. They require a KV namespace bound as SNAPSHOTS (see wrangler.toml).
+    if (path === "/share/create" || path === "/share/fetch") {
+      let shareBody;
+      try {
+        shareBody = await request.json();
+      } catch {
+        return json({ error: "Invalid JSON body" }, 400);
+      }
+      try {
+        return path === "/share/create"
+          ? await handleShareCreate(shareBody, env)
+          : await handleShareFetch(shareBody, env);
+      } catch (err) {
+        return json({ error: "Share error", detail: String(err) }, 502);
+      }
+    }
+
     if (!env.ANTHROPIC_API_KEY) {
       return json({ error: "Worker is missing ANTHROPIC_API_KEY secret" }, 500);
     }
@@ -114,6 +134,73 @@ export default {
     }
   },
 };
+
+/* --- Snapshot sharing ------------------------------------------------------
+ * POST /share/create  { snapshot: "<base64>", contents: <int>, ttlDays?: <int> }
+ *   -> { code: "ABC123", expiresAt: "<iso>" }
+ * POST /share/fetch   { code: "ABC123" }
+ *   -> { snapshot: "<base64>", contents: <int> }  (404 if unknown/expired)
+ *
+ * Requires a KV namespace bound as SNAPSHOTS. Codes are short, human-readable, and
+ * expire automatically. The snapshot is stored exactly as the app sent it (the app
+ * decides what it contains -- preferences, sources, addons, and optionally secrets).
+ */
+
+// Unambiguous alphabet (no 0/O/1/I) for easy reading/typing over the phone.
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const CODE_LENGTH = 6;
+const MAX_SNAPSHOT_BYTES = 4 * 1024 * 1024; // 4 MB of base64 -- snapshots are small JSON.
+
+function makeCode() {
+  let out = "";
+  const bytes = crypto.getRandomValues(new Uint8Array(CODE_LENGTH));
+  for (let i = 0; i < CODE_LENGTH; i++) {
+    out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
+  }
+  return out;
+}
+
+async function handleShareCreate(body, env) {
+  if (!env.SNAPSHOTS) {
+    return json({ error: "Sharing not enabled: bind a KV namespace named SNAPSHOTS." }, 501);
+  }
+  const snapshot = (body.snapshot || "").toString();
+  if (!snapshot) return json({ error: "Missing snapshot" }, 400);
+  if (snapshot.length > MAX_SNAPSHOT_BYTES) {
+    return json({ error: "Snapshot too large" }, 413);
+  }
+  const contents = Number.isInteger(body.contents) ? body.contents : 0;
+  const ttlDays = Math.min(Math.max(parseInt(body.ttlDays, 10) || 7, 1), 30);
+  const ttlSeconds = ttlDays * 86400;
+
+  // Retry a few times in the unlikely event of a code collision.
+  let code = "";
+  for (let attempt = 0; attempt < 5; attempt++) {
+    code = makeCode();
+    const existing = await env.SNAPSHOTS.get(code);
+    if (!existing) break;
+  }
+  const record = JSON.stringify({ snapshot, contents, createdAt: new Date().toISOString() });
+  await env.SNAPSHOTS.put(code, record, { expirationTtl: ttlSeconds });
+  const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+  return json({ code, expiresAt });
+}
+
+async function handleShareFetch(body, env) {
+  if (!env.SNAPSHOTS) {
+    return json({ error: "Sharing not enabled: bind a KV namespace named SNAPSHOTS." }, 501);
+  }
+  const code = (body.code || "").toString().trim().toUpperCase();
+  if (!code) return json({ error: "Missing code" }, 400);
+  const record = await env.SNAPSHOTS.get(code);
+  if (!record) return json({ error: "Code not found or expired" }, 404);
+  try {
+    const parsed = JSON.parse(record);
+    return json({ snapshot: parsed.snapshot, contents: parsed.contents || 0 });
+  } catch {
+    return json({ error: "Corrupt snapshot record" }, 500);
+  }
+}
 
 /* --- /  and  /titles : { query } -> { titles: [...] } --------------------- */
 async function handleTitles(body, env) {

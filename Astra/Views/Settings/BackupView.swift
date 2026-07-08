@@ -8,6 +8,9 @@
 
 import SwiftUI
 #if os(iOS)
+import UIKit
+#endif
+#if os(iOS)
 import UniformTypeIdentifiers
 #endif
 
@@ -34,6 +37,17 @@ struct BackupView: View {
     @State private var pendingImportData: Data?
     @State private var showDataRestorePicker = false
     @State private var isDownloading = false
+
+    // Share-via-code (peer-to-peer, via the Worker).
+    @State private var showShareCodePicker = false
+    @State private var shareCode: String?
+    @State private var shareCodeExpiry: Date?
+    @State private var showShareCodeResult = false
+    @State private var isCreatingCode = false
+    @State private var showCodeEntry = false
+    @State private var codeText = ""
+    @State private var isFetchingCode = false
+    @State private var showCodeRestorePicker = false
 
     var body: some View {
         ScrollView {
@@ -98,6 +112,40 @@ struct BackupView: View {
                     .foregroundStyle(Theme.Colors.textTertiary)
                     .padding(.top, Theme.Spacing.sm)
 
+                Divider().padding(.vertical, Theme.Spacing.md)
+
+                Text("Share with a Code")
+                    .font(Theme.Font.sectionTitle())
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Text("Create a short code that another person can enter to restore your setup — no file to send. You choose what goes in, exactly like a snapshot file. Codes expire automatically after 7 days.")
+                    .font(.appFont(17))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+
+                if backup.canShareViaCode {
+                    FocusableButton(title: isCreatingCode ? "Creating…" : "Create a Share Code",
+                                    systemImage: "number.square") {
+                        showShareCodePicker = true
+                    }
+                    .frame(maxWidth: Theme.isCompact ? .infinity : 360)
+                    .disabled(isCreatingCode)
+
+                    FocusableButton(title: isFetchingCode ? "Looking up…" : "Restore from a Code",
+                                    systemImage: "arrow.down.square") {
+                        codeText = ""
+                        showCodeEntry = true
+                    }
+                    .frame(maxWidth: Theme.isCompact ? .infinity : 360)
+                    .disabled(isFetchingCode)
+
+                    Text("Codes are shared through your own Cloudflare Worker. Only share a code that includes logins with people you trust.")
+                        .font(.appFont(14))
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                } else {
+                    Text("Add your Cloudflare Worker URL in Settings ▸ AI Search to enable code sharing.")
+                        .font(.appFont(15))
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                }
+
                 #if os(iOS)
                 Divider().padding(.vertical, Theme.Spacing.md)
 
@@ -159,6 +207,49 @@ struct BackupView: View {
                                  available: backup.cloudSnapshotContents() ?? .safe) { contents in
                 performRestore(contents)
             }
+        }
+        // Create a share code: choose what to include (same options + warnings), then
+        // upload to the Worker and show the code.
+        .sheet(isPresented: $showShareCodePicker) {
+            BackupContentsPicker(mode: .export, available: backup.currentDeviceContents()) { contents in
+                Task { await createCode(including: contents) }
+            }
+        }
+        // Restore-from-code: choose what to apply from the fetched snapshot.
+        .sheet(isPresented: $showCodeRestorePicker) {
+            BackupContentsPicker(mode: .restore, available: pendingImportContents) { contents in
+                if let data = pendingImportData {
+                    let ok = backup.importSnapshotData(data, restoring: contents)
+                    ToastCenter.shared.show(ok ? "Snapshot restored from code" : "Restore failed",
+                                            systemImage: ok ? "checkmark.circle.fill" : "exclamationmark.triangle")
+                }
+            }
+        }
+        // Show the generated share code with a Copy action.
+        .alert("Your Share Code", isPresented: $showShareCodeResult) {
+            #if os(iOS)
+            Button("Copy Code") {
+                UIPasteboard.general.string = shareCode
+                ToastCenter.shared.show("Code copied", systemImage: "doc.on.doc")
+            }
+            #endif
+            Button("Done", role: .cancel) {}
+        } message: {
+            Text(shareCodeMessage)
+        }
+        // Enter a code to restore from someone else.
+        .alert("Restore from a Code", isPresented: $showCodeEntry) {
+            TextField("6-character code", text: $codeText)
+                #if os(iOS)
+                .textInputAutocapitalization(.characters)
+                .autocorrectionDisabled()
+                #endif
+            Button("Look Up") {
+                Task { await fetchCode(codeText) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Enter the code shared with you. You'll choose what to restore, and be warned before applying any logins.")
         }
         #if os(iOS)
         // Export: pick what to include, then share.
@@ -258,6 +349,45 @@ struct BackupView: View {
         showDataRestorePicker = true
     }
     #endif
+
+    /// Message shown in the share-code result alert, including expiry.
+    private var shareCodeMessage: String {
+        guard let code = shareCode else { return "" }
+        var msg = "Share this code with the other person:\n\n\(code)\n\nThey enter it under Restore from a Code."
+        if let exp = shareCodeExpiry {
+            msg += "\n\nExpires \(dateText(exp))."
+        }
+        return msg
+    }
+
+    /// Uploads a snapshot with the chosen contents and shows the resulting code.
+    private func createCode(including contents: BackupContents) async {
+        isCreatingCode = true
+        defer { isCreatingCode = false }
+        guard let result = await backup.createShareCode(including: contents) else {
+            ToastCenter.shared.show("Couldn't create a share code", systemImage: "exclamationmark.triangle")
+            return
+        }
+        shareCode = result.code
+        shareCodeExpiry = result.expiresAt
+        showShareCodeResult = true
+    }
+
+    /// Fetches a snapshot by code, then opens the restore picker (same warnings).
+    private func fetchCode(_ code: String) async {
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        isFetchingCode = true
+        defer { isFetchingCode = false }
+        guard let data = await backup.fetchSharedSnapshot(code: trimmed),
+              let contents = backup.contentsOfSnapshotData(data), !contents.isEmpty else {
+            ToastCenter.shared.show("No snapshot found for that code", systemImage: "exclamationmark.triangle")
+            return
+        }
+        pendingImportData = data
+        pendingImportContents = contents
+        showCodeRestorePicker = true
+    }
 
     private func performRestore(_ contents: BackupContents = .all) {
         let ok = backup.restoreFromCloud(restoring: contents)

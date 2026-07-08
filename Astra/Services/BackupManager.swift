@@ -406,6 +406,113 @@ final class BackupManager: ObservableObject {
         }
     }
 
+    /// Builds the encoded snapshot blob for the chosen categories (the same content
+    /// rules as the shareable file, including credential stripping when secrets are
+    /// not opted in). Shared by file export and code sharing.
+    private func buildSnapshotData(including contents: BackupContents) -> Data? {
+        var snap = BackupSnapshot()
+        snap.deviceName = deviceName()
+        if contents.contains(.preferences) {
+            captureAllSettings(into: &snap)
+            let defaults = UserDefaults.standard
+            for k in settingDataKeys {
+                if let v = defaults.data(forKey: k) { snap.settings[k] = .data(v) }
+            }
+        }
+        if contents.contains(.sources) {
+            snap.smbSharesJSON = readSupportFile("smb_shares.json")
+            let liveTV = liveTVJSON()
+            snap.liveTVJSON = contents.contains(.secrets)
+                ? liveTV
+                : liveTVJSONStrippingCredentials(liveTV)
+        }
+        if contents.contains(.addons) {
+            snap.addonsJSON = readSupportFile("addons.json")
+        }
+        if contents.contains(.secrets) {
+            let shareIDs = smbShareIDs(from: snap.smbSharesJSON ?? readSupportFile("smb_shares.json"))
+            for account in secretAccounts(smbShareIDs: shareIDs) {
+                if let value = keychain.get(account) { snap.secrets[account] = value }
+            }
+        }
+        return try? JSONEncoder().encode(snap)
+    }
+
+    // MARK: - Share via code (peer-to-peer, via the Worker)
+
+    /// The result of creating a share code.
+    struct ShareCodeResult {
+        let code: String
+        let expiresAt: Date?
+    }
+
+    private struct ShareCreateResponse: Decodable { let code: String; let expiresAt: String? }
+    private struct ShareFetchResponse: Decodable { let snapshot: String; let contents: Int? }
+
+    /// The Worker base URL, reused from the AI Search configuration.
+    private var shareWorkerURL: URL? { AISearchService.workerURL }
+
+    /// Whether code sharing can be used (the Worker URL is configured).
+    var canShareViaCode: Bool { shareWorkerURL != nil }
+
+    /// Uploads a snapshot (with the chosen categories) to the Worker and returns a
+    /// short code another person can enter to restore it. Nil on failure.
+    func createShareCode(including contents: BackupContents,
+                         ttlDays: Int = 7) async -> ShareCodeResult? {
+        guard let base = shareWorkerURL,
+              let data = buildSnapshotData(including: contents) else { return nil }
+        let url = base.appendingPathComponent("share/create")
+        let payload: [String: Any] = [
+            "snapshot": data.base64EncodedString(),
+            "contents": contents.rawValue,
+            "ttlDays": ttlDays
+        ]
+        do {
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = try JSONSerialization.data(withJSONObject: payload)
+            req.timeoutInterval = 30
+            let (respData, response) = try await URLSession.shared.data(for: req)
+            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+                AstraLog.sync.error("Share create failed (bad status)")
+                return nil
+            }
+            let decoded = try JSONDecoder().decode(ShareCreateResponse.self, from: respData)
+            let expires = decoded.expiresAt.flatMap { ISO8601DateFormatter().date(from: $0) }
+            AstraLog.sync.info("Created share code")
+            return ShareCodeResult(code: decoded.code.uppercased(), expiresAt: expires)
+        } catch {
+            AstraLog.sync.error("Share create error: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
+    /// Fetches a shared snapshot by code from the Worker. Returns the raw snapshot
+    /// Data (ready for contentsOfSnapshotData / importSnapshotData), or nil.
+    func fetchSharedSnapshot(code: String) async -> Data? {
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard let base = shareWorkerURL, !trimmed.isEmpty else { return nil }
+        let url = base.appendingPathComponent("share/fetch")
+        do {
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = try JSONSerialization.data(withJSONObject: ["code": trimmed])
+            req.timeoutInterval = 30
+            let (respData, response) = try await URLSession.shared.data(for: req)
+            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+                AstraLog.sync.error("Share fetch failed (bad status)")
+                return nil
+            }
+            let decoded = try JSONDecoder().decode(ShareFetchResponse.self, from: respData)
+            return Data(base64Encoded: decoded.snapshot)
+        } catch {
+            AstraLog.sync.error("Share fetch error: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
     /// Inspects a snapshot file and returns which categories it actually contains, so
     /// the import UI can show only the relevant toggles.
     func contentsOfSnapshotFile(_ url: URL) -> BackupContents? {

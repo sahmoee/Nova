@@ -2,7 +2,18 @@ name = "frametv-ai-worker"
 main = "worker.js"
 compatibility_date = "2025-01-01"
 
-# No KV, D1, or R2 bindings are needed — this Worker only proxies to the Anthropic API.
+# Snapshot sharing (peer-to-peer restore codes) needs a KV namespace bound as
+# SNAPSHOTS. Create it and paste the id below:
+#
+#   npx wrangler kv namespace create SNAPSHOTS
+#
+# then uncomment and fill in the id it prints:
+#
+# [[kv_namespaces]]
+# binding = "SNAPSHOTS"
+# id = "<your-kv-namespace-id>"
+#
+# The AI features (title/filter/troubleshoot) work without KV; only /share/* needs it.
 
 # Environment variables that are NOT secret can go here. The model can be overridden:
 [vars]
