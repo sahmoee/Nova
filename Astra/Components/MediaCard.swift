@@ -13,8 +13,7 @@ struct MediaCard: View {
     /// When true, an episode is shown as its season entry (series name + "Season N").
     var seasonGrouped: Bool = false
     /// Optional explicit dimensions that override the shared card size. Used by the
-    /// Continue Watching row to show a larger, taller card without changing the size
-    /// of cards in any other row.
+    /// Continue Watching row to show a larger card without changing other rows.
     var widthOverride: CGFloat? = nil
     var heightOverride: CGFloat? = nil
     let action: () -> Void
@@ -87,6 +86,7 @@ struct MediaCard: View {
             posterImage
                 .frame(width: width, height: height)
                 .clipped()
+                .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
@@ -136,15 +136,28 @@ struct MediaCard: View {
     }
 
     @ViewBuilder
+    private var artworkURL: URL? {
+        // Wide cards (Continue Watching) look best with a landscape backdrop; fall
+        // back to the poster when no backdrop is available.
+        if wide { return item.backdropURL ?? item.posterURL }
+        return item.posterURL
+    }
+
     private var posterImage: some View {
-        if let url = item.posterURL {
+        if let url = artworkURL {
             CachedAsyncImage(url: url, maxPixel: 700) { image in
-                image.resizable().aspectRatio(contentMode: .fill)
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: width, height: height)
+                    .clipped()
             } placeholder: {
                 placeholder.shimmering()
+                    .frame(width: width, height: height)
             }
         } else {
             placeholder
+                .frame(width: width, height: height)
         }
     }
 

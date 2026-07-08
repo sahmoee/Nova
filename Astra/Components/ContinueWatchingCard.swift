@@ -18,8 +18,8 @@ struct ContinueWatchingCard: View {
     var body: some View {
         MediaCard(item: item,
                   wide: true,
-                  widthOverride: Theme.CardSize.wideWidth,
-                  heightOverride: Theme.scaled(340, min: 220),
+                  widthOverride: Theme.scaled(430, min: 300),
+                  heightOverride: Theme.scaled(300, min: 200),
                   action: onPlay)
             .overlay(alignment: .topLeading) {
                 if item.progressFraction > 0 {
