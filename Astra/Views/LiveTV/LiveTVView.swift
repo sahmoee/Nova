@@ -74,6 +74,8 @@ struct LiveTVView: View {
         .task { await env.liveTVSources.refreshAll() }
     }
 
+    @State private var channelFilter = ""
+
     @ViewBuilder private var playlistChannelsSection: some View {
         let channels = env.liveTVSources.allChannels
         if !channels.isEmpty {
@@ -82,36 +84,81 @@ struct LiveTVView: View {
                     .font(.appFont(22, weight: .bold))
                     .foregroundStyle(Theme.Colors.textPrimary)
                     .padding(.horizontal, Theme.Spacing.edge)
-                LazyVGrid(columns: columns, spacing: Theme.Spacing.md) {
-                    ForEach(channels) { channel in
-                        Button {
-                            playable = env.liveTVSources.makePlayable(channel)
-                        } label: {
-                            VStack(spacing: 6) {
-                                CachedAsyncImage(url: channel.logoURL, maxPixel: 300) { image in
-                                    image.resizable().aspectRatio(contentMode: .fit)
-                                } placeholder: {
-                                    RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                                        .fill(Theme.Colors.card)
-                                        .overlay(Image(systemName: "dot.radiowaves.left.and.right")
-                                            .font(.appFont(28)).foregroundStyle(Theme.Colors.textTertiary))
-                                }
-                                .frame(height: 90)
-                                .frame(maxWidth: .infinity)
-                                .background(Theme.Colors.card)
-                                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-                                Text(channel.name)
-                                    .font(.appFont(13, weight: .medium))
-                                    .foregroundStyle(Theme.Colors.textPrimary)
-                                    .lineLimit(1)
+
+                // A filter field appears once the playlist is big enough to need one.
+                if channels.count > 12 {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                        TextField("Filter channels", text: $channelFilter)
+                            .font(.appFont(17))
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                        if !channelFilter.isEmpty {
+                            Button { channelFilter = "" } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(Theme.Colors.textTertiary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(Theme.Spacing.sm)
+                    .background(Theme.Colors.card,
+                                in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                    .padding(.horizontal, Theme.Spacing.edge)
+                }
+
+                let filtered = channelFilter.isEmpty
+                    ? channels
+                    : channels.filter { $0.name.localizedCaseInsensitiveContains(channelFilter) }
+                // Group channels by their M3U group-title so big playlists read as
+                // organized sections (News, Sports, ...) instead of one endless grid.
+                let grouped = Dictionary(grouping: filtered) { $0.group ?? "Channels" }
+                let groupNames = grouped.keys.sorted()
+
+                ForEach(groupNames, id: \.self) { group in
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                        if groupNames.count > 1 {
+                            Text(group)
+                                .font(.appFont(17, weight: .semibold))
+                                .foregroundStyle(Theme.Colors.textSecondary)
+                                .padding(.horizontal, Theme.Spacing.edge)
+                        }
+                        LazyVGrid(columns: columns, spacing: Theme.Spacing.md) {
+                            ForEach(grouped[group] ?? []) { channel in
+                                channelCell(channel)
                             }
                         }
-                        .buttonStyle(AstraListRowStyle())
+                        .padding(.horizontal, Theme.Spacing.edge)
                     }
                 }
-                .padding(.horizontal, Theme.Spacing.edge)
             }
         }
+    }
+
+    private func channelCell(_ channel: LiveTVChannel) -> some View {
+        Button {
+            playable = env.liveTVSources.makePlayable(channel)
+        } label: {
+            VStack(spacing: 6) {
+                CachedAsyncImage(url: channel.logoURL, maxPixel: 300) { image in
+                    image.resizable().aspectRatio(contentMode: .fit)
+                } placeholder: {
+                    RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                        .fill(Theme.Colors.card)
+                        .overlay(Image(systemName: "dot.radiowaves.left.and.right")
+                            .font(.appFont(28)).foregroundStyle(Theme.Colors.textTertiary))
+                }
+                .frame(height: 90)
+                .frame(maxWidth: .infinity)
+                .background(Theme.Colors.card)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                Text(channel.name)
+                    .font(.appFont(13, weight: .medium))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .lineLimit(1)
+            }
+        }
+        .buttonStyle(AstraListRowStyle())
     }
 
     private func channelSection(_ source: (addon: InstalledAddon, catalog: AddonCatalogRef)) -> some View {

@@ -24,7 +24,7 @@ struct MediaRow: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: Theme.Spacing.md) {
                         ForEach(items) { item in
-                            MediaCard(item: item, wide: wide) {
+                            MediaCard(item: item, wide: wide, quickActions: true) {
                                 onSelect(item)
                             }
                         }

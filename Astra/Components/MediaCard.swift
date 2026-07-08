@@ -16,10 +16,15 @@ struct MediaCard: View {
     /// Continue Watching row to show a larger card without changing other rows.
     var widthOverride: CGFloat? = nil
     var heightOverride: CGFloat? = nil
+    /// When true, long-press offers Play / Queue / Favorite / Watched / Hide without
+    /// opening the detail screen. Off by default so rows that attach their own
+    /// context menus (Continue Watching, collections) are unaffected.
+    var quickActions: Bool = false
     let action: () -> Void
 
     @FocusState private var focused: Bool
     @Environment(\.dynamicAccent) private var accent
+    @EnvironmentObject private var library: LibraryStore
 
     private var width: CGFloat { widthOverride ?? (wide ? Theme.CardSize.wideWidth : Theme.CardSize.posterWidth) }
     private var height: CGFloat { heightOverride ?? (wide ? Theme.CardSize.wideHeight : Theme.CardSize.posterHeight) }
@@ -52,7 +57,16 @@ struct MediaCard: View {
         return parts.joined(separator: ", ")
     }
 
+    @ViewBuilder
     var body: some View {
+        if quickActions {
+            core.contextMenu { quickMenu }
+        } else {
+            core
+        }
+    }
+
+    private var core: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 artwork
@@ -76,6 +90,46 @@ struct MediaCard: View {
         .onChange(of: focused) { _, isFocused in
             // When a card gains focus, tint the UI with its artwork color.
             if isFocused { AccentManager.shared.deriveAccent(from: item.posterURL) }
+        }
+    }
+
+    // MARK: - Quick actions
+
+    @ViewBuilder private var quickMenu: some View {
+        Button(action: action) {
+            Label(item.hasResumePoint ? "Resume" : "Play", systemImage: "play.fill")
+        }
+        Button {
+            if library.isQueued(item) {
+                library.removeFromQueue(item)
+                ToastCenter.shared.show("Removed from Queue")
+            } else {
+                library.addToQueue(item)
+                ToastCenter.shared.show("Added to Queue")
+            }
+        } label: {
+            Label(library.isQueued(item) ? "Remove from Queue" : "Add to Queue",
+                  systemImage: "text.badge.plus")
+        }
+        Button {
+            library.toggleFavorite(item)
+            Haptics.selection()
+        } label: {
+            Label(item.isFavorite ? "Remove Favorite" : "Favorite",
+                  systemImage: item.isFavorite ? "star.slash" : "star")
+        }
+        Button {
+            if item.isWatched { library.markUnwatched(item) } else { library.markWatched(item) }
+            Haptics.selection()
+        } label: {
+            Label(item.isWatched ? "Mark Unwatched" : "Mark Watched",
+                  systemImage: item.isWatched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
+        }
+        Button(role: .destructive) {
+            library.toggleHidden(item)
+            ToastCenter.shared.show("Hidden from your rows")
+        } label: {
+            Label("Hide", systemImage: "eye.slash")
         }
     }
 

@@ -28,6 +28,12 @@ struct SettingsView: View {
         return "\(s.needsAttention) need attention"
     }
 
+    private var sourcesHealthStatusColor: Color {
+        let items = SourceHealth.all(addonStore: env.addonStore, smbShareCount: 0)
+        return SourceHealth.summary(items).needsAttention == 0
+            ? Theme.Colors.success : Theme.Colors.warning
+    }
+
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
@@ -117,13 +123,16 @@ struct SettingsView: View {
             }.astraRowStyle()
             NavigationLink { SourcesView(path: $sourcesPath) } label: {
                 settingRow("Sources & Health", systemImage: "point.3.connected.trianglepath.dotted",
-                           detail: sourcesHealthDetail)
+                           detail: sourcesHealthDetail,
+                           status: sourcesHealthStatusColor)
             }.astraRowStyle()
 
             if !settings.reviewSafeMode {
                 NavigationLink { RealDebridView() } label: {
                     settingRow("Real-Debrid Account", systemImage: "arrow.down.circle",
-                               detail: KeychainStore.shared.realDebridToken == nil ? "Not connected" : "Connected")
+                               detail: KeychainStore.shared.realDebridToken == nil ? "Not connected" : "Connected",
+                               status: KeychainStore.shared.realDebridToken == nil
+                                   ? Theme.Colors.warning : Theme.Colors.success)
                 }.astraRowStyle()
             }
 
@@ -155,7 +164,9 @@ struct SettingsView: View {
 
             NavigationLink { AISearchSettingsView() } label: {
                 settingRow("AI Search", systemImage: "sparkles",
-                           detail: AISearchService.isConfigured ? "Ready" : "Set up")
+                           detail: AISearchService.isConfigured ? "Ready" : "Set up",
+                           status: AISearchService.isConfigured
+                               ? Theme.Colors.success : Theme.Colors.warning)
             }.astraRowStyle()
 
             NavigationLink { TitleCleanupRulesView() } label: {
@@ -504,12 +515,18 @@ struct SettingsView: View {
         return ["Accounts & Sources", "Backup & Sync"].contains(title)
     }
 
-    private func settingRow(_ title: String, systemImage: String, detail: String) -> some View {
+    private func settingRow(_ title: String, systemImage: String, detail: String,
+                            status: Color? = nil) -> some View {
         HStack {
             Label(title, systemImage: systemImage)
                 .foregroundStyle(Theme.Colors.textPrimary)
                 .font(.appFont(22))
             Spacer()
+            // A colored status dot makes connected/not-connected scannable without
+            // reading the detail text.
+            if let status {
+                Circle().fill(status).frame(width: 10, height: 10)
+            }
             Text(detail).foregroundStyle(Theme.Colors.textSecondary).font(.appFont(20))
             Image(systemName: "chevron.right").foregroundStyle(Theme.Colors.textTertiary)
         }

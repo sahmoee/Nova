@@ -11,6 +11,7 @@ import SwiftUI
 struct WhatsNewView: View {
     let note: ReleaseNote
     var onDismiss: () -> Void
+    @EnvironmentObject private var nav: NavigationCoordinator
 
     /// Marketing version from the bundle (CFBundleShortVersionString).
     private var appVersion: String {
@@ -54,6 +55,19 @@ struct WhatsNewView: View {
                                     .font(.appFont(18))
                                     .foregroundStyle(Theme.Colors.textSecondary)
                                     .fixedSize(horizontal: false, vertical: true)
+                                // Deep link straight into the feature being described.
+                                if let tab = feature.tryItTab {
+                                    Button {
+                                        onDismiss()
+                                        nav.selection = tab
+                                    } label: {
+                                        Label("Try it", systemImage: "arrow.right.circle.fill")
+                                            .font(.appFont(16, weight: .semibold))
+                                            .foregroundStyle(Theme.Colors.accent)
+                                    }
+                                    .buttonStyle(AstraChipButtonStyle())
+                                    .padding(.top, 2)
+                                }
                             }
                         }
                     }

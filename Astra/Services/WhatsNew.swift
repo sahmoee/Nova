@@ -18,6 +18,9 @@ struct ReleaseFeature: Identifiable {
     let symbol: String
     let title: String
     let detail: String
+    /// Optional deep link: when set, the What's New screen shows a "Try it" button
+    /// that dismisses the sheet and jumps to this tab.
+    var tryItTab: AppTab? = nil
 }
 
 struct ReleaseNote: Identifiable {
@@ -38,12 +41,14 @@ enum WhatsNew {
                 ReleaseFeature(
                     symbol: "play.rectangle.on.rectangle",
                     title: "Apple TV-style detail screen",
-                    detail: "Shows and movies open the same cinematic detail screen everywhere, with a centered hero, a season rail, and a rail of episode cards for each season."
+                    detail: "Shows and movies open the same cinematic detail screen everywhere, with a centered hero, a season rail, and a rail of episode cards for each season.",
+                    tryItTab: .library
                 ),
                 ReleaseFeature(
                     symbol: "rectangle.stack",
                     title: "Shows stay together",
-                    detail: "Your library and Home rows list each show once instead of a card per episode, with every season and episode stacked under the show."
+                    detail: "Your library and Home rows list each show once instead of a card per episode, with every season and episode stacked under the show.",
+                    tryItTab: .home
                 ),
                 ReleaseFeature(
                     symbol: "arrow.triangle.2.circlepath",

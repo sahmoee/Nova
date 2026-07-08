@@ -14,6 +14,12 @@ struct FeaturedHero: View {
     let item: MediaItem
     /// Optional explicit height override. When nil, the platform default is used.
     var height: CGFloat? = nil
+    /// Optional why-am-I-seeing-this chip above the title (e.g. "Continue Watching").
+    var badge: String? = nil
+    /// When set, a bordered More Info button appears next to Play and opens detail.
+    var onMoreInfo: ((MediaItem) -> Void)? = nil
+    /// tvOS: pass the Home focus scope so the Play button is the default focus target.
+    var playFocusNamespace: Namespace.ID? = nil
     var onPlay: (MediaItem) -> Void
 
     @Environment(\.dynamicAccent) private var accent
@@ -66,6 +72,14 @@ struct FeaturedHero: View {
 
             // Foreground content.
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                if let badge {
+                    Text(badge.uppercased())
+                        .font(.appFont(13, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10).padding(.vertical, 4)
+                        .background(accent.opacity(0.85), in: Capsule())
+                        .shadow(color: .black.opacity(0.4), radius: 4)
+                }
                 Text(item.displayTitle)
                     .font(.system(size: Theme.scaledFont(44), weight: .heavy))
                     .foregroundStyle(.white)
@@ -79,19 +93,23 @@ struct FeaturedHero: View {
                         .lineLimit(1)
                 }
 
-                Button { onPlay(item) } label: {
-                    HStack(spacing: Theme.Spacing.xs) {
-                        Image(systemName: "play.fill")
-                        Text(item.hasResumePoint ? "Resume" : "Play")
-                            .fontWeight(.semibold)
+                HStack(spacing: Theme.Spacing.sm) {
+                    playButton
+                    if let onMoreInfo {
+                        Button { onMoreInfo(item) } label: {
+                            HStack(spacing: Theme.Spacing.xs) {
+                                Image(systemName: "info.circle")
+                                Text("More Info").fontWeight(.semibold)
+                            }
+                            .font(.appFont(18))
+                            .padding(.horizontal, Theme.Spacing.md)
+                            .padding(.vertical, Theme.Spacing.xs)
+                        }
+                        .buttonStyle(HeroInfoButtonStyle())
+                        .accessibilityLabel("More info about \(item.title)")
                     }
-                    .font(.appFont(18))
-                    .padding(.horizontal, Theme.Spacing.md)
-                    .padding(.vertical, Theme.Spacing.xs)
                 }
-                .buttonStyle(HeroPlayButtonStyle(accent: accent))
                 .padding(.top, 2)
-                .accessibilityLabel("\(item.hasResumePoint ? "Resume" : "Play") \(item.title)")
             }
             .padding(.horizontal, Theme.Spacing.edge)
             .padding(.bottom, Theme.Spacing.md)
@@ -105,6 +123,63 @@ struct FeaturedHero: View {
         .frame(width: width, height: heroHeight)
         .clipped()
         .onAppear { AccentManager.shared.deriveAccent(from: item.posterURL ?? item.backdropURL) }
+    }
+
+    /// The Play/Resume button. On tvOS it registers as the preferred default focus
+    /// within the Home focus scope, so the screen opens with Play focused.
+    @ViewBuilder
+    private var playButton: some View {
+        let button = Button { onPlay(item) } label: {
+            HStack(spacing: Theme.Spacing.xs) {
+                Image(systemName: "play.fill")
+                Text(item.hasResumePoint ? "Resume" : "Play")
+                    .fontWeight(.semibold)
+            }
+            .font(.appFont(18))
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.vertical, Theme.Spacing.xs)
+        }
+        .buttonStyle(HeroPlayButtonStyle(accent: accent))
+        .accessibilityLabel("\(item.hasResumePoint ? "Resume" : "Play") \(item.title)")
+
+        #if os(tvOS)
+        if let ns = playFocusNamespace {
+            button.prefersDefaultFocus(true, in: ns)
+        } else {
+            button
+        }
+        #else
+        button
+        #endif
+    }
+}
+
+/// Bordered secondary style for the hero's More Info button.
+private struct HeroInfoButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HeroInfoBody(configuration: configuration)
+    }
+
+    private struct HeroInfoBody: View {
+        let configuration: ButtonStyleConfiguration
+        @Environment(\.isFocused) private var isFocused
+
+        private var active: Bool {
+            #if os(tvOS)
+            return isFocused
+            #else
+            return configuration.isPressed
+            #endif
+        }
+
+        var body: some View {
+            configuration.label
+                .background(.ultraThinMaterial, in: Capsule())
+                .overlay(Capsule().stroke(.white.opacity(active ? 0.9 : 0.35), lineWidth: 1))
+                .foregroundStyle(.white)
+                .scaleEffect(active ? 1.06 : 1.0)
+                .animation(.easeOut(duration: 0.18), value: active)
+        }
     }
 }
 

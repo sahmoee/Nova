@@ -145,8 +145,9 @@ struct DiscoverView: View {
         }
         .task { await onAppear() }
         .refreshable {
-            // Pull to reshuffle: bumping the token makes every shelf pick a fresh
-            // selection by re-running its loader.
+            // Pull to refresh: drop the shelf cache so rows fetch fresh data, then
+            // bump the token so every shelf re-runs its loader.
+            await env.shelfLoader.clearCache()
             discoverRefreshToken += 1
         }
         .dismissKeyboardOnTap()

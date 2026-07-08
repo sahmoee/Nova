@@ -16,6 +16,8 @@ struct CatalogShelfRow: View {
     var variant: ShelfLoader.Variant = .home
 
     @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var nav: NavigationCoordinator
+    @EnvironmentObject private var library: LibraryStore
     @State private var items: [CatalogItem] = []
     @State private var loaded = false
 
@@ -36,6 +38,7 @@ struct CatalogShelfRow: View {
                                             posterCard(item)
                                         }
                                         .buttonStyle(AstraListRowStyle())
+                                        .contextMenu { quickActions(item) }
                                     }
                                 }
                                 .padding(.horizontal, Theme.Spacing.edge)
@@ -74,29 +77,74 @@ struct CatalogShelfRow: View {
         .padding(.horizontal, Theme.Spacing.edge)
     }
 
+    /// The empty-Trakt hint is a real button now: one tap goes straight to Settings
+    /// instead of describing the journey.
     private var traktEmptyHint: some View {
-        HStack(spacing: Theme.Spacing.sm) {
-            Image(systemName: "person.crop.circle.badge.questionmark")
-                .font(.appFont(20))
-                .foregroundStyle(Theme.Colors.textTertiary)
-            Text("Connect Trakt in Settings, or add titles to this list, to fill this row.")
-                .font(.appFont(15))
-                .foregroundStyle(Theme.Colors.textSecondary)
-            Spacer()
+        Button {
+            nav.selection = .settings
+        } label: {
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: "person.crop.circle.badge.questionmark")
+                    .font(.appFont(20))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Connect Trakt to fill this row")
+                        .font(.appFont(16, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    Text("Or add titles to your Trakt list. Tap to open Settings.")
+                        .font(.appFont(14))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.appFont(14, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+            }
+            .padding(Theme.Spacing.md)
+            .background(Theme.Colors.card,
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .contentShape(Rectangle())
         }
+        .buttonStyle(AstraListRowStyle())
         .padding(.horizontal, Theme.Spacing.edge)
         .padding(.vertical, Theme.Spacing.sm)
+    }
+
+    /// Long-press quick actions for a catalog poster: add it to the library or the
+    /// queue without opening the detail screen.
+    @ViewBuilder
+    private func quickActions(_ item: CatalogItem) -> some View {
+        Button {
+            let media = item.asLibraryItem()
+            library.add(media)
+            ToastCenter.shared.show("Added to Library")
+        } label: {
+            Label("Add to Library", systemImage: "plus.square.on.square")
+        }
+        Button {
+            let media = item.asLibraryItem()
+            library.add(media)
+            library.addToQueue(media)
+            ToastCenter.shared.show("Added to Queue")
+        } label: {
+            Label("Add to Queue", systemImage: "text.badge.plus")
+        }
     }
 
         private var loadingRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: Theme.Spacing.md) {
                 ForEach(0..<5, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .fill(Theme.Colors.card)
-                        .frame(width: Theme.CardSize.posterWidth * 0.8,
-                               height: Theme.CardSize.posterWidth * 0.8 * 1.5)
-                        .shimmering()
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                            .fill(Theme.Colors.card)
+                            .frame(width: Theme.CardSize.posterWidth * 0.8,
+                                   height: Theme.CardSize.posterWidth * 0.8 * 1.5)
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Theme.Colors.card)
+                            .frame(width: Theme.CardSize.posterWidth * 0.55, height: 14)
+                    }
+                    .shimmering()
                 }
             }
             .padding(.horizontal, Theme.Spacing.edge)

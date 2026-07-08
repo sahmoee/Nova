@@ -246,11 +246,10 @@ enum Theme {
         return [GridItem(.adaptive(minimum: CardSize.posterWidth), spacing: Spacing.lg)]
         #else
         if isPad {
-            // Adaptive columns sized to the card's real width, so the grid fits as
-            // many posters as the orientation allows (about 4 in portrait, 5 to 6 in
-            // landscape) while always keeping proper spacing. Fixed column counts
-            // crowded the fixed-width cards together in portrait.
-            return [GridItem(.adaptive(minimum: CardSize.posterWidth), spacing: Spacing.lg)]
+            // Slightly tighter minimum than the card width so the grid fits one more
+            // column per orientation (about 4 to 5 in portrait, 5 to 6 in landscape)
+            // while cards still render at their full width inside each column.
+            return [GridItem(.adaptive(minimum: CardSize.posterWidth * 0.85), spacing: Spacing.lg)]
         } else {
             return [GridItem(.adaptive(minimum: CardSize.posterWidth), spacing: Spacing.lg)]
         }
