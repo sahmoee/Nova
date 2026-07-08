@@ -12,13 +12,16 @@ struct MediaCard: View {
     var wide: Bool = false
     /// When true, an episode is shown as its season entry (series name + "Season N").
     var seasonGrouped: Bool = false
+    /// Multiplies the card's base dimensions. Used to make certain rows (like
+    /// Continue Watching) larger without affecting the shared card size elsewhere.
+    var sizeScale: CGFloat = 1.0
     let action: () -> Void
 
     @FocusState private var focused: Bool
     @Environment(\.dynamicAccent) private var accent
 
-    private var width: CGFloat { wide ? Theme.CardSize.wideWidth : Theme.CardSize.posterWidth }
-    private var height: CGFloat { wide ? Theme.CardSize.wideHeight : Theme.CardSize.posterHeight }
+    private var width: CGFloat { (wide ? Theme.CardSize.wideWidth : Theme.CardSize.posterWidth) * sizeScale }
+    private var height: CGFloat { (wide ? Theme.CardSize.wideHeight : Theme.CardSize.posterHeight) * sizeScale }
 
     private var titleText: String {
         if seasonGrouped, item.episode != nil, let series = item.seriesTitle {

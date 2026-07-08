@@ -16,7 +16,7 @@ struct ContinueWatchingCard: View {
     var onRemove: () -> Void
 
     var body: some View {
-        MediaCard(item: item, wide: true, action: onPlay)
+        MediaCard(item: item, wide: true, sizeScale: 1.35, action: onPlay)
             .overlay(alignment: .topLeading) {
                 if item.progressFraction > 0 {
                     Text("\(Int((item.progressFraction * 100).rounded()))%")
