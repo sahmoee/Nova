@@ -15,6 +15,10 @@ import Combine
 final class AddonStore: ObservableObject {
 
     @Published private(set) var addons: [InstalledAddon] = []
+    /// Last health-check response time per addon, in milliseconds.
+    @Published private(set) var lastPingMS: [UUID: Int] = [:]
+    /// Addons whose manifest advertises a newer version than the installed copy.
+    @Published private(set) var updateAvailable: Set<UUID> = []
 
     private let fileURL: URL
     private let encoder = JSONEncoder()
@@ -157,22 +161,56 @@ final class AddonStore: ObservableObject {
     /// mutate stored state; the caller decides how to present it.
     func checkHealth() async -> [UUID: Health] {
         var result: [UUID: Health] = [:]
-        await withTaskGroup(of: (UUID, Health).self) { group in
+        var timings: [UUID: Int] = [:]
+        await withTaskGroup(of: (UUID, Health, Int?).self) { group in
             for addon in addons {
                 group.addTask {
+                    let start = Date()
                     do {
                         _ = try await self.client.fetchManifest(at: addon.manifestURL)
-                        return (addon.id, .reachable)
+                        let ms = Int(Date().timeIntervalSince(start) * 1000)
+                        return (addon.id, .reachable, ms)
                     } catch {
-                        return (addon.id, .broken(error.localizedDescription))
+                        return (addon.id, .broken(error.localizedDescription), nil)
                     }
                 }
             }
-            for await (id, health) in group {
+            for await (id, health, ms) in group {
                 result[id] = health
+                if let ms { timings[id] = ms }
             }
         }
+        lastPingMS = timings
         return result
+    }
+
+    /// Re-fetches every addon's manifest in the background (with retry/backoff),
+    /// refreshes stored catalogs/descriptions, and flags addons whose advertised
+    /// version is newer than the installed one. Returns how many updates were found.
+    @discardableResult
+    func refreshManifests() async -> Int {
+        var found: Set<UUID> = []
+        await withTaskGroup(of: (UUID, InstalledAddon?).self) { group in
+            for addon in addons {
+                group.addTask {
+                    (addon.id, try? await self.client.fetchManifestRetrying(at: addon.manifestURL))
+                }
+            }
+            for await (id, fresh) in group {
+                guard let fresh, let idx = addons.firstIndex(where: { $0.id == id }) else { continue }
+                let installed = addons[idx]
+                if let newVersion = fresh.version, newVersion != installed.version {
+                    found.insert(id)
+                }
+                // Refresh the metadata that can drift server-side, keeping the
+                // user's id, enabled state, category, and tags intact.
+                addons[idx].name = fresh.name
+                addons[idx].version = fresh.version
+                addons[idx].catalogs = fresh.catalogs
+            }
+        }
+        updateAvailable = found
+        return found.count
     }
 
     // MARK: - Import / Export

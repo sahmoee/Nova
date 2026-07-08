@@ -18,6 +18,11 @@ final class NetworkConditionMonitor: ObservableObject {
     @Published private(set) var isCellular = false
     @Published private(set) var isExpensive = false
     @Published private(set) var isConstrained = false
+    @Published private(set) var isOnline = true
+
+    /// Posted when connectivity returns after an offline period, so sources
+    /// (Live TV playlists, SMB shares) can reconnect or refresh themselves.
+    static let networkRestored = Notification.Name("astra.networkRestored")
 
     /// True when the network looks limited and the user would benefit from smaller,
     /// cached streams (cellular, metered, or Low Data Mode).
@@ -40,10 +45,17 @@ final class NetworkConditionMonitor: ObservableObject {
             let cellular = path.usesInterfaceType(.cellular)
             let expensive = path.isExpensive
             let constrained = path.isConstrained
+            let online = path.status == .satisfied
             Task { @MainActor in
-                self?.isCellular = cellular
-                self?.isExpensive = expensive
-                self?.isConstrained = constrained
+                guard let self else { return }
+                self.isCellular = cellular
+                self.isExpensive = expensive
+                self.isConstrained = constrained
+                let wasOnline = self.isOnline
+                self.isOnline = online
+                if online && !wasOnline {
+                    NotificationCenter.default.post(name: Self.networkRestored, object: nil)
+                }
             }
         }
         monitor.start(queue: queue)

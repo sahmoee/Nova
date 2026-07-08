@@ -21,6 +21,8 @@ import os
 /// they are the on-disk/iCloud identity of each setting.
 enum PrefKey {
     static let aiWorkerURL   = "ai.workerURL"
+    static let aiLastFeature = "ai.lastFeature.v1"
+    static let streamsCachedOnly = "streams.cachedOnly.v1"
     static let homeShelves   = "home.shelves.v1"
     static let libraryQueue  = "library.queue.v1"
     static let cloudLibrary  = "cloud.library.v1"

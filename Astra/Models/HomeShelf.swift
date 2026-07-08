@@ -70,10 +70,22 @@ enum ShelfKind: Codable, Hashable, Sendable {
     /// anywhere else a per-shelf key is needed).
     var cacheKey: String {
         switch self {
+        case .traktWatchlist:     return "traktWatchlist"
+        case .traktTrendingShows: return "traktTrendingShows"
+        case .tmdbTrending:       return "tmdbTrending"
+        case .tmdbTrendingShows:  return "tmdbTrendingShows"
+        case .tmdbPopularMovies:  return "tmdbPopularMovies"
+        case .tmdbNowPlaying:     return "tmdbNowPlaying"
+        case .tmdbTopRated:       return "tmdbTopRated"
+        case .tmdbPopularShows:   return "tmdbPopularShows"
+        case .tmdbAiringToday:    return "tmdbAiringToday"
         case .addonCatalog(let a, let t, let c): return "addon:\(a):\(t):\(c)"
         case .aiShelf(let prompt): return "ai:\(prompt)"
-        default: return String(describing: self)
         }
+        // NOTE: never use String(describing:) here — this type conforms to
+        // CustomStringConvertible via cacheKey, so that would recurse infinitely.
+        // The literal names above match the previous String(describing:) output,
+        // keeping existing on-disk cache keys valid.
     }
 }
 

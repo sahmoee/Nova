@@ -34,7 +34,7 @@ struct StreamPickerView: View {
     @State private var minQuality: StreamQuality? = nil      // nil = any
     @State private var selectedSource: String? = nil         // nil = all addons
     @State private var maxSizeGB: Double? = nil              // nil = any
-    @State private var cachedOnly = false
+    @State private var cachedOnly = UserDefaults.standard.bool(forKey: PrefKey.streamsCachedOnly)
     @State private var showFilters = false
 
     // Smart (natural-language) filter, e.g. "cached 1080p under 8GB english".
@@ -403,7 +403,11 @@ struct StreamPickerView: View {
                 .padding(Theme.Spacing.sm)
                 .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
                 // Re-parse as the user types so the list updates live.
-                .onChange(of: smartFilterText) { _, new in
+                .onChange(of: cachedOnly) { _, new in
+            // The cached-only choice is sticky across titles and launches.
+            UserDefaults.standard.set(new, forKey: PrefKey.streamsCachedOnly)
+        }
+        .onChange(of: smartFilterText) { _, new in
                     smartFilter = StreamFilterParser.parse(new)
                 }
             }
@@ -611,10 +615,15 @@ struct StreamPickerView: View {
             }
         )
         // Re-rank the complete set using the user's full streaming preferences so the
-        // manual list order respects source, size, seeders, language, codec, and HDR,
-        // not just quality.
-        streams = StreamRanker.rank(found, preferences: settings.streamPreferences)
+        // manual list order respects source, size, seeders, language, codec, HDR,
+        // the source fallback chain, and the user's addon order.
+        let prefs = settings.streamPreferences(addonOrder: env.addonStore.addons.map(\.name))
+        streams = StreamRanker.rank(StreamRanker.dedupeByIdentity(found), preferences: prefs)
         if found.isEmpty { state = .empty; return }
+
+        // Batch Real-Debrid instant-availability: one request marks every torrent
+        // hash that is actually cached, instead of trusting addon labels alone.
+        await refreshInstantAvailability(preferences: prefs)
 
         // Auto-select path (skipped when the user explicitly chose to pick manually).
         if settings.autoSelectStream, !forceManual,
@@ -651,6 +660,24 @@ struct StreamPickerView: View {
                 state = .error((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
             }
         }
+    }
+
+    /// One batched Real-Debrid check upgrades isCached on streams whose infohash is
+    /// in the user's cloud, then re-ranks so cached copies float up.
+    private func refreshInstantAvailability(preferences: StreamRanker.StreamPreferences) async {
+        guard KeychainStore.shared.realDebridToken != nil else { return }
+        let hashes = Array(Set(streams.compactMap { $0.isCached ? nil : $0.infoHash?.lowercased() }))
+        guard !hashes.isEmpty,
+              let available = try? await env.realDebrid.instantAvailability(hashes: hashes),
+              !available.isEmpty else { return }
+        var updated = streams
+        for idx in updated.indices {
+            if let hash = updated[idx].infoHash?.lowercased(), available.contains(hash) {
+                updated[idx].isCached = true
+                updated[idx].sourceKind = .cloud
+            }
+        }
+        streams = StreamRanker.rank(updated, preferences: preferences)
     }
 
     /// Marks a stream dead so it is filtered out and never auto-selected again this

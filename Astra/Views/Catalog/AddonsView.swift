@@ -27,6 +27,8 @@ struct AddonsView: View {
     @State private var showExporter = false
     @State private var showImporter = false
     @State private var exportDoc: AddonExportDocument?
+    @State private var isRefreshingManifests = false
+    @State private var qrAddon: InstalledAddon?
     #endif
 
     private var store: AddonStore { env.addonStore }
@@ -49,6 +51,18 @@ struct AddonsView: View {
                     ForEach(store.addons) { addon in
                         addonRow(addon)
                             .contextMenu {
+                                Button {
+                                    testAddon(addon)
+                                } label: {
+                                    Label("Test Addon", systemImage: "bolt.heart")
+                                }
+                                #if os(iOS)
+                                Button {
+                                    qrAddon = addon
+                                } label: {
+                                    Label("Share as QR", systemImage: "qrcode")
+                                }
+                                #endif
                                 // Assign this addon to a category (or clear it). New
                                 // categories are created by picking any suggestion or
                                 // reusing one already in use.
@@ -92,6 +106,11 @@ struct AddonsView: View {
             .frame(maxWidth: Theme.contentMaxWidth(1200), alignment: .leading)
         }
         .background(Theme.Colors.appBackground.ignoresSafeArea())
+        #if os(iOS)
+        .sheet(item: $qrAddon) { addon in
+            QRCodeSheet(title: addon.name, payload: addon.manifestURL.absoluteString)
+        }
+        #endif
         .sheet(isPresented: $showAdd) {
             AddAddonView()
         }
@@ -134,6 +153,14 @@ struct AddonsView: View {
                         Button {
                             showImporter = true
                         } label: { Label("Import Addons", systemImage: "square.and.arrow.down") }
+                        Divider()
+                        Button {
+                            checkForUpdates()
+                        } label: {
+                            Label(isRefreshingManifests ? "Checking…" : "Check for Updates",
+                                  systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .disabled(isRefreshingManifests)
                     } label: {
                         Image(systemName: "arrow.up.arrow.down.circle")
                             .font(.appFont(22))
@@ -157,6 +184,34 @@ struct AddonsView: View {
         for base in ["Movies", "TV Shows", "Live TV", "Anime"] { set.insert(base) }
         if let current = addon.category { set.insert(current) }
         return set.sorted()
+    }
+
+    /// One-tap probe for a single addon: fetches its manifest, times it, and
+    /// reports the result as a toast.
+    private func testAddon(_ addon: InstalledAddon) {
+        Task {
+            let start = Date()
+            do {
+                _ = try await env.addonClient.fetchManifest(at: addon.manifestURL)
+                let ms = Int(Date().timeIntervalSince(start) * 1000)
+                ToastCenter.shared.show("\(addon.name): OK · \(ms) ms")
+            } catch {
+                ToastCenter.shared.show("\(addon.name) failed: \(error.localizedDescription)",
+                                        systemImage: "exclamationmark.triangle.fill", isError: true)
+            }
+        }
+    }
+
+    /// Background manifest refresh: updates catalogs and flags newer versions.
+    private func checkForUpdates() {
+        isRefreshingManifests = true
+        Task {
+            let found = await store.refreshManifests()
+            isRefreshingManifests = false
+            ToastCenter.shared.show(found == 0
+                ? "All addons are up to date"
+                : "\(found) addon update\(found == 1 ? "" : "s") available")
+        }
     }
 
     private func runHealthCheck() {
@@ -200,9 +255,30 @@ struct AddonsView: View {
                             .overlay(Capsule().strokeBorder(Theme.Colors.accent.opacity(0.5), lineWidth: 1))
                     }
                 }
-                Text(capabilityText(for: addon))
-                    .font(.appFont(16))
-                    .foregroundStyle(Theme.Colors.textTertiary)
+                HStack(spacing: Theme.Spacing.sm) {
+                    Text(capabilityText(for: addon))
+                        .font(.appFont(16))
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                    if let version = addon.version {
+                        Text("v\(version)")
+                            .font(.appFont(14, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                    }
+                    if let ms = store.lastPingMS[addon.id] {
+                        Text("\(ms) ms")
+                            .font(.appFont(13, weight: .bold))
+                            .foregroundStyle(ms < 800 ? Theme.Colors.success : Theme.Colors.warning)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color.white.opacity(0.08), in: Capsule())
+                    }
+                    if store.updateAvailable.contains(addon.id) {
+                        Text("UPDATE")
+                            .font(.appFont(12, weight: .bold))
+                            .foregroundStyle(.black)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Theme.Colors.warning, in: Capsule())
+                    }
+                }
                 if let desc = addon.description, !desc.isEmpty {
                     Text(desc)
                         .font(.appFont(16))
@@ -472,6 +548,59 @@ struct AddonExportDocument: FileDocument {
     }
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
         FileWrapper(regularFileWithContents: data)
+    }
+}
+#endif
+
+
+#if os(iOS)
+import CoreImage.CIFilterBuiltins
+
+/// A simple sheet rendering a QR code for an addon manifest URL, so another
+/// device can install the same addon by scanning it (Settings has a QR scanner).
+struct QRCodeSheet: View {
+    let title: String
+    let payload: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: Theme.Spacing.lg) {
+            Text(title)
+                .font(.appFont(24, weight: .bold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+            if let image = Self.qrImage(for: payload) {
+                Image(uiImage: image)
+                    .interpolation(.none)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 320)
+                    .padding(Theme.Spacing.md)
+                    .background(.white, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
+            } else {
+                Text("Couldn't generate a QR code for this URL.")
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+            Text("Scan from another device to install this addon.")
+                .font(.appFont(16))
+                .foregroundStyle(Theme.Colors.textSecondary)
+            Button("Done") { dismiss() }
+                .font(.appFont(18, weight: .semibold))
+                .foregroundStyle(Theme.Colors.accent)
+        }
+        .padding(Theme.Spacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
+    }
+
+    private static func qrImage(for string: String) -> UIImage? {
+        let context = CIContext()
+        let filter = CIFilter.qrCodeGenerator()
+        filter.message = Data(string.utf8)
+        filter.correctionLevel = "M"
+        guard let output = filter.outputImage else { return nil }
+        let scaled = output.transformed(by: CGAffineTransform(scaleX: 12, y: 12))
+        guard let cg = context.createCGImage(scaled, from: scaled.extent) else { return nil }
+        return UIImage(cgImage: cg)
     }
 }
 #endif

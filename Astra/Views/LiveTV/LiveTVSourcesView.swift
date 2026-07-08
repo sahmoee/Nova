@@ -50,8 +50,9 @@ private struct LiveTVSourcesContent: View {
             }
         }
         .sheet(isPresented: $showAdd) {
-            AddLiveTVSourceView { name, url, kind, user, pass in
-                store.addCustom(name: name, url: url, kind: kind, username: user, password: pass)
+            AddLiveTVSourceView { name, url, kind, user, pass, epg, hours in
+                store.addCustom(name: name, url: url, kind: kind, username: user, password: pass,
+                                epgURL: epg, refreshHours: hours)
                 showAdd = false
             }.environmentObject(env)
         }
@@ -85,12 +86,14 @@ private struct LiveTVSourcesContent: View {
 
 private struct AddLiveTVSourceView: View {
     @Environment(\.dismiss) private var dismiss
-    let onAdd: (String, String, LiveTVSource.Kind, String?, String?) -> Void
+    let onAdd: (String, String, LiveTVSource.Kind, String?, String?, String?, Int?) -> Void
     @State private var kind: LiveTVSource.Kind = .m3u
     @State private var name = ""
     @State private var url = ""
     @State private var username = ""
     @State private var password = ""
+    @State private var epgURL = ""
+    @State private var refreshHours = 12
 
     var body: some View {
         NavigationStack {
@@ -109,6 +112,20 @@ private struct AddLiveTVSourceView: View {
                             field("Username", text: $username, placeholder: "username")
                             secureField("Password", text: $password)
                         }
+                        field("EPG URL (optional)", text: $epgURL,
+                              placeholder: "https://…/guide.xml")
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                            Text("Auto-refresh")
+                                .font(.appFont(15, weight: .semibold))
+                                .foregroundStyle(Theme.Colors.textSecondary)
+                            Picker("Auto-refresh", selection: $refreshHours) {
+                                Text("Every 6 hours").tag(6)
+                                Text("Every 12 hours").tag(12)
+                                Text("Daily").tag(24)
+                                Text("Weekly").tag(168)
+                            }
+                            .pickerStyle(.segmented)
+                        }
                         Text("Only add playlists you have the right to use, such as your own IPTV subscription or a free public FAST feed.")
                             .font(.appFont(13)).foregroundStyle(Theme.Colors.textTertiary)
                     }.padding(Theme.Spacing.edge)
@@ -122,7 +139,11 @@ private struct AddLiveTVSourceView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
-                        onAdd(name, url, kind, kind == .xtream ? username : nil, kind == .xtream ? password : nil)
+                        onAdd(name, url, kind,
+                              kind == .xtream ? username : nil,
+                              kind == .xtream ? password : nil,
+                              epgURL.trimmingCharacters(in: .whitespaces).isEmpty ? nil : epgURL,
+                              refreshHours)
                     }.disabled(url.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }

@@ -49,6 +49,7 @@ enum RealDebridEndpoint {
     case selectFiles(String)
     case streamingTranscode(String)
     case mediaInfo(String)
+    case instantAvailability([String])
 
     var path: String {
         switch self {
@@ -61,13 +62,15 @@ enum RealDebridEndpoint {
         case .selectFiles(let id):       return "/torrents/selectFiles/\(id)"
         case .streamingTranscode(let id):return "/streaming/transcode/\(id)"
         case .mediaInfo(let id):         return "/streaming/mediaInfos/\(id)"
+        case .instantAvailability(let hashes):
+            return "/torrents/instantAvailability/" + hashes.joined(separator: "/")
         }
     }
 
     var method: String {
         switch self {
         case .user, .downloads, .torrents, .torrentInfo,
-             .streamingTranscode, .mediaInfo:
+             .streamingTranscode, .mediaInfo, .instantAvailability:
             return "GET"
         case .unrestrictLink, .addMagnet, .selectFiles:
             return "POST"
@@ -99,6 +102,39 @@ final actor RealDebridClient {
     }
 
     // MARK: - Public API
+
+    /// Batch instant-availability check: one request for up to ~40 hashes instead
+    /// of a call per stream. Returns the (lowercased) hashes that are cached.
+    func instantAvailability(hashes: [String]) async throws -> Set<String> {
+        guard !hashes.isEmpty else { return [] }
+        let batch = Array(hashes.prefix(40)).map { $0.lowercased() }
+        let req = try makeRequest(.instantAvailability(batch), form: nil)
+        let (data, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw RealDebridError.invalidResponse
+        }
+        // Response shape: { "<hash>": { "rd": [ {...variants} ] } } — a hash is
+        // cached when any variant list is non-empty. Parsed leniently with
+        // JSONSerialization because variant payloads differ between hosts.
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return []
+        }
+        var available: Set<String> = []
+        for (hash, value) in root {
+            guard let dict = value as? [String: Any] else { continue }
+            for (_, hosterValue) in dict {
+                if let variants = hosterValue as? [Any], !variants.isEmpty {
+                    available.insert(hash.lowercased())
+                    break
+                }
+                if let variants = hosterValue as? [String: Any], !variants.isEmpty {
+                    available.insert(hash.lowercased())
+                    break
+                }
+            }
+        }
+        return available
+    }
 
     func validateToken() async throws -> RealDebridUser {
         try await request(.user)

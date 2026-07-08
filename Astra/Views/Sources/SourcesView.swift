@@ -15,6 +15,7 @@ struct SourcesView: View {
     @EnvironmentObject private var library: LibraryStore
     /// Drives the SMB card's real status (configured vs not) from saved shares.
     @StateObject private var smbModel = SMBSharesModel()
+    @State private var rdUser: RealDebridUser?
 
     // Flexible columns so cards stretch to fill the row: fewer, wider cards on
     // iPhone; more on iPad/tvOS. This avoids the narrow-cells-with-gaps look.
@@ -95,6 +96,12 @@ struct SourcesView: View {
             }
         }
         .navigationTitle("Sources")
+        .task {
+            // Live Real-Debrid account detail (premium days left) when connected.
+            if KeychainStore.shared.realDebridToken != nil {
+                rdUser = try? await env.realDebrid.validateToken()
+            }
+        }
     }
 
     /// A compact banner summarizing the metadata-affecting sources (TMDB / Trakt /
@@ -104,30 +111,64 @@ struct SourcesView: View {
                      SourceHealth.trakt(), SourceHealth.addons(env.addonStore)]
         return VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             ForEach(items) { item in
-                HStack(spacing: Theme.Spacing.sm) {
-                    Image(systemName: item.systemImage)
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                        .frame(width: 26)
-                    Text(item.name)
-                        .font(.appFont(18, weight: .medium))
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                    Spacer()
-                    if let detail = item.detail {
-                        Text(detail)
-                            .font(.appFont(15))
+                // Each row is a "Fix" deep link straight into the screen that
+                // resolves it, instead of a read-only status line.
+                NavigationLink {
+                    fixDestination(for: item.name)
+                } label: {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Image(systemName: item.systemImage)
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                            .frame(width: 26)
+                        Text(item.name)
+                            .font(.appFont(18, weight: .medium))
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                        Spacer()
+                        if let detail = displayDetail(for: item) {
+                            Text(detail)
+                                .font(.appFont(15))
+                                .foregroundStyle(Theme.Colors.textTertiary)
+                        }
+                        HStack(spacing: 6) {
+                            Circle().fill(item.status.color).frame(width: 8, height: 8)
+                            Text(statusText(item.status))
+                                .font(.appFont(15, weight: .semibold))
+                                .foregroundStyle(item.status.color)
+                        }
+                        Image(systemName: "chevron.right")
+                            .font(.appFont(13, weight: .semibold))
                             .foregroundStyle(Theme.Colors.textTertiary)
                     }
-                    HStack(spacing: 6) {
-                        Circle().fill(item.status.color).frame(width: 8, height: 8)
-                        Text(statusText(item.status))
-                            .font(.appFont(15, weight: .semibold))
-                            .foregroundStyle(item.status.color)
-                    }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
             }
         }
         .padding(Theme.Spacing.md)
         .refinedCardBackground()
+    }
+
+    /// Live account detail overrides: Real-Debrid shows premium days remaining.
+    private func displayDetail(for item: SourceHealthItem) -> String? {
+        if item.name == "Real-Debrid", let user = rdUser {
+            if user.isPremium, let seconds = user.premium, seconds > 0 {
+                let days = seconds / 86_400
+                return days > 0 ? "Premium · \(days) day\(days == 1 ? "" : "s") left" : "Premium"
+            }
+            return "Free account"
+        }
+        return item.detail
+    }
+
+    /// The management screen that fixes (or configures) each health row.
+    @ViewBuilder
+    private func fixDestination(for name: String) -> some View {
+        switch name {
+        case "Real-Debrid": RealDebridView()
+        case "Addons":      AddonsView()
+        case "Trakt":       TraktConnectView()
+        default:            AccountsView()   // TMDB & metadata keys
+        }
     }
 
     private func statusText(_ status: SourceStatus) -> String {

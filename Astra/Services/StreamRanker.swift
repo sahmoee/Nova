@@ -77,6 +77,37 @@ enum StreamRanker {
         var preferredSource: SourceKind? = nil        // nil = any
         var minSeeders: Int = 0                       // 0 = no minimum
         var preferEfficientCodec: Bool = false
+        /// User-ordered fallback chain of source kinds; earlier kinds score higher.
+        var sourcePriority: [SourceKind] = []
+        /// Addon names in the user's Addons-screen order; earlier addons score
+        /// higher, so reordering addons directly biases stream ranking.
+        var addonPriority: [String] = []
+    }
+
+    /// Collapses streams that are the same underlying file offered by several
+    /// addons (same infohash + file index, or same URL). Cached copies win;
+    /// otherwise the first (highest-ranked source) is kept.
+    static func dedupeByIdentity(_ streams: [StreamOption]) -> [StreamOption] {
+        var best: [String: StreamOption] = [:]
+        var order: [String] = []
+        for s in streams {
+            let key: String
+            if let hash = s.infoHash {
+                key = "\(hash.lowercased()):\(s.fileIndex ?? -1)"
+            } else if let url = s.url {
+                key = url.absoluteString
+            } else {
+                key = s.id
+            }
+            if let existing = best[key] {
+                // Prefer the cached copy; otherwise keep the first seen.
+                if s.isCached && !existing.isCached { best[key] = s }
+            } else {
+                best[key] = s
+                order.append(key)
+            }
+        }
+        return order.compactMap { best[$0] }
     }
 
     /// Sorts streams best-first using a weighted score across all signals:
@@ -129,6 +160,14 @@ enum StreamRanker {
     /// between otherwise-similar options.
     static func score(_ s: StreamOption, preferences p: StreamPreferences) -> Int {
         var score = 0
+        // User-ordered fallback chain: earlier source kinds get a graded bonus.
+        if let idx = p.sourcePriority.firstIndex(of: s.sourceKind) {
+            score += max(0, p.sourcePriority.count - idx) * 40
+        }
+        // Addon order bias: streams from addons the user ranked higher win ties.
+        if let idx = p.addonPriority.firstIndex(of: s.addonName) {
+            score += max(0, p.addonPriority.count - idx) * 12
+        }
         // Availability is paramount: a cached/instant source beats a faster-on-paper
         // torrent the user has to wait for.
         if s.isCached { score += 1000 }

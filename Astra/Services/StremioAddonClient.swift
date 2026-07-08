@@ -47,6 +47,15 @@ actor StremioAddonClient {
     // MARK: - Manifest
 
     /// Fetches and parses an addon manifest, returning an InstalledAddon shell.
+    /// Manifest fetch with exponential-backoff retry, for background contexts
+    /// (update checks, health probes) where transient failures shouldn't count
+    /// against the addon. Install flows keep the fast-fail fetchManifest below.
+    func fetchManifestRetrying(at manifestURL: URL) async throws -> InstalledAddon {
+        try await withRetry(maxAttempts: 3, initialDelay: 1.0) {
+            try await self.fetchManifest(at: manifestURL)
+        }
+    }
+
     func fetchManifest(at manifestURL: URL) async throws -> InstalledAddon {
         // Short timeout, no retry, so a bad/unreachable URL fails quickly instead of
         // leaving the install button spinning for the full retry window.
@@ -95,7 +104,8 @@ actor StremioAddonClient {
                  type: String,
                  catalogID: String,
                  search: String? = nil,
-                 genre: String? = nil) async throws -> [CatalogItem] {
+                 genre: String? = nil,
+                 skip: Int = 0) async throws -> [CatalogItem] {
         guard addon.supports(resource: "catalog") else { return [] }
 
         var url = addon.baseURL
@@ -112,6 +122,10 @@ actor StremioAddonClient {
         if let genre, !genre.isEmpty {
             let enc = genre.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? genre
             extras.append("genre=\(enc)")
+        }
+        // Stremio pagination: "/skip=100.json" asks for the next page.
+        if skip > 0 {
+            extras.append("skip=\(skip)")
         }
         if extras.isEmpty {
             url.appendPathComponent("\(catalogID).json")
@@ -180,6 +194,26 @@ actor StremioAddonClient {
 
     // MARK: - Fan-out helpers (query several addons at once)
 
+    /// Soft per-addon deadline for fan-out queries: one slow addon shouldn't stall
+    /// the merged results the picker is waiting on.
+    private static let fanOutTimeout: Duration = .seconds(12)
+
+    /// Runs an operation with a deadline; returns the fallback if time runs out.
+    private static func withTimeout<T: Sendable>(_ limit: Duration,
+                                                 fallback: T,
+                                                 _ operation: @escaping @Sendable () async -> T) async -> T {
+        await withTaskGroup(of: T?.self) { group in
+            group.addTask { await operation() }
+            group.addTask {
+                try? await Task.sleep(for: limit)
+                return nil
+            }
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            return first ?? fallback
+        }
+    }
+
     /// Queries all enabled stream-capable addons concurrently and merges results.
     func allStreams(from addons: [InstalledAddon],
                     type: ContentType,
@@ -187,16 +221,20 @@ actor StremioAddonClient {
         let streamAddons = addons.filter { $0.isEnabled && $0.supports(resource: "stream") }
         guard !streamAddons.isEmpty else { return [] }
 
-        return await withTaskGroup(of: [StreamOption].self) { group in
+        let merged: [StreamOption] = await withTaskGroup(of: [StreamOption].self) { group in
             for addon in streamAddons {
                 group.addTask {
-                    (try? await self.streams(from: addon, type: type, stremioID: stremioID)) ?? []
+                    await Self.withTimeout(Self.fanOutTimeout, fallback: []) {
+                        (try? await self.streams(from: addon, type: type, stremioID: stremioID)) ?? []
+                    }
                 }
             }
-            var merged: [StreamOption] = []
-            for await chunk in group { merged.append(contentsOf: chunk) }
-            return merged
+            var out: [StreamOption] = []
+            for await chunk in group { out.append(contentsOf: chunk) }
+            return out
         }
+        // Several addons often return the exact same torrent; collapse duplicates.
+        return StreamRanker.dedupeByIdentity(merged)
     }
 
     /// Returns an async stream that yields each stream-capable addon's results as
@@ -212,7 +250,9 @@ actor StremioAddonClient {
                 await withTaskGroup(of: [StreamOption].self) { group in
                     for addon in streamAddons {
                         group.addTask {
-                            (try? await self.streams(from: addon, type: type, stremioID: stremioID)) ?? []
+                            await Self.withTimeout(Self.fanOutTimeout, fallback: []) {
+                                (try? await self.streams(from: addon, type: type, stremioID: stremioID)) ?? []
+                            }
                         }
                     }
                     for await chunk in group where !chunk.isEmpty {
@@ -245,7 +285,8 @@ actor StremioAddonClient {
 
     // MARK: - Networking
 
-    private func getJSON<T: Decodable>(_ url: URL, wrap fetchError: AddonError) async throws -> T {
+    private func getJSON<T: Decodable>(_ url: URL, wrap fetchError: AddonError,
+                                       attempts: Int = 2) async throws -> T {
         // Build the request immutably so it can be safely captured by the retry
         // closure (a mutable var capture is an error in the Swift 6 language mode).
         let req: URLRequest = {
@@ -258,7 +299,7 @@ actor StremioAddonClient {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await withRetry(maxAttempts: 2) {
+            (data, response) = try await withRetry(maxAttempts: attempts) {
                 try await self.session.data(for: req)
             }
         } catch {

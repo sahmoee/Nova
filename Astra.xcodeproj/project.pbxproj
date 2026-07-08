@@ -72,6 +72,8 @@
 		376084FAE189AC4B33E2A5AB /* StremioAddonClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B367746B094F55EA79020DCF /* StremioAddonClient.swift */; };
 		37D0C5B4609F15FCDBB13270 /* NetworkRetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A3CF2809BE0FF038926BC0 /* NetworkRetry.swift */; };
 		3A7A3E5E61F64A8ED8F47ECA /* AstraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 671F3AF1CDC4B1AB200C36CA /* AstraApp.swift */; };
+		3D8A3818BF970B646140B560 /* EPGService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E5848E2DC6DECC9AE065EDE /* EPGService.swift */; };
+		E526BC820594B93766A05931 /* EPGService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E5848E2DC6DECC9AE065EDE /* EPGService.swift */; };
 		11DE36C7D95CA38D74C70931 /* PlayerCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74DFF01A452FEB5CEEF16C78 /* PlayerCore.swift */; };
 		B35B2FCD7D66B8A0D9D956EB /* PlayerCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74DFF01A452FEB5CEEF16C78 /* PlayerCore.swift */; };
 		E69E30C19E64483DB3B0FB6D /* DiskJSONCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6874AC4F6CBD256D3FA35C3 /* DiskJSONCache.swift */; };
@@ -452,6 +454,7 @@
 		7EDD6180A9BFFE16D7194EAC /* SearchCorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchCorrector.swift; sourceTree = "<group>"; };
 		8075DEF1D961A6A114567B88 /* WhatsNew.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNew.swift; sourceTree = "<group>"; };
 		81593455C6754FA5A1512821 /* LiveTVSourceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTVSourceStore.swift; sourceTree = "<group>"; };
+		3E5848E2DC6DECC9AE065EDE /* EPGService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPGService.swift; sourceTree = "<group>"; };
 		8243FC1919BC503B71FAB073 /* MediaRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRow.swift; sourceTree = "<group>"; };
 		86F479B94958CAD981263A79 /* CodableFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableFileStore.swift; sourceTree = "<group>"; };
 		8A2B55877B32EE0F21EC00D5 /* SafeMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafeMode.swift; sourceTree = "<group>"; };
@@ -765,6 +768,7 @@
 				6B80A7183C7C485E86CDDC66 /* TitleCleanupRules.swift */,
 				57A309E70BDB4310B7F8E81F /* LibraryFolderStore.swift */,
 				81593455C6754FA5A1512821 /* LiveTVSourceStore.swift */,
+				3E5848E2DC6DECC9AE065EDE /* EPGService.swift */,
 				F2E01039EC91A80EEB10B225 /* LibraryCleanup.swift */,
 				D51ED4505C44CB38C11CFFD5 /* WatchStats.swift */,
 				CC542829C9B9623A7B195ABD /* SubtitleMatcher.swift */,
@@ -1120,6 +1124,7 @@
 				C5E8B70C82FF4EB086E156B5 /* LibraryEnrichView.swift in Sources */,
 				0B26C8646AB2404F88C358B5 /* LiveTVSourcesView.swift in Sources */,
 				A1DFF0EE8414442986B1D1E7 /* LiveTVSourceStore.swift in Sources */,
+				E526BC820594B93766A05931 /* EPGService.swift in Sources */,
 				ADE3095B2500CFA1AD2B3538 /* MetadataParser.swift in Sources */,
 				37D0C5B4609F15FCDBB13270 /* NetworkRetry.swift in Sources */,
 				156B2972B629C29C0279B189 /* NowPlayingStore.swift in Sources */,
@@ -1279,6 +1284,7 @@
 				3F2C38D8EE1E4357BD6F7567 /* LibraryEnrichView.swift in Sources */,
 				9AC428D103AC408394495E0B /* LiveTVSourcesView.swift in Sources */,
 				2C54E698554D464C8032273C /* LiveTVSourceStore.swift in Sources */,
+				3D8A3818BF970B646140B560 /* EPGService.swift in Sources */,
 				C33ACC304EA53CC8D1769787 /* MetadataParser.swift in Sources */,
 				F97853D45251273A4560E351 /* NetworkRetry.swift in Sources */,
 				7789224A734D31BF3BC8F5FB /* NowPlayingStore.swift in Sources */,

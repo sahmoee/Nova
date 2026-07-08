@@ -93,7 +93,25 @@ actor RealSMBProvider: SMBProviding {
 
     // MARK: - List
 
+    /// Retries an operation once after re-establishing the SMB session — a dropped
+    /// connection (network change, NAS sleep) heals transparently instead of
+    /// surfacing "not connected" to the browser.
+    private func withReconnect<T>(_ operation: () async throws -> T) async throws -> T {
+        do {
+            return try await operation()
+        } catch {
+            guard let share = connectedShare else { throw error }
+            client = nil
+            try await connect(to: share)
+            return try await operation()
+        }
+    }
+
     func listDirectory(path: String) async throws -> [RemoteFileItem] {
+        try await withReconnect { try await listDirectoryOnce(path: path) }
+    }
+
+    private func listDirectoryOnce(path: String) async throws -> [RemoteFileItem] {
         guard let client else { throw SMBError.notConnected }
         let smbPath = normalizedPath(path)
 

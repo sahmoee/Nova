@@ -16,13 +16,19 @@ struct LiveTVSource: Identifiable, Codable, Hashable {
     var isBuiltIn: Bool
     var username: String?
     var password: String?
+    /// Optional XMLTV guide URL for now-playing info.
+    var epgURL: String?
+    /// Hours between automatic playlist refreshes (nil = every 12 hours).
+    var refreshHours: Int?
 
     init(id: UUID = UUID(), name: String, url: String, kind: Kind,
          isEnabled: Bool = false, isBuiltIn: Bool = false,
-         username: String? = nil, password: String? = nil) {
+         username: String? = nil, password: String? = nil,
+         epgURL: String? = nil, refreshHours: Int? = nil) {
         self.id = id; self.name = name; self.url = url; self.kind = kind
         self.isEnabled = isEnabled; self.isBuiltIn = isBuiltIn
         self.username = username; self.password = password
+        self.epgURL = epgURL; self.refreshHours = refreshHours
     }
 
     var playlistURL: URL? {
@@ -51,6 +57,7 @@ struct LiveTVChannel: Identifiable, Hashable {
     var name: String
     var url: URL
     var logoURL: URL?
+    var tvgID: String?
     var group: String?
 }
 
@@ -124,6 +131,13 @@ final class LiveTVSourceStore: ObservableObject {
         }
         // Refresh channels for any enabled sources adopted from the cloud.
         Task { await refreshAll() }
+        // When connectivity returns after an outage, reload stale playlists.
+        NotificationCenter.default.addObserver(
+            forName: NetworkConditionMonitor.networkRestored,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in await self?.refreshAll() }
+        }
     }
 
     func setEnabled(_ enabled: Bool, for source: LiveTVSource) {
@@ -134,9 +148,12 @@ final class LiveTVSourceStore: ObservableObject {
         else { channelsBySource[source.id] = nil }
     }
 
-    func addCustom(name: String, url: String, kind: LiveTVSource.Kind, username: String? = nil, password: String? = nil) {
+    func addCustom(name: String, url: String, kind: LiveTVSource.Kind,
+                   username: String? = nil, password: String? = nil,
+                   epgURL: String? = nil, refreshHours: Int? = nil) {
         let source = LiveTVSource(name: name.isEmpty ? "Custom Playlist" : name, url: url, kind: kind,
-                                  isEnabled: true, isBuiltIn: false, username: username, password: password)
+                                  isEnabled: true, isBuiltIn: false, username: username, password: password,
+                                  epgURL: epgURL, refreshHours: refreshHours)
         sources.append(source); persist()
         Task { await refresh(source) }
     }
@@ -152,11 +169,23 @@ final class LiveTVSourceStore: ObservableObject {
         sources.filter(\.isEnabled).flatMap { channelsBySource[$0.id] ?? [] }
     }
 
-    func refreshAll() async {
+    /// When each source was last successfully refreshed (session-persistent).
+    private var lastRefreshed: [UUID: Date] = [:]
+
+    func refreshAll(force: Bool = false) async {
         isLoading = true
         defer { isLoading = false }
         await withTaskGroup(of: Void.self) { group in
             for source in sources where source.isEnabled {
+                // Respect the per-source refresh interval unless forced; playlists
+                // rarely change minute to minute, so skip fresh-enough sources.
+                if !force, let last = lastRefreshed[source.id] {
+                    let interval = TimeInterval((source.refreshHours ?? 12)) * 3600
+                    if Date().timeIntervalSince(last) < interval,
+                       !(channelsBySource[source.id] ?? []).isEmpty {
+                        continue
+                    }
+                }
                 group.addTask { await self.refresh(source) }
             }
         }
@@ -172,6 +201,7 @@ final class LiveTVSourceStore: ObservableObject {
             }
             let text = String(decoding: data, as: UTF8.self)
             channelsBySource[source.id] = Self.parseM3U(text)
+            lastRefreshed[source.id] = Date()
         } catch {
             lastError = "Couldn't load \(source.name): \(error.localizedDescription)"
         }
@@ -182,18 +212,21 @@ final class LiveTVSourceStore: ObservableObject {
         var pendingName: String?
         var pendingLogo: URL?
         var pendingGroup: String?
+        var pendingTVGID: String?
         for rawLine in text.split(whereSeparator: \.isNewline) {
             let line = rawLine.trimmingCharacters(in: .whitespaces)
             if line.hasPrefix("#EXTINF") {
                 pendingLogo = attribute("tvg-logo", in: line).flatMap(URL.init(string:))
+                pendingTVGID = attribute("tvg-id", in: line)
                 pendingGroup = attribute("group-title", in: line)
                 if let commaRange = line.range(of: ",", options: .backwards) {
                     pendingName = String(line[commaRange.upperBound...]).trimmingCharacters(in: .whitespaces)
                 }
             } else if !line.isEmpty, !line.hasPrefix("#"), let url = URL(string: line) {
                 let name = pendingName ?? url.lastPathComponent
-                channels.append(LiveTVChannel(name: name, url: url, logoURL: pendingLogo, group: pendingGroup))
-                pendingName = nil; pendingLogo = nil; pendingGroup = nil
+                channels.append(LiveTVChannel(name: name, url: url, logoURL: pendingLogo,
+                                              tvgID: pendingTVGID, group: pendingGroup))
+                pendingName = nil; pendingLogo = nil; pendingGroup = nil; pendingTVGID = nil
             }
         }
         return channels

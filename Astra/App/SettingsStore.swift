@@ -39,6 +39,7 @@ final class SettingsStore: ObservableObject {
         static let preferredStreamQuality = "settings.preferredStreamQuality"
         static let maxStreamSizeGB = "settings.maxStreamSizeGB"
         static let preferredSourceKind = "settings.preferredSourceKind"
+        static let sourceKindPriority  = "settings.sourceKindPriority"
         static let minSeeders = "settings.minSeeders"
         static let preferEfficientCodec = "settings.preferEfficientCodec"
         static let preferredAudioLanguage = "settings.preferredAudioLanguage"
@@ -158,6 +159,16 @@ final class SettingsStore: ObservableObject {
     /// (cached sources are unaffected). 0 means no minimum.
     @Published var minSeeders: Int {
         didSet { defaults.set(minSeeders, forKey: Key.minSeeders); CloudSync.shared.setDouble(Double(minSeeders), forKey: Key.minSeeders) }
+    }
+
+    /// User-ordered source fallback chain (raw SourceKind values, best first).
+    /// Consulted by StreamRanker so e.g. Cloud > Torrent > SMB is enforceable.
+    @Published var sourceKindPriority: [String] {
+        didSet {
+            let joined = sourceKindPriority.joined(separator: ",")
+            defaults.set(joined, forKey: Key.sourceKindPriority)
+            CloudSync.shared.setString(joined, forKey: Key.sourceKindPriority)
+        }
     }
 
     /// Prefer efficient codecs (HEVC / AV1) when otherwise similar.
@@ -406,6 +417,8 @@ final class SettingsStore: ObservableObject {
             rawValue: defaults.string(forKey: Key.preferredStreamQuality) ?? StreamQuality.fhd1080.rawValue
         ) ?? .fhd1080
         self.maxStreamSizeGB = defaults.integer(forKey: Key.maxStreamSizeGB)   // 0 = no limit
+        self.sourceKindPriority = (defaults.string(forKey: Key.sourceKindPriority) ?? "")
+            .split(separator: ",").map(String.init)
         self.preferredSourceKind = SourceKindPreference(
             rawValue: defaults.string(forKey: Key.preferredSourceKind) ?? SourceKindPreference.any.rawValue
         ) ?? .any
@@ -562,6 +575,14 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    /// Like streamPreferences, but also biases ranking by the user's addon order
+    /// from the Addons screen (earlier addons win ties).
+    func streamPreferences(addonOrder: [String]) -> StreamRanker.StreamPreferences {
+        var prefs = streamPreferences
+        prefs.addonPriority = addonOrder
+        return prefs
+    }
+
     /// Builds the ranking preferences bundle from the current streaming settings,
     /// for use by StreamRanker.
     var streamPreferences: StreamRanker.StreamPreferences {
@@ -573,6 +594,7 @@ final class SettingsStore: ObservableObject {
             minSeeders: minSeeders,
             preferEfficientCodec: preferEfficientCodec
         )
+        prefs.sourcePriority = sourceKindPriority.compactMap(SourceKind.init(rawValue:))
         // Bandwidth saver tightens toward smaller, efficient streams.
         if bandwidthSaver {
             prefs.preferEfficientCodec = true
