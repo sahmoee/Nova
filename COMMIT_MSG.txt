@@ -1,26 +1,24 @@
-Rename the project from JooTV to Astra
+REMOVE CHOMP BARCODE LOOKUP AND REVERT TO PRIOR WATERFALL
 
-WHY
-The app is now named Astra. This renames the entire project to match.
+SUMMARY
 
-WHAT
-The product, the source folder, the Xcode project, both targets and both schemes,
-the app entry type, the file headers, the bundle identifiers, the Keychain service,
-the iCloud key value store identifier, the entitlements file, the optional config
-file, and all in app text now use Astra. The two bundle identifiers are com dot
-astra dot app and com dot astra dot app dot ios. Two internal helpers that used
-the old brand prefix were also renamed for cleanliness, the logger type and the
-scaled font helper, with the font helper renamed to a neutral name so it does not
-collide with the built in frame modifier.
+Removes the Chomp integration entirely and restores the barcode lookup to the
+original source order. The Chomp branch was freezing the scanner on Looking up
+product because it returned before clearing the loading state.
 
-Because the Keychain service identifier and the iCloud key value store identifier
-changed, secrets and synced settings saved under the old name are not read by the
-renamed build, so the user reconnects accounts and re-confirms preferences once.
+CHANGES
 
-FILES CHANGED
-This is the full renamed project. The source tree moves under Astra slash
-Astra with the entry point renamed to AstraApp dot swift and the entitlements
-renamed to Astra dot entitlements. The Xcode project and both schemes are
-regenerated with the new names, targets, bundle identifiers, and per target plist
-and entitlements paths. README dot md, AppStoreReviewNotes dot md, TEST underscore
-CHECKLIST dot md, and the example config file are updated to Astra.
+BarcodeScannerView.swift
+  The Chomp branch is removed. resolveBarcode now runs the original waterfall:
+  local cache, then OpenFoodFacts, then UPC Item DB, then the Worker AI fallback,
+  then manual entry. This file is now identical to the prior committed version.
+
+ChompFoodClient.swift
+  Deleted via git rm in commit.sh, since the rsync overlay does not remove files.
+
+NOTES
+
+NutritionAPIConfig and APIResponseCache are kept; they are still used by the
+LogMeal client and the Suggestic source. If you also want the Chomp key removed,
+delete CHOMP_API_KEY from Secrets.xcconfig and the ChompAPIKey row from Info.plist
+by hand from the current export. No secrets are included here.
