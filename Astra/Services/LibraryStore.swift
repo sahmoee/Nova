@@ -24,8 +24,8 @@ final class LibraryStore: ObservableObject {
 
     // iCloud sync. The library is mirrored to iCloud KVS so favorites, watch
     // progress, and saved items follow the user across iPhone, iPad, and Apple TV.
-    private let cloudKey = "cloud.library.v1"
-    private let cloudRevisionKey = "cloud.library.revision"
+    private let cloudKey = PrefKey.cloudLibrary
+    private let cloudRevisionKey = PrefKey.cloudLibraryRevision
     private var cancellables = Set<AnyCancellable>()
     /// Guards against echoing a remote change straight back to iCloud.
     private var applyingRemoteChange = false
@@ -96,7 +96,22 @@ final class LibraryStore: ObservableObject {
     }
 
     /// Pushes the current library to iCloud with a fresh revision stamp.
+    private var cloudPushTask: Task<Void, Never>?
+
+    /// Debounced: a burst of mutations (bulk tag, merge, import) collapses into a
+    /// single iCloud write ~0.6s after the last change. Local persistence is
+    /// unaffected — persistLocalOnly() still runs immediately on every mutation.
     private func pushToCloud() {
+        guard !applyingRemoteChange else { return }
+        cloudPushTask?.cancel()
+        cloudPushTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            self?.pushToCloudNow()
+        }
+    }
+
+    private func pushToCloudNow() {
         guard !applyingRemoteChange else { return }
         guard let data = try? encoder.encode(items) else { return }
         // Skip if the payload exceeds iCloud KVS's per-value limit (~1MB); the local
@@ -149,112 +164,9 @@ final class LibraryStore: ObservableObject {
         }
     }
 
-    // MARK: - Duplicate detection & merge
-
-    /// A group of library items that appear to be the same title from different
-    /// sources (matched by shared imdb/tmdb id, or by normalized title + year).
-    struct DuplicateGroup: Identifiable {
-        let id = UUID()
-        let items: [MediaItem]
-        var title: String { items.first?.title ?? "" }
-    }
-
-    /// Finds groups of likely-duplicate items. Only movies/standalone titles are
-    /// grouped (episodes are matched precisely by contentKey already). A group needs
-    /// at least two items.
-    func duplicateGroups() -> [DuplicateGroup] {
-        // Only consider non-episode items (episodes dedupe exactly by contentKey).
-        let candidates = items.filter { $0.episode == nil }
-        var buckets: [String: [MediaItem]] = [:]
-        for item in candidates {
-            buckets[duplicateKey(for: item), default: []].append(item)
-        }
-        return buckets.values
-            .filter { $0.count > 1 }
-            .map { DuplicateGroup(items: $0.sorted { $0.addedDate < $1.addedDate }) }
-            .sorted { $0.title.lowercased() < $1.title.lowercased() }
-    }
-
-    /// A loose identity key for duplicate matching: prefer a shared imdb/tmdb id,
-    /// otherwise normalized title + year.
-    private func duplicateKey(for item: MediaItem) -> String {
-        if let imdb = item.contentID?.imdb { return "imdb:\(imdb)" }
-        if let tmdb = item.contentID?.tmdb { return "tmdb:\(tmdb)" }
-        let title = item.title.lowercased()
-            .components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .joined()
-        let year = item.metadata.year.map(String.init) ?? "?"
-        return "title:\(title):\(year)"
-    }
-
-    /// Merges a duplicate group into a single item: keeps the most-complete record
-    /// (most progress / has artwork), unions favorite status and the furthest watch
-    /// progress, repoints any collections to the survivor, and removes the rest.
-    func mergeDuplicates(_ group: DuplicateGroup) {
-        guard group.items.count > 1 else { return }
-        // Choose a survivor: prefer one with a contentID, then artwork, then most progress.
-        let survivor = group.items.max { a, b in
-            score(a) < score(b)
-        } ?? group.items[0]
-
-        guard let sIdx = items.firstIndex(where: { $0.id == survivor.id }) else { return }
-
-        // Merge state from the others into the survivor.
-        var merged = items[sIdx]
-        for other in group.items where other.id != survivor.id {
-            merged.isFavorite = merged.isFavorite || other.isFavorite
-            if other.lastPlayedPosition > merged.lastPlayedPosition {
-                merged.lastPlayedPosition = other.lastPlayedPosition
-                merged.lastPlayedDate = other.lastPlayedDate ?? merged.lastPlayedDate
-            }
-            if merged.duration == nil { merged.duration = other.duration }
-            if merged.posterURL == nil { merged.posterURL = other.posterURL }
-            if merged.backdropURL == nil { merged.backdropURL = other.backdropURL }
-            merged.addedDate = min(merged.addedDate, other.addedDate)
-        }
-        items[sIdx] = merged
-
-        // Repoint collections from any removed content keys to the survivor's key.
-        let survivorKey = merged.contentKey
-        let removedKeys = group.items.filter { $0.id != survivor.id }.map { $0.contentKey }
-        for cIdx in collections.indices {
-            var changed = false
-            collections[cIdx].contentKeys = collections[cIdx].contentKeys.map { key in
-                if removedKeys.contains(key) { changed = true; return survivorKey }
-                return key
-            }
-            // De-dupe keys after repointing.
-            if changed {
-                var seen = Set<String>()
-                collections[cIdx].contentKeys = collections[cIdx].contentKeys.filter { seen.insert($0).inserted }
-            }
-        }
-        persistCollections()
-
-        // Remove the merged-away items.
-        let removeIDs = Set(group.items.filter { $0.id != survivor.id }.map { $0.id })
-        items.removeAll { removeIDs.contains($0.id) }
-        persist()
-    }
-
-    /// Merges every detected duplicate group at once.
-    func mergeAllDuplicates() {
-        for group in duplicateGroups() { mergeDuplicates(group) }
-    }
-
-    /// Completeness score for choosing a merge survivor.
-    private func score(_ item: MediaItem) -> Int {
-        var s = 0
-        if item.contentID != nil { s += 100 }
-        if item.posterURL != nil { s += 20 }
-        if item.lastPlayedPosition > 0 { s += 10 }
-        if item.isFavorite { s += 5 }
-        return s
-    }
-
     // MARK: - Collections
 
-    private let collectionsCloudKey = "cloud.collections.v1"
+    private let collectionsCloudKey = PrefKey.cloudCollections
 
     private func loadCollections() {
         // Prefer local file; fall back to iCloud if present and local is empty.
@@ -564,24 +476,24 @@ final class LibraryStore: ObservableObject {
 
     @Published private(set) var queueIDs: [UUID] = []
 
-    private var queueDefaultsKey: String { "library.queue.v1" }
+    private var queueDefaultsKey: String { PrefKey.libraryQueue }
 
     /// Loads the queue from local storage (called from init via loadQueue()).
     func loadQueue() {
         if let data = UserDefaults.standard.data(forKey: queueDefaultsKey),
-           let ids = try? JSONDecoder().decode([UUID].self, from: data) {
+           let ids = try? Coders.decoder.decode([UUID].self, from: data) {
             queueIDs = ids
         }
         // Adopt a cloud copy if one exists (newer device wins on merge below).
         if let data = CloudSync.shared.data(forKey: queueDefaultsKey),
-           let ids = try? JSONDecoder().decode([UUID].self, from: data),
+           let ids = try? Coders.decoder.decode([UUID].self, from: data),
            !ids.isEmpty, queueIDs.isEmpty {
             queueIDs = ids
         }
     }
 
     private func persistQueue() {
-        if let data = try? JSONEncoder().encode(queueIDs) {
+        if let data = try? Coders.encoder.encode(queueIDs) {
             UserDefaults.standard.set(data, forKey: queueDefaultsKey)
             CloudSync.shared.setData(data, forKey: queueDefaultsKey)
         }
@@ -627,7 +539,117 @@ final class LibraryStore: ObservableObject {
             .sorted { ($0.lastPlayedDate ?? .distantPast) > ($1.lastPlayedDate ?? .distantPast) }
     }
 
-    // MARK: - Queries (used by Home/Library rows)
+}
+// MARK: - Duplicate detection & merge
+
+extension LibraryStore {
+
+    /// A group of library items that appear to be the same title from different
+    /// sources (matched by shared imdb/tmdb id, or by normalized title + year).
+    struct DuplicateGroup: Identifiable {
+        let id = UUID()
+        let items: [MediaItem]
+        var title: String { items.first?.title ?? "" }
+    }
+
+    /// Finds groups of likely-duplicate items. Only movies/standalone titles are
+    /// grouped (episodes are matched precisely by contentKey already). A group needs
+    /// at least two items.
+    func duplicateGroups() -> [DuplicateGroup] {
+        // Only consider non-episode items (episodes dedupe exactly by contentKey).
+        let candidates = items.filter { $0.episode == nil }
+        var buckets: [String: [MediaItem]] = [:]
+        for item in candidates {
+            buckets[duplicateKey(for: item), default: []].append(item)
+        }
+        return buckets.values
+            .filter { $0.count > 1 }
+            .map { DuplicateGroup(items: $0.sorted { $0.addedDate < $1.addedDate }) }
+            .sorted { $0.title.lowercased() < $1.title.lowercased() }
+    }
+
+    /// A loose identity key for duplicate matching: prefer a shared imdb/tmdb id,
+    /// otherwise normalized title + year.
+    private func duplicateKey(for item: MediaItem) -> String {
+        if let imdb = item.contentID?.imdb { return "imdb:\(imdb)" }
+        if let tmdb = item.contentID?.tmdb { return "tmdb:\(tmdb)" }
+        let title = item.title.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .joined()
+        let year = item.metadata.year.map(String.init) ?? "?"
+        return "title:\(title):\(year)"
+    }
+
+    /// Merges a duplicate group into a single item: keeps the most-complete record
+    /// (most progress / has artwork), unions favorite status and the furthest watch
+    /// progress, repoints any collections to the survivor, and removes the rest.
+    func mergeDuplicates(_ group: DuplicateGroup) {
+        guard group.items.count > 1 else { return }
+        // Choose a survivor: prefer one with a contentID, then artwork, then most progress.
+        let survivor = group.items.max { a, b in
+            score(a) < score(b)
+        } ?? group.items[0]
+
+        guard let sIdx = items.firstIndex(where: { $0.id == survivor.id }) else { return }
+
+        // Merge state from the others into the survivor.
+        var merged = items[sIdx]
+        for other in group.items where other.id != survivor.id {
+            merged.isFavorite = merged.isFavorite || other.isFavorite
+            if other.lastPlayedPosition > merged.lastPlayedPosition {
+                merged.lastPlayedPosition = other.lastPlayedPosition
+                merged.lastPlayedDate = other.lastPlayedDate ?? merged.lastPlayedDate
+            }
+            if merged.duration == nil { merged.duration = other.duration }
+            if merged.posterURL == nil { merged.posterURL = other.posterURL }
+            if merged.backdropURL == nil { merged.backdropURL = other.backdropURL }
+            merged.addedDate = min(merged.addedDate, other.addedDate)
+        }
+        items[sIdx] = merged
+
+        // Repoint collections from any removed content keys to the survivor's key.
+        let survivorKey = merged.contentKey
+        let removedKeys = group.items.filter { $0.id != survivor.id }.map { $0.contentKey }
+        for cIdx in collections.indices {
+            var changed = false
+            collections[cIdx].contentKeys = collections[cIdx].contentKeys.map { key in
+                if removedKeys.contains(key) { changed = true; return survivorKey }
+                return key
+            }
+            // De-dupe keys after repointing.
+            if changed {
+                var seen = Set<String>()
+                collections[cIdx].contentKeys = collections[cIdx].contentKeys.filter { seen.insert($0).inserted }
+            }
+        }
+        persistCollections()
+
+        // Remove the merged-away items.
+        let removeIDs = Set(group.items.filter { $0.id != survivor.id }.map { $0.id })
+        items.removeAll { removeIDs.contains($0.id) }
+        persist()
+    }
+
+    /// Merges every detected duplicate group at once.
+    func mergeAllDuplicates() {
+        for group in duplicateGroups() { mergeDuplicates(group) }
+    }
+
+    /// Completeness score for choosing a merge survivor.
+    private func score(_ item: MediaItem) -> Int {
+        var s = 0
+        if item.contentID != nil { s += 100 }
+        if item.posterURL != nil { s += 20 }
+        if item.lastPlayedPosition > 0 { s += 10 }
+        if item.isFavorite { s += 5 }
+        return s
+    }
+
+}
+
+// MARK: - Queries (used by Home/Library rows)
+
+extension LibraryStore {
 
     var favorites: [MediaItem] {
         collapseToShow(items.filter { $0.isFavorite })

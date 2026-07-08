@@ -20,6 +20,7 @@ struct HomeView: View {
     @State private var showCustomize = false
     @State private var heroIndex = 0
     @State private var showQueue = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -200,6 +201,8 @@ struct HomeView: View {
                 .task(id: heroIndex) {
                     try? await Task.sleep(for: .seconds(8))
                     guard !Task.isCancelled, items.count > 1 else { return }
+                    // Don't tick the marquee while backgrounded/inactive.
+                    guard scenePhase == .active else { return }
                     withAnimation(.easeInOut(duration: 0.5)) {
                         heroIndex = (heroIndex + 1) % items.count
                     }

@@ -211,97 +211,6 @@ struct ContentDetailView: View {
             .first?.episodes.sorted { $0.number < $1.number }.first
     }
 
-    // MARK: - Trailers / Related / Cast
-
-    private var relatedSection: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            sectionHeader("Related", chevron: true)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Theme.Spacing.md) {
-                    ForEach(related) { rel in
-                        NavigationLink(value: rel) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                PosterImage(url: rel.posterURL,
-                                            width: Theme.scaled(150, min: 120),
-                                            height: Theme.scaled(225, min: 180))
-                                Text(rel.title)
-                                    .font(.appFont(15, weight: .medium))
-                                    .foregroundStyle(Theme.Colors.textPrimary)
-                                    .lineLimit(1)
-                                    .frame(width: Theme.scaled(150, min: 120), alignment: .leading)
-                            }
-                        }
-                        .buttonStyle(AstraListRowStyle())
-                    }
-                }
-                .padding(.horizontal, Theme.Spacing.edge)
-                .padding(.vertical, Theme.Spacing.xs)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var castSection: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            sectionHeader("Cast")
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Theme.Spacing.md) {
-                    ForEach(cast) { member in
-                        VStack(spacing: 6) {
-                            CachedAsyncImage(url: member.profileURL, maxPixel: 300) { image in
-                                image.resizable().aspectRatio(contentMode: .fill)
-                            } placeholder: {
-                                Circle().fill(Theme.Colors.card)
-                                    .overlay(Image(systemName: "person.fill")
-                                        .font(.appFont(28)).foregroundStyle(Theme.Colors.textTertiary))
-                            }
-                            .frame(width: Theme.scaled(88, min: 72), height: Theme.scaled(88, min: 72))
-                            .clipShape(Circle())
-                            Text(member.name)
-                                .font(.appFont(14, weight: .medium))
-                                .foregroundStyle(Theme.Colors.textPrimary)
-                                .lineLimit(1)
-                            if let character = member.character, !character.isEmpty {
-                                Text(character)
-                                    .font(.appFont(12))
-                                    .foregroundStyle(Theme.Colors.textTertiary)
-                                    .lineLimit(1)
-                            }
-                        }
-                        .frame(width: Theme.scaled(100, min: 84))
-                    }
-                }
-                .padding(.horizontal, Theme.Spacing.edge)
-                .padding(.vertical, Theme.Spacing.xs)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func sectionHeader(_ title: String, chevron: Bool = false) -> some View {
-        HStack(spacing: 6) {
-            Text(title)
-                .font(.appFont(24, weight: .bold))
-                .foregroundStyle(Theme.Colors.textPrimary)
-            if chevron {
-                Image(systemName: "chevron.right")
-                    .font(.appFont(18, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.textSecondary)
-            }
-        }
-        .padding(.horizontal, Theme.Spacing.edge)
-    }
-
-    private func fetchExtras() async {
-        guard let tmdb = item.contentID.tmdb, env.tmdb.hasKey else { return }
-        let isMovie = item.contentID.type == .movie
-        async let castResult = try? env.tmdb.cast(tmdbID: tmdb, isMovie: isMovie)
-        async let relatedResult = try? env.tmdb.related(tmdbID: tmdb, isMovie: isMovie)
-        let (c, r) = await (castResult, relatedResult)
-        if let c { cast = c }
-        if let r { related = Array(r.prefix(20)) }
-    }
-
     // MARK: - Backdrop hero
 
     @ViewBuilder
@@ -985,6 +894,103 @@ struct ContentDetailView: View {
         isHydrating = false
     }
 }
+
+// MARK: - Trailers / Related / Cast
+
+/// Presentation and fetch logic for the Related, Cast, and trailer extras,
+/// extracted from the main view body to keep ContentDetailView navigable.
+private extension ContentDetailView {
+
+    private var relatedSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            sectionHeader("Related", chevron: true)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.md) {
+                    ForEach(related) { rel in
+                        NavigationLink(value: rel) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                PosterImage(url: rel.posterURL,
+                                            width: Theme.scaled(150, min: 120),
+                                            height: Theme.scaled(225, min: 180))
+                                Text(rel.title)
+                                    .font(.appFont(15, weight: .medium))
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+                                    .lineLimit(1)
+                                    .frame(width: Theme.scaled(150, min: 120), alignment: .leading)
+                            }
+                        }
+                        .buttonStyle(AstraListRowStyle())
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.edge)
+                .padding(.vertical, Theme.Spacing.xs)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var castSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            sectionHeader("Cast")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.md) {
+                    ForEach(cast) { member in
+                        VStack(spacing: 6) {
+                            CachedAsyncImage(url: member.profileURL, maxPixel: 300) { image in
+                                image.resizable().aspectRatio(contentMode: .fill)
+                            } placeholder: {
+                                Circle().fill(Theme.Colors.card)
+                                    .overlay(Image(systemName: "person.fill")
+                                        .font(.appFont(28)).foregroundStyle(Theme.Colors.textTertiary))
+                            }
+                            .frame(width: Theme.scaled(88, min: 72), height: Theme.scaled(88, min: 72))
+                            .clipShape(Circle())
+                            Text(member.name)
+                                .font(.appFont(14, weight: .medium))
+                                .foregroundStyle(Theme.Colors.textPrimary)
+                                .lineLimit(1)
+                            if let character = member.character, !character.isEmpty {
+                                Text(character)
+                                    .font(.appFont(12))
+                                    .foregroundStyle(Theme.Colors.textTertiary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        .frame(width: Theme.scaled(100, min: 84))
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.edge)
+                .padding(.vertical, Theme.Spacing.xs)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func sectionHeader(_ title: String, chevron: Bool = false) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .font(.appFont(24, weight: .bold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+            if chevron {
+                Image(systemName: "chevron.right")
+                    .font(.appFont(18, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+        }
+        .padding(.horizontal, Theme.Spacing.edge)
+    }
+
+    private func fetchExtras() async {
+        guard let tmdb = item.contentID.tmdb, env.tmdb.hasKey else { return }
+        let isMovie = item.contentID.type == .movie
+        async let castResult = try? env.tmdb.cast(tmdbID: tmdb, isMovie: isMovie)
+        async let relatedResult = try? env.tmdb.related(tmdbID: tmdb, isMovie: isMovie)
+        let (c, r) = await (castResult, relatedResult)
+        if let c { cast = c }
+        if let r { related = Array(r.prefix(20)) }
+    }
+}
+
 
 // MARK: - Poster helper
 

@@ -12,7 +12,7 @@ import Foundation
 
 /// A single playable stream option for a piece of content, as surfaced by an
 /// addon. Astra presents a ranked list and the user (or auto-select) picks one.
-struct StreamOption: Identifiable, Codable, Hashable {
+struct StreamOption: Identifiable, Codable, Hashable, Sendable {
     var id: String { "\(addonName)|\(rawTitle)|\(url?.absoluteString ?? infoHash ?? UUID().uuidString)" }
 
     var addonName: String          // which addon produced this (display/grouping)
@@ -85,7 +85,7 @@ struct StreamOption: Identifiable, Codable, Hashable {
     }
 }
 
-struct StreamBehaviorHints: Codable, Hashable {
+struct StreamBehaviorHints: Codable, Hashable, Sendable {
     var bingeGroup: String?        // addons use this to group "play next" sources
     var notWebReady: Bool?
     var filename: String?
@@ -93,7 +93,7 @@ struct StreamBehaviorHints: Codable, Hashable {
 
 // MARK: - Quality
 
-enum StreamQuality: String, Codable, CaseIterable, Hashable {
+enum StreamQuality: String, Codable, CaseIterable, Hashable, Sendable {
     case uhd4k = "4K"
     case fhd1080 = "1080p"
     case hd720 = "720p"
@@ -116,7 +116,7 @@ enum StreamQuality: String, Codable, CaseIterable, Hashable {
 
 // MARK: - Rich media signals
 
-enum HDRFormat: String, Codable, Hashable {
+enum HDRFormat: String, Codable, Hashable, Sendable {
     case dolbyVision = "Dolby Vision"
     case hdr10Plus = "HDR10+"
     case hdr10 = "HDR10"
@@ -134,7 +134,7 @@ enum HDRFormat: String, Codable, Hashable {
     }
 }
 
-enum VideoCodec: String, Codable, Hashable {
+enum VideoCodec: String, Codable, Hashable, Sendable {
     case av1 = "AV1"
     case hevc = "HEVC"          // h.265 / x265
     case avc = "H.264"          // h.264 / x264
@@ -151,7 +151,7 @@ enum VideoCodec: String, Codable, Hashable {
     }
 }
 
-enum AudioFormat: String, Codable, Hashable {
+enum AudioFormat: String, Codable, Hashable, Sendable {
     case atmos = "Atmos"
     case trueHD = "TrueHD"
     case dtsHD = "DTS-HD"
@@ -176,7 +176,7 @@ enum AudioFormat: String, Codable, Hashable {
 }
 
 /// Where a stream physically comes from — drives the source-kind badge.
-enum SourceKind: String, Codable, Hashable {
+enum SourceKind: String, Codable, Hashable, Sendable {
     case localSMB = "Local SMB"
     case cloud = "Cloud"           // debrid / direct cloud URL
     case torrent = "Torrent"
@@ -241,7 +241,7 @@ extension StreamOption {
 
 // MARK: - Subtitles
 
-struct SubtitleTrack: Identifiable, Codable, Hashable {
+struct SubtitleTrack: Identifiable, Codable, Hashable, Sendable {
     var id: String
     var language: String           // ISO code or display name from provider
     var languageDisplay: String
@@ -268,7 +268,7 @@ struct SubtitleTrack: Identifiable, Codable, Hashable {
 
 // MARK: - Skip segments (intro / outro / recap)
 
-enum SkipKind: String, Codable, Hashable {
+enum SkipKind: String, Codable, Hashable, Sendable {
     case intro
     case outro
     case recap
@@ -282,7 +282,7 @@ enum SkipKind: String, Codable, Hashable {
     }
 }
 
-struct SkipSegment: Identifiable, Codable, Hashable {
+struct SkipSegment: Identifiable, Codable, Hashable, Sendable {
     var id: String { "\(kind.rawValue):\(Int(start))" }
     var kind: SkipKind
     var start: TimeInterval

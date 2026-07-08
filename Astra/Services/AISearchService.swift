@@ -37,7 +37,7 @@ final class AISearchService: ObservableObject {
 
     /// The user-configured Worker endpoint. Stored as a plain URL (not a secret) and
     /// synced across devices via iCloud key-value storage.
-    static let workerURLKey = "ai.workerURL"
+    static let workerURLKey = PrefKey.aiWorkerURL
 
     static var workerURLString: String {
         get {
@@ -66,82 +66,71 @@ final class AISearchService: ObservableObject {
     static var isConfigured: Bool { !SafeMode.isOn && workerURL != nil }
 
     private let tmdb: TMDBClient
-    private let session = AppNetworking.shared
 
     init(tmdb: TMDBClient) {
         self.tmdb = tmdb
     }
 
+    // MARK: - Worker fetch + TMDB resolution (shared plumbing)
+
+    /// Sends a query to the Worker and returns raw title strings. The single place
+    /// the Worker is called — search, shelf building, and library search all route
+    /// through here.
+    private func fetchTitles(_ query: String) async throws -> [String] {
+        guard let url = Self.workerURL else { throw AISearchError.notConfigured }
+        let decoded: AIWorkerResponse
+        do {
+            decoded = try await AppNetworking.postJSON(url, body: ["query": query])
+        } catch {
+            AstraLog.network.error("AI Worker request failed: \(error.localizedDescription, privacy: .public)")
+            throw AISearchError.requestFailed
+        }
+        guard !decoded.titles.isEmpty else { throw AISearchError.emptyResponse }
+        return decoded.titles
+    }
+
+    /// Resolves title strings to catalog items via TMDB — in parallel, preserving
+    /// the Worker's order (it is often meaningful, e.g. watch order), deduplicated
+    /// by catalog id. Failures are logged instead of silently swallowed.
+    private func resolve(_ titles: [String], limit: Int) async -> [CatalogItem] {
+        let wanted = Array(titles.prefix(limit))
+        let resolved: [(Int, CatalogItem)] = await withTaskGroup(of: (Int, CatalogItem?).self) { group in
+            for (idx, title) in wanted.enumerated() {
+                group.addTask { [tmdb] in
+                    do {
+                        return (idx, try await tmdb.search(title).first)
+                    } catch {
+                        AstraLog.catalog.error("TMDB resolve failed for AI title: \(error.localizedDescription, privacy: .public)")
+                        return (idx, nil)
+                    }
+                }
+            }
+            var out: [(Int, CatalogItem)] = []
+            for await (idx, item) in group {
+                if let item { out.append((idx, item)) }
+            }
+            return out
+        }
+        var results: [CatalogItem] = []
+        var seen = Set<String>()
+        for (_, item) in resolved.sorted(by: { $0.0 < $1.0 }) {
+            if seen.insert(item.id).inserted { results.append(item) }
+        }
+        return results
+    }
+
     /// Sends a natural-language query to the Worker, gets back title strings, and
     /// resolves them to catalog items via TMDB.
     func search(_ query: String) async throws -> [CatalogItem] {
-        guard let url = Self.workerURL else { throw AISearchError.notConfigured }
-
-        var req = URLRequest(url: url)
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONEncoder().encode(["query": query])
-        req.timeoutInterval = 30
-
-        let titles: [String]
-        do {
-            let (data, response) = try await session.data(for: req)
-            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-                throw AISearchError.requestFailed
-            }
-            let decoded = try JSONDecoder().decode(AIWorkerResponse.self, from: data)
-            titles = decoded.titles
-        } catch let e as AISearchError {
-            throw e
-        } catch {
-            throw AISearchError.requestFailed
-        }
-
-        guard !titles.isEmpty else { throw AISearchError.emptyResponse }
-
-        // Resolve each suggested title to a real catalog item (first TMDB match).
-        var results: [CatalogItem] = []
-        var seen = Set<String>()
-        for title in titles.prefix(20) {
-            if let matches = try? await tmdb.search(title), let first = matches.first {
-                if seen.insert(first.id).inserted { results.append(first) }
-            }
-        }
-        return results
+        let titles = try await fetchTitles(query)
+        return await resolve(titles, limit: 20)
     }
 
     /// Like `search`, but resolves up to `limit` titles — used by the shelf and
     /// playlist builders, which may want a specific count (e.g. a 5-movie lineup).
     func resolveTitles(for prompt: String, limit: Int = 20) async throws -> [CatalogItem] {
-        guard let url = Self.workerURL else { throw AISearchError.notConfigured }
-        var req = URLRequest(url: url)
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONEncoder().encode(["query": prompt])
-        req.timeoutInterval = 30
-
-        let titles: [String]
-        do {
-            let (data, response) = try await session.data(for: req)
-            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-                throw AISearchError.requestFailed
-            }
-            titles = try JSONDecoder().decode(AIWorkerResponse.self, from: data).titles
-        } catch let e as AISearchError {
-            throw e
-        } catch {
-            throw AISearchError.requestFailed
-        }
-        guard !titles.isEmpty else { throw AISearchError.emptyResponse }
-
-        var results: [CatalogItem] = []
-        var seen = Set<String>()
-        for title in titles.prefix(limit) {
-            if let matches = try? await tmdb.search(title), let first = matches.first {
-                if seen.insert(first.id).inserted { results.append(first) }
-            }
-        }
-        return results
+        let titles = try await fetchTitles(prompt)
+        return await resolve(titles, limit: limit)
     }
 
     /// Natural-language search over the user's own library. Asks the Worker to turn the
@@ -150,19 +139,10 @@ final class AISearchService: ObservableObject {
     /// vague library search still does something useful offline.
     func searchLibrary(_ query: String, in items: [MediaItem]) async -> [MediaItem] {
         // Try the Worker first for "vibe"/description queries.
-        if Self.isConfigured, let url = Self.workerURL {
-            var req = URLRequest(url: url)
-            req.httpMethod = "POST"
-            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            if let body = try? JSONEncoder().encode(["query": query]) {
-                req.httpBody = body
-                req.timeoutInterval = 30
-                if let (data, response) = try? await session.data(for: req),
-                   let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
-                   let decoded = try? JSONDecoder().decode(AIWorkerResponse.self, from: data) {
-                    let matched = matchTitles(decoded.titles, against: items)
-                    if !matched.isEmpty { return matched }
-                }
+        if Self.isConfigured {
+            if let titles = try? await fetchTitles(query) {
+                let matched = matchTitles(titles, against: items)
+                if !matched.isEmpty { return matched }
             }
         }
         // Fallback: local keyword match against title/series.
@@ -172,12 +152,13 @@ final class AISearchService: ObservableObject {
     /// Matches AI-suggested title strings against library items (case-insensitive
     /// substring, either direction).
     private func matchTitles(_ titles: [String], against items: [MediaItem]) -> [MediaItem] {
+        // Lowercase every haystack once up front instead of per title x item.
+        let haystacks = items.map { ($0, ($0.seriesTitle ?? $0.title).lowercased()) }
         var out: [MediaItem] = []
         var seen = Set<UUID>()
         for title in titles {
             let needle = title.lowercased()
-            for item in items {
-                let hay = (item.seriesTitle ?? item.title).lowercased()
+            for (item, hay) in haystacks {
                 if (hay.contains(needle) || needle.contains(hay)), seen.insert(item.id).inserted {
                     out.append(item)
                 }

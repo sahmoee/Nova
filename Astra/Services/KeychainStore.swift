@@ -12,6 +12,7 @@ import Security
 enum KeychainError: LocalizedError {
     case unexpectedStatus(OSStatus)
     case dataConversionFailed
+    case itemNotFound
 
     var errorDescription: String? {
         switch self {
@@ -19,6 +20,8 @@ enum KeychainError: LocalizedError {
             return "Keychain operation failed (code \(status))."
         case .dataConversionFailed:
             return "Could not convert the value for secure storage."
+        case .itemNotFound:
+            return "No stored value was found for this account."
         }
     }
 }
@@ -94,6 +97,34 @@ struct KeychainStore {
             return nil
         }
         return value
+    }
+
+    /// Result-returning read that distinguishes "missing" from "broken" instead of
+    /// collapsing both to nil, so callers can log or surface real Keychain failures
+    /// (corruption, entitlement issues) rather than silently treating them as unset.
+    func getResult(_ account: String) -> Result<String, KeychainError> {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny as Any,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        switch status {
+        case errSecSuccess:
+            guard let data = item as? Data,
+                  let value = String(data: data, encoding: .utf8) else {
+                return .failure(.dataConversionFailed)
+            }
+            return .success(value)
+        case errSecItemNotFound:
+            return .failure(.itemNotFound)
+        default:
+            return .failure(.unexpectedStatus(status))
+        }
     }
 
     // MARK: - Delete

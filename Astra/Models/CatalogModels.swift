@@ -11,7 +11,7 @@ import Foundation
 
 // MARK: - Content type
 
-enum ContentType: String, Codable, Hashable {
+enum ContentType: String, Codable, Hashable, Sendable {
     case movie
     case series
     case tv
@@ -35,7 +35,7 @@ enum ContentType: String, Codable, Hashable {
 
 /// A cross-service identity for a piece of content. Stremio addons key on IMDB
 /// ids (tt…); TMDB and Trakt use their own numeric ids. We carry all we know.
-struct ContentID: Codable, Hashable {
+struct ContentID: Codable, Hashable, Sendable {
     var imdb: String?      // e.g. "tt0903747"
     var tmdb: Int?
     var trakt: Int?
@@ -67,7 +67,7 @@ struct ContentID: Codable, Hashable {
 
 // MARK: - Catalog item (a movie or a series shell)
 
-struct CatalogItem: Identifiable, Codable, Hashable {
+struct CatalogItem: Identifiable, Codable, Hashable, Sendable {
     var id: String { contentID.stableKey }
 
     var contentID: ContentID
@@ -120,7 +120,7 @@ struct CatalogItem: Identifiable, Codable, Hashable {
 
 // MARK: - Season
 
-struct SeasonInfo: Identifiable, Codable, Hashable {
+struct SeasonInfo: Identifiable, Codable, Hashable, Sendable {
     var id: Int { number }
     var number: Int
     var name: String?
@@ -137,7 +137,7 @@ struct SeasonInfo: Identifiable, Codable, Hashable {
 
 // MARK: - Episode
 
-struct EpisodeInfo: Identifiable, Codable, Hashable {
+struct EpisodeInfo: Identifiable, Codable, Hashable, Sendable {
     var id: String { "\(season)x\(number)" }
     var season: Int
     var number: Int

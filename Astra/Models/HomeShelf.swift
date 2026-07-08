@@ -11,7 +11,7 @@ import Foundation
 import Combine
 
 /// A kind of shelf the app can render. Each case maps to a data source.
-enum ShelfKind: Codable, Hashable {
+enum ShelfKind: Codable, Hashable, Sendable {
     case traktWatchlist
     case traktTrendingShows
     case tmdbTrending          // movies
@@ -65,10 +65,24 @@ enum ShelfKind: Codable, Hashable {
         default: return true
         }
     }
+
+    /// Stable identity for caching this shelf's contents (in-memory, on disk, and
+    /// anywhere else a per-shelf key is needed).
+    var cacheKey: String {
+        switch self {
+        case .addonCatalog(let a, let t, let c): return "addon:\(a):\(t):\(c)"
+        case .aiShelf(let prompt): return "ai:\(prompt)"
+        default: return String(describing: self)
+        }
+    }
+}
+
+extension ShelfKind: CustomStringConvertible {
+    var description: String { cacheKey }
 }
 
 /// A configured shelf: its kind, a display title, and whether it's enabled.
-struct ShelfConfig: Codable, Hashable, Identifiable {
+struct ShelfConfig: Codable, Hashable, Identifiable, Sendable {
     var id: UUID = UUID()
     var kind: ShelfKind
     var title: String
@@ -91,28 +105,22 @@ final class HomeShelfStore: ObservableObject {
         didSet { persist() }
     }
 
-    private let key = "home.shelves.v1"
+    private let backing = CloudBackedStore<[ShelfConfig]>(key: PrefKey.homeShelves)
     private var isApplyingRemote = false
     private var cancellable: AnyCancellable?
 
     private init() {
         // Prefer an iCloud value, then a local one, then defaults.
-        if let data = CloudSync.shared.data(forKey: key) ?? UserDefaults.standard.data(forKey: key),
-           let decoded = try? JSONDecoder().decode([ShelfConfig].self, from: data),
-           !decoded.isEmpty {
+        if let decoded = backing.load(), !decoded.isEmpty {
             shelves = decoded
         } else {
             shelves = HomeShelfStore.defaults
         }
 
         // Apply changes made on other devices in real time.
-        cancellable = CloudSync.shared.externalChange
-            .receive(on: RunLoop.main)
-            .sink { [weak self] changedKeys in
-                guard let self, changedKeys.contains(self.key) else { return }
-                guard let data = CloudSync.shared.data(forKey: self.key),
-                      let decoded = try? JSONDecoder().decode([ShelfConfig].self, from: data)
-                else { return }
+        cancellable = backing.externalChange
+            .sink { [weak self] decoded in
+                guard let self else { return }
                 self.isApplyingRemote = true
                 self.shelves = decoded
                 self.isApplyingRemote = false
@@ -144,10 +152,8 @@ final class HomeShelfStore: ObservableObject {
     private func persist() {
         // Don't write back a change we just received from iCloud (avoids a loop).
         guard !isApplyingRemote else { return }
-        if let data = try? JSONEncoder().encode(shelves) {
-            UserDefaults.standard.set(data, forKey: key)
-            CloudSync.shared.setData(data, forKey: key)
-            CloudSync.shared.flush()
-        }
+        // Local write is immediate; the iCloud push is debounced by the backing
+        // store so reorder/toggle bursts produce one network write.
+        backing.persist(shelves)
     }
 }

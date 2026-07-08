@@ -54,14 +54,8 @@ actor OMDbClient {
             URLQueryItem(name: "tomatoes", value: "true")
         ]
         guard let url = comps.url else { return ExternalRatings() }
-        var req = URLRequest(url: url)
-        req.timeoutInterval = 20
         do {
-            let (data, response) = try await session.data(for: req)
-            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-                return ExternalRatings()
-            }
-            let decoded = try JSONDecoder().decode(OMDbResponse.self, from: data)
+            let decoded: OMDbResponse = try await AppNetworking.getJSON(url)
             return decoded.toExternalRatings()
         } catch {
             AstraLog.network.error("OMDb request failed: \(error.localizedDescription, privacy: .public)")

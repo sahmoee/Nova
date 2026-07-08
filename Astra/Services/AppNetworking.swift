@@ -38,4 +38,39 @@ enum AppNetworking {
 
         return URLSession(configuration: config)
     }()
+
+    // MARK: - Shared request helpers
+
+    enum RequestError: Error { case badStatus(Int) }
+
+    /// GETs a URL and decodes JSON — the request/status-check/decode boilerplate
+    /// previously reimplemented by each API client.
+    static func getJSON<T: Decodable>(_ url: URL,
+                                      timeout: TimeInterval = 20,
+                                      decoder: JSONDecoder = Coders.decoder) async throws -> T {
+        var req = URLRequest(url: url)
+        req.timeoutInterval = timeout
+        let (data, response) = try await shared.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw RequestError.badStatus(http.statusCode)
+        }
+        return try decoder.decode(T.self, from: data)
+    }
+
+    /// POSTs an Encodable JSON body and decodes the JSON response.
+    static func postJSON<Body: Encodable, T: Decodable>(_ url: URL,
+                                                        body: Body,
+                                                        timeout: TimeInterval = 30,
+                                                        decoder: JSONDecoder = Coders.decoder) async throws -> T {
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try Coders.encoder.encode(body)
+        req.timeoutInterval = timeout
+        let (data, response) = try await shared.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw RequestError.badStatus(http.statusCode)
+        }
+        return try decoder.decode(T.self, from: data)
+    }
 }

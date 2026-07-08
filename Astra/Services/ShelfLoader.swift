@@ -45,7 +45,10 @@ final class ShelfLoader {
         if let cached = await cache.value(for: key) {
             pool = cached
         } else {
-            let result = await load(shelf.kind)
+            // Signposted so shelf load latency is visible in Instruments per shelf.
+            let result = await Signposts.measure(Signposts.shelf, "shelf.load") {
+                await load(shelf.kind)
+            }
             if !result.isEmpty {
                 await cache.set(result, for: key)
                 // Persist to disk so this shelf survives a restart and shows offline.
@@ -72,13 +75,9 @@ final class ShelfLoader {
         }
     }
 
-    private func cacheKey(for kind: ShelfKind) -> String {
-        switch kind {
-        case .addonCatalog(let a, let t, let c): return "addon:\(a):\(t):\(c)"
-        case .aiShelf(let prompt): return "ai:\(prompt)"
-        default: return String(describing: kind)
-        }
-    }
+    /// Cache identity now lives on ShelfKind itself (single source of truth shared
+    /// with anything else that needs a stable per-shelf key).
+    private func cacheKey(for kind: ShelfKind) -> String { kind.cacheKey }
 
     private func load(_ kind: ShelfKind) async -> [CatalogItem] {
         switch kind {
