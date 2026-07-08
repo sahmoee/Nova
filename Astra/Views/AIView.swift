@@ -28,6 +28,7 @@ struct AIView: View {
     @State private var libraryResults: [MediaItem] = []
     @State private var state: ViewState = .idle
     @State private var lastPrompt = ""
+    @State private var savedMessage: String?
     @State private var playerItem: MediaItem?
     @FocusState private var promptFocused: Bool
 
@@ -109,6 +110,11 @@ struct AIView: View {
                             activeFeatureHeader
                             promptField
                             suggestionChips
+                            if let savedMessage {
+                                Label(savedMessage, systemImage: "checkmark.circle.fill")
+                                    .font(.appFont(15, weight: .medium))
+                                    .foregroundStyle(Theme.Colors.accent)
+                            }
                             resultsSection
                         }
                     }
@@ -174,23 +180,6 @@ struct AIView: View {
     /// well-organized list instead of an endless row of chips.
     private var featureMenu: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-            // Jump back into the last-used feature without hunting through groups.
-            if let raw = UserDefaults.standard.string(forKey: PrefKey.aiLastFeature),
-               let recent = AISearchService.Capability(rawValue: raw) {
-                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                    Label("Jump Back In", systemImage: "clock.arrow.circlepath")
-                        .font(.appFont(21, weight: .semibold))
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                    LazyVGrid(columns: featureColumns, spacing: Theme.Spacing.md) {
-                        Button {
-                            select(recent)
-                        } label: {
-                            featureCard(recent)
-                        }
-                        .buttonStyle(AstraChipButtonStyle())
-                    }
-                }
-            }
             ForEach(AISearchService.Capability.Category.allCases) { category in
                 let caps = AISearchService.Capability.allCases.filter { $0.category == category }
                 VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
@@ -237,7 +226,6 @@ struct AIView: View {
 
     private func select(_ cap: AISearchService.Capability) {
         capability = cap
-        UserDefaults.standard.set(cap.rawValue, forKey: PrefKey.aiLastFeature)
         resetResults()
         browsing = false
         // Surprise Me needs no prompt at all — run it immediately.
@@ -331,9 +319,6 @@ struct AIView: View {
                                 catalogCard(item)
                             }
                             .buttonStyle(.plain)
-                            .overlay(alignment: .topTrailing) {
-                                quickAddButton(item)
-                            }
                         }
                     }
                 } else {
@@ -428,27 +413,10 @@ struct AIView: View {
         }
     }
 
-    /// One-tap add for a single AI result, without opening its detail screen.
-    private func quickAddButton(_ item: CatalogItem) -> some View {
-        Button {
-            library.add(item.asLibraryItem())
-            ToastCenter.shared.show("Added “\(item.title)”")
-        } label: {
-            Image(systemName: "plus.circle.fill")
-                .font(.appFont(26, weight: .semibold))
-                .symbolRenderingMode(.palette)
-                .foregroundStyle(.white, Theme.Colors.accent)
-                .shadow(color: .black.opacity(0.5), radius: 4)
-        }
-        .buttonStyle(.plain)
-        .padding(6)
-        .accessibilityLabel("Add \(item.title) to library")
-    }
-
     // MARK: - Actions
 
     private func resetResults() {
-        catalogResults = []; libraryResults = []; state = .idle; lastPrompt = ""
+        catalogResults = []; libraryResults = []; state = .idle; lastPrompt = ""; savedMessage = nil
         prompt = ""
     }
 
@@ -458,6 +426,7 @@ struct AIView: View {
         guard !q.isEmpty || capability == .surpriseMe else { return }
         promptFocused = false
         lastPrompt = q
+        savedMessage = nil
         state = .working
         Task {
             if capability.searchesLibrary {
@@ -538,7 +507,7 @@ struct AIView: View {
         HomeShelfStore.shared.shelves.append(
             ShelfConfig(kind: .aiShelf(prompt: shelfPrompt), title: name)
         )
-        ToastCenter.shared.show("Added “\(name)” to Home")
+        savedMessage = "Added “\(name)” to Home. Manage it anytime in Customize Home."
     }
 
     private func saveAsCollection() {
@@ -548,13 +517,13 @@ struct AIView: View {
             library.add(item)
             library.addToCollection(collection.id, item: item)
         }
-        ToastCenter.shared.show("Saved \(catalogResults.count) to “\(name)”")
+        savedMessage = "Saved \(catalogResults.count) to the “\(name)” collection."
     }
 
     private func addAllToLibrary() {
         let items = resultItems()
         for item in items { library.add(item) }
-        ToastCenter.shared.show("Added \(items.count) to your library")
+        savedMessage = "Added \(items.count) to your library."
     }
 
     private func queueAll() {
@@ -563,6 +532,6 @@ struct AIView: View {
             library.add(item)
             library.addToQueue(item)
         }
-        ToastCenter.shared.show("Queued \(items.count) title\(items.count == 1 ? "" : "s")")
+        savedMessage = "Queued \(items.count) title\(items.count == 1 ? "" : "s")."
     }
 }

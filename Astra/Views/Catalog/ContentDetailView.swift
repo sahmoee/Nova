@@ -28,7 +28,6 @@ struct ContentDetailView: View {
     @State private var newCollectionName = ""
     @State private var cast: [CastMember] = []
     @State private var related: [CatalogItem] = []
-    @State private var extrasLoading = false
 
     init(item: CatalogItem) {
         self.initialItem = item
@@ -58,10 +57,6 @@ struct ContentDetailView: View {
 
                     if !related.isEmpty {
                         relatedSection
-                            .frame(width: proxy.size.width, alignment: .leading)
-                    } else if extrasLoading {
-                        // Skeleton row so Related doesn't pop in after the fact.
-                        extrasSkeletonRow
                             .frame(width: proxy.size.width, alignment: .leading)
                     }
 
@@ -985,31 +980,7 @@ private extension ContentDetailView {
         .padding(.horizontal, Theme.Spacing.edge)
     }
 
-    var extrasSkeletonRow: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Theme.Colors.card)
-                .frame(width: 140, height: 22)
-                .shimmering()
-                .padding(.horizontal, Theme.Spacing.edge)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Theme.Spacing.md) {
-                    ForEach(0..<5, id: \.self) { _ in
-                        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                            .fill(Theme.Colors.card)
-                            .frame(width: Theme.CardSize.posterWidth * 0.8,
-                                   height: Theme.CardSize.posterWidth * 0.8 * 1.5)
-                            .shimmering()
-                    }
-                }
-                .padding(.horizontal, Theme.Spacing.edge)
-            }
-        }
-    }
-
     private func fetchExtras() async {
-        extrasLoading = true
-        defer { extrasLoading = false }
         guard let tmdb = item.contentID.tmdb, env.tmdb.hasKey else { return }
         let isMovie = item.contentID.type == .movie
         async let castResult = try? env.tmdb.cast(tmdbID: tmdb, isMovie: isMovie)

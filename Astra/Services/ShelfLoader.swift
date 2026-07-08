@@ -30,12 +30,6 @@ final class ShelfLoader {
         self.addonStore = addonStore
     }
 
-    /// Drops the in-memory shelf cache so the next load hits the network (used by
-    /// pull-to-refresh). The offline disk cache is kept as a fallback.
-    func clearCache() async {
-        await cache.removeAll()
-    }
-
     func items(for shelf: ShelfConfig) async -> [CatalogItem] {
         await items(for: shelf, variant: .home)
     }
