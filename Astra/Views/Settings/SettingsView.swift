@@ -218,8 +218,6 @@ struct SettingsView: View {
                       options: SourceKindPreference.allCases,
                       label: { $0.displayName })
 
-            sourcePriorityRows
-
             pickerRow("Max File Size", systemImage: "internaldrive",
                       selection: $settings.maxStreamSizeGB,
                       options: [0, 5, 10, 15, 20, 30, 50, 80],
@@ -269,70 +267,6 @@ struct SettingsView: View {
         }
         .padding(Theme.Spacing.md)
         .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-    }
-
-    /// Reorderable source fallback chain (57): earlier kinds are preferred by the
-    /// stream ranker. Kept compact: up/down arrows instead of a drag list.
-    private var sourcePriorityRows: some View {
-        let kinds: [SourceKind] = [.cloud, .torrent, .localSMB, .directURL]
-        let current = settings.sourceKindPriority.compactMap(SourceKind.init(rawValue:))
-        let ordered = current.isEmpty ? kinds : current + kinds.filter { !current.contains($0) }
-        return VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Text("Source Priority")
-                .font(.appFont(17, weight: .semibold))
-                .foregroundStyle(Theme.Colors.textSecondary)
-            ForEach(Array(ordered.enumerated()), id: \.element) { index, kind in
-                HStack {
-                    Text("\(index + 1).")
-                        .font(.appFont(16, weight: .bold))
-                        .foregroundStyle(Theme.Colors.textTertiary)
-                        .frame(width: 26, alignment: .leading)
-                    Text(sourceKindLabel(kind))
-                        .font(.appFont(18))
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                    Spacer()
-                    Button {
-                        moveSourcePriority(kind, up: true, in: ordered)
-                    } label: {
-                        Image(systemName: "chevron.up").font(.appFont(15, weight: .semibold))
-                    }
-                    .buttonStyle(AstraChipButtonStyle())
-                    .disabled(index == 0)
-                    Button {
-                        moveSourcePriority(kind, up: false, in: ordered)
-                    } label: {
-                        Image(systemName: "chevron.down").font(.appFont(15, weight: .semibold))
-                    }
-                    .buttonStyle(AstraChipButtonStyle())
-                    .disabled(index == ordered.count - 1)
-                }
-                .padding(.vertical, 2)
-            }
-            Text("Streams from higher sources rank first when quality is comparable.")
-                .font(.appFont(13))
-                .foregroundStyle(Theme.Colors.textTertiary)
-        }
-        .padding(.vertical, Theme.Spacing.xs)
-    }
-
-    private func sourceKindLabel(_ kind: SourceKind) -> String {
-        switch kind {
-        case .cloud:     return "Cloud (Debrid)"
-        case .torrent:   return "Torrent"
-        case .localSMB:  return "SMB / Local"
-        case .directURL: return "Direct URL"
-        case .liveTV:    return "Live TV"
-        case .unknown:   return "Other"
-        }
-    }
-
-    private func moveSourcePriority(_ kind: SourceKind, up: Bool, in ordered: [SourceKind]) {
-        var list = ordered
-        guard let idx = list.firstIndex(of: kind) else { return }
-        let target = up ? idx - 1 : idx + 1
-        guard list.indices.contains(target) else { return }
-        list.swapAt(idx, target)
-        settings.sourceKindPriority = list.map(\.rawValue)
     }
 
     private var playbackSection: some View {

@@ -71,15 +71,10 @@ struct LiveTVView: View {
             Text(errorMessage ?? "")
         }
         .onAppear(perform: loadSources)
-        .task {
-            await env.liveTVSources.refreshAll()
-            await loadEPG()
-        }
+        .task { await env.liveTVSources.refreshAll() }
     }
 
     @State private var channelFilter = ""
-    /// tvg-id -> current programme title, refreshed when the screen loads guides.
-    @State private var nowPlaying: [String: String] = [:]
 
     @ViewBuilder private var playlistChannelsSection: some View {
         let channels = env.liveTVSources.allChannels
@@ -161,31 +156,9 @@ struct LiveTVView: View {
                     .font(.appFont(13, weight: .medium))
                     .foregroundStyle(Theme.Colors.textPrimary)
                     .lineLimit(1)
-                // Now-playing line from the source's XMLTV guide, when available.
-                if let tvgID = channel.tvgID, let current = nowPlaying[tvgID] {
-                    Text(current)
-                        .font(.appFont(11))
-                        .foregroundStyle(Theme.Colors.textTertiary)
-                        .lineLimit(1)
-                }
             }
         }
         .buttonStyle(AstraListRowStyle())
-    }
-
-    /// Loads every enabled source's XMLTV guide and resolves the current programme
-    /// for each channel that carries a tvg-id.
-    private func loadEPG() async {
-        let sources = env.liveTVSources.sources.filter { $0.isEnabled && $0.epgURL != nil }
-        guard !sources.isEmpty else { return }
-        for source in sources {
-            if let raw = source.epgURL, let url = URL(string: raw) {
-                await EPGService.shared.loadGuide(from: url)
-            }
-        }
-        let ids = env.liveTVSources.allChannels.compactMap(\.tvgID)
-        guard !ids.isEmpty else { return }
-        nowPlaying = await EPGService.shared.nowPlaying(tvgIDs: ids)
     }
 
     private func channelSection(_ source: (addon: InstalledAddon, catalog: AddonCatalogRef)) -> some View {

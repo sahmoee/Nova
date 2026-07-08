@@ -82,6 +82,7 @@ struct CollectionsView: View {
                presenting: pendingDelete) { collection in
             Button("Delete “\(collection.name)”", role: .destructive) {
                 library.deleteCollection(collection.id)
+                Haptics.play(.success)
                 pendingDelete = nil
                 if library.collections.isEmpty { editing = false }
             }
@@ -139,9 +140,18 @@ struct CollectionsView: View {
                 RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                     .fill(Theme.Colors.card)
                     .aspectRatio(1.6, contentMode: .fit)
-                Image(systemName: collection.systemImage)
-                    .font(.appFont(44, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.accent)
+                // A montage of up to four posters from the collection's contents;
+                // empty collections keep the symbol placeholder.
+                let posters = montagePosters(for: collection)
+                if posters.isEmpty {
+                    Image(systemName: collection.systemImage)
+                        .font(.appFont(44, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.accent)
+                } else {
+                    montage(posters)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card,
+                                                    style: .continuous))
+                }
             }
             Text(collection.name)
                 .font(.appFont(20, weight: .semibold))
@@ -158,6 +168,43 @@ struct CollectionsView: View {
                 Label("Delete Collection", systemImage: "trash")
             }
         }
+    }
+
+    /// Poster URLs for a collection's montage tile (up to four).
+    private func montagePosters(for collection: MediaCollection) -> [URL] {
+        Array(library.items(in: collection).compactMap(\.posterURL).prefix(4))
+    }
+
+    /// A 2x2 (or fewer) grid of posters filling the tile.
+    private func montage(_ urls: [URL]) -> some View {
+        GeometryReader { geo in
+            let cols = urls.count >= 2 ? 2 : 1
+            let rows = urls.count >= 3 ? 2 : 1
+            let w = geo.size.width / CGFloat(cols)
+            let h = geo.size.height / CGFloat(rows)
+            VStack(spacing: 1) {
+                ForEach(0..<rows, id: \.self) { r in
+                    HStack(spacing: 1) {
+                        ForEach(0..<cols, id: \.self) { c in
+                            let idx = r * cols + c
+                            if idx < urls.count {
+                                CachedAsyncImage(url: urls[idx], maxPixel: 400) { image in
+                                    image.resizable().aspectRatio(contentMode: .fill)
+                                } placeholder: {
+                                    Rectangle().fill(Theme.Colors.card)
+                                }
+                                .frame(width: w, height: h)
+                                .clipped()
+                            } else {
+                                Rectangle().fill(Theme.Colors.card)
+                                    .frame(width: w, height: h)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .aspectRatio(1.6, contentMode: .fit)
     }
 
     /// The red delete button shown on each tile while editing. Deletion always
