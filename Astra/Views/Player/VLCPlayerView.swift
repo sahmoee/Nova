@@ -20,6 +20,9 @@ struct VLCPlayerView: View {
     var series: CatalogItem?
     /// Called when the stream link itself is dead so the picker can fail over.
     var onStreamExpired: (() -> Void)?
+    /// When true (from the minimized Now Playing bar), skip the Resume/Start Over
+    /// prompt and continue the same stream at the saved position with no prompt.
+    var autoResume: Bool = false
 
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var progress: PlaybackProgressStore
@@ -52,10 +55,12 @@ struct VLCPlayerView: View {
     }
     #endif
 
-    init(item: MediaItem, series: CatalogItem? = nil, onStreamExpired: (() -> Void)? = nil) {
+    init(item: MediaItem, series: CatalogItem? = nil,
+         onStreamExpired: (() -> Void)? = nil, autoResume: Bool = false) {
         self.item = item
         self.series = series
         self.onStreamExpired = onStreamExpired
+        self.autoResume = autoResume
         _model = StateObject(wrappedValue: VLCPlayerModel(item: item))
     }
 
@@ -135,7 +140,7 @@ struct VLCPlayerView: View {
                         .onTapGesture { revealControls() }
                         .onPlayPauseCommand { model.togglePlayPause() }
                         .onAppear { surfaceFocused = true }
-                        .onExitCommand { model.stopAndSave(); dismiss() }
+                        .onExitCommand { model.minimizeAndSave(); dismiss() }
                 }
                 #endif
             case .failed(let message):
@@ -160,7 +165,7 @@ struct VLCPlayerView: View {
                 hasStarted = true
                 // If there's saved progress, ask Resume or Start Over before starting;
                 // otherwise begin immediately.
-                if let pos = model.savedResumePosition {
+                if !autoResume, let pos = model.savedResumePosition {
                     resumePromptPosition = pos
                 } else {
                     model.start()
@@ -169,7 +174,7 @@ struct VLCPlayerView: View {
             scheduleHideControls()
             Task { await prepareNextEpisode() }
         }
-        .onDisappear { model.stopAndSave(); hideControlsTask?.cancel() }
+        .onDisappear { model.minimizeAndSave(); hideControlsTask?.cancel() }
         .overlay {
             if let pos = resumePromptPosition {
                 resumeRestartPrompt(position: pos)
@@ -348,10 +353,23 @@ struct VLCPlayerView: View {
     /// The shared top control cluster (close), reused by the native overlay so both
     /// styles expose the same top action.
     private var topBar: some View {
-        HStack {
-            Button { model.stopAndSave(); dismiss() } label: {
-                Image(systemName: "xmark")
+        HStack(spacing: Theme.Spacing.sm) {
+            // Minimize: leave the player but keep the session so the floating bar can
+            // resume it. Does NOT end playback — that's what the Stop button is for.
+            Button { model.minimizeAndSave(); dismiss() } label: {
+                Image(systemName: "chevron.down")
                     .font(.appFont(22, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(Theme.Spacing.md)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Minimize")
+
+            // Explicit Stop: fully ends playback and clears the now-playing bar.
+            Button { model.stopAndSave(); dismiss() } label: {
+                Image(systemName: "stop.fill")
+                    .font(.appFont(20, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(Theme.Spacing.md)
                     .background(.ultraThinMaterial, in: Circle())
@@ -388,10 +406,20 @@ struct VLCPlayerView: View {
             // Top edge: only the close button, padded well below the status bar and
             // Dynamic Island so it is always tappable. All secondary actions moved to
             // the bottom More menu, which is reachable on every device.
-            HStack {
-                Button { model.stopAndSave(); dismiss() } label: {
-                    Image(systemName: "xmark")
+            HStack(spacing: Theme.Spacing.sm) {
+                Button { model.minimizeAndSave(); dismiss() } label: {
+                    Image(systemName: "chevron.down")
                         .font(.appFont(22, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(Theme.Spacing.md)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Minimize")
+
+                Button { model.stopAndSave(); dismiss() } label: {
+                    Image(systemName: "stop.fill")
+                        .font(.appFont(20, weight: .semibold))
                         .foregroundStyle(.white)
                         .padding(Theme.Spacing.md)
                         .background(.ultraThinMaterial, in: Circle())

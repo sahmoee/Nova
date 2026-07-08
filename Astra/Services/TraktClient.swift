@@ -33,6 +33,19 @@ enum TraktError: LocalizedError {
     }
 }
 
+/// The real, validated state of a service connection. Distinguishes "we have a
+/// token string" from "the token actually works", so the UI never shows Connected
+/// for an expired/revoked login. Used by Trakt (and mirrored by other services).
+enum ConnectionStatus: Equatable {
+    case notConfigured   // no client credentials set
+    case disconnected    // configured but no token
+    case connected(name: String?)
+    case expired         // token present but rejected/unrefreshable
+    case error(String)   // network or other failure while validating
+
+    var isUsable: Bool { if case .connected = self { return true } else { return false } }
+}
+
 actor TraktClient {
 
     private static let base = URL(string: "https://api.trakt.tv")!
@@ -135,6 +148,35 @@ actor TraktClient {
         let settings: TraktSettingsResponse = try await authedGet("users/settings")
         guard let user = settings.user else { throw TraktError.decoding(NSError(domain: "trakt", code: 0)) }
         return user
+    }
+
+    /// Publicly refresh the access token if a refresh token is available. Returns
+    /// whether a usable access token exists afterward. Called after a backup restore
+    /// so a restored (possibly-expired) token is renewed before first use.
+    @discardableResult
+    func refreshIfNeeded() async -> Bool {
+        if config.value(for: .traktAccessToken)?.isEmpty == false { return true }
+        return await refreshTokenIfPossible()
+    }
+
+    /// Live connection check: never trusts the mere presence of a token. If a token
+    /// exists we hit users/settings; on 401 we refresh once and retry. The result
+    /// tells the UI exactly what to show (Connected / Expired / Error).
+    func validateConnection() async -> ConnectionStatus {
+        guard isConfigured else { return .notConfigured }
+        guard config.value(for: .traktAccessToken)?.isEmpty == false else { return .disconnected }
+        do {
+            let user = try await currentUser()
+            return .connected(name: user.username)
+        } catch TraktError.notAuthenticated, TraktError.http(401), TraktError.http(403) {
+            // authedGet already tried a refresh-and-retry before surfacing these, so
+            // reaching here means the stored token can't be renewed: it's expired.
+            return .expired
+        } catch let TraktError.network(err) {
+            return .error(err.localizedDescription)
+        } catch {
+            return .error((error as? LocalizedError)?.errorDescription ?? "Couldn't reach Trakt.")
+        }
     }
 
     /// The user's watchlist as catalog items.

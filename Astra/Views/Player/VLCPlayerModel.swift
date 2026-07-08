@@ -149,6 +149,23 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         #endif
     }
 
+    /// The user left the player screen without explicitly stopping. Save position and
+    /// stop the pipeline, but keep the Now Playing / Resume bar (minimize) so they can
+    /// jump back in. Tapping the bar reopens the player and resumes from saved time.
+    func minimizeAndSave() {
+        guard isActive else { return }
+        isActive = false
+        PlaybackCoordinator.shared.resign(self)
+        saveTask?.cancel(); saveTask = nil
+        saveProgress()
+        scrobble(.pause)
+        NowPlayingStore.shared.minimize()
+        #if canImport(VLCKitSPM)
+        mediaPlayer.stop()
+        mediaPlayer.delegate = nil
+        #endif
+    }
+
     // MARK: - Controls
 
     func togglePlayPause() {

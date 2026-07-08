@@ -256,6 +256,16 @@ actor TMDBClient {
 
         // Show detail for season list.
         let show: TMDBShow = try await get("tv/\(tmdb)")
+
+        // Fill in metadata the source may have omitted (Trakt/addon/AI items often
+        // arrive with just a title + ids). Only fill when missing so richer data from
+        // the original source is preserved.
+        if result.overview?.isEmpty ?? true { result.overview = show.overview }
+        if result.posterURL == nil { result.posterURL = TMDBImage.poster(show.posterPath) }
+        if result.backdropURL == nil { result.backdropURL = TMDBImage.backdrop(show.backdropPath) }
+        if result.year == nil { result.year = show.year }
+        if result.rating == nil { result.rating = show.voteAverage }
+
         let seasonNumbers = (show.seasons ?? [])
             .compactMap { $0.seasonNumber }
             .filter { $0 >= 0 }
@@ -302,6 +312,21 @@ actor TMDBClient {
         // Fill in the IMDB id from TMDB if we have the TMDB id but not the IMDB one.
         if let tmdb = result.contentID.tmdb, result.contentID.imdb == nil {
             result.contentID.imdb = try? await movieIMDBID(tmdbID: tmdb)
+        }
+
+        // Fetch the full movie detail so the description and artwork are present even
+        // when the item came from a lightweight source (Trakt list, addon catalog, AI
+        // result, or a poster-only shelf). Only fill fields that are missing so we
+        // never overwrite richer data the source already provided.
+        if let tmdb = result.contentID.tmdb,
+           (result.overview?.isEmpty ?? true) || result.posterURL == nil || result.year == nil {
+            if let detail: TMDBMovie = try? await get("movie/\(tmdb)") {
+                if result.overview?.isEmpty ?? true { result.overview = detail.overview }
+                if result.posterURL == nil { result.posterURL = TMDBImage.poster(detail.posterPath) }
+                if result.backdropURL == nil { result.backdropURL = TMDBImage.backdrop(detail.backdropPath) }
+                if result.year == nil { result.year = detail.year }
+                if result.rating == nil { result.rating = detail.voteAverage }
+            }
         }
         return result
     }

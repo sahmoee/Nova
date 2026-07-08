@@ -230,7 +230,7 @@ struct StreamPickerView: View {
                         }
                     }
                 } else {
-                    ForEach(filteredStreams) { stream in
+                    ForEach(streamsPreviousFirst) { stream in
                         streamRow(stream, labels: streamLabels[stream.id] ?? [])
                     }
                 }
@@ -276,6 +276,19 @@ struct StreamPickerView: View {
         }
     }
 
+    /// filteredStreams with the previously-used stream pulled to the front, for the
+    /// flat (ungrouped) list. Grouped mode gets its own "Continue" section instead.
+    private var streamsPreviousFirst: [StreamOption] {
+        guard let prevID = previousEntry?.stream.id,
+              let idx = filteredStreams.firstIndex(where: { $0.id == prevID }) else {
+            return filteredStreams
+        }
+        var list = filteredStreams
+        let prev = list.remove(at: idx)
+        list.insert(prev, at: 0)
+        return list
+    }
+
     /// "Best Match" superlative labels (Best Overall, Fastest Start, etc.), computed
     /// across the full stream set using the user's preferences and keyed by stream id.
     private var streamLabels: [String: [StreamRanker.StreamLabel]] {
@@ -289,9 +302,15 @@ struct StreamPickerView: View {
         let order: [SourceKind] = [.cloud, .torrent, .localSMB, .directURL, .liveTV, .unknown]
         let grouped = Dictionary(grouping: filteredStreams, by: { $0.sourceKind })
         var result: [(String, [StreamOption])] = []
+        // Continue: the exact stream last used for this title, surfaced at the very
+        // top as a one-tap resume.
+        if let prevID = previousEntry?.stream.id,
+           let prev = filteredStreams.first(where: { $0.id == prevID }) {
+            result.append(("Continue where you left off", [prev]))
+        }
         // Recommended: the top few streams overall (already rank-sorted in
         // filteredStreams), surfaced first so the best pick is immediate.
-        let recommended = Array(filteredStreams.prefix(3))
+        let recommended = Array(filteredStreams.prefix(3)).filter { $0.id != previousEntry?.stream.id }
         if !recommended.isEmpty {
             result.append(("Recommended", recommended))
         }
@@ -474,6 +493,25 @@ struct StreamPickerView: View {
         .buttonStyle(.plain)
     }
 
+    /// The remembered stream entry for this movie/episode, if any.
+    private var previousEntry: StreamHistoryEntry? {
+        StreamHistoryStore.shared.entry(catalogKey: catalog.contentID.stableKey, episode: epRef)
+    }
+
+    /// A pill marking the stream the user last played, with a relative "Used … ago".
+    private func previousUsedBadge(_ date: Date) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: "clock.arrow.circlepath")
+            Text(StreamHistoryStore.usedAgoText(date))
+        }
+        .font(.appFont(13, weight: .semibold))
+        .foregroundStyle(Theme.Colors.accent)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(Theme.Colors.accent.opacity(0.15)))
+        .overlay(Capsule().strokeBorder(Theme.Colors.accent.opacity(0.5), lineWidth: 1))
+    }
+
     private func streamRow(_ stream: StreamOption, labels: [StreamRanker.StreamLabel]) -> some View {
         Button { Task { await play(stream) } } label: {
             HStack(spacing: Theme.Spacing.md) {
@@ -495,6 +533,11 @@ struct StreamPickerView: View {
                     .foregroundStyle(.white)
 
                 VStack(alignment: .leading, spacing: 6) {
+                    // "Previously used" marker: if this is the exact stream the user
+                    // last played for this title, show when — e.g. "Used 6 hrs ago".
+                    if let entry = previousEntry, entry.stream.id == stream.id {
+                        previousUsedBadge(entry.lastUsed)
+                    }
                     // Best-match labels (Best Overall, Fastest Start, etc.). Uses a
                     // wrapping layout so multiple labels flow onto new lines instead of
                     // being squeezed into vertical text.
@@ -510,7 +553,8 @@ struct StreamPickerView: View {
                     Text(stream.rawTitle)
                         .font(.appFont(20, weight: .medium))
                         .foregroundStyle(Theme.Colors.textPrimary)
-                        .lineLimit(2)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
                     // "Why this stream?" — a plain-language reason line for the top pick.
                     if labels.contains(.bestOverall) {
                         let reasons = StreamRanker.explain(stream, preferences: settings.streamPreferences)
@@ -544,7 +588,8 @@ struct StreamPickerView: View {
                         .foregroundStyle(Theme.Colors.accent)
                 }
             }
-            .padding(.vertical, Theme.Spacing.xs)
+            .padding(.vertical, Theme.Spacing.sm)
+            .frame(minHeight: Theme.minTouchTarget)
             .contentShape(Rectangle())
         }
         .astraRowStyle()
@@ -625,6 +670,19 @@ struct StreamPickerView: View {
         // hash that is actually cached, instead of trusting addon labels alone.
         await refreshInstantAvailability(preferences: prefs)
 
+        // Prefer the previously-used stream when resuming: if the user played a
+        // specific source before and it's still in the results, reuse it instead of
+        // re-running generic auto-select. Skipped when the user explicitly asked to
+        // pick manually.
+        if !forceManual,
+           let previous = StreamHistoryStore.shared.entry(catalogKey: catalog.contentID.stableKey,
+                                                          episode: epRef),
+           let match = streams.first(where: { $0.id == previous.stream.id && !deadStreamIDs.contains($0.id) }) {
+            state = .loaded
+            await play(match)
+            return
+        }
+
         // Auto-select path (skipped when the user explicitly chose to pick manually).
         if settings.autoSelectStream, !forceManual,
            let best = StreamRanker.autoSelect(found,
@@ -646,6 +704,11 @@ struct StreamPickerView: View {
             )
             env.library.add(item)
             lastPlayedStream = stream
+            // Remember this exact stream (and when) so Resume reuses it and the picker
+            // can mark it "Used … ago".
+            StreamHistoryStore.shared.record(stream,
+                                             catalogKey: catalog.contentID.stableKey,
+                                             episode: epRef)
             playable = item
         } catch {
             // This stream failed to resolve — mark it dead, drop it from the list, and

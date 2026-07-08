@@ -236,7 +236,7 @@ struct CollectionsView: View {
         let connected = AppConfig.shared.value(for: .traktAccessToken)?.isEmpty == false
         if connected {
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                SectionHeader(title: "From Trakt")
+                SectionHeader("From Trakt")
                     .padding(.horizontal, Theme.Spacing.edge)
                 LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
                     NavigationLink {
@@ -273,7 +273,7 @@ struct CollectionsView: View {
         let smarts = SmartCollection.presets.filter { !$0.items(from: library.items).isEmpty }
         if !smarts.isEmpty {
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                SectionHeader(title: "Smart Collections")
+                SectionHeader("Smart Collections")
                     .padding(.horizontal, Theme.Spacing.edge)
                 LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
                     ForEach(smarts) { smart in

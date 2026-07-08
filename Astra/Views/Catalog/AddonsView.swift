@@ -202,7 +202,10 @@ struct AddonsView: View {
         }
     }
 
+    #if os(iOS)
     /// Background manifest refresh: updates catalogs and flags newer versions.
+    /// iOS-only: the "Check for Updates" toolbar entry that drives this and the
+    /// isRefreshingManifests state both live behind #if os(iOS).
     private func checkForUpdates() {
         isRefreshingManifests = true
         Task {
@@ -213,6 +216,7 @@ struct AddonsView: View {
                 : "\(found) addon update\(found == 1 ? "" : "s") available")
         }
     }
+    #endif
 
     private func runHealthCheck() {
         isChecking = true

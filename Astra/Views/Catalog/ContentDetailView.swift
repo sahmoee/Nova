@@ -181,12 +181,10 @@ struct ContentDetailView: View {
 
             // Overview + year.
             if let overview = item.overview, !overview.isEmpty {
-                Text(overview)
-                    .font(.appFont(17))
-                    .foregroundStyle(Theme.Colors.textSecondary)
-                    .lineLimit(3)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
+                ExpandableText(text: overview,
+                               collapsedLineLimit: 3,
+                               font: .appFont(17),
+                               alignment: .center)
                     .padding(.horizontal, Theme.Spacing.edge)
             }
             if let year = item.year {
@@ -300,13 +298,8 @@ struct ContentDetailView: View {
                 sourceLinks
                     .padding(.top, Theme.Spacing.xs)
 
-                if let overview = item.overview, !overview.isEmpty {
-                    Text(overview)
-                        .font(.appFont(19))
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                        .lineSpacing(5)
-                        .padding(.top, Theme.Spacing.sm)
-                }
+                // Note: the show's overview is rendered once in heroHeader (shared by
+                // movies and shows), so it's intentionally not repeated here.
 
                 if !item.isSeries {
                     // Primary action: full-width Play / Find Streams. For movies the
@@ -396,10 +389,17 @@ struct ContentDetailView: View {
                 Text(title)
                     .font(.appFont(14, weight: .semibold))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                    .fixedSize(horizontal: true, vertical: false)
             }
             .foregroundStyle(active ? accent : Theme.Colors.textPrimary)
-            .frame(width: Theme.scaled(96, min: 84), height: Theme.scaled(84, min: 74))
+            // Grow to fit the label instead of a fixed width, so "Choose Stream" and
+            // "Mark Watched" show in full. A min width keeps short labels ("Trailer")
+            // from looking cramped, and generous horizontal padding keeps all tiles
+            // visually consistent. Uniform height keeps them aligned in the row.
+            .padding(.horizontal, Theme.Spacing.md)
+            .frame(minWidth: Theme.scaled(96, min: 84),
+                   minHeight: Theme.scaled(84, min: 74),
+                   maxHeight: Theme.scaled(84, min: 74))
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                     .fill(Theme.Colors.cardGradient)
@@ -888,7 +888,15 @@ struct ContentDetailView: View {
     }
 
     private func hydrate() async {
-        guard item.contentID.imdb == nil || (item.isSeries && item.seasons.isEmpty) else { return }
+        // Hydrate when we're missing anything the detail screen needs: the IMDb id
+        // (for stream lookup), a series' seasons, OR the overview/description. A
+        // catalog item can arrive with an IMDb id but no overview (common for movies
+        // coming from a lightweight shelf), which previously skipped hydration and
+        // left the description blank. Fetching when overview is empty fixes that for
+        // both movies and shows.
+        let needsOverview = (item.overview?.isEmpty ?? true)
+        let needsSeasons = item.isSeries && item.seasons.isEmpty
+        guard item.contentID.imdb == nil || needsSeasons || needsOverview else { return }
         isHydrating = true
         let hydrated = await env.catalog.hydrate(item)
         item = hydrated

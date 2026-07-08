@@ -94,5 +94,19 @@ final class AppEnvironment: ObservableObject {
 
         // Seed default addons (Cinemeta + any from config) in the background.
         Task { await store.seedDefaultsIfNeeded() }
+
+        // After a backup restore, the Trakt access/refresh tokens are written to the
+        // Keychain but the client never re-checks them. Refresh + validate so a
+        // restored login is actually usable (or clearly marked expired) rather than
+        // just appearing connected. Live TV, addons, and SMB reload via their own
+        // observers of the same notification.
+        NotificationCenter.default.addObserver(
+            forName: .astraBackupRestored, object: nil, queue: nil
+        ) { [trakt] _ in
+            Task {
+                await trakt.refreshIfNeeded()
+                _ = await trakt.validateConnection()
+            }
+        }
     }
 }

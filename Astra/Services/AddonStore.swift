@@ -49,6 +49,20 @@ final class AddonStore: ObservableObject {
                 if keys.contains(Self.cloudKey) { self?.mergeFromCloud() }
             }
             .store(in: &cancellables)
+
+        // Reload the installed addons after a backup restore writes the new list to
+        // disk; otherwise this store keeps the set it read at launch.
+        NotificationCenter.default.addObserver(
+            forName: .astraBackupRestored, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.reload() }
+        }
+    }
+
+    /// Re-reads the installed addons from disk and iCloud. Used after a restore.
+    func reload() {
+        load()
+        mergeFromCloud()
     }
 
     // MARK: - Persistence

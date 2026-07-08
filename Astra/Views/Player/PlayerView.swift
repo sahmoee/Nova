@@ -21,6 +21,9 @@ struct PlayerView: View {
     /// timed out, or unresolvable). The picker uses this to mark the stream and
     /// automatically fail over to the next best one.
     var onStreamExpired: (() -> Void)?
+    /// When true (used by the minimized Now Playing bar), skip the Resume/Restart
+    /// prompt and continue the same stream at the saved position with no interruption.
+    var autoResume: Bool = false
 
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var progress: PlaybackProgressStore
@@ -40,10 +43,12 @@ struct PlayerView: View {
     // overriding the automatic/preference routing (used by "Try other player").
     @State private var engineOverride: PlaybackEngine?
 
-    init(item: MediaItem, series: CatalogItem? = nil, onStreamExpired: (() -> Void)? = nil) {
+    init(item: MediaItem, series: CatalogItem? = nil,
+         onStreamExpired: (() -> Void)? = nil, autoResume: Bool = false) {
         self.item = item
         self.series = series
         self.onStreamExpired = onStreamExpired
+        self.autoResume = autoResume
         _model = StateObject(wrappedValue: PlayerModel(item: item))
     }
 
@@ -206,7 +211,7 @@ struct PlayerView: View {
         // The user's preferred built-in player can force one engine, and a recovery
         // override (from "Try other player") forces a specific engine for retry.
         if useVLCEngine {
-            VLCPlayerView(item: item, series: series, onStreamExpired: onStreamExpired)
+            VLCPlayerView(item: item, series: series, onStreamExpired: onStreamExpired, autoResume: autoResume)
         } else {
             avPlayerBody
         }
@@ -282,15 +287,17 @@ struct PlayerView: View {
                             settings: settings,
                             trakt: env.trakt,
                             openSubtitles: env.openSubtitles)
-            // If there's saved progress, ask Resume or Restart before starting.
-            if let pos = progress.resumePosition(for: item.id), pos > 30, !didChooseResume {
+            // If there's saved progress, ask Resume or Restart before starting —
+            // unless this is a seamless resume from the minimized Now Playing bar, in
+            // which case continue the same stream at the saved position with no prompt.
+            if !autoResume, let pos = progress.resumePosition(for: item.id), pos > 30, !didChooseResume {
                 resumePromptPosition = pos
             } else {
                 model.start()
                 prepareNextEpisode()
             }
         }
-        .onDisappear { model.stopAndSave(); prepareTask?.cancel() }
+        .onDisappear { model.minimizeAndSave(); prepareTask?.cancel() }
         #if os(iOS)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)

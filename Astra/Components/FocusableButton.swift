@@ -21,8 +21,15 @@ struct FocusableButton: View {
                 }
                 Text(title)
                     .fontWeight(.semibold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
-            .frame(maxWidth: prominent ? .infinity : nil)
+            // Prominent buttons stretch to fill; secondary buttons get a comfortable
+            // minimum width so a short label ("Edit", "Add") still reads as a proper
+            // button rather than a cramped chip, and a guaranteed 44pt-tall tap target.
+            .frame(minWidth: prominent ? nil : Theme.minButtonWidth,
+                   maxWidth: prominent ? .infinity : nil,
+                   minHeight: Theme.minTouchTarget)
         }
         .buttonStyle(FocusableButtonStyle(prominent: prominent))
     }

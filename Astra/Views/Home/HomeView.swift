@@ -20,7 +20,7 @@ struct HomeView: View {
     @State private var showCustomize = false
     @State private var heroIndex = 0
     @State private var showQueue = false
-    @State private var searchText = ""
+    @State private var searching = false
     @State private var shelfRefreshToken = UUID()
     @Environment(\.scenePhase) private var scenePhase
     @Namespace private var heroFocusNS
@@ -30,8 +30,17 @@ struct HomeView: View {
             ZStack {
                 Theme.Colors.appBackground.ignoresSafeArea()
 
-                if !searchText.trimmingCharacters(in: .whitespaces).isEmpty {
-                    homeSearchResults
+                if searching {
+                    // Universal search takes over the screen while active: TMDB
+                    // predictive suggestions, typo correction, and AI — the same
+                    // experience as Discover. Tapping a result opens its detail.
+                    ScrollView {
+                        UniversalSearchView(prompt: "Search movies, shows, your library",
+                                            recentsKey: "home.recentSearches")
+                            .padding(Theme.Spacing.edge)
+                            .frame(maxWidth: Theme.contentMaxWidth(1500), alignment: .leading)
+                    }
+                    .safeAreaInset(edge: .top) { searchDismissBar }
                 } else if library.items.isEmpty && shelfStore.enabledShelves.isEmpty {
                     EmptyStateView(
                         systemImage: "play.tv",
@@ -47,7 +56,6 @@ struct HomeView: View {
                     }
                 }
             }
-            .modifier(HomeSearchable(text: $searchText))
             .navigationDestination(item: $selectedItem) { item in
                 PlayerView(item: item)
             }
@@ -71,6 +79,7 @@ struct HomeView: View {
     private var classicContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
+                homeSearchTrigger
                 if !env.tmdb.hasKey {
                     setupBanner
                 }
@@ -105,6 +114,7 @@ struct HomeView: View {
     private var cinematicContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
+                homeSearchTrigger
                 if !env.tmdb.hasKey {
                     setupBanner
                 }
@@ -270,31 +280,46 @@ struct HomeView: View {
         shelfRefreshToken = UUID()
     }
 
-    /// Library search results shown while the Home search field has text.
-    private var homeSearchResults: some View {
-        ScrollView {
-            let query = searchText.trimmingCharacters(in: .whitespaces)
-            let results = library.collapseToShow(
-                library.items.filter { item in
-                    guard !item.isHidden else { return false }
-                    return item.title.localizedCaseInsensitiveContains(query)
-                        || (item.seriesTitle?.localizedCaseInsensitiveContains(query) ?? false)
-                }
-            )
-            if results.isEmpty {
-                EmptyStateView(systemImage: "magnifyingglass",
-                               title: "No matches",
-                               message: "Nothing in your library matches \u{201C}\(query)\u{201D}.")
-                    .padding(.top, Theme.Spacing.xl)
-            } else {
-                LazyVGrid(columns: Theme.posterGridColumns, spacing: Theme.Spacing.lg) {
-                    ForEach(results) { item in
-                        MediaCard(item: item, quickActions: true) { openDetail(item) }
-                    }
-                }
-                .padding(Theme.Spacing.edge)
+    /// Inline "Search" pill shown at the top of Home. Tapping it opens the universal
+    /// search (TMDB predictive + AI) over the shelves. Placed inline (not in the nav
+    /// bar) so it renders reliably on iPhone, iPad and tvOS.
+    var homeSearchTrigger: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) { searching = true }
+        } label: {
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: "magnifyingglass")
+                    .font(.appFont(22))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                Text("Search movies, shows, your library")
+                    .font(.appFont(20))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
             }
+            .padding(Theme.Spacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
+        .buttonStyle(AstraListRowStyle())
+        .padding(.horizontal, Theme.Spacing.edge)
+    }
+
+    /// A slim "Done" bar shown above the search results so the user can dismiss the
+    /// search and return to their shelves.
+    private var searchDismissBar: some View {
+        HStack {
+            Spacer()
+            Button("Done") {
+                withAnimation(.easeInOut(duration: 0.2)) { searching = false }
+            }
+            .font(.appFont(17, weight: .semibold))
+            .foregroundStyle(Theme.Colors.accent)
+            .padding(.horizontal, Theme.Spacing.edge)
+            .padding(.vertical, Theme.Spacing.sm)
+        }
+        .background(.ultraThinMaterial)
     }
 
     // MARK: - Featured hero selection
@@ -489,15 +514,4 @@ struct QueueManageView: View {
 }
 
 
-/// Home's library search field — iOS only; tvOS keeps its uncluttered top area.
-private struct HomeSearchable: ViewModifier {
-    @Binding var text: String
 
-    func body(content: Content) -> some View {
-        #if os(iOS)
-        content.searchable(text: $text, prompt: "Search your library")
-        #else
-        content
-        #endif
-    }
-}

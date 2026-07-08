@@ -38,7 +38,9 @@ struct RootView: View {
                 nav.handle(url: url)
             }
             .fullScreenCover(item: $reopenItem) { item in
-                PlayerView(item: item)
+                // Seamless resume from the Now Playing bar: same stream, same
+                // position, no Resume/Restart prompt.
+                PlayerView(item: item, autoResume: true)
                     .environmentObject(env)
                     .environmentObject(nav)
             }
@@ -124,9 +126,14 @@ struct RootView: View {
                 .accessibilityHidden(menuIsOpen)
 
             if menuIsOpen {
-                MenuOverlay(selection: menuSelection) {
+                MenuOverlay(selection: menuSelection, onDismiss: {
                     withAnimation(.easeOut(duration: 0.2)) { showMenu = false }
-                }
+                }, onSelect: { tab in
+                    // Always land on the section's main screen: pop its stack to root,
+                    // then switch to it.
+                    nav.popToRoot(tab)
+                    nav.selection = tab
+                })
                 .transition(.opacity)
                 .zIndex(10)
             }
@@ -150,13 +157,24 @@ struct RootView: View {
 
     @ViewBuilder
     private var activeScreen: some View {
-        switch nav.selection {
-        case .home:     HomeView(path: $nav.homePath)
-        case .discover: DiscoverView(path: $nav.discoverPath)
-        case .ai:       AIView(path: $nav.aiPath)
-        case .library:  LibraryView(path: $nav.libraryPath)
-        case .settings: SettingsView(path: $nav.settingsPath)
+        Group {
+            switch nav.selection {
+            case .home:     HomeView(path: $nav.homePath)
+            case .discover: DiscoverView(path: $nav.discoverPath)
+            case .ai:       AIView(path: $nav.aiPath)
+            case .library:  LibraryView(path: $nav.libraryPath)
+            case .settings: SettingsView(path: $nav.settingsPath)
+            }
         }
+        // Re-inject the shared environment objects here so every section — and every
+        // destination pushed inside its NavigationStack (Sources ▸ Addons, Settings ▸
+        // Addons, etc.) — reliably sees AppEnvironment. On iPad the NavigationSplitView
+        // detail column is a separate environment branch, so without this a pushed
+        // AddonsView could crash with "No ObservableObject of type AppEnvironment".
+        .environmentObject(env)
+        .environmentObject(env.library)
+        .environmentObject(env.progress)
+        .environmentObject(settings)
     }
     #else
     /// iOS / iPadOS. iPad keeps its persistent sidebar; iPhone uses the pop-up menu.
@@ -207,10 +225,14 @@ struct RootView: View {
             Theme.Colors.appBackground.ignoresSafeArea()
 
             activeScreen
-                // Reserve a little space at the bottom so scroll content rests above
-                // the floating menu button. Collapses while the player is up.
+                // Reserve bottom space so scroll content rests above the floating menu
+                // button — and above the taller stack when the persistent Now Playing
+                // bar is also showing. Collapses to nothing while the player is up.
                 .safeAreaInset(edge: .bottom) {
-                    Color.clear.frame(height: nowPlaying.playerPresented ? 0 : Theme.scaled(64, min: 52))
+                    let hasBar = nowPlaying.current != nil && !nowPlaying.playerPresented
+                    Color.clear.frame(height: nowPlaying.playerPresented
+                                      ? 0
+                                      : (hasBar ? Theme.scaled(132, min: 112) : Theme.scaled(64, min: 52)))
                 }
                 .disabled(menuIsOpen)
                 .accessibilityHidden(menuIsOpen)
@@ -230,9 +252,14 @@ struct RootView: View {
             }
 
             if menuIsOpen {
-                MenuOverlay(selection: menuSelection) {
+                MenuOverlay(selection: menuSelection, onDismiss: {
                     withAnimation(.easeOut(duration: 0.2)) { showMenu = false }
-                }
+                }, onSelect: { tab in
+                    // Always land on the section's main screen: pop its stack to root,
+                    // then switch to it.
+                    nav.popToRoot(tab)
+                    nav.selection = tab
+                })
                 .transition(.opacity)
                 .zIndex(10)
             }
@@ -241,13 +268,24 @@ struct RootView: View {
 
     @ViewBuilder
     private var activeScreen: some View {
-        switch nav.selection {
-        case .home:     HomeView(path: $nav.homePath)
-        case .discover: DiscoverView(path: $nav.discoverPath)
-        case .ai:       AIView(path: $nav.aiPath)
-        case .library:  LibraryView(path: $nav.libraryPath)
-        case .settings: SettingsView(path: $nav.settingsPath)
+        Group {
+            switch nav.selection {
+            case .home:     HomeView(path: $nav.homePath)
+            case .discover: DiscoverView(path: $nav.discoverPath)
+            case .ai:       AIView(path: $nav.aiPath)
+            case .library:  LibraryView(path: $nav.libraryPath)
+            case .settings: SettingsView(path: $nav.settingsPath)
+            }
         }
+        // Re-inject the shared environment objects here so every section — and every
+        // destination pushed inside its NavigationStack (Sources ▸ Addons, Settings ▸
+        // Addons, etc.) — reliably sees AppEnvironment. On iPad the NavigationSplitView
+        // detail column is a separate environment branch, so without this a pushed
+        // AddonsView could crash with "No ObservableObject of type AppEnvironment".
+        .environmentObject(env)
+        .environmentObject(env.library)
+        .environmentObject(env.progress)
+        .environmentObject(settings)
     }
     #endif
 
@@ -257,57 +295,89 @@ struct RootView: View {
     @ViewBuilder
     private var nowPlayingBar: some View {
         if let item = nowPlaying.current, reopenItem == nil, !nowPlaying.playerPresented {
-            Button {
-                reopenItem = item
-            } label: {
-                VStack(spacing: 0) {
-                    HStack(spacing: Theme.Spacing.sm) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .fill(Theme.Colors.card)
-                            CachedAsyncImage(url: item.posterURL) { image in
-                                image.resizable().aspectRatio(contentMode: .fill)
-                            } placeholder: {
-                                Image(systemName: "film").foregroundStyle(Theme.Colors.textTertiary)
+            VStack(spacing: 0) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    // Tapping this area (poster + titles + resume glyph) reopens the
+                    // player and resumes. Kept as a tap area — not a Button — so the
+                    // Stop button beside it stays independently tappable on every
+                    // platform (nested Buttons are unreliable, especially on tvOS).
+                    Button {
+                        reopenItem = item
+                    } label: {
+                        HStack(spacing: Theme.Spacing.sm) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .fill(Theme.Colors.card)
+                                CachedAsyncImage(url: item.posterURL) { image in
+                                    image.resizable().aspectRatio(contentMode: .fill)
+                                } placeholder: {
+                                    Image(systemName: "film").foregroundStyle(Theme.Colors.textTertiary)
+                                }
                             }
-                        }
-                        .frame(width: 40, height: 40)
-                        .clipped()
-                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .frame(width: 40, height: 40)
+                            .clipped()
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
 
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(item.title)
-                                .font(.appFont(16, weight: .semibold))
-                                .foregroundStyle(Theme.Colors.textPrimary)
-                                .lineLimit(1)
-                            Text(nowPlaying.isPlaying ? "Now Playing" : "Paused")
-                                .font(.appFont(13))
-                                .foregroundStyle(Theme.Colors.textSecondary)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(item.title)
+                                    .font(.appFont(16, weight: .semibold))
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+                                    .lineLimit(1)
+                                Text("Paused · Tap to resume")
+                                    .font(.appFont(13))
+                                    .foregroundStyle(Theme.Colors.textSecondary)
+                            }
+                            Spacer(minLength: Theme.Spacing.sm)
+                            Image(systemName: "chevron.up")
+                                .foregroundStyle(Theme.Colors.textTertiary)
+                                .font(.appFont(13, weight: .semibold))
                         }
-                        Spacer()
-                        Image(systemName: nowPlaying.isPlaying ? "waveform" : "pause.fill")
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    // Play / Resume: playback pauses when you leave the player, so this
+                    // reopens the player and resumes from the saved position.
+                    Button {
+                        reopenItem = item
+                    } label: {
+                        Image(systemName: "play.fill")
                             .foregroundStyle(Theme.Colors.accent)
-                            .font(.appFont(18, weight: .semibold))
-                        Image(systemName: "chevron.up")
-                            .foregroundStyle(Theme.Colors.textTertiary)
-                            .font(.appFont(13, weight: .semibold))
+                            .font(.appFont(24, weight: .semibold))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
-                    .padding(.horizontal, Theme.Spacing.md)
-                    .padding(.vertical, Theme.Spacing.sm)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Resume")
 
-                    // Thin progress line.
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Rectangle().fill(Color.white.opacity(0.12))
-                            Rectangle().fill(Theme.Colors.accent)
-                                .frame(width: geo.size.width * nowPlaying.progress)
-                        }
+                    // Explicit Stop: fully ends the session and dismisses the bar.
+                    // The bar otherwise persists until stop or app close, by design.
+                    Button {
+                        withAnimation { nowPlaying.clear() }
+                    } label: {
+                        Image(systemName: "stop.fill")
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                            .font(.appFont(22, weight: .semibold))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
-                    .frame(height: 2)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Stop")
                 }
-                .background(.ultraThinMaterial)
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.vertical, Theme.Spacing.sm)
+
+                // Thin progress line.
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Rectangle().fill(Color.white.opacity(0.12))
+                        Rectangle().fill(Theme.Colors.accent)
+                            .frame(width: geo.size.width * nowPlaying.progress)
+                    }
+                }
+                .frame(height: 2)
             }
-            .buttonStyle(.plain)
+            .background(.ultraThinMaterial)
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }

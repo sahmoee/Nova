@@ -24,16 +24,8 @@ struct SMBListView: View {
             VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                 ScreenHeader(title: "SMB Shares") {
                     HStack(spacing: Theme.Spacing.sm) {
-                        // The SMB diagnostic wizard lives here now instead of being
-                        // a separate destination to hunt for in Settings.
-                        NavigationLink {
-                            SMBCheckerView()
-                        } label: {
-                            Label("Diagnose", systemImage: "stethoscope")
-                                .font(.appFont(16, weight: .semibold))
-                                .foregroundStyle(Theme.Colors.accent)
-                        }
-                        .buttonStyle(AstraChipButtonStyle())
+                        // Per-share diagnostics live on each share row (stethoscope
+                        // button), where a specific share is available to test.
                         FocusableButton(title: "Add Share", systemImage: "plus", prominent: true) {
                             showingAdd = true
                         }

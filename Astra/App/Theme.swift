@@ -217,6 +217,12 @@ enum Theme {
         static var edge: CGFloat { Theme.scaled(60, min: 20) }
     }
 
+    /// Minimum interactive sizes. 44pt is Apple's recommended minimum tap target;
+    /// scaled up a little on tvOS. minButtonWidth keeps short-labelled secondary
+    /// buttons from collapsing to a cramped chip width.
+    static var minTouchTarget: CGFloat { Theme.scaled(52, min: 44) }
+    static var minButtonWidth: CGFloat { Theme.scaled(160, min: 96) }
+
     // MARK: - Card sizes
 
     enum CardSize {

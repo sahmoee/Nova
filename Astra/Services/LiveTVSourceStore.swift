@@ -88,6 +88,29 @@ final class LiveTVSourceStore: ObservableObject {
                 if keys.contains(Self.cloudKey) { self?.mergeFromCloud() }
             }
             .store(in: &cancellables)
+
+        // Reload after a backup restore. The restore writes the source list (and any
+        // usernames/passwords) to UserDefaults + iCloud, but this store already read
+        // its list at launch; without reloading it would keep showing the old list
+        // and never fetch the restored playlists.
+        NotificationCenter.default.addObserver(
+            forName: .astraBackupRestored, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.reload() }
+        }
+    }
+
+    /// Re-reads the source list from disk (used after a backup restore), adopts any
+    /// restored sources/credentials, re-seeds the built-ins, and refreshes the
+    /// channels for every enabled source so a restored connection actually works
+    /// instead of merely appearing in the list.
+    func reload() {
+        load()
+        mergeFromCloud()
+        seedBuiltInsIfNeeded()
+        // Force a refresh so enabled sources fetch their playlists with the restored
+        // credentials rather than sitting empty.
+        Task { await refreshAll(force: true) }
     }
 
     private static let builtInSources: [LiveTVSource] = [

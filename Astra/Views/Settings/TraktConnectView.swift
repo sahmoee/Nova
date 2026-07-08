@@ -231,13 +231,26 @@ struct TraktConnectView: View {
     // MARK: - Flow
 
     private func onAppear() async {
-        if await env.trakt.isAuthenticated {
-            username = (try? await env.trakt.currentUser())?.username
+        phase = .checking
+        // Ask the client for a *validated* status — an actual call to Trakt — instead
+        // of trusting that a token string exists. This is what makes a restored but
+        // expired login show as "needs reconnect" rather than a false "Connected".
+        switch await env.trakt.validateConnection() {
+        case .connected(let name):
+            username = name
             phase = .connected
-        } else if await env.trakt.isConfigured {
+        case .disconnected:
+            // Configured but no token yet — start the device flow so the user can link.
             await beginDeviceFlow()
-        } else {
+        case .notConfigured:
             phase = .notConfigured
+        case .expired:
+            username = nil
+            errorMessage = "Your Trakt login expired. Reconnect to restore syncing."
+            phase = .failed
+        case .error(let message):
+            errorMessage = "Couldn't reach Trakt: \(message)"
+            phase = .failed
         }
     }
 

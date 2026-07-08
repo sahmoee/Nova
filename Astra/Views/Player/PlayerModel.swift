@@ -478,6 +478,19 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
         teardownObservers()
     }
 
+    /// The user left the player screen without explicitly stopping. Save position and
+    /// pause the pipeline, but keep the Now Playing / Resume bar alive (minimize) so
+    /// they can jump back in. Tapping the bar reopens the player and resumes.
+    func minimizeAndSave() {
+        PlaybackCoordinator.shared.resign(self)
+        saveTask?.cancel(); saveTask = nil
+        Task { await saveProgress() }
+        scrobble(.pause)
+        player.pause()
+        NowPlayingStore.shared.minimize()
+        teardownObservers()
+    }
+
     private func teardownObservers() {
         statusObservation?.invalidate(); statusObservation = nil
         timeControlObserver?.invalidate(); timeControlObserver = nil

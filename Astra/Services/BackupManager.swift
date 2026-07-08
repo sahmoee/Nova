@@ -25,6 +25,16 @@ import UIKit
 
 /// Distinguishes a Bool stored in UserDefaults from a numeric value. UserDefaults
 /// bridges both to NSNumber, so this checks the underlying CoreFoundation type.
+/// Broadcast after a backup snapshot's data has been written to disk / Keychain /
+/// UserDefaults, so live in-memory stores (Live TV sources, Trakt, addons, SMB)
+/// reload the restored state instead of keeping the stale values they loaded at
+/// launch. Without this, a restore "shows as there but doesn't work": the files on
+/// disk are correct but the running stores never re-read them. The userInfo carries
+/// the restored BackupContents rawValue under "contents".
+extension Notification.Name {
+    static let astraBackupRestored = Notification.Name("astra.backupRestored")
+}
+
 private extension NSNumber {
     var isBool: Bool { CFGetTypeID(self) == CFBooleanGetTypeID() }
 }
@@ -129,7 +139,8 @@ final class BackupManager: ObservableObject {
     /// These are captured explicitly because dictionaryRepresentation surfaces them as
     /// Data, which the prefix scan also handles, but listing them documents intent.
     private let settingDataKeys = [
-        "home.shelves.v1"                        // customized home/discover shelves
+        "home.shelves.v1",                       // customized home/discover shelves
+        "stream.history.v1"                      // last-used stream per movie/episode
     ]
 
     /// Prefixes for every app-owned UserDefaults key. The backup captures ALL keys
@@ -500,5 +511,14 @@ final class BackupManager: ObservableObject {
             }
         }
         CloudSync.shared.flush()
+
+        // Tell the running stores to reload the freshly-restored data. Everything
+        // above only touched disk/Keychain/iCloud; the live objects still hold what
+        // they loaded at launch until they hear this.
+        NotificationCenter.default.post(
+            name: .astraBackupRestored,
+            object: nil,
+            userInfo: ["contents": contents.rawValue]
+        )
     }
 }

@@ -38,6 +38,17 @@ final class NowPlayingStore: ObservableObject {
         self.isPlaying = isPlaying
     }
 
+    /// The user left the player screen but playback state should persist so the
+    /// Now Playing / Resume bar stays visible. Keeps `current` and progress; only
+    /// marks the full player as no longer on screen. The bar shows until an explicit
+    /// stop() or the app closes.
+    func minimize() {
+        // Playback pauses when the player is left, so reflect that in the bar.
+        isPlaying = false
+        playerPresented = false
+    }
+
+    /// Full stop: the user explicitly ended playback (back/exit/stop). Clears the bar.
     func clear() {
         current = nil
         isPlaying = false

@@ -19,6 +19,10 @@ import SwiftUI
 struct MenuOverlay: View {
     @Binding var selection: AppTab
     var onDismiss: () -> Void
+    /// Called when a section is chosen. RootView uses this to always pop that
+    /// section's navigation stack back to its root, so pressing a menu button
+    /// reliably returns to the section's main screen (never a stale detail screen).
+    var onSelect: ((AppTab) -> Void)? = nil
 
     @Environment(\.dynamicAccent) private var accent
     #if os(tvOS)
@@ -77,7 +81,11 @@ struct MenuOverlay: View {
 
     private func menuRow(_ tab: AppTab) -> some View {
         Button {
-            selection = tab
+            if let onSelect {
+                onSelect(tab)
+            } else {
+                selection = tab
+            }
             onDismiss()
         } label: {
             HStack(spacing: Theme.Spacing.sm) {
