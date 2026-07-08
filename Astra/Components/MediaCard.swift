@@ -86,7 +86,6 @@ struct MediaCard: View {
             posterImage
                 .frame(width: width, height: height)
                 .clipped()
-                .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
@@ -135,7 +134,6 @@ struct MediaCard: View {
         }
     }
 
-    @ViewBuilder
     private var artworkURL: URL? {
         // Wide cards (Continue Watching) look best with a landscape backdrop; fall
         // back to the poster when no backdrop is available.
@@ -143,6 +141,7 @@ struct MediaCard: View {
         return item.posterURL
     }
 
+    @ViewBuilder
     private var posterImage: some View {
         if let url = artworkURL {
             CachedAsyncImage(url: url, maxPixel: 700) { image in
@@ -152,7 +151,8 @@ struct MediaCard: View {
                     .frame(width: width, height: height)
                     .clipped()
             } placeholder: {
-                placeholder.shimmering()
+                placeholder
+                    .shimmering()
                     .frame(width: width, height: height)
             }
         } else {
