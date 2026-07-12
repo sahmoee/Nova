@@ -152,9 +152,12 @@ struct MediaItem: Identifiable, Codable, Hashable {
         progressFraction >= 0.9
     }
 
-    /// True if there's a meaningful resume point (more than 30s in, not finished).
+    /// True if there's a meaningful saved checkpoint. Resume remains available even
+    /// past the conventional 90% "watched" threshold and disappears only at the end.
     var hasResumePoint: Bool {
-        lastPlayedPosition > 30 && !isWatched
+        guard lastPlayedPosition > 5 else { return false }
+        guard let duration, duration > 0 else { return true }
+        return lastPlayedPosition < max(duration - 0.75, 0)
     }
 
     /// Convenience subtitle line built from whatever metadata exists.

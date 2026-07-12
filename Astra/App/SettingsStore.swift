@@ -45,6 +45,7 @@ final class SettingsStore: ObservableObject {
         static let preferredAudioLanguage = "settings.preferredAudioLanguage"
         static let subtitleLanguage = "settings.subtitleLanguage"
         static let subtitlesEnabled = "settings.subtitlesEnabled"
+        static let autoDownloadSubtitles = "settings.autoDownloadSubtitles"
         static let playbackSpeed = "settings.playbackSpeed"
         static let nightMode = "settings.nightMode"
         static let bandwidthSaver = "settings.bandwidthSaver"
@@ -62,6 +63,7 @@ final class SettingsStore: ObservableObject {
         static let useExternalPlayer = "settings.useExternalPlayer"
         static let searchLayout = "settings.searchLayout"
         static let vlcOverlayStyle = "settings.vlcOverlayStyle"
+        static let didMigrateApplePlayerChrome = "settings.didMigrateApplePlayerChrome"
         static let respectSystemTextSize = "settings.respectSystemTextSize"
         static let textSizeBoost = "settings.textSizeBoost"
         static let homeStyle = "settings.homeStyle"
@@ -186,6 +188,13 @@ final class SettingsStore: ObservableObject {
 
     @Published var subtitlesEnabled: Bool {
         didSet { defaults.set(subtitlesEnabled, forKey: Key.subtitlesEnabled); CloudSync.shared.setBool(subtitlesEnabled, forKey: Key.subtitlesEnabled) }
+    }
+
+    /// Automatically query enabled subtitle add-ons and download the preferred
+    /// language when playback begins. The player picker can always trigger a manual
+    /// search regardless of this setting.
+    @Published var autoDownloadSubtitles: Bool {
+        didSet { defaults.set(autoDownloadSubtitles, forKey: Key.autoDownloadSubtitles); CloudSync.shared.setBool(autoDownloadSubtitles, forKey: Key.autoDownloadSubtitles) }
     }
 
     /// Default playback speed (1.0 = normal). Applied by the players.
@@ -393,12 +402,20 @@ final class SettingsStore: ObservableObject {
             Key.autoSelectStream: false,
             Key.requireCachedStreams: true,
             Key.subtitlesEnabled: true,
+            Key.autoDownloadSubtitles: true,
             Key.traktScrobbling: true,
             Key.respectSystemTextSize: true,
             Key.textSizeBoost: 1.0
         ]
         for (k, v) in firstRunDefaults where defaults.object(forKey: k) == nil {
             defaults.set(v, forKey: k)
+        }
+
+        // Move existing installs to the Apple TV-style player once. Users can still
+        // choose Classic later; the migration never runs again after this build.
+        if !defaults.bool(forKey: Key.didMigrateApplePlayerChrome) {
+            defaults.set(PlayerOverlayStyle.native.rawValue, forKey: Key.vlcOverlayStyle)
+            defaults.set(true, forKey: Key.didMigrateApplePlayerChrome)
         }
 
         self.resumePlaybackEnabled = defaults.bool(forKey: Key.resumePlayback)
@@ -426,6 +443,7 @@ final class SettingsStore: ObservableObject {
         self.preferEfficientCodec = defaults.bool(forKey: Key.preferEfficientCodec)
         self.preferredAudioLanguage = defaults.string(forKey: Key.preferredAudioLanguage) ?? ""
         self.subtitlesEnabled = defaults.bool(forKey: Key.subtitlesEnabled)
+        self.autoDownloadSubtitles = defaults.bool(forKey: Key.autoDownloadSubtitles)
         // Playback speed defaults to 1.0 (UserDefaults returns 0 when unset).
         let savedSpeed = defaults.double(forKey: Key.playbackSpeed)
         self.playbackSpeed = savedSpeed > 0 ? savedSpeed : 1.0
@@ -475,8 +493,8 @@ final class SettingsStore: ObservableObject {
         self.uiStyle = resolvedUIStyle
         Theme.uiStyle = resolvedUIStyle
         self.vlcOverlayStyle = PlayerOverlayStyle(
-            rawValue: defaults.string(forKey: Key.vlcOverlayStyle) ?? PlayerOverlayStyle.classic.rawValue
-        ) ?? .classic
+            rawValue: defaults.string(forKey: Key.vlcOverlayStyle) ?? PlayerOverlayStyle.native.rawValue
+        ) ?? .native
         let resolvedRespect = defaults.object(forKey: Key.respectSystemTextSize) == nil
             ? true : defaults.bool(forKey: Key.respectSystemTextSize)
         self.respectSystemTextSize = resolvedRespect
@@ -523,6 +541,7 @@ final class SettingsStore: ObservableObject {
         applyBool(Key.autoSelectStream, \.autoSelectStream)
         applyBool(Key.requireCachedStreams, \.requireCachedStreams)
         applyBool(Key.subtitlesEnabled, \.subtitlesEnabled)
+        applyBool(Key.autoDownloadSubtitles, \.autoDownloadSubtitles)
         applyBool(Key.traktScrobbling, \.traktScrobblingEnabled)
         applyBool(Key.requireLegalConfirmation, \.requireLegalConfirmation)
         applyBool(Key.useExternalPlayer, \.useExternalPlayer)

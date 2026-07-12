@@ -2,8 +2,9 @@
 //  HomeView.swift
 //  Astra
 //
-//  Apple TV-style dashboard: hero header, Continue Watching, Recently Added,
-//  Recently Added, and Favorites.
+//  Apple TV-style Watch Now experience shared by iPhone, iPad, and Apple TV.
+//  The same information architecture is used everywhere while navigation, focus,
+//  sheets, haptics, and device-only actions remain platform appropriate.
 //
 
 import SwiftUI
@@ -14,46 +15,38 @@ struct HomeView: View {
     @EnvironmentObject private var nav: NavigationCoordinator
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var settings: SettingsStore
+
     @StateObject private var shelfStore = HomeShelfStore.shared
+    @StateObject private var profiles = ViewingProfileStore.shared
+    @StateObject private var smbShares = SMBSharesModel()
+
     @State private var selectedItem: MediaItem?
-    @State private var detailTarget: CatalogItem?
     @State private var showCustomize = false
-    @State private var heroIndex = 0
     @State private var showQueue = false
-    @State private var searching = false
+    @State private var showProfiles = false
+    @State private var heroIndex = 0
     @State private var shelfRefreshToken = UUID()
     @Environment(\.scenePhase) private var scenePhase
     @Namespace private var heroFocusNS
+
+    enum HomeRoute: Hashable {
+        case liveTV
+        case sources
+        case collections
+        case history
+        case smartCollections
+        case watchStats
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
                 Theme.Colors.appBackground.ignoresSafeArea()
 
-                if searching {
-                    // Universal search takes over the screen while active: TMDB
-                    // predictive suggestions, typo correction, and AI — the same
-                    // experience as Discover. Tapping a result opens its detail.
-                    ScrollView {
-                        UniversalSearchView(prompt: "Search movies, shows, your library",
-                                            recentsKey: "home.recentSearches")
-                            .padding(Theme.Spacing.edge)
-                            .frame(maxWidth: Theme.contentMaxWidth(1500), alignment: .leading)
-                    }
-                    .safeAreaInset(edge: .top) { searchDismissBar }
-                } else if library.items.isEmpty && shelfStore.enabledShelves.isEmpty {
-                    EmptyStateView(
-                        systemImage: "play.tv",
-                        title: "Welcome to Astra",
-                        message: "Add a source or a direct link in Settings to start building your library.",
-                        actionTitle: "Set Up Sources",
-                        action: { nav.selection = .settings }
-                    )
+                if library.items.isEmpty && shelfStore.enabledShelves.isEmpty {
+                    welcomeState
                 } else {
-                    switch settings.homeStyle {
-                    case .cinematic: cinematicContent
-                    case .classic:   classicContent
-                    }
+                    watchNowContent
                 }
             }
             .navigationDestination(item: $selectedItem) { item in
@@ -62,8 +55,8 @@ struct HomeView: View {
             .navigationDestination(for: CatalogItem.self) { item in
                 ContentDetailView(item: item)
             }
-            .navigationDestination(item: $detailTarget) { catalog in
-                ContentDetailView(item: catalog)
+            .navigationDestination(for: HomeRoute.self) { route in
+                destination(for: route)
             }
             .sheet(isPresented: $showCustomize) {
                 HomeCustomizeView()
@@ -71,96 +64,144 @@ struct HomeView: View {
             .sheet(isPresented: $showQueue) {
                 QueueManageView()
             }
-        }
-    }
-
-    // MARK: - Classic layout (original dashboard)
-
-    private var classicContent: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
-                homeSearchTrigger
-                if !env.tmdb.hasKey {
-                    setupBanner
-                }
-                if let hero = featuredItem {
-                    FeaturedHero(item: hero) { play($0) }
-                        .overlay(alignment: .topTrailing) { customizeButton }
-                } else {
-                    header
-                }
-                if !library.continueWatching.isEmpty {
-                    continueWatchingRow
-                }
-                sharedRows
+            .sheet(isPresented: $showProfiles) {
+                ViewingProfileSwitcherView(store: profiles)
             }
-            .padding(.bottom, Theme.Spacing.lg)
         }
-        .refreshable { await refreshShelves() }
-        #if os(tvOS)
-        .ignoresSafeArea(edges: featuredItem != nil ? .top : [])
-        #endif
     }
 
-    // MARK: - Cinematic layout (new default)
+    // MARK: - Watch Now
 
-    /// The set of items to rotate through the top hero carousel.
-    private var heroItems: [MediaItem] {
-        var seen = Set<UUID>()
-        let pool = library.continueWatching + library.recentlyAdded + library.favorites
-        return pool.filter { seen.insert($0.id).inserted }.prefix(8).map { $0 }
-    }
-
-    private var cinematicContent: some View {
+    private var watchNowContent: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
-                homeSearchTrigger
+            LazyVStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
+                topBar
+
                 if !env.tmdb.hasKey {
                     setupBanner
                 }
 
                 heroCarousel
 
-                if !library.continueWatching.isEmpty {
-                    continueWatchingRow
+                AppleTVUpNextRail(
+                    items: PersonalizedHomeEngine.upNext(library: library),
+                    onPlay: play,
+                    onRestart: restart,
+                    onRemove: removeFromUpNext,
+                    onManage: { showQueue = true }
+                )
+
+                if profiles.preferences.showQuickAccess {
+                    AppleTVQuickAccessRow(items: quickAccessItems)
                 }
 
-                sharedRows
+                if profiles.preferences.showBecauseYouWatched,
+                   let anchor = library.recentlyWatched.first {
+                    BecauseYouWatchedCatalogRail(anchor: anchor) { catalog in
+                        path.append(catalog)
+                    }
+                }
+
+                ForEach(primarySmartRails) { rail in
+                    AppleTVSmartRailView(rail: rail, onSelect: openDetail)
+                }
+
+                // Editorial catalog rows remain network-backed and user-customizable,
+                // but now sit inside the same Watch Now feed as personal rails.
+                Group {
+                    ForEach(shelfStore.enabledShelves) { shelf in
+                        CatalogShelfRow(shelf: shelf, showSourceLabel: false)
+                    }
+                }
+                .id(shelfRefreshToken)
+
+                if profiles.preferences.showSourceHub {
+                    AppleTVSourceHub(items: sourceHealthItems) {
+                        path.append(HomeRoute.sources)
+                    }
+                }
+
+                if profiles.preferences.showSmartCollections {
+                    smartCollectionsFooter
+                }
             }
-            .padding(.bottom, Theme.Spacing.lg)
+            .padding(.bottom, Theme.Spacing.xl)
         }
+        #if os(iOS)
         .refreshable { await refreshShelves() }
+        #endif
         #if os(tvOS)
         .ignoresSafeArea(edges: .top)
         .focusScope(heroFocusNS)
         #endif
     }
 
-    /// A full-bleed, swipeable hero carousel with page dots — the centerpiece of the
-    /// cinematic home. Falls back to the plain header when there's nothing to show.
+    private var topBar: some View {
+        HStack(alignment: .center, spacing: Theme.Spacing.sm) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Home")
+                    .font(.appFont(PlatformCapabilities.platform == .appleTV ? 34 : 28, weight: .bold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Text("Watch Now")
+                    .font(.appFont(15, weight: .medium))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+            Spacer()
+            Button {
+                nav.selection = .discover
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.appFont(20, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .frame(width: 42, height: 42)
+                    .background(.thinMaterial, in: Circle())
+                    .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+            }
+            .buttonStyle(AstraListRowStyle())
+            .accessibilityLabel("Search")
+
+            AppleTVProfileButton(store: profiles) {
+                showProfiles = true
+            }
+        }
+        .padding(.horizontal, Theme.Spacing.edge)
+        .padding(.top, PlatformCapabilities.platform == .appleTV ? Theme.Spacing.xl : Theme.Spacing.md)
+    }
+
+    // MARK: - Hero
+
+    private var heroItems: [MediaItem] {
+        let topPicks = PersonalizedHomeEngine.rails(library: library, profile: profiles.activeProfile)
+            .first(where: { $0.kind == .topPicks })?.items ?? []
+        var seen = Set<String>()
+        return (library.continueWatching + topPicks + library.recentlyAdded + library.favorites)
+            .filter { seen.insert($0.contentKey).inserted }
+            .prefix(10)
+            .map { $0 }
+    }
+
     @ViewBuilder
     private var heroCarousel: some View {
         let items = heroItems
         if items.isEmpty {
-            header
+            fallbackHeader
         } else {
             VStack(spacing: Theme.Spacing.sm) {
                 #if os(iOS)
-                // Crossfade between heroes — auto-advance and manual swipes both fade
-                // the artwork instead of sliding the page, like the tvOS top shelf.
                 ZStack {
                     let safeIndex = min(heroIndex, items.count - 1)
                     let item = items[safeIndex]
                     FeaturedHero(item: item,
-                                 height: heroCarouselHeight,
+                                 height: PlatformCapabilities.homeHeroHeight,
                                  badge: heroBadge(for: item),
-                                 onMoreInfo: { openDetail($0) }) { play($0) }
+                                 onMoreInfo: openDetail) { play($0) }
                         .overlay(alignment: .topTrailing) { customizeButton }
                         .id(item.id)
                         .transition(.opacity)
                 }
-                .animation(.easeInOut(duration: 0.6), value: heroIndex)
-                .frame(height: heroCarouselHeight)
+                .animation(profiles.preferences.reduceArtworkMotion ? nil : .easeInOut(duration: 0.55),
+                           value: heroIndex)
+                .frame(height: PlatformCapabilities.homeHeroHeight)
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 25)
@@ -175,43 +216,37 @@ struct HomeView: View {
                 )
                 #else
                 TabView(selection: $heroIndex) {
-                    ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         FeaturedHero(item: item,
-                                     height: heroCarouselHeight,
+                                     height: PlatformCapabilities.homeHeroHeight,
                                      badge: heroBadge(for: item),
-                                     onMoreInfo: { openDetail($0) },
+                                     onMoreInfo: openDetail,
                                      playFocusNamespace: heroFocusNS) { play($0) }
                             .overlay(alignment: .topTrailing) { customizeButton }
-                            .tag(idx)
+                            .tag(index)
                     }
                 }
                 .tabViewStyle(.automatic)
-                .frame(height: heroCarouselHeight)
+                .frame(height: PlatformCapabilities.homeHeroHeight)
                 #endif
 
-                // Page dots.
                 if items.count > 1 {
-                    HStack(spacing: 7) {
-                        ForEach(items.indices, id: \.self) { i in
-                            Circle()
-                                .fill(i == heroIndex ? Color.white : Color.white.opacity(0.4))
-                                .frame(width: i == heroIndex ? 9 : 6,
-                                       height: i == heroIndex ? 9 : 6)
+                    HStack(spacing: 6) {
+                        ForEach(items.indices, id: \.self) { index in
+                            Capsule()
+                                .fill(index == heroIndex ? Color.white : Color.white.opacity(0.32))
+                                .frame(width: index == heroIndex ? 18 : 6, height: 6)
                         }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background(Capsule().fill(.ultraThinMaterial))
-                    .animation(.easeInOut(duration: 0.2), value: heroIndex)
+                    .animation(.easeOut(duration: 0.18), value: heroIndex)
                 }
             }
-            // Gentle auto-advance so the hero rotates like a marquee; any manual
-            // swipe just restarts the interval on the new index.
             .task(id: heroIndex) {
-                try? await Task.sleep(for: .seconds(8))
-                guard !Task.isCancelled, items.count > 1 else { return }
-                // Don't tick the marquee while backgrounded/inactive.
-                guard scenePhase == .active else { return }
+                guard profiles.preferences.autoAdvanceHero,
+                      !profiles.preferences.reduceArtworkMotion,
+                      items.count > 1 else { return }
+                try? await Task.sleep(for: .seconds(9))
+                guard !Task.isCancelled, scenePhase == .active else { return }
                 withAnimation(.easeInOut(duration: 0.5)) {
                     heroIndex = (heroIndex + 1) % items.count
                 }
@@ -219,130 +254,23 @@ struct HomeView: View {
         }
     }
 
-    /// The hero carousel height: tall and cinematic so the artwork fills the top of
-    /// the screen rather than sitting as a short banner above blank space. The
-    /// FeaturedHero inside is given the same height so image and frame always match.
-    private var heroCarouselHeight: CGFloat {
-        #if os(tvOS)
-        return 620
-        #else
-        return Theme.isCompact ? 480 : 540
-        #endif
-    }
-
-    /// The rows below the hero, shared verbatim by the classic and cinematic
-    /// layouts so there is exactly one implementation of Queue, shelves, Recently
-    /// Added, and Favorites.
-    @ViewBuilder
-    private var sharedRows: some View {
-        if !library.queuedItems.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                SectionHeader(title: "Up Next in Queue") {
-                    Button("Manage") { showQueue = true }
-                        .font(.appFont(17, weight: .semibold))
-                        .foregroundStyle(Theme.Colors.accent)
-                        .buttonStyle(AstraChipButtonStyle())
-                }
-                .padding(.horizontal, Theme.Spacing.edge)
-                MediaRow(title: "",
-                         items: Array(library.queuedItems.prefix(20))) { openDetail($0) }
-            }
-        }
-
-        Group {
-            ForEach(shelfStore.enabledShelves) { shelf in
-                CatalogShelfRow(shelf: shelf)
-            }
-        }
-        .id(shelfRefreshToken)
-
-        if !library.recentlyAdded.isEmpty {
-            MediaRow(title: "Recently Added",
-                     items: library.recentlyAdded) { openDetail($0) }
-        }
-        if !library.favorites.isEmpty {
-            MediaRow(title: "Favorites",
-                     items: library.favorites) { openDetail($0) }
-        }
-    }
-
-    /// Why-am-I-seeing-this chip for a hero item.
     private func heroBadge(for item: MediaItem) -> String? {
-        if library.continueWatching.contains(where: { $0.id == item.id }) { return "Continue Watching" }
-        if library.recentlyAdded.prefix(5).contains(where: { $0.id == item.id }) { return "Recently Added" }
+        if item.hasResumePoint { return "Up Next" }
+        if library.queueIDs.contains(item.id) { return "In Your Queue" }
         if item.isFavorite { return "Favorite" }
-        return nil
-    }
-
-    /// Pull-to-refresh: drop the shelf cache and rebuild every shelf row.
-    private func refreshShelves() async {
-        await env.shelfLoader.clearCache()
-        shelfRefreshToken = UUID()
-    }
-
-    /// Inline "Search" pill shown at the top of Home. Tapping it opens the universal
-    /// search (TMDB predictive + AI) over the shelves. Placed inline (not in the nav
-    /// bar) so it renders reliably on iPhone, iPad and tvOS.
-    var homeSearchTrigger: some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.2)) { searching = true }
-        } label: {
-            HStack(spacing: Theme.Spacing.sm) {
-                Image(systemName: "magnifyingglass")
-                    .font(.appFont(22))
-                    .foregroundStyle(Theme.Colors.textSecondary)
-                Text("Search movies, shows, your library")
-                    .font(.appFont(20))
-                    .foregroundStyle(Theme.Colors.textSecondary)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-            }
-            .padding(Theme.Spacing.md)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-        }
-        .buttonStyle(AstraListRowStyle())
-        .padding(.horizontal, Theme.Spacing.edge)
-    }
-
-    /// A slim "Done" bar shown above the search results so the user can dismiss the
-    /// search and return to their shelves.
-    private var searchDismissBar: some View {
-        HStack {
-            Spacer()
-            Button("Done") {
-                withAnimation(.easeInOut(duration: 0.2)) { searching = false }
-            }
-            .font(.appFont(17, weight: .semibold))
-            .foregroundStyle(Theme.Colors.accent)
-            .padding(.horizontal, Theme.Spacing.edge)
-            .padding(.vertical, Theme.Spacing.sm)
-        }
-        .background(.ultraThinMaterial)
-    }
-
-    // MARK: - Featured hero selection
-
-    /// The item to spotlight at the top: prefer the most recent Continue Watching,
-    /// then the newest Recently Added, then the first favorite.
-    private var featuredItem: MediaItem? {
-        library.continueWatching.first
-            ?? library.recentlyAdded.first
-            ?? library.favorites.first
+        if item.addedDate > Date().addingTimeInterval(-60 * 60 * 24 * 14) { return "Recently Added" }
+        return "Top Pick"
     }
 
     private var customizeButton: some View {
-        Button {
-            showCustomize = true
-        } label: {
+        Button { showCustomize = true } label: {
             Image(systemName: "slider.horizontal.3")
-                .font(.appFont(22, weight: .semibold))
+                .font(.appFont(20, weight: .semibold))
                 .foregroundStyle(.white)
                 .padding(Theme.Spacing.sm)
                 .background(.ultraThinMaterial, in: Circle())
         }
-        .astraIconStyle()
+        .buttonStyle(AstraListRowStyle())
         .padding(.horizontal, Theme.Spacing.edge)
         .padding(.top, Theme.Spacing.sm)
         #if os(tvOS)
@@ -351,30 +279,98 @@ struct HomeView: View {
         #endif
     }
 
-    // MARK: - Fallback header (no content yet)
+    // MARK: - Personal rails
 
-    private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text("Your personal media hub")
-                    .font(Theme.Font.screenTitle())
-                    .screenTitleStyle()
+    private var primarySmartRails: [SmartHomeRail] {
+        let excluded: Set<SmartHomeRailKind> = [.becauseYouWatched, .recentlyAdded]
+        return PersonalizedHomeEngine.rails(library: library, profile: profiles.activeProfile)
+            .filter { !excluded.contains($0.kind) }
+            .filter { rail in
+                if rail.kind == .recentlyWatched { return profiles.preferences.showWatchHistory }
+                return true
+            }
+            .prefix(7)
+            .map { $0 }
+    }
+
+    private var smartCollectionsFooter: some View {
+        Button { path.append(HomeRoute.smartCollections) } label: {
+            HStack(spacing: Theme.Spacing.md) {
+                Image(systemName: "rectangle.3.group.fill")
+                    .font(.appFont(34, weight: .semibold))
                     .foregroundStyle(Theme.Colors.textPrimary)
-            }
-            Spacer()
-            Button {
-                showCustomize = true
-            } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.appFont(22, weight: .semibold))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Browse All Smart Collections")
+                        .font(.appFont(21, weight: .bold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    Text("Finish Tonight, 4K, Binge Next, personal media, history, and more")
+                        .font(.appFont(15))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .lineLimit(2)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
                     .foregroundStyle(Theme.Colors.textSecondary)
-                    .padding(Theme.Spacing.sm)
-                    .background(Theme.Colors.card, in: Circle())
             }
-            .astraIconStyle()
+            .padding(Theme.Spacing.lg)
+            .background(.thinMaterial,
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+            )
+            .padding(.horizontal, Theme.Spacing.edge)
         }
-        .padding(.horizontal, Theme.Spacing.edge)
-        .padding(.top, Theme.Spacing.lg)
+        .buttonStyle(AstraListRowStyle())
+    }
+
+    // MARK: - Quick access / source hub
+
+    private var quickAccessItems: [AppleTVQuickAccessItem] {
+        [
+            AppleTVQuickAccessItem(id: "library", title: "Library", subtitle: "Everything you saved", systemImage: "rectangle.stack.fill") {
+                nav.selection = .library
+            },
+            AppleTVQuickAccessItem(id: "live", title: "Live TV", subtitle: "Channels and guide", systemImage: "dot.radiowaves.left.and.right") {
+                path.append(HomeRoute.liveTV)
+            },
+            AppleTVQuickAccessItem(id: "collections", title: "Collections", subtitle: "Your custom lists", systemImage: "rectangle.stack.badge.plus") {
+                path.append(HomeRoute.collections)
+            },
+            AppleTVQuickAccessItem(id: "history", title: "Watch History", subtitle: "Recently played titles", systemImage: "clock.arrow.circlepath") {
+                path.append(HomeRoute.history)
+            },
+            AppleTVQuickAccessItem(id: "smart", title: "Smart Collections", subtitle: "Automatic viewing lanes", systemImage: "sparkles.rectangle.stack") {
+                path.append(HomeRoute.smartCollections)
+            },
+            AppleTVQuickAccessItem(id: "sources", title: "Sources", subtitle: "Accounts, addons, and shares", systemImage: "point.3.connected.trianglepath.dotted") {
+                path.append(HomeRoute.sources)
+            }
+        ]
+    }
+
+    private var sourceHealthItems: [SourceHealthItem] {
+        SourceHealth.all(addonStore: env.addonStore, smbShareCount: smbShares.shares.count)
+    }
+
+    // MARK: - Destinations
+
+    @ViewBuilder
+    private func destination(for route: HomeRoute) -> some View {
+        switch route {
+        case .liveTV:
+            LiveTVView()
+        case .sources:
+            SourcesView(path: $path)
+        case .collections:
+            CollectionsView()
+        case .history:
+            WatchHistoryTimelineView()
+        case .smartCollections:
+            SmartCollectionsView()
+        case .watchStats:
+            WatchStatsView()
+        }
     }
 
     // MARK: - Actions
@@ -384,13 +380,10 @@ struct HomeView: View {
         selectedItem = item
     }
 
-    /// Opens the full detail screen (stream picker flow) for a row item, matching the
-    /// Discover tab. Used by Recently Added, Favorites, and Queue rows.
     private func openDetail(_ item: MediaItem) {
-        detailTarget = item.asCatalogItem()
+        path.append(item.asCatalogItem())
     }
 
-    /// Restarts an item from the beginning: clears its saved progress, then plays.
     private func restart(_ item: MediaItem) {
         library.clearProgress(for: item.id)
         var fresh = item
@@ -398,22 +391,45 @@ struct HomeView: View {
         selectedItem = fresh
     }
 
-    /// Shown when the movie database key is missing (nothing loads without it). Taps
-    /// through to Settings, where the setup checklist lives.
+    private func removeFromUpNext(_ item: MediaItem) {
+        withAnimation {
+            library.clearProgress(for: item.id)
+            library.removeFromQueue(item)
+        }
+    }
+
+    private func refreshShelves() async {
+        await env.shelfLoader.clearCache()
+        shelfRefreshToken = UUID()
+    }
+
+    // MARK: - Setup / empty states
+
+    private var welcomeState: some View {
+        VStack(spacing: Theme.Spacing.lg) {
+            EmptyStateView(
+                systemImage: "play.tv.fill",
+                title: "Welcome to Astra",
+                message: "Connect your sources and Astra will build a personalized Watch Now experience across iPhone, iPad, and Apple TV.",
+                actionTitle: "Set Up Sources",
+                action: { nav.selection = .settings }
+            )
+            AppleTVProfileButton(store: profiles) { showProfiles = true }
+        }
+    }
+
     private var setupBanner: some View {
-        Button {
-            nav.selection = .settings
-        } label: {
+        Button { nav.selection = .settings } label: {
             HStack(spacing: Theme.Spacing.md) {
                 Image(systemName: "checklist")
                     .font(.appFont(28, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.accent)
+                    .foregroundStyle(Theme.Colors.textPrimary)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Finish setting up Astra")
-                        .font(.appFont(22, weight: .bold))
+                        .font(.appFont(20, weight: .bold))
                         .foregroundStyle(Theme.Colors.textPrimary)
-                    Text("Add your movie database key to load posters and details, then connect your sources.")
-                        .font(.appFont(16))
+                    Text("Add your TMDB key for artwork, details, editorial shelves, and recommendations.")
+                        .font(.appFont(15))
                         .foregroundStyle(Theme.Colors.textSecondary)
                         .lineLimit(2)
                 }
@@ -422,40 +438,38 @@ struct HomeView: View {
                     .foregroundStyle(Theme.Colors.textTertiary)
             }
             .padding(Theme.Spacing.lg)
-            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .background(.thinMaterial,
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+            )
             .padding(.horizontal, Theme.Spacing.edge)
         }
-        .astraRowStyle()
+        .buttonStyle(AstraListRowStyle())
     }
 
-    /// The Continue Watching shelf with resume badges and per-item Restart/Remove.
-    private var continueWatchingRow: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text("Continue Watching")
-                .font(Theme.Font.sectionTitle())
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .padding(.horizontal, Theme.Spacing.edge)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Theme.Spacing.lg) {
-                    ForEach(library.continueWatching) { item in
-                        ContinueWatchingCard(
-                            item: item,
-                            onPlay: { play(item) },
-                            onRestart: { restart(item) },
-                            onRemove: { withAnimation { library.clearProgress(for: item.id) } }
-                        )
-                    }
-                }
-                .padding(.horizontal, Theme.Spacing.edge)
+    private var fallbackHeader: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text("Your personal media hub")
+                    .font(Theme.Font.screenTitle())
+                    .screenTitleStyle()
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Text("Add something to your queue or library to build Watch Now.")
+                    .font(.appFont(17))
+                    .foregroundStyle(Theme.Colors.textSecondary)
             }
+            Spacer()
+            customizeButton
         }
+        .padding(.horizontal, Theme.Spacing.edge)
+        .padding(.vertical, Theme.Spacing.lg)
     }
 }
 
 // MARK: - Queue management
 
-/// Reorder or remove queued titles. The queue is the "plan to watch" list, separate
-/// from Favorites; it syncs across devices via iCloud KVS.
 struct QueueManageView: View {
     @EnvironmentObject private var library: LibraryStore
     @Environment(\.dismiss) private var dismiss
@@ -464,34 +478,30 @@ struct QueueManageView: View {
         NavigationStack {
             Group {
                 if library.queuedItems.isEmpty {
-                    Text("Your queue is empty. Add titles from any detail page.")
-                        .font(.appFont(18))
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                        .padding(Theme.Spacing.lg)
+                    EmptyStateView(systemImage: "text.badge.plus",
+                                   title: "Your queue is empty",
+                                   message: "Add titles from any detail page or poster menu.")
                 } else {
                     List {
                         ForEach(library.queuedItems) { item in
                             HStack(spacing: Theme.Spacing.md) {
-                                PosterImage(url: item.posterURL,
-                                            width: 44, height: 66)
+                                PosterImage(url: item.posterURL, width: 44, height: 66)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.title)
+                                    Text(item.displayTitle)
                                         .font(.appFont(18, weight: .semibold))
                                         .foregroundStyle(Theme.Colors.textPrimary)
                                         .lineLimit(1)
-                                    if item.hasResumePoint {
-                                        Text("In progress")
-                                            .font(.appFont(14))
-                                            .foregroundStyle(Theme.Colors.accent)
-                                    }
+                                    Text(item.hasResumePoint ? "In progress" : "Ready to watch")
+                                        .font(.appFont(14))
+                                        .foregroundStyle(item.hasResumePoint ? Theme.Colors.accent : Theme.Colors.textSecondary)
                                 }
                                 Spacer()
                             }
                             .listRowBackground(Theme.Colors.card)
                         }
                         .onMove { library.moveInQueue(from: $0, to: $1) }
-                        .onDelete { idx in
-                            for i in idx { library.removeFromQueue(library.queuedItems[i]) }
+                        .onDelete { indexes in
+                            for index in indexes { library.removeFromQueue(library.queuedItems[index]) }
                         }
                     }
                     #if os(iOS)
@@ -500,18 +510,13 @@ struct QueueManageView: View {
                 }
             }
             .background(Theme.Colors.appBackground.ignoresSafeArea())
-            .navigationTitle("Queue")
+            .navigationTitle("Up Next")
             .toolbar {
                 #if os(iOS)
                 ToolbarItem(placement: .topBarLeading) { EditButton() }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
-                }
+                ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } }
                 #endif
             }
         }
     }
 }
-
-
-

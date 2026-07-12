@@ -2,11 +2,9 @@
 //  AccentManager.swift
 //  Astra
 //
-//  Apple TV style: the UI accent is drawn from the artwork the user is looking at.
-//  When a detail screen or the player shows a poster, we extract a vivid dominant
-//  color from it and publish it as the current accent. Views read `AccentManager`
-//  for highlights, focus rings, and gradients so the whole app subtly takes on the
-//  color of the content. Falls back to the brand violet when nothing is showing.
+//  Keeps app chrome aligned with Apple's TV palette. Artwork analysis remains
+//  available for future editorial treatments, but navigation, focus rings, progress,
+//  and player controls intentionally stay on system blue rather than recoloring per title.
 //
 
 import SwiftUI
@@ -21,7 +19,7 @@ final class AccentManager: ObservableObject {
 
     /// The brand fallback accent (matches Theme.Colors.accent). Nonisolated so it can
     /// be used as an EnvironmentKey default value (which runs outside the main actor).
-    nonisolated static let fallback = Color(red: 0.49, green: 0.40, blue: 0.95)
+    nonisolated static let fallback = Color.blue
 
     /// The current accent color, animated when it changes.
     @Published private(set) var accent: Color = AccentManager.fallback
@@ -32,19 +30,9 @@ final class AccentManager: ObservableObject {
     /// Derives an accent from a poster URL (using the already-cached, downsampled
     /// image) and publishes it. No-ops gracefully if the image isn't available.
     func deriveAccent(from url: URL?) {
-        guard let url else { reset(); return }
-        let key = url.absoluteString
-        if let cached = cache[key] {
-            set(cached)
-            return
-        }
-        Task {
-            // Reuse the small cached/downsampled image; cheap to analyze.
-            guard let image = await ImageLoader.shared.image(for: url, maxPixel: 120) else { return }
-            let color = AccentManager.dominantColor(from: image) ?? AccentManager.fallback
-            cache[key] = color
-            set(color)
-        }
+        // Keep navigation, focus rings, controls, and progress indicators on Apple's
+        // default system blue instead of recoloring the interface from artwork.
+        set(AccentManager.fallback)
     }
 
     /// Resets to the brand accent (e.g. when leaving a detail screen).

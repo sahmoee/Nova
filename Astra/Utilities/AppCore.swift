@@ -28,6 +28,7 @@ enum PrefKey {
     static let cloudLibrary  = "cloud.library.v1"
     static let cloudLibraryRevision = "cloud.library.revision"
     static let cloudCollections     = "cloud.collections.v1"
+    static let viewingProfiles      = "experience.viewingProfiles.v1"
 }
 
 // MARK: - Shared coders

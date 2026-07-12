@@ -89,7 +89,7 @@ struct DiscoverView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                    Text("Discover")
+                    Text("Search")
                         .font(Theme.Font.screenTitle())
                         .screenTitleStyle()
                         .foregroundStyle(Theme.Colors.textPrimary)
@@ -144,12 +144,14 @@ struct DiscoverView: View {
             }
         }
         .task { await onAppear() }
+        #if os(iOS)
         .refreshable {
             // Pull to refresh: drop the shelf cache so rows fetch fresh data, then
             // bump the token so every shelf re-runs its loader.
             await env.shelfLoader.clearCache()
             discoverRefreshToken += 1
         }
+        #endif
         .dismissKeyboardOnTap()
     }
 

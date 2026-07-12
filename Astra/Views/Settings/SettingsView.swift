@@ -12,6 +12,7 @@ struct SettingsView: View {
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var settings: SettingsStore
+    @StateObject private var profiles = ViewingProfileStore.shared
 
     @State private var confirmClearLibrary = false
     @State private var confirmClearHistory = false
@@ -81,6 +82,7 @@ struct SettingsView: View {
                                 streamingSection
                             }
                             playbackSection
+                            appleTVExperienceSection
                             appearanceSection
                             subtitleSection
                             accessibilitySection
@@ -191,6 +193,50 @@ struct SettingsView: View {
                             in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
             }
 
+        }
+    }
+
+    private var appleTVExperienceSection: some View {
+        section("Apple TV Experience") {
+            NavigationLink {
+                ViewingProfileSwitcherView(store: profiles)
+            } label: {
+                settingRow("Viewing Profiles", systemImage: "person.2.circle",
+                           detail: "Active: \(profiles.activeProfile.name)")
+            }.astraRowStyle()
+
+            toggleRow("Auto-Advance Featured Titles", systemImage: "rectangle.on.rectangle.angled",
+                      isOn: experienceBinding(\.autoAdvanceHero))
+            toggleRow("Quick Access Row", systemImage: "square.grid.2x2",
+                      isOn: experienceBinding(\.showQuickAccess))
+            toggleRow("Source Health on Home", systemImage: "point.3.connected.trianglepath.dotted",
+                      isOn: experienceBinding(\.showSourceHub))
+            toggleRow("Smart Collections", systemImage: "sparkles.rectangle.stack",
+                      isOn: experienceBinding(\.showSmartCollections))
+            toggleRow("Watch History Rail", systemImage: "clock.arrow.circlepath",
+                      isOn: experienceBinding(\.showWatchHistory))
+            toggleRow("Because You Watched", systemImage: "wand.and.stars",
+                      isOn: experienceBinding(\.showBecauseYouWatched))
+            toggleRow("Reduce Artwork Motion", systemImage: "figure.walk.motion",
+                      isOn: experienceBinding(\.reduceArtworkMotion))
+
+            settingRow("This Device", systemImage: platformSymbol,
+                       detail: PlatformCapabilities.platform.displayName)
+        }
+    }
+
+    private func experienceBinding(_ keyPath: WritableKeyPath<AppleTVExperiencePreferences, Bool>) -> Binding<Bool> {
+        Binding(
+            get: { profiles.preferences[keyPath: keyPath] },
+            set: { value in profiles.preferences[keyPath: keyPath] = value }
+        )
+    }
+
+    private var platformSymbol: String {
+        switch PlatformCapabilities.platform {
+        case .iPhone: return "iphone"
+        case .iPad: return "ipad"
+        case .appleTV: return "appletv.fill"
         }
     }
 
@@ -457,6 +503,14 @@ struct SettingsView: View {
         section("Subtitles") {
             toggleRow("Enable Subtitles", systemImage: "captions.bubble",
                       isOn: $settings.subtitlesEnabled)
+            if settings.subtitlesEnabled {
+                toggleRow("Auto-Download from Add-ons", systemImage: "arrow.down.circle",
+                          isOn: $settings.autoDownloadSubtitles)
+                Text("When playback starts, Astra searches enabled subtitle providers and automatically uses your preferred language. You can also search manually from the player subtitle picker.")
+                    .font(.appFont(15))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                    .padding(.horizontal, Theme.Spacing.md)
+            }
             HStack {
                 Label("Preferred Language", systemImage: "globe")
                     .foregroundStyle(Theme.Colors.textPrimary)

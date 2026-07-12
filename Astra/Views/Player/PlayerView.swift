@@ -29,6 +29,7 @@ struct PlayerView: View {
     @EnvironmentObject private var progress: PlaybackProgressStore
     @EnvironmentObject private var settings: SettingsStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     @StateObject private var model: PlayerModel
     @State private var preparedNext: MediaItem?      // pre-resolved, not yet navigated
@@ -112,6 +113,7 @@ struct PlayerView: View {
                                     systemImage: "backward.end.fill") {
                         didChooseResume = true
                         resumePromptPosition = nil
+                        progress.reset(for: item)
                         model.forceRestart = true
                         model.start()
                         prepareNextEpisode()
@@ -274,10 +276,21 @@ struct PlayerView: View {
                 // fullscreen toggle, Picture in Picture, and AirPlay. In fullscreen the
                 // system hides all chrome automatically.
                 AVPlayerContainer(player: model.player,
-                                  onExitFullscreen: { dismiss() },
+                                  title: item.displayTitle,
+                                  subtitle: item.subtitleLine,
+                                  onExitFullscreen: { model.checkpointProgress(); dismiss() },
                                   nextEpisodeTitle: preparedNext?.title,
-                                  onPlayNext: preparedNext != nil ? { playNext() } : nil)
+                                  onPlayNext: preparedNext != nil ? { playNext() } : nil,
+                                  onShowSubtitles: { model.showSubtitlePicker = true })
                     .ignoresSafeArea()
+
+                if let subtitleText = model.activeSubtitleText, !subtitleText.isEmpty {
+                    externalSubtitleOverlay(subtitleText)
+                }
+
+                #if os(iOS)
+                avPlayerAccessoryBar
+                #endif
             case .failed(let message):
                 playbackRecovery(message: message)
             }
@@ -286,11 +299,12 @@ struct PlayerView: View {
             model.configure(progressStore: progress,
                             settings: settings,
                             trakt: env.trakt,
-                            openSubtitles: env.openSubtitles)
+                            openSubtitles: env.openSubtitles,
+                            catalog: env.catalog)
             // If there's saved progress, ask Resume or Restart before starting —
             // unless this is a seamless resume from the minimized Now Playing bar, in
             // which case continue the same stream at the saved position with no prompt.
-            if !autoResume, let pos = progress.resumePosition(for: item.id), pos > 30, !didChooseResume {
+            if !autoResume, let pos = progress.resumePosition(for: item), !didChooseResume {
                 resumePromptPosition = pos
             } else {
                 model.start()
@@ -298,6 +312,19 @@ struct PlayerView: View {
             }
         }
         .onDisappear { model.minimizeAndSave(); prepareTask?.cancel() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { model.checkpointProgress() }
+        }
+        .sheet(isPresented: $model.showSubtitlePicker) {
+            SubtitlePickerView(
+                tracks: model.availableSubtitles,
+                selectedID: model.selectedSubtitleID,
+                isLoading: model.isLoadingSubtitles,
+                statusMessage: model.subtitleStatusMessage,
+                onRefresh: { Task { await model.refreshSubtitlesFromProviders() } },
+                onSelect: { model.selectSubtitle($0) }
+            )
+        }
         #if os(iOS)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
@@ -311,6 +338,84 @@ struct PlayerView: View {
             PlayerView(item: next, series: series)
         }
     }
+
+    private func externalSubtitleOverlay(_ text: String) -> some View {
+        VStack {
+            Spacer()
+            Text(text)
+                .font(.system(size: Theme.scaled(28, min: 20), weight: .semibold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .lineLimit(4)
+                .shadow(color: .black, radius: 2, x: 0, y: 1)
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.vertical, Theme.Spacing.sm)
+                .background(Color.black.opacity(0.68),
+                            in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .frame(maxWidth: Theme.contentMaxWidth(980))
+                .padding(.horizontal, Theme.Spacing.xl)
+                .padding(.bottom, Theme.scaled(118, min: 76))
+        }
+        .allowsHitTesting(false)
+        .transition(.opacity)
+        .animation(.easeOut(duration: 0.12), value: text)
+    }
+
+    #if os(iOS)
+    /// Lightweight Apple-player accessory cluster. Transport remains native inside
+    /// AVPlayerViewController; these actions expose Astra-specific subtitles and exit
+    /// behavior without replacing Apple's play/pause and scrubber UI.
+    private var avPlayerAccessoryBar: some View {
+        VStack {
+            HStack(spacing: Theme.Spacing.sm) {
+                Button {
+                    model.minimizeAndSave()
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.appFont(19, weight: .semibold))
+                        .frame(width: 46, height: 46)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+                .accessibilityLabel("Minimize player")
+
+                Spacer()
+
+                Button {
+                    model.showSubtitlePicker = true
+                } label: {
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: "captions.bubble.fill")
+                            .font(.appFont(19, weight: .semibold))
+                            .frame(width: 46, height: 46)
+                            .background(.ultraThinMaterial, in: Circle())
+                        if model.isLoadingSubtitles {
+                            ProgressView()
+                                .controlSize(.mini)
+                                .offset(x: 2, y: -2)
+                        }
+                    }
+                }
+                .accessibilityLabel("Subtitles")
+
+                Button {
+                    model.stopAndSave()
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.appFont(18, weight: .semibold))
+                        .frame(width: 46, height: 46)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+                .accessibilityLabel("Stop playback")
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, Theme.Spacing.md)
+            .safeAreaPadding(.top)
+            Spacer()
+        }
+    }
+    #endif
 
     private func prepareNextEpisode() {
         guard let series, let epRef = item.episode else { return }
@@ -368,9 +473,11 @@ struct PlayerView: View {
 
 /// A player surface using AVPlayerViewController with its full native UI: transport
 /// bar, scrubbing, subtitle and audio menus, Picture in Picture, AirPlay, and the
-/// fullscreen toggle. On iOS it enters fullscreen automatically when playback begins.
+/// fullscreen toggle. PlayerView itself owns the full-screen presentation on iOS.
 struct AVPlayerContainer: UIViewControllerRepresentable {
     let player: AVPlayer
+    var title: String = ""
+    var subtitle: String = ""
     /// Called when the user exits fullscreen so the presenting view can dismiss.
     var onExitFullscreen: (() -> Void)? = nil
     /// tvOS only: when a next episode is queued, its title and a play action are
@@ -378,12 +485,18 @@ struct AVPlayerContainer: UIViewControllerRepresentable {
     /// transport bar (contextual actions). nil hides the button.
     var nextEpisodeTitle: String? = nil
     var onPlayNext: (() -> Void)? = nil
+    var onShowSubtitles: (() -> Void)? = nil
 
-    func makeCoordinator() -> Coordinator { Coordinator(onExitFullscreen: onExitFullscreen) }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onExitFullscreen: onExitFullscreen,
+                    onPlayNext: onPlayNext,
+                    onShowSubtitles: onShowSubtitles)
+    }
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let vc = AVPlayerViewController()
         vc.player = player
+        vc.title = title
         vc.delegate = context.coordinator
         // Native transport UI (scrub bar, subtitle/audio menu, fullscreen button).
         vc.showsPlaybackControls = true
@@ -392,7 +505,10 @@ struct AVPlayerContainer: UIViewControllerRepresentable {
         // Inline PiP only exists on iOS; tvOS has no inline video surface.
         vc.canStartPictureInPictureAutomaticallyFromInline = true
         vc.videoGravity = .resizeAspect
-        vc.entersFullScreenWhenPlaybackBegins = true
+        // PlayerView already presents this controller full-screen. Asking the
+        // controller to present a second fullscreen layer hides Astra's subtitle and
+        // exit accessories and causes awkward double-dismiss behavior.
+        vc.entersFullScreenWhenPlaybackBegins = false
         vc.exitsFullScreenWhenPlaybackEnds = false
         vc.updatesNowPlayingInfoCenter = true
         #endif
@@ -407,26 +523,40 @@ struct AVPlayerContainer: UIViewControllerRepresentable {
         if uiViewController.player !== player {
             uiViewController.player = player
         }
+        uiViewController.title = title
         #if os(tvOS)
         // Keep the "Next Episode" contextual action in sync. It renders as a focusable
         // button in the native transport bar, reachable with the remote.
         context.coordinator.onPlayNext = onPlayNext
-        if let title = nextEpisodeTitle, onPlayNext != nil {
-            let action = UIAction(title: "Next: \(title)",
-                                  image: UIImage(systemName: "forward.end.fill")) { [weak coordinator = context.coordinator] _ in
-                coordinator?.onPlayNext?()
-            }
-            uiViewController.contextualActions = [action]
-        } else {
-            uiViewController.contextualActions = []
+        context.coordinator.onShowSubtitles = onShowSubtitles
+        var actions: [UIAction] = []
+        if onShowSubtitles != nil {
+            actions.append(UIAction(title: "Subtitles",
+                                    image: UIImage(systemName: "captions.bubble.fill")) { [weak coordinator = context.coordinator] _ in
+                coordinator?.onShowSubtitles?()
+            })
         }
+        if let nextTitle = nextEpisodeTitle, onPlayNext != nil {
+            actions.append(UIAction(title: "Next: \(nextTitle)",
+                                    image: UIImage(systemName: "forward.end.fill")) { [weak coordinator = context.coordinator] _ in
+                coordinator?.onPlayNext?()
+            })
+        }
+        uiViewController.contextualActions = actions
         #endif
     }
 
     final class Coordinator: NSObject, AVPlayerViewControllerDelegate {
         let onExitFullscreen: (() -> Void)?
         var onPlayNext: (() -> Void)?
-        init(onExitFullscreen: (() -> Void)?) { self.onExitFullscreen = onExitFullscreen }
+        var onShowSubtitles: (() -> Void)?
+        init(onExitFullscreen: (() -> Void)?,
+             onPlayNext: (() -> Void)?,
+             onShowSubtitles: (() -> Void)?) {
+            self.onExitFullscreen = onExitFullscreen
+            self.onPlayNext = onPlayNext
+            self.onShowSubtitles = onShowSubtitles
+        }
 
         #if os(iOS)
         // Called when the user taps the exit-fullscreen (minimize) control.

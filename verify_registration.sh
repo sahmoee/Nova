@@ -16,8 +16,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PBXPROJ="$ROOT/Astra/Astra.xcodeproj/project.pbxproj"
-SRC_DIR="$ROOT/Astra/Astra"
+PBXPROJ="$ROOT/Astra.xcodeproj/project.pbxproj"
+SRC_DIR="$ROOT/Astra"
 
 if [[ ! -f "$PBXPROJ" ]]; then
   echo "verify_registration: pbxproj not found at $PBXPROJ" >&2
@@ -46,16 +46,16 @@ while IFS= read -r -d '' f; do
   base="$(basename "$f")"
   is_excluded "$base" && continue
 
-  fileref=$(grep -c "/\* $base \*/ = {isa = PBXFileReference" "$PBXPROJ" || true)
-  buildfile=$(grep -c "/\* $base in Sources \*/ = {isa = PBXBuildFile" "$PBXPROJ" || true)
-  # children + sources phase both render as "/* base in Sources */," or
-  # "/* base */," lines; count the "in Sources" phase membership refs:
-  phase=$(grep -c "/\* $base in Sources \*/," "$PBXPROJ" || true)
+  escaped_base=$(printf '%s' "$base" | sed 's/[][\.^$*+?{}|()]/\\&/g')
+  fileref=$(grep -Ec "/\* .*${escaped_base} \*/ = \{isa = PBXFileReference" "$PBXPROJ" || true)
+  buildfile=$(grep -Ec "/\* .*${escaped_base} in Sources \*/ = \{isa = PBXBuildFile" "$PBXPROJ" || true)
+  # A shared file may also belong to an extension target, so two is the minimum.
+  phase=$(grep -Ec "/\* .*${escaped_base} in Sources \*/," "$PBXPROJ" || true)
 
   problems=()
   [[ "$fileref"   -lt 1 ]] && problems+=("missing PBXFileReference")
-  [[ "$buildfile" -ne 2 ]] && problems+=("PBXBuildFile defs = $buildfile (need 2)")
-  [[ "$phase"     -ne 2 ]] && problems+=("Sources-phase entries = $phase (need 2)")
+  [[ "$buildfile" -lt 2 ]] && problems+=("PBXBuildFile defs = $buildfile (need at least 2)")
+  [[ "$phase"     -lt 2 ]] && problems+=("Sources-phase entries = $phase (need at least 2)")
 
   if [[ ${#problems[@]} -gt 0 ]]; then
     FAIL=1

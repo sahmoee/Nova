@@ -3,8 +3,9 @@
 //  Astra
 //
 //  The player screen used for formats AVPlayer can't open. Hosts the VLC video
-//  surface and a minimal overlay: play/pause, scrub, skip, subtitles/audio, and a
-//  back button. Resume and progress saving are handled by VLCPlayerModel.
+//  surface and an Apple TV-style overlay: title metadata, play/pause, ten-second
+//  skips, timeline, subtitles/audio, aspect controls, and exit actions. Resume and
+//  progress saving are handled by VLCPlayerModel.
 //
 
 import SwiftUI
@@ -29,6 +30,7 @@ struct VLCPlayerView: View {
     @EnvironmentObject private var settings: SettingsStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicAccent) private var accent
+    @Environment(\.scenePhase) private var scenePhase
 
     @StateObject private var model: VLCPlayerModel
     @State private var controlsVisible = false
@@ -158,7 +160,12 @@ struct VLCPlayerView: View {
             }
         }
         .onAppear {
-            model.configure(progressStore: progress, settings: settings, trakt: env.trakt)
+            model.configure(progressStore: progress,
+                            settings: settings,
+                            trakt: env.trakt,
+                            catalog: env.catalog,
+                            openSubtitles: env.openSubtitles,
+                            libraryStore: env.library)
             // Guard against SwiftUI re-running onAppear (e.g. after a sheet dismiss or
             // a parent nav change), which would otherwise restart the video.
             if !hasStarted {
@@ -175,6 +182,9 @@ struct VLCPlayerView: View {
             Task { await prepareNextEpisode() }
         }
         .onDisappear { model.minimizeAndSave(); hideControlsTask?.cancel() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { model.checkpointProgress() }
+        }
         .overlay {
             if let pos = resumePromptPosition {
                 resumeRestartPrompt(position: pos)
@@ -253,10 +263,38 @@ struct VLCPlayerView: View {
     /// elapsed and remaining time, plus a compact text button row (Info / Audio &
     /// Subtitles / Aspect / Diagnostics) echoing the native transport bar.
     private var nativeOverlay: some View {
-        VStack {
-            topBar
+        ZStack {
+            LinearGradient(
+                stops: [
+                    .init(color: .black.opacity(0.70), location: 0),
+                    .init(color: .clear, location: 0.28),
+                    .init(color: .clear, location: 0.58),
+                    .init(color: .black.opacity(0.92), location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                HStack(alignment: .top, spacing: Theme.Spacing.lg) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(model.item.displayTitle)
+                            .font(.appFont(30, weight: .bold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        if !model.item.subtitleLine.isEmpty {
+                            Text(model.item.subtitleLine)
+                                .font(.appFont(17, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.72))
+                                .lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: Theme.Spacing.md)
+                    playerExitControls
+                }
                 .padding(.horizontal, Theme.Spacing.lg)
-                .padding(.top, Theme.Spacing.xl)
+                .padding(.top, Theme.Spacing.lg)
                 #if os(iOS)
                 .safeAreaPadding(.top)
                 #endif
@@ -264,95 +302,114 @@ struct VLCPlayerView: View {
                 .focusSection()
                 #endif
 
-            Spacer()
+                Spacer()
 
-            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                Text(model.item.title)
-                    .font(.appFont(30, weight: .bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .shadow(color: .black.opacity(0.6), radius: 6, y: 2)
-
-                // Thin scrubber with timestamps beneath, like the native bar.
-                VStack(spacing: 4) {
-                    #if os(iOS)
-                    Slider(
-                        value: Binding(
-                            get: { model.currentTime },
-                            set: { model.seek(to: $0) }
-                        ),
-                        in: 0...max(model.duration, 1)
-                    )
-                    .tint(accent)
-                    #else
-                    ProgressView(value: min(model.currentTime, model.duration),
-                                 total: max(model.duration, 1))
-                        .tint(accent)
-                    #endif
-                    HStack {
-                        Text(timeString(model.currentTime))
-                            .font(.appFont(14)).monospacedDigit()
-                            .foregroundStyle(.white)
-                        Spacer()
-                        Text("-\(timeString(max(model.duration - model.currentTime, 0)))")
-                            .font(.appFont(14)).monospacedDigit()
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                    }
-                }
-
-                // Compact text control row. Scrolls horizontally so no button is ever
-                // clipped off-screen, and the primary transport stays pinned left.
-                ScrollView(.horizontal, showsIndicators: false) {
+                VStack(spacing: Theme.Spacing.md) {
                     HStack(spacing: Theme.Spacing.xl) {
-                        nativeTextButton("Play/Pause", systemImage: model.isPlaying ? "pause.fill" : "play.fill") {
-                            model.togglePlayPause(); revealControls()
+                        transportButton("gobackward.10", accessibility: "Back 10 seconds") {
+                            model.skipBackward(10); revealControls()
                         }
+
+                        Button {
+                            model.togglePlayPause(); revealControls()
+                        } label: {
+                            Image(systemName: model.isPlaying ? "pause.fill" : "play.fill")
+                                .font(.appFont(40, weight: .semibold))
+                                .foregroundStyle(.black)
+                                .frame(width: Theme.scaled(92, min: 72),
+                                       height: Theme.scaled(92, min: 72))
+                                .background(.white, in: Circle())
+                                .shadow(color: .black.opacity(0.35), radius: 18, y: 8)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(model.isPlaying ? "Pause" : "Play")
                         #if os(tvOS)
                         .focused($playPauseFocused)
                         #endif
-                        nativeTextButton("−15", systemImage: "gobackward.15") { model.skipBackward(); revealControls() }
-                        nativeTextButton("+15", systemImage: "goforward.15") { model.skipForward(); revealControls() }
-                        if hasNextEpisode {
-                            nativeTextButton("Next", systemImage: "forward.end.fill") { playNextEpisode() }
-                        }
-                        nativeTextButton("Audio & Subtitles", systemImage: "captions.bubble") {
-                            model.showSubtitlePicker = true
-                        }
-                        nativeTextButton(model.fillScreen ? "Fit" : "Fill",
-                                         systemImage: model.fillScreen
-                                            ? "arrow.down.right.and.arrow.up.left"
-                                            : "arrow.up.left.and.arrow.down.right") {
-                            model.fillScreen.toggle(); revealControls()
-                        }
-                        nativeTextButton("Diagnostics", systemImage: "waveform.path.ecg") {
-                            showDiagnostics.toggle(); revealControls()
+
+                        transportButton("goforward.10", accessibility: "Forward 10 seconds") {
+                            model.skipForward(10); revealControls()
                         }
                     }
-                    .padding(.horizontal, Theme.Spacing.xs)
+
+                    VStack(spacing: 6) {
+                        #if os(iOS)
+                        Slider(
+                            value: Binding(
+                                get: { model.currentTime },
+                                set: { model.seek(to: $0) }
+                            ),
+                            in: 0...max(model.duration, 1)
+                        )
+                        .tint(.white)
+                        #else
+                        ProgressView(value: min(model.currentTime, model.duration),
+                                     total: max(model.duration, 1))
+                            .tint(.white)
+                        #endif
+
+                        HStack {
+                            Text(timeString(model.currentTime))
+                            Spacer()
+                            Text("-\(timeString(max(model.duration - model.currentTime, 0)))")
+                        }
+                        .font(.appFont(14, weight: .medium))
+                        .monospacedDigit()
+                        .foregroundStyle(.white.opacity(0.78))
+                    }
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: Theme.Spacing.lg) {
+                            if hasNextEpisode {
+                                nativeTextButton("Next", systemImage: "forward.end.fill") {
+                                    playNextEpisode()
+                                }
+                            }
+                            nativeTextButton(model.isLoadingExternalSubtitles ? "Searching…" : "Subtitles",
+                                             systemImage: "captions.bubble.fill") {
+                                model.showSubtitlePicker = true
+                            }
+                            nativeTextButton(model.fillScreen ? "Fit" : "Fill",
+                                             systemImage: model.fillScreen
+                                                ? "arrow.down.right.and.arrow.up.left"
+                                                : "arrow.up.left.and.arrow.down.right") {
+                                model.fillScreen.toggle(); revealControls()
+                            }
+                            nativeTextButton("Diagnostics", systemImage: "waveform.path.ecg") {
+                                showDiagnostics.toggle(); revealControls()
+                            }
+                        }
+                        .padding(.horizontal, Theme.Spacing.xs)
+                    }
                 }
-                .padding(.top, Theme.Spacing.xs)
+                .padding(.horizontal, Theme.Spacing.xl)
+                .padding(.bottom, Theme.Spacing.xl)
+                #if os(iOS)
+                .safeAreaPadding(.bottom)
+                #endif
+                #if os(tvOS)
+                .focusSection()
+                #endif
             }
-            .padding(.horizontal, Theme.Spacing.xl)
-            .padding(.bottom, Theme.Spacing.xl)
-            .padding(.top, Theme.Spacing.md)
-            #if os(iOS)
-            .safeAreaPadding(.bottom)
-            #endif
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                LinearGradient(colors: [.clear, .black.opacity(0.75)],
-                               startPoint: .top, endPoint: .bottom)
-                    .ignoresSafeArea(edges: .bottom)
-            )
-            #if os(tvOS)
-            .focusSection()
-            #endif
         }
     }
 
-    /// The shared top control cluster (close), reused by the native overlay so both
-    /// styles expose the same top action.
-    private var topBar: some View {
+    private func transportButton(_ symbol: String, accessibility: String,
+                                 action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.appFont(29, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: Theme.scaled(70, min: 56),
+                       height: Theme.scaled(70, min: 56))
+                .background(.ultraThinMaterial, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibility)
+    }
+
+    /// Minimal Apple-style exit controls kept separate from playback transport.
+    private var playerExitControls: some View {
         HStack(spacing: Theme.Spacing.sm) {
             // Minimize: leave the player but keep the session so the floating bar can
             // resume it. Does NOT end playback — that's what the Stop button is for.
@@ -376,7 +433,6 @@ struct VLCPlayerView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Stop")
-            Spacer()
         }
     }
 
@@ -598,6 +654,7 @@ struct VLCPlayerView: View {
 
                     FocusableButton(title: "Start from beginning",
                                     systemImage: "backward.end.fill") {
+                        progress.reset(for: item)
                         model.forceRestart = true
                         resumePromptPosition = nil
                         model.start()
@@ -622,13 +679,49 @@ struct VLCPlayerView: View {
             List {
                 Section("Subtitles") {
                     Button {
-                        model.selectSubtitleTrack(nil)
+                        Task { await model.refreshExternalSubtitles() }
+                    } label: {
+                        if model.isLoadingExternalSubtitles {
+                            Label("Searching Subtitle Add-ons…", systemImage: "arrow.triangle.2.circlepath")
+                        } else {
+                            Label("Download from Add-ons", systemImage: "arrow.down.circle.fill")
+                        }
+                    }
+                    .disabled(model.isLoadingExternalSubtitles)
+
+                    Button {
+                        model.disableSubtitles()
                     } label: {
                         Label("Off", systemImage: "captions.bubble")
                     }
+
+                    ForEach(model.externalSubtitleTracks) { track in
+                        Button {
+                            model.selectExternalSubtitle(track)
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(track.languageDisplay)
+                                    Text(track.source).font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                if model.selectedExternalSubtitleID == track.id {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+
                     ForEach(model.subtitleTracks) { track in
                         Button(track.name) { model.selectSubtitleTrack(track) }
                     }
+
+                    if let message = model.subtitleStatusMessage {
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
                     #if os(iOS)
                     Button {
                         showSubtitleImporter = true

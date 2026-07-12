@@ -264,6 +264,22 @@ struct SubtitleTrack: Identifiable, Codable, Hashable, Sendable {
         self.isEmbedded = isEmbedded
         self.source = source
     }
+
+    /// Matches both two/three-letter provider codes and human-readable names.
+    /// Subtitle add-ons are inconsistent (for example, "eng", "en-US", or
+    /// "English"), so a raw prefix comparison is not reliable enough for auto-select.
+    func matchesPreferredLanguage(_ preferredCode: String) -> Bool {
+        let preferred = preferredCode.lowercased().replacingOccurrences(of: "_", with: "-")
+        let raw = language.lowercased().replacingOccurrences(of: "_", with: "-")
+        if raw == preferred || raw.hasPrefix(preferred + "-") { return true }
+
+        let preferredName = LanguageNames.display(for: preferredCode).lowercased()
+        let rawName = LanguageNames.display(for: language).lowercased()
+        let display = languageDisplay.lowercased()
+        return rawName == preferredName
+            || display == preferredName
+            || display.hasPrefix(preferredName + " (")
+    }
 }
 
 // MARK: - Skip segments (intro / outro / recap)

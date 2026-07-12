@@ -1,3 +1,20 @@
+07:12:26 — v1.8 (build 15) — Playback, Player & Subtitle Reliability
+- Resume now saves by stable content identity, becomes available after five seconds, and checkpoints immediately on pause, background, minimize, and stop.
+- Late-title pauses remain resumable; progress clears only after playback reaches the actual end.
+- AVPlayer resumes with zero seek tolerance and VLC seeks using its millisecond time clock.
+- Reworked player chrome to use native Apple controls or the Apple TV-style VLC transport overlay.
+- Standardized app chrome on true black, neutral materials, white type, and Apple system blue.
+- Added automatic subtitle discovery/download from enabled subtitle add-ons and OpenSubtitles, with language normalization and provider timeouts.
+- Added manual “Download from Add-ons” actions to both subtitle pickers.
+- Added reliable SRT/VTT timed-text rendering for AVPlayer and provider subtitle attachment for VLC.
+
+07:12:26 — v1.8 (build 14) — Apple TV Experience Rehaul
+- Added 10 large, 5 medium, and 3 low-effort features.
+- Replaced the custom phone/TV menu shell with adaptive native navigation.
+- Added synced viewing profiles, personalized rails, Smart Collections, Watch History, Quick Access, Source Health, and TMDB recommendations.
+- Added a compile-time platform capability boundary for iPhone, iPad, and tvOS.
+- Reworked Home, mini-player, Settings, spacing, materials, focus, and cinematic surfaces.
+
 07:08:26 08:30 — v1.7 (build 11) — Build
 Big change
 

@@ -37,6 +37,10 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     // Track selection exposed to the UI.
     @Published private(set) var subtitleTracks: [VLCTrack] = []
     @Published private(set) var audioTracks: [VLCTrack] = []
+    @Published private(set) var externalSubtitleTracks: [SubtitleTrack]
+    @Published private(set) var selectedExternalSubtitleID: String?
+    @Published private(set) var isLoadingExternalSubtitles = false
+    @Published private(set) var subtitleStatusMessage: String?
     @Published var showSubtitlePicker = false
 
     struct VLCTrack: Identifiable, Hashable {
@@ -49,6 +53,8 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     private var progressStore: PlaybackProgressStore?
     private var settings: SettingsStore?
     private var trakt: TraktClient?
+    private var catalog: CatalogService?
+    private var openSubtitles: OpenSubtitlesClient?
     /// Optional: lets the player persist a subtitle timing offset back to the item.
     private var libraryStore: LibraryStore?
 
@@ -56,17 +62,18 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     private var hasScrobbledStart = false
     private var lastScrobbleProgress: Double = 0
     private var didApplyResume = false
+    private var didAttemptAutomaticSubtitles = false
+    private var localSubtitleFiles: [String: URL] = [:]
     /// When true, the resume seek is skipped so playback starts from the beginning
     /// (set by the "Start from beginning" choice in the resume prompt).
     var forceRestart = false
 
     /// The saved resume position for this item, if resume is enabled and it's past the
-    /// 30s threshold. Used by the view to decide whether to show the resume prompt.
+    /// meaningful checkpoint threshold. Used by the view to decide whether to show the resume prompt.
     var savedResumePosition: TimeInterval? {
         guard item.sourceType != .liveTV,
               (settings?.resumePlaybackEnabled ?? true),
-              let resume = progressStore?.resumePosition(for: item.id),
-              resume > 30 else { return nil }
+              let resume = progressStore?.resumePosition(for: item) else { return nil }
         return resume
     }
 
@@ -76,16 +83,21 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
 
     init(item: MediaItem) {
         self.item = item
+        self.externalSubtitleTracks = item.subtitles
         super.init()
     }
 
     func configure(progressStore: PlaybackProgressStore,
                    settings: SettingsStore,
                    trakt: TraktClient,
+                   catalog: CatalogService,
+                   openSubtitles: OpenSubtitlesClient,
                    libraryStore: LibraryStore? = nil) {
         self.progressStore = progressStore
         self.settings = settings
         self.trakt = trakt
+        self.catalog = catalog
+        self.openSubtitles = openSubtitles
         self.libraryStore = libraryStore
         // Seed the live delay from this title's remembered offset.
         subtitleDelay = item.subtitleOffset
@@ -105,6 +117,12 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         state = .loading
         didFinish = false
         hasScrobbledStart = false
+        currentTime = 0
+        duration = 0
+        isBuffering = false
+        isPlaying = false
+        didApplyResume = false
+        didAttemptAutomaticSubtitles = false
 
         let media = VLCMedia(url: item.playbackURL)
         // Apply the user's built-in player profile (network cache size, hardware
@@ -121,7 +139,9 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         mediaPlayer.media = media
         mediaPlayer.delegate = self
         mediaPlayer.play()
-        NowPlayingStore.shared.begin(item)
+        let saved = progressStore?.resumePosition(for: item) ?? 0
+        let initialProgress = (item.duration ?? 0) > 0 ? saved / (item.duration ?? 1) : 0
+        NowPlayingStore.shared.begin(item, initialProgress: initialProgress)
         // VLC reports readiness asynchronously via delegate callbacks.
         #else
         state = .failed("VLC playback engine unavailable in this build.")
@@ -140,7 +160,7 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         isActive = false
         PlaybackCoordinator.shared.resign(self)
         saveTask?.cancel(); saveTask = nil
-        saveProgress()
+        checkpointProgress()
         scrobble(.stop)
         NowPlayingStore.shared.clear()
         #if canImport(VLCKitSPM)
@@ -157,7 +177,7 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         isActive = false
         PlaybackCoordinator.shared.resign(self)
         saveTask?.cancel(); saveTask = nil
-        saveProgress()
+        checkpointProgress()
         scrobble(.pause)
         NowPlayingStore.shared.minimize()
         #if canImport(VLCKitSPM)
@@ -170,14 +190,24 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
 
     func togglePlayPause() {
         #if canImport(VLCKitSPM)
-        if mediaPlayer.isPlaying { mediaPlayer.pause() } else { mediaPlayer.play() }
+        if mediaPlayer.isPlaying {
+            checkpointProgress()
+            mediaPlayer.pause()
+            scrobble(.pause)
+        } else {
+            mediaPlayer.play()
+        }
         #endif
     }
 
     func seek(to seconds: TimeInterval) {
         #if canImport(VLCKitSPM)
-        guard duration > 0 else { return }
-        mediaPlayer.position = Float(max(0, min(seconds / duration, 1)))
+        let upperBound = duration > 0 ? duration : seconds
+        let clamped = max(0, min(seconds, upperBound))
+        // Setting VLC's millisecond clock preserves the exact saved timestamp; using
+        // normalized `position` can round noticeably on long movies.
+        mediaPlayer.time = VLCTime(int: Int32(clamped * 1_000))
+        currentTime = clamped
         #endif
     }
 
@@ -199,8 +229,19 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
 
     func selectSubtitleTrack(_ track: VLCTrack?) {
         #if canImport(VLCKitSPM)
-        // -1 disables subtitles in VLC.
+        // -1 disables subtitles in VLC. Selecting an embedded track replaces the
+        // provider selection indicator so the picker reflects what is actually live.
         mediaPlayer.currentVideoSubTitleIndex = Int32(track?.id ?? -1)
+        selectedExternalSubtitleID = nil
+        showSubtitlePicker = false
+        #endif
+    }
+
+    func disableSubtitles() {
+        #if canImport(VLCKitSPM)
+        mediaPlayer.currentVideoSubTitleIndex = -1
+        selectedExternalSubtitleID = nil
+        subtitleStatusMessage = "Subtitles are off."
         showSubtitlePicker = false
         #endif
     }
@@ -247,8 +288,109 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     func addExternalSubtitle(_ url: URL) {
         #if canImport(VLCKitSPM)
         mediaPlayer.addPlaybackSlave(url, type: .subtitle, enforce: true)
+        // VLCKit publishes the new track asynchronously after the slave is attached.
+        // Refresh once immediately and once after a brief registration window.
         refreshTracks()
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            self?.refreshTracks()
+        }
         #endif
+    }
+
+    /// Searches enabled subtitle add-ons and exposes their results in the picker.
+    /// When requested at startup, the preferred language is downloaded and selected.
+    func refreshExternalSubtitles(autoSelectPreferred: Bool = false) async {
+        guard !isLoadingExternalSubtitles else { return }
+        guard let contentID = item.contentID, let catalog else {
+            subtitleStatusMessage = externalSubtitleTracks.isEmpty
+                ? "This item has no catalog ID for subtitle lookup."
+                : nil
+            if autoSelectPreferred { await autoSelectPreferredExternalSubtitle() }
+            return
+        }
+
+        isLoadingExternalSubtitles = true
+        subtitleStatusMessage = "Searching subtitle add-ons…"
+        let fetched = await catalog.subtitles(for: contentID, episode: item.episode)
+        mergeExternalSubtitleTracks(fetched)
+        isLoadingExternalSubtitles = false
+        subtitleStatusMessage = fetched.isEmpty
+            ? (externalSubtitleTracks.isEmpty ? "No subtitle add-on returned a match." : "No new subtitles found.")
+            : "Found \(fetched.count) subtitle option\(fetched.count == 1 ? "" : "s")."
+
+        if autoSelectPreferred, !didAttemptAutomaticSubtitles {
+            didAttemptAutomaticSubtitles = true
+            await autoSelectPreferredExternalSubtitle()
+        }
+    }
+
+    func selectExternalSubtitle(_ track: SubtitleTrack) {
+        selectedExternalSubtitleID = track.id
+        Task { await downloadAndAttachSubtitle(track) }
+    }
+
+    private func mergeExternalSubtitleTracks(_ tracks: [SubtitleTrack]) {
+        var seen = Set<String>()
+        externalSubtitleTracks = (externalSubtitleTracks + tracks).filter { track in
+            let key = "\(track.language.lowercased())|\(track.url?.absoluteString ?? track.id)"
+            return seen.insert(key).inserted
+        }
+    }
+
+    private func autoSelectPreferredExternalSubtitle() async {
+        guard settings?.subtitlesEnabled == true,
+              let preferred = settings?.subtitleLanguage,
+              let match = externalSubtitleTracks.first(where: {
+                  $0.matchesPreferredLanguage(preferred)
+              }) else { return }
+        selectedExternalSubtitleID = match.id
+        await downloadAndAttachSubtitle(match)
+    }
+
+    private func downloadAndAttachSubtitle(_ track: SubtitleTrack) async {
+        isLoadingExternalSubtitles = true
+        defer { isLoadingExternalSubtitles = false }
+
+        if let cached = localSubtitleFiles[track.id] {
+            addExternalSubtitle(cached)
+            subtitleStatusMessage = "Using \(track.languageDisplay) subtitles from \(track.source)."
+            showSubtitlePicker = false
+            return
+        }
+
+        subtitleStatusMessage = "Downloading \(track.languageDisplay) subtitles…"
+        var sourceURL = track.url
+        if sourceURL == nil, track.id.hasPrefix("os:"),
+           let fileID = Int(track.id.dropFirst(3)) {
+            sourceURL = try? await openSubtitles?.requestDownload(fileID: fileID)
+        }
+        guard let sourceURL else {
+            subtitleStatusMessage = "The selected subtitle could not be downloaded."
+            return
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(from: sourceURL)
+            let suggested = response.suggestedFilename ?? sourceURL.lastPathComponent
+            let ext = URL(fileURLWithPath: suggested).pathExtension.isEmpty
+                ? (sourceURL.pathExtension.isEmpty ? "srt" : sourceURL.pathExtension)
+                : URL(fileURLWithPath: suggested).pathExtension
+            let dir = FileManager.default.temporaryDirectory
+                .appendingPathComponent("vlc_subtitles", isDirectory: true)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let safeID = track.id.replacingOccurrences(of: ":", with: "_")
+                .replacingOccurrences(of: "/", with: "_")
+            let local = dir.appendingPathComponent("\(safeID).\(ext)")
+            try data.write(to: local, options: [.atomic])
+            localSubtitleFiles[track.id] = local
+            addExternalSubtitle(local)
+            subtitleStatusMessage = "Using \(track.languageDisplay) subtitles from \(track.source)."
+            showSubtitlePicker = false
+        } catch {
+            subtitleStatusMessage = "The selected subtitle could not be downloaded."
+        }
     }
 
     /// Whether the video fills the screen (cropping) vs. fits with letterboxing.
@@ -263,15 +405,16 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         saveTask?.cancel()
         saveTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 10_000_000_000)   // 10s
-                await MainActor.run { self?.saveProgress() }
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                await MainActor.run { self?.checkpointProgress() }
             }
         }
     }
 
-    private func saveProgress() {
-        guard duration > 0, currentTime > 0 else { return }
-        progressStore?.save(position: currentTime, duration: duration, for: item.id)
+    func checkpointProgress() {
+        guard item.sourceType != .liveTV, duration > 0, currentTime > 0 else { return }
+        progressStore?.save(position: currentTime, duration: duration, for: item)
+        NowPlayingStore.shared.update(progress: currentTime / duration, isPlaying: isPlaying)
     }
 
     private var progressPercent: Double {
@@ -297,7 +440,7 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         // If the user chose "Start from beginning" in the resume prompt, skip the seek.
         guard !forceRestart else { return }
         if (settings?.resumePlaybackEnabled ?? true),
-           let resume = progressStore?.resumePosition(for: item.id), resume > 30 {
+           let resume = progressStore?.resumePosition(for: item) {
             seek(to: resume)
         }
     }
@@ -390,6 +533,7 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
             case .paused:
                 self.isBuffering = false
                 self.isPlaying = false
+                self.checkpointProgress()
             case .stopped:
                 self.isBuffering = false
                 self.isPlaying = false
@@ -411,6 +555,13 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
         startSaveLoop()
         scrobble(.start)
         applySubtitleScale()
+        if settings?.subtitlesEnabled == true {
+            if settings?.autoDownloadSubtitles == true {
+                Task { await refreshExternalSubtitles(autoSelectPreferred: true) }
+            } else {
+                Task { await autoSelectPreferredExternalSubtitle() }
+            }
+        }
     }
 
     nonisolated func mediaPlayerTimeChanged(_ aNotification: Notification) {
@@ -439,7 +590,7 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
         // Only treat as a real finish if we actually played most of a sensibly-long
         // item, so a quick failure or zero-length stream can't trigger auto-play-next.
         guard duration > 1, currentTime >= duration * 0.85 else { return }
-        progressStore?.save(position: duration, duration: duration, for: item.id)
+        progressStore?.save(position: duration, duration: duration, for: item)
         scrobble(.stop)
         didFinish = true
     }

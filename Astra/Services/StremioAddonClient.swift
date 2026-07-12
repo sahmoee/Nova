@@ -274,7 +274,9 @@ actor StremioAddonClient {
         return await withTaskGroup(of: [SubtitleTrack].self) { group in
             for addon in subAddons {
                 group.addTask {
-                    (try? await self.subtitles(from: addon, type: type, stremioID: stremioID)) ?? []
+                    await Self.withTimeout(Self.fanOutTimeout, fallback: []) {
+                        (try? await self.subtitles(from: addon, type: type, stremioID: stremioID)) ?? []
+                    }
                 }
             }
             var merged: [SubtitleTrack] = []

@@ -119,67 +119,51 @@ enum Theme {
     // MARK: - Colors
 
     enum Colors {
-        /// Deep, near-black base. Slightly warmer and softer than pure black for a
-        /// more refined, less harsh dark look.
-        static let background = Color(red: 0.05, green: 0.05, blue: 0.07)
-        /// A second, marginally lighter tone used as the far end of the app gradient.
-        static let backgroundElevated = Color(red: 0.09, green: 0.09, blue: 0.13)
+        // Apple's TV surfaces are predominantly true black with neutral translucent
+        // elevation, white typography, and the system blue selection color.
+        static let background = Color.black
+        static let backgroundElevated = Color(white: 0.055)
 
-        /// Slightly lifted surface for cards (paired with .ultraThinMaterial overlay).
-        static let card = Color(red: 0.12, green: 0.12, blue: 0.16)
-        /// A touch lighter, for the top of a soft card gradient.
-        static let cardElevated = Color(red: 0.16, green: 0.16, blue: 0.21)
+        static let card = Color.white.opacity(0.08)
+        static let cardElevated = Color.white.opacity(0.14)
 
-        /// Accent — a confident violet-blue.
-        static let accent = Color(red: 0.52, green: 0.43, blue: 0.96)
-        static let accentSecondary = Color(red: 0.35, green: 0.58, blue: 0.98)
+        static let accent = Color.blue
+        static let accentSecondary = Color.blue.opacity(0.82)
 
         static let textPrimary = Color.white
-        static let textSecondary = Color.white.opacity(0.64)
-        static let textTertiary = Color.white.opacity(0.40)
+        static let textSecondary = Color.white.opacity(0.72)
+        static let textTertiary = Color.white.opacity(0.42)
 
-        static let success = Color(red: 0.34, green: 0.80, blue: 0.48)
-        static let warning = Color(red: 0.97, green: 0.74, blue: 0.28)
-        static let error = Color(red: 0.96, green: 0.40, blue: 0.40)
+        static let success = Color.green
+        static let warning = Color.orange
+        static let error = Color.red
 
-        static let separator = Color.white.opacity(0.08)
+        static let separator = Color.white.opacity(0.10)
 
-        /// The app-wide background: a soft, slow vertical gradient from the deep base
-        /// up to a slightly elevated tone, with a faint cool cast. Sits behind every
-        /// screen so the whole app feels like one continuous, gently-lit surface.
         static let appBackground = LinearGradient(
-            stops: [
-                .init(color: background, location: 0.0),
-                .init(color: Color(red: 0.06, green: 0.06, blue: 0.09), location: 0.55),
-                .init(color: backgroundElevated, location: 1.0)
-            ],
+            colors: [Color.black, Color(white: 0.025), Color.black],
             startPoint: .top,
             endPoint: .bottom
         )
 
-        /// A soft surface gradient for cards/sheets — subtle top-light, so panels read
-        /// as gently raised rather than flat blocks.
         static let cardGradient = LinearGradient(
-            colors: [cardElevated, card],
+            colors: [Color.white.opacity(0.14), Color.white.opacity(0.07)],
             startPoint: .top,
             endPoint: .bottom
         )
 
-        /// Gradient used behind hero areas — gentler than before, easing the accent
-        /// into the background without a hard edge.
         static let heroGradient = LinearGradient(
             stops: [
-                .init(color: accent.opacity(0.28), location: 0.0),
-                .init(color: accent.opacity(0.06), location: 0.45),
-                .init(color: background.opacity(0.0), location: 1.0)
+                .init(color: Color.black.opacity(0.02), location: 0.0),
+                .init(color: Color.black.opacity(0.28), location: 0.55),
+                .init(color: Color.black.opacity(0.82), location: 1.0)
             ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
+            startPoint: .top,
+            endPoint: .bottom
         )
 
-        /// A soft accent wash for selected/active states.
         static let accentWash = LinearGradient(
-            colors: [accent.opacity(0.85), accentSecondary.opacity(0.85)],
+            colors: [Color.blue, Color.blue.opacity(0.72)],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )

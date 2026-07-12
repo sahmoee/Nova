@@ -86,6 +86,7 @@
 		3D84ECB6A38540BD51967603 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A6E5C6725A225171E020CD /* AppEnvironment.swift */; };
 		3D8A3818BF970B646140B560 /* EPGService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E5848E2DC6DECC9AE065EDE /* EPGService.swift */; };
 		3EFEA30DF3F8C0ECC8F5A5E0 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19FB6BBA950B7E603D7F9C2E /* SettingsStore.swift */; };
+		11D1B79FDE3D41EEA46AB698 /* ViewingProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3F9C1B27466417DBC7CE990 /* ViewingProfileStore.swift */; };
 		3F09171A562F09E1830C26E7 /* AddonsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F8B62C534634083DFCAA2ED /* AddonsView.swift */; };
 		3F0DF8BB27FF3691AC6208CE /* HomeCustomizeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D65CB86D7CF8C7F02893171 /* HomeCustomizeView.swift */; };
 		3F116831DC4779A7B22B23B1 /* SMBCheckerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE0682914797AE3EA83CDB1A /* SMBCheckerView.swift */; };
@@ -205,6 +206,7 @@
 		96238FA47EB311C5ACE348B8 /* SourceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B88A11CF177FBA4F22DEB5B4 /* SourceCard.swift */; };
 		9624D3CFD7743615282BF2BE /* LiveTVView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23F2B55ABB6C8A1F656E4736 /* LiveTVView.swift */; };
 		9637FCD9FAF9A7D269ABAEF5 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19FB6BBA950B7E603D7F9C2E /* SettingsStore.swift */; };
+		819A318A7B674182845D46E7 /* ViewingProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3F9C1B27466417DBC7CE990 /* ViewingProfileStore.swift */; };
 		9765CA0E38C6104414523790 /* AMSMB2 in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 7BB5FCE66E92A3B157284758 /* AMSMB2 */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		989DB1677604BE6D8FE48BBE /* VLCPlayerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 623954A6B50ECFBB344C96F4 /* VLCPlayerModel.swift */; };
 		994709B6CC0249D05165FFD7 /* RealDebridModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C12CF106AE8B2228CFDD644 /* RealDebridModels.swift */; };
@@ -235,6 +237,7 @@
 		ACB65E8275CEF475D33B993F /* SafeMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A2B55877B32EE0F21EC00D5 /* SafeMode.swift */; };
 		AD65D92EF5E8D5BC71C29B11 /* OfflineCatalogCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B84344A81473E3B6324AE67 /* OfflineCatalogCache.swift */; };
 		AD8232F493351FF14F6E66FA /* ShelfLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F16D56BBEF5E4054DEC43DE /* ShelfLoader.swift */; };
+		2E35CEB120F9439EBF04E4BF /* PersonalizedHomeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9357A81F3F434BF1B6E4EA00 /* PersonalizedHomeEngine.swift */; };
 		ADC0A03B2C889BB8E841FBBE /* StateViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5519B507B9E49505F005D45A /* StateViews.swift */; };
 		ADE3095B2500CFA1AD2B3538 /* MetadataParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA8E2B5F459F4270DEB4A277 /* MetadataParser.swift */; };
 		AFB2759F487DC679F4DAEC85 /* OfflineCatalogCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B84344A81473E3B6324AE67 /* OfflineCatalogCache.swift */; };
@@ -265,6 +268,7 @@
 		C33ACC304EA53CC8D1769787 /* MetadataParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA8E2B5F459F4270DEB4A277 /* MetadataParser.swift */; };
 		C5E8B70C82FF4EB086E156B5 /* LibraryEnrichView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0FDDF9B509406A880596CA /* LibraryEnrichView.swift */; };
 		C64927E7EE43BC3544ADC924 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F203E983862F009E3CE49675 /* Theme.swift */; };
+		1392B493A888476E8EC33B68 /* PlatformCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 663628D232164D65A7B67613 /* PlatformCapabilities.swift */; };
 		C7682B40FC2C1D820802FD98 /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CA6E8C823A1C1FC2E0645D9 /* ImageCache.swift */; };
 		C7ACA22E839B21D4C5370D64 /* PlayerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79C61692B3A500A951D88317 /* PlayerSettingsView.swift */; };
 		C8001EDB4BC9800A86024F43 /* MediaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DAED2A694E04D1F4DDAC46E /* MediaDetailView.swift */; };
@@ -306,6 +310,7 @@
 		EAB4E0D3FFEE48A5BFE0CE69 /* LibraryFolderStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57A309E70BDB4310B7F8E81F /* LibraryFolderStore.swift */; };
 		EAC1069E5978F856D05629F5 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FC799C8FC202185F638B2DF /* SettingsView.swift */; };
 		EB0BD8CEF6ECCF500BDEF8F3 /* FeaturedHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = F61EA3D5970E9100BB084B82 /* FeaturedHero.swift */; };
+		48263C1B794942AA85C2CE23 /* AppleTVExperience.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BF803E67E684E889762C385 /* AppleTVExperience.swift */; };
 		EC288FE006CA13CA3FFD43DE /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA1D9DD1BBA3B208010F23C0 /* KeychainStore.swift */; };
 		EC34BC4E62E468BE9C555469 /* WidgetShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E6B8309B22416370BC7095A /* WidgetShared.swift */; };
 		EC5FDEFE1676EABD79B00EA0 /* AISearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FD4EF5722F87AAD4A2BB4BC /* AISearchService.swift */; };
@@ -315,12 +320,15 @@
 		EF98227CD4783C9C064F65AB /* ContinueWatchingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B505409D19B9BAFC48A9DC7 /* ContinueWatchingCard.swift */; };
 		EFE68754176369F874128B61 /* DirectURLService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6E6E99F2C1AAF086CAAA463 /* DirectURLService.swift */; };
 		F0BEA67237F2EA9FCF8C7658 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F203E983862F009E3CE49675 /* Theme.swift */; };
+		58373B44B44E45B5B7799E06 /* PlatformCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 663628D232164D65A7B67613 /* PlatformCapabilities.swift */; };
 		F171FE5F14D976CAFF3558BD /* CloudSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E57411D31532633B500CBFA /* CloudSync.swift */; };
 		F1FDAACD99CDC31B4321D621 /* StreamHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEA7F133A395D7BB5996E293 /* StreamHistoryStore.swift */; };
 		F229DB054B56D0A75241E865 /* FeaturedHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = F61EA3D5970E9100BB084B82 /* FeaturedHero.swift */; };
+		F0AD6BDBFF7040FE8C4869B8 /* AppleTVExperience.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BF803E67E684E889762C385 /* AppleTVExperience.swift */; };
 		F3799BAD9209428398BA8AFA /* ../Views/Settings/GuestModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2835FF8A9D0C4E3295CF4244 /* ../Views/Settings/GuestModeView.swift */; };
 		F3EABCEE3E9D4579B86B755D /* ../Views/App/PersonalMediaDisclosureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9096BB0AB70541318ACCE62E /* ../Views/App/PersonalMediaDisclosureView.swift */; };
 		F58C988935A46F29CD723E18 /* ShelfLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F16D56BBEF5E4054DEC43DE /* ShelfLoader.swift */; };
+		F8A4E6AD4D194B8EB40635DF /* PersonalizedHomeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9357A81F3F434BF1B6E4EA00 /* PersonalizedHomeEngine.swift */; };
 		F6A40738C3E751DA6D54D34A /* AppCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5005F2A02597D598C91C8021 /* AppCore.swift */; };
 		F6ACDDB1BDDCEDFE2F2B3EEA /* AccentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 744ED6AB3E35952BC5C636AA /* AccentManager.swift */; };
 		F716773D49C7ACCAD7EB3B32 /* MenuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3942CEEC0089118857658DE6 /* MenuOverlay.swift */; };
@@ -399,6 +407,7 @@
 		12CF2CBBF0D640129C7C3AFF /* NetworkConditionMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkConditionMonitor.swift; sourceTree = "<group>"; };
 		195002D833EFACCA7B669CDB /* PlaybackFailureReason.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackFailureReason.swift; sourceTree = "<group>"; };
 		19FB6BBA950B7E603D7F9C2E /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
+		D3F9C1B27466417DBC7CE990 /* ViewingProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewingProfileStore.swift; sourceTree = "<group>"; };
 		1D53DECC849A43B0AF78E58C /* TitleCleanupRulesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleCleanupRulesView.swift; sourceTree = "<group>"; };
 		1F96447C15101D418D7A3D4D /* SourceHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceHealth.swift; sourceTree = "<group>"; };
 		1FC301D6F2541CF2DFF3E673 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
@@ -473,6 +482,7 @@
 		8E4179DF87A747B60F1ACC11 /* TVMenuOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVMenuOverlay.swift; sourceTree = "<group>"; };
 		8E6B8309B22416370BC7095A /* WidgetShared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetShared.swift; sourceTree = "<group>"; };
 		8F16D56BBEF5E4054DEC43DE /* ShelfLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelfLoader.swift; sourceTree = "<group>"; };
+		9357A81F3F434BF1B6E4EA00 /* PersonalizedHomeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalizedHomeEngine.swift; sourceTree = "<group>"; };
 		8FC799C8FC202185F638B2DF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		8FDC1C7E9F7D7C4CE9065ECD /* StreamRanker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamRanker.swift; sourceTree = "<group>"; };
 		8FE1A2D3DDDC258F2EC64F99 /* NavigationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationCoordinator.swift; sourceTree = "<group>"; };
@@ -542,10 +552,12 @@
 		F0CB13C2E1D3A27BA21C7FB5 /* CollectionPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionPickerSheet.swift; sourceTree = "<group>"; };
 		F15861ED4C9FDFCA38AE4F6C /* AISearchSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISearchSettingsView.swift; sourceTree = "<group>"; };
 		F203E983862F009E3CE49675 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		663628D232164D65A7B67613 /* PlatformCapabilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformCapabilities.swift; sourceTree = "<group>"; };
 		F2E01039EC91A80EEB10B225 /* LibraryCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryCleanup.swift; sourceTree = "<group>"; };
 		F3F2B7B0715A1F59D62D72A4 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
 		F57A74FE5A8C29D2E9025A06 /* PlayFromLinkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayFromLinkView.swift; sourceTree = "<group>"; };
 		F61EA3D5970E9100BB084B82 /* FeaturedHero.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeaturedHero.swift; sourceTree = "<group>"; };
+		6BF803E67E684E889762C385 /* AppleTVExperience.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleTVExperience.swift; sourceTree = "<group>"; };
 		F8F5CA2AC22C7C68AC4ABCC7 /* ScreenHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenHeader.swift; sourceTree = "<group>"; };
 		FC5898173AC34F3D610F77E2 /* WhatsNewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewView.swift; sourceTree = "<group>"; };
 		FC594B0BAEC0D365B05066C1 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
@@ -602,6 +614,7 @@
 			children = (
 				EF8BD9365E738C71B05EAF6E /* CatalogShelfRow.swift */,
 				F61EA3D5970E9100BB084B82 /* FeaturedHero.swift */,
+				6BF803E67E684E889762C385 /* AppleTVExperience.swift */,
 				5CADDA5C3797534329077911 /* FocusableButton.swift */,
 				AE25591FDF8E628DCF17FB05 /* ExpandableText.swift */,
 				0617E7F6BCC1DB992B3DA1C9 /* UniversalSearchView.swift */,
@@ -663,7 +676,9 @@
 				8E6B8309B22416370BC7095A /* WidgetShared.swift */,
 				E45D69187B2E8B1C20FF0E81 /* AstraIntents.swift */,
 				19FB6BBA950B7E603D7F9C2E /* SettingsStore.swift */,
+				D3F9C1B27466417DBC7CE990 /* ViewingProfileStore.swift */,
 				F203E983862F009E3CE49675 /* Theme.swift */,
+				663628D232164D65A7B67613 /* PlatformCapabilities.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -798,6 +813,7 @@
 				0E02843FF0C186D60397EFC2 /* SMBService.swift */,
 				0B03807FF5A0213B684F13BA /* SMBStreamServer.swift */,
 				8F16D56BBEF5E4054DEC43DE /* ShelfLoader.swift */,
+				9357A81F3F434BF1B6E4EA00 /* PersonalizedHomeEngine.swift */,
 				5E8A1B16D0BE98A202EE1956 /* SkipSegmentProvider.swift */,
 				8FDC1C7E9F7D7C4CE9065ECD /* StreamRanker.swift */,
 				7EDD6180A9BFFE16D7194EAC /* SearchCorrector.swift */,
@@ -1093,9 +1109,12 @@
 				3A7A3E5E61F64A8ED8F47ECA /* AstraApp.swift in Sources */,
 				7CFA98D16D47B054450C3323 /* NavigationCoordinator.swift in Sources */,
 				3EFEA30DF3F8C0ECC8F5A5E0 /* SettingsStore.swift in Sources */,
+				11D1B79FDE3D41EEA46AB698 /* ViewingProfileStore.swift in Sources */,
 				F0BEA67237F2EA9FCF8C7658 /* Theme.swift in Sources */,
+				58373B44B44E45B5B7799E06 /* PlatformCapabilities.swift in Sources */,
 				5052DCFBF6CBB9AB693CC738 /* CatalogShelfRow.swift in Sources */,
 				F229DB054B56D0A75241E865 /* FeaturedHero.swift in Sources */,
+				F0AD6BDBFF7040FE8C4869B8 /* AppleTVExperience.swift in Sources */,
 				5A405587EB51B96C18386C8E /* FocusableButton.swift in Sources */,
 				6E9790F49D70BDD5228DEE0F /* ExpandableText.swift in Sources */,
 				64C096E9A415042C71812DAA /* UniversalSearchView.swift in Sources */,
@@ -1153,6 +1172,7 @@
 				85E00B32BD77EB8B8930FE70 /* SMBService.swift in Sources */,
 				E727E4C734429F74E0D8DADF /* SMBStreamServer.swift in Sources */,
 				AD8232F493351FF14F6E66FA /* ShelfLoader.swift in Sources */,
+				2E35CEB120F9439EBF04E4BF /* PersonalizedHomeEngine.swift in Sources */,
 				0C95B8FE408C8792E076EA15 /* SkipSegmentProvider.swift in Sources */,
 				BD31DDD1D1667A14FCB4BF0D /* StreamRanker.swift in Sources */,
 				A728155878776DAFE0D0E490 /* StreamResolver.swift in Sources */,
@@ -1257,9 +1277,12 @@
 				40719331806AC1552AD0AE7B /* AstraApp.swift in Sources */,
 				194E0E479EB3A48E90A0D298 /* NavigationCoordinator.swift in Sources */,
 				9637FCD9FAF9A7D269ABAEF5 /* SettingsStore.swift in Sources */,
+				819A318A7B674182845D46E7 /* ViewingProfileStore.swift in Sources */,
 				C64927E7EE43BC3544ADC924 /* Theme.swift in Sources */,
+				1392B493A888476E8EC33B68 /* PlatformCapabilities.swift in Sources */,
 				41D20B86CC38D548CBBFBF57 /* CatalogShelfRow.swift in Sources */,
 				EB0BD8CEF6ECCF500BDEF8F3 /* FeaturedHero.swift in Sources */,
+				48263C1B794942AA85C2CE23 /* AppleTVExperience.swift in Sources */,
 				065713796C383D75AFDC0BC3 /* FocusableButton.swift in Sources */,
 				CD18E89666487B117818AF79 /* ExpandableText.swift in Sources */,
 				3B99775178EF07FFE072077A /* UniversalSearchView.swift in Sources */,
@@ -1317,6 +1340,7 @@
 				A578F60DD65F852F9833715D /* SMBService.swift in Sources */,
 				80E983EF6F086220424866AD /* SMBStreamServer.swift in Sources */,
 				F58C988935A46F29CD723E18 /* ShelfLoader.swift in Sources */,
+				F8A4E6AD4D194B8EB40635DF /* PersonalizedHomeEngine.swift in Sources */,
 				60B33A17570A6922751C73FD /* SkipSegmentProvider.swift in Sources */,
 				80A9916B394F7F69D3889E2A /* StreamRanker.swift in Sources */,
 				5DE9463C7417AE4616433269 /* StreamResolver.swift in Sources */,
@@ -1483,11 +1507,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Astra/Resources/Astra.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 15;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Astra/Resources/Info-tvOS.plist";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 1.7;
+				MARKETING_VERSION = 1.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.astra.app.tvos;
 				PRODUCT_NAME = Astra;
 				SDKROOT = appletvos;
@@ -1507,11 +1531,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Astra/Resources/Astra.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 15;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Astra/Resources/Info-tvOS.plist";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 1.7;
+				MARKETING_VERSION = 1.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.astra.app.tvos;
 				PRODUCT_NAME = Astra;
 				SDKROOT = appletvos;
@@ -1536,7 +1560,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CODE_SIGN_ENTITLEMENTS = AstraWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AstraWidgets/Info.plist;
@@ -1548,7 +1572,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.7;
+				MARKETING_VERSION = 1.8;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.astra.app.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1579,7 +1603,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CODE_SIGN_ENTITLEMENTS = AstraWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AstraWidgets/Info.plist;
@@ -1591,7 +1615,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.7;
+				MARKETING_VERSION = 1.8;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.astra.app.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1615,12 +1639,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Astra/Resources/Astra.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 15;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Astra/Resources/Info-iOS.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 1.7;
+				MARKETING_VERSION = 1.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.astra.app.ios;
 				PRODUCT_NAME = Astra;
 				SDKROOT = iphoneos;
@@ -1639,12 +1663,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Astra/Resources/Astra.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 15;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Astra/Resources/Info-iOS.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 1.7;
+				MARKETING_VERSION = 1.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.astra.app.ios;
 				PRODUCT_NAME = Astra;
 				SDKROOT = iphoneos;

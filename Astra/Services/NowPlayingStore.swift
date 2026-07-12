@@ -26,10 +26,10 @@ final class NowPlayingStore: ObservableObject {
 
     private init() {}
 
-    func begin(_ item: MediaItem) {
+    func begin(_ item: MediaItem, initialProgress: Double = 0) {
         current = item
         isPlaying = true
-        progress = 0
+        progress = max(0, min(1, initialProgress))
         playerPresented = true
     }
 

@@ -298,11 +298,21 @@ final class LibraryStore: ObservableObject {
         // Dedupe by stable content identity, not the per-playback random id, so
         // replaying the same episode updates its entry instead of adding a copy.
         if let idx = items.firstIndex(where: { $0.contentKey == item.contentKey }) {
-            // Preserve the existing id, favorite flag, and added date; refresh the rest.
+            // Preserve durable user/watch state while refreshing the playable URL and
+            // metadata. Stream resolution creates a fresh transient MediaItem, and
+            // replacing the record wholesale used to erase the exact resume point.
+            let existing = items[idx]
             var updated = item
-            updated.id = items[idx].id
-            updated.isFavorite = items[idx].isFavorite
-            updated.addedDate = items[idx].addedDate
+            updated.id = existing.id
+            updated.isFavorite = existing.isFavorite
+            updated.addedDate = existing.addedDate
+            updated.lastPlayedPosition = existing.lastPlayedPosition
+            updated.lastPlayedDate = existing.lastPlayedDate
+            updated.duration = item.duration ?? existing.duration
+            updated.subtitleOffset = existing.subtitleOffset
+            updated.tags = existing.tags
+            updated.isHidden = existing.isHidden
+            if updated.subtitles.isEmpty { updated.subtitles = existing.subtitles }
             items[idx] = updated
         } else {
             items.insert(item, at: 0)
