@@ -9,7 +9,7 @@
  *   Add a secret (encrypted) named:  ANTHROPIC_API_KEY   = your Anthropic API key
  *
  * Optional secrets / variables:
- *   FRAMETV_SHARED_TOKEN (secret) - if set, callers must send
+ *   ASTRA_SHARED_TOKEN (secret) - if set, callers must send
  *                                   Authorization: Bearer <token>. Leave UNSET for now
  *                                   (the app doesn't send it yet).
  *   MODEL (plaintext variable)    - defaults to claude-sonnet-4-6 if not set.
@@ -45,7 +45,7 @@ export default {
         hasKey: !!env.ANTHROPIC_API_KEY,
         keyPrefix: env.ANTHROPIC_API_KEY ? env.ANTHROPIC_API_KEY.slice(0, 7) + "…" : null,
         model: env.MODEL || DEFAULT_MODEL,
-        sharedTokenSet: !!env.FRAMETV_SHARED_TOKEN,
+        sharedTokenSet: !!env.ASTRA_SHARED_TOKEN,
       };
       if (!env.ANTHROPIC_API_KEY) {
         return json({ ...out, step: "no-key", advice: "Add the ANTHROPIC_API_KEY secret and redeploy." }, 200);
@@ -80,10 +80,10 @@ export default {
       return json({ error: "POST only" }, 405);
     }
 
-    // Optional shared-token gate (only enforced if you set FRAMETV_SHARED_TOKEN).
-    if (env.FRAMETV_SHARED_TOKEN) {
+    // Optional shared-token gate (only enforced if you set ASTRA_SHARED_TOKEN).
+    if (env.ASTRA_SHARED_TOKEN) {
       const token = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-      if (token !== env.FRAMETV_SHARED_TOKEN) return json({ error: "Unauthorized" }, 401);
+      if (token !== env.ASTRA_SHARED_TOKEN) return json({ error: "Unauthorized" }, 401);
     }
 
     // --- Snapshot sharing (peer-to-peer restore codes) ---------------------

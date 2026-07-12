@@ -24,10 +24,10 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.frametv.deeplink</string>
+			<string>com.astra.deeplink</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>frametv</string>
+				<string>astra</string>
 			</array>
 		</dict>
 	</array>

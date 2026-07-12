@@ -1,5 +1,5 @@
 {
-  "name": "frametv-ai-worker",
+  "name": "astra-ai-worker",
   "version": "1.0.0",
   "private": true,
   "description": "Cloudflare Worker bridging the Astra app to the Anthropic API for AI features.",

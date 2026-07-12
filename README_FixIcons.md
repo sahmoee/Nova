@@ -1,11 +1,11 @@
-# Astra icons — why Xcode still shows FrameTV, and how to fix it
+# Astra icons — why Xcode still shows Astra, and how to fix it
 
 ## Diagnosis
 The icon files on disk are correct. I verified every size in
 `Assets-iOS.xcassets/AppIcon.appiconset` (20, 29, 40, 58, 60, 76, 80, 87, 120,
 152, 167, 180, 1024) plus the tvOS layered icons and Top Shelf — each one is a
 pixel-exact copy of the new Astra constellation art (measured distance 0.0 from
-the new 1024 master, and far from the old FrameTV art). `Contents.json`
+the new 1024 master, and far from the old Astra art). `Contents.json`
 references the right filenames and there are no leftover old PNGs.
 
 So what you're seeing in Xcode is a **stale cache**, not a file problem. When the
@@ -27,7 +27,7 @@ ran with the cached asset catalog.
 The included `clear_icon_cache.sh` does steps 1-3 automatically. Run it, then do
 4 and 5.
 
-## If it STILL shows FrameTV after that
+## If it STILL shows Astra after that
 Then the checkout Xcode has open is not the one with the new icons. Confirm the
 folder Xcode's title bar points to is the same repo you zipped, and that the
 new PNGs are actually present at

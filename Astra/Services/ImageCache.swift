@@ -41,7 +41,7 @@ actor ImageLoader {
         // Disk cache for *downsampled, decoded* images (separate from URLCache's raw
         // bytes) so revisits skip both the network and the decode/downsample work.
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        diskDir = caches.appendingPathComponent("frametv-images", isDirectory: true)
+        diskDir = caches.appendingPathComponent("astra-images", isDirectory: true)
         try? FileManager.default.createDirectory(at: diskDir, withIntermediateDirectories: true)
 
         #if os(iOS)

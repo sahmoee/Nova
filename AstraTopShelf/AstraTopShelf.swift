@@ -4,13 +4,13 @@
 //
 //  Shows Continue Watching and Recently Added rows on the Apple TV home screen, above
 //  the Astra icon. Reads the same App Group snapshot the app writes for widgets, so
-//  no extra app-side work is needed. Selecting an item opens Astra via a frametv://
+//  no extra app-side work is needed. Selecting an item opens Astra via a astra://
 //  deep link.
 //
 //  IMPORTANT — Xcode setup (see TOPSHELF_SETUP.md):
 //   • This file belongs to the AstraTopShelf extension target only (tvOS).
 //   • WidgetShared.swift must be a member of this target too (it holds the snapshot model).
-//   • This target and the tvOS app must both enable App Group "group.com.frametv.shared".
+//   • This target and the tvOS app must both enable App Group "group.com.astra.shared".
 //
 
 import TVServices

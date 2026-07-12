@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Clears the Xcode caches that make Astra keep showing the old FrameTV icon.
+# Clears the Xcode caches that make Astra keep showing the old Astra icon.
 # Only removes regenerable caches. Safe to run.
 set -euo pipefail
 

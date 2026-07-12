@@ -32,7 +32,7 @@ struct KeychainStore {
 
     static let shared = KeychainStore()
 
-    private let service = "com.frametv.app.secrets"
+    private let service = "com.astra.app.secrets"
 
     // MARK: - Save / Update
 

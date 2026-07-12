@@ -12,11 +12,11 @@ nothing needed changing.** The repo is icon/asset submission-ready.
 - **tvOS App Store icon (layered):** 1280×768 front transparent, back opaque. Correct.
 - **Top Shelf:** 1920×720 & 3840×1440 (standard), 2320×720 & 4640×1440 (wide) —
   all exact.
-- Every asset differs from the old FrameTV art, so the new design is in place
+- Every asset differs from the old Astra art, so the new design is in place
   across all slots.
 
 ## Rebrand integrity — still intact
-- **0** residual `frametv` references (any case) in file contents or names.
+- **0** residual `astra` references (any case) in file contents or names.
 - Bundle IDs: `com.astra.app.ios`, `com.astra.app.tvos`, `com.astra.app.ios.widgets`.
 - pbxproj `INFOPLIST_FILE` / `CODE_SIGN_ENTITLEMENTS` references: **0 missing** —
   all resolve on disk.

@@ -355,7 +355,7 @@ final class BackupManager: ObservableObject {
 
     // MARK: - Export / Import (shareable file)
 
-    /// Builds a snapshot of the current setup and writes it to a temporary .frametv
+    /// Builds a snapshot of the current setup and writes it to a temporary .astra
     /// file suitable for sharing. The caller chooses which categories to include via
     /// `contents`. By default secrets are excluded so the file is safe to share; a
     /// household can opt to include secrets to move logins between trusted devices.
@@ -395,7 +395,7 @@ final class BackupManager: ObservableObject {
         let stamp = ISO8601DateFormatter().string(from: snap.createdAt)
             .replacingOccurrences(of: ":", with: "-")
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("Astra-\(stamp).frametv")
+            .appendingPathComponent("Astra-\(stamp).astra")
         do {
             try data.write(to: url, options: .atomic)
             AstraLog.sync.info("Exported snapshot file (secrets included: \(contents.contains(.secrets), privacy: .public))")

@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Combined delta (all four batches + hotfix). Run BEFORE commit.sh.
-# Removes files whose contents moved elsewhere or that were stale orphans, then
-# self-heals the Xcode project registration for all new source files.
+# apply.sh - runs BEFORE commit.sh to handle relocations/deletions.
+# BuildBuddy rsyncs only files present in the delta and cannot delete files,
+# so removals must be performed explicitly here and recorded via git add -A.
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
-rm -f "Astra/Services/LiveTVSourcesView.swift"   # orphan duplicate (registered copy: Views/LiveTV)
-rm -f "Astra/Utilities/Haptics.swift"            # orphan duplicate (compiled enum lives in Toast.swift)
-rm -f "Astra/Components/Polish.swift"            # merged into App/Theme.swift
-rm -f "Astra/Astra/App/AppEnvironment.swift"     # stale nested duplicate
-rmdir "Astra/Astra/App" 2>/dev/null || true
-rmdir "Astra/Astra" 2>/dev/null || true
-python3 register_batch1.py
-python3 register_batch3.py
-python3 register_batch4.py
-echo "apply.sh: cleanup and project registration complete."
+
+# ViewingProfileStore.swift is relocated from Services/ to App/ to match the
+# location the Xcode project (App group) already expects. Remove the stale copy.
+if [ -f "Astra/Services/ViewingProfileStore.swift" ]; then
+  git rm -f --quiet "Astra/Services/ViewingProfileStore.swift" || rm -f "Astra/Services/ViewingProfileStore.swift"
+  echo "Removed stale Astra/Services/ViewingProfileStore.swift"
+else
+  echo "No stale Astra/Services/ViewingProfileStore.swift to remove"
+fi
+
+git add -A
+echo "apply.sh complete"

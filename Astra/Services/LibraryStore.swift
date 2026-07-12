@@ -262,7 +262,7 @@ final class LibraryStore: ObservableObject {
                 subtitle = parts.joined(separator: " · ")
             }
             let key = item.contentID?.stableKey ?? item.contentKey
-            let link = "frametv://\(isShow ? "show" : "movie")/\(key)"
+            let link = "astra://\(isShow ? "show" : "movie")/\(key)"
             return WidgetEntry(
                 id: item.contentKey,
                 title: item.seriesTitle ?? item.title,

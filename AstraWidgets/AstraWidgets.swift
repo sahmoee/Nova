@@ -4,7 +4,7 @@
 //
 //  Home-screen widgets for iOS/iPadOS: Continue Watching and Recently Added. The data
 //  comes from the shared App Group snapshot the app writes (WidgetShared). Tapping a
-//  widget opens the app to that title via a frametv:// deep link.
+//  widget opens the app to that title via a astra:// deep link.
 //
 //  Poster images are downloaded in the timeline provider (which has time to do network
 //  work) and handed to the views as ready bytes. AsyncImage is intentionally NOT used:
@@ -14,7 +14,7 @@
 //  IMPORTANT - Xcode setup:
 //   • This file belongs to the AstraWidgets extension target only.
 //   • WidgetShared.swift must be a member of BOTH the app and this extension target.
-//   • Both targets must have the App Group "group.com.frametv.shared" enabled.
+//   • Both targets must have the App Group "group.com.astra.shared" enabled.
 //
 
 import WidgetKit
@@ -100,7 +100,7 @@ private struct PosterCell: View {
     var titleFont: Font
 
     var body: some View {
-        Link(destination: URL(string: entry.deepLink) ?? URL(string: "frametv://library")!) {
+        Link(destination: URL(string: entry.deepLink) ?? URL(string: "astra://library")!) {
             VStack(alignment: .leading, spacing: 5) {
                 poster
                     .aspectRatio(2.0/3.0, contentMode: .fit)

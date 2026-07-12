@@ -18,7 +18,7 @@ import WidgetKit
 /// The App Group identifier shared by the app and the widget. This must match the
 /// App Group you create in the Apple Developer portal and enable on both targets.
 enum WidgetShared {
-    static let appGroup = "group.com.frametv.shared"
+    static let appGroup = "group.com.astra.shared"
     private static let snapshotFile = "widget_snapshot.json"
 
     /// The shared container URL, or nil if the App Group isn't configured.
@@ -64,7 +64,7 @@ struct WidgetEntry: Codable, Equatable, Identifiable {
     var subtitle: String      // e.g. "Movie · 2017" or "S2 E4"
     var posterURLString: String?
     var progress: Double      // 0...1, for Continue Watching
-    var deepLink: String      // frametv:// URL to open this title
+    var deepLink: String      // astra:// URL to open this title
 
     var posterURL: URL? { posterURLString.flatMap(URL.init(string:)) }
 }

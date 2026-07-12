@@ -516,7 +516,7 @@ struct ContentDetailView: View {
         MediaItem(
             title: item.title,
             sourceType: item.isSeries ? .addon : .addon,
-            playbackURL: URL(string: "frametv://catalog/\(item.contentID.stableKey)")!,
+            playbackURL: URL(string: "astra://catalog/\(item.contentID.stableKey)")!,
             posterURL: item.posterURL,
             backdropURL: item.backdropURL,
             legalAccessConfirmed: true,
