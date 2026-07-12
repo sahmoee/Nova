@@ -32,6 +32,7 @@ struct SmartHomeRail: Identifiable, Hashable {
 }
 
 enum PersonalizedHomeEngine {
+    @MainActor
     static func rails(library: LibraryStore, profile: ViewingProfile) -> [SmartHomeRail] {
         let visible = library.items.filter { !$0.isHidden }
         guard !visible.isEmpty else { return [] }
@@ -102,6 +103,7 @@ enum PersonalizedHomeEngine {
         return rails
     }
 
+    @MainActor
     static func upNext(library: LibraryStore) -> [MediaItem] {
         deduplicated(library.continueWatching + library.queuedItems)
     }
@@ -121,6 +123,7 @@ enum PersonalizedHomeEngine {
                                    items: collapsed))
     }
 
+    @MainActor
     private static func topPicks(from items: [MediaItem],
                                  library: LibraryStore,
                                  profile: ViewingProfile) -> [MediaItem] {
