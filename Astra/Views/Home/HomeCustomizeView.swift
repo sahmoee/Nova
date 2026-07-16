@@ -58,6 +58,25 @@ struct HomeCustomizeView: View {
                         Label("Reset to Defaults", systemImage: "arrow.counterclockwise")
                     }
                     .listRowBackground(Theme.Colors.card)
+                } footer: {
+                    Text("Shelves show recommendations tuned by your Not Interested / More Like This feedback.")
+                        .font(.appFont(13))
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                }
+
+                if RecommendationFeedbackStore.shared.hasFeedback {
+                    Section {
+                        Button(role: .destructive) {
+                            RecommendationFeedbackStore.shared.reset()
+                        } label: {
+                            Label("Clear Recommendation Feedback", systemImage: "hand.raised.slash")
+                        }
+                        .listRowBackground(Theme.Colors.card)
+                    } footer: {
+                        Text("Un-hides everything you marked Not Interested or Already Watched and clears genre preferences.")
+                            .font(.appFont(13))
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                    }
                 }
             }
             #if os(iOS)

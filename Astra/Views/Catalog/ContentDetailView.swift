@@ -84,6 +84,9 @@ struct ContentDetailView: View {
         .navigationDestination(for: CatalogItem.self) { rel in
             ContentDetailView(item: rel)
         }
+        .navigationDestination(for: CastMember.self) { member in
+            PersonView(member: member)
+        }
         .navigationDestination(item: $streamTarget) { target in
             StreamPickerView(catalog: target.catalog, episode: target.episode,
                              forceManual: target.forceManual)
@@ -371,6 +374,22 @@ struct ContentDetailView: View {
                              active: isWatched) {
                     toggleWatched()
                 }
+            }
+            // Recommendation feedback — tunes Discover & Home suggestions.
+            detailAction("More Like This", systemImage: "hand.thumbsup") {
+                RecommendationFeedbackStore.shared.moreLikeThis(genres: item.genres)
+                Haptics.selection()
+                ToastCenter.shared.show("We'll show more like this", systemImage: "hand.thumbsup.fill")
+            }
+            detailAction("Not Interested", systemImage: "hand.thumbsdown") {
+                RecommendationFeedbackStore.shared.notInterested(key: item.contentID.stableKey, genres: item.genres)
+                Haptics.selection()
+                ToastCenter.shared.show("We'll show this less", systemImage: "hand.thumbsdown.fill")
+            }
+            detailAction("Already Watched", systemImage: "eye") {
+                RecommendationFeedbackStore.shared.alreadyWatched(key: item.contentID.stableKey)
+                Haptics.selection()
+                ToastCenter.shared.show("Hidden from recommendations", systemImage: "eye.slash")
             }
         }
         .padding(.horizontal, Theme.Spacing.edge)
@@ -948,6 +967,7 @@ private extension ContentDetailView {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Theme.Spacing.md) {
                     ForEach(cast) { member in
+                        NavigationLink(value: member) {
                         VStack(spacing: 6) {
                             CachedAsyncImage(url: member.profileURL, maxPixel: 300) { image in
                                 image.resizable().aspectRatio(contentMode: .fill)
@@ -970,6 +990,8 @@ private extension ContentDetailView {
                             }
                         }
                         .frame(width: Theme.scaled(100, min: 84))
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.edge)

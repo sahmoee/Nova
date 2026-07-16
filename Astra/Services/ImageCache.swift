@@ -10,6 +10,7 @@
 
 import SwiftUI
 import ImageIO
+import CryptoKit
 
 #if canImport(UIKit)
 import UIKit
@@ -44,6 +45,11 @@ actor ImageLoader {
         diskDir = caches.appendingPathComponent("astra-images", isDirectory: true)
         try? FileManager.default.createDirectory(at: diskDir, withIntermediateDirectories: true)
 
+        // Evict stale/oversized decoded images in the background on launch so the
+        // astra-images directory can't grow without bound.
+        let dir = diskDir
+        Task.detached(priority: .background) { ImageLoader.evictDiskCache(in: dir) }
+
         #if os(iOS)
         Task { @MainActor in
             NotificationCenter.default.addObserver(
@@ -69,8 +75,10 @@ actor ImageLoader {
 
         if let cached = memory.object(forKey: nsKey) { return cached }
 
-        // De-dupe concurrent requests for the same URL+size.
-        if let existing = inFlight[url] { return await existing.value }
+        // De-dupe concurrent requests for the same URL+size. Keyed by the composite
+        // key (URL + maxPixel) because a different size must NOT reuse an in-flight
+        // task for a different size of the same URL.
+        if let existing = inFlight[key] { return await existing.value }
 
         let task = Task<PlatformImage?, Never> { [session, diskDir] in
             let diskPath = diskDir.appendingPathComponent(Self.fileName(for: key))
@@ -97,9 +105,9 @@ actor ImageLoader {
             }
             return image
         }
-        inFlight[url] = task
+        inFlight[key] = task
         let result = await task.value
-        inFlight[url] = nil
+        inFlight[key] = nil
         if let result {
             let cost = Int(result.size.width * result.size.height * 4)
             memory.setObject(result, forKey: nsKey, cost: cost)
@@ -122,8 +130,46 @@ actor ImageLoader {
     }
 
     private static func fileName(for key: URL) -> String {
-        // Stable, filesystem-safe name from the URL hash.
-        String(UInt(bitPattern: key.absoluteString.hashValue))
+        // Stable, filesystem-safe name from a SHA-256 of the key. Swift's hashValue is
+        // randomized per process launch, so it could never reuse a disk file across
+        // launches — SHA-256 is deterministic, so cached decodes actually persist.
+        let digest = SHA256.hash(data: Data(key.absoluteString.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined() + ".jpg"
+    }
+
+    // Disk-cache eviction budget for the decoded-image directory.
+    private static let maxDiskAge: TimeInterval = 14 * 24 * 3600   // 14 days
+    private static let maxDiskBytes: Int = 300 * 1024 * 1024       // 300 MB
+
+    /// Removes decoded images that are too old, then, if still over budget, deletes the
+    /// least-recently-used files until under the size cap. Runs off the actor.
+    nonisolated static func evictDiskCache(in dir: URL) {
+        let fm = FileManager.default
+        let keys: [URLResourceKey] = [.contentModificationDateKey, .totalFileAllocatedSizeKey, .fileSizeKey]
+        guard let items = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: keys,
+                                                      options: [.skipsHiddenFiles]) else { return }
+        let now = Date()
+        struct Entry { let url: URL; let date: Date; let size: Int }
+        var entries: [Entry] = []
+        for u in items {
+            let v = try? u.resourceValues(forKeys: Set(keys))
+            let date = v?.contentModificationDate ?? .distantPast
+            let size = v?.totalFileAllocatedSize ?? v?.fileSize ?? 0
+            // 1) Age-based removal.
+            if now.timeIntervalSince(date) > maxDiskAge {
+                try? fm.removeItem(at: u)
+            } else {
+                entries.append(Entry(url: u, date: date, size: size))
+            }
+        }
+        // 2) Size-based LRU removal.
+        var total = entries.reduce(0) { $0 + $1.size }
+        guard total > maxDiskBytes else { return }
+        for e in entries.sorted(by: { $0.date < $1.date }) {   // oldest first
+            try? fm.removeItem(at: e.url)
+            total -= e.size
+            if total <= maxDiskBytes { break }
+        }
     }
 
     /// Downsamples image data to `maxPixel` on the long edge using ImageIO, which

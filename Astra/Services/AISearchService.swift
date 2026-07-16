@@ -65,6 +65,13 @@ final class AISearchService: ObservableObject {
 
     static var isConfigured: Bool { !SafeMode.isOn && workerURL != nil }
 
+    /// Bearer auth header for Worker calls, if a Worker token is configured. The
+    /// Worker enforces it only when its ASTRA_SHARED_TOKEN secret is set.
+    static var authHeaders: [String: String] {
+        guard let token = AppConfig.shared.workerToken, !token.isEmpty else { return [:] }
+        return ["Authorization": "Bearer \(token)"]
+    }
+
     private let tmdb: TMDBClient
 
     init(tmdb: TMDBClient) {
@@ -80,7 +87,7 @@ final class AISearchService: ObservableObject {
         guard let url = Self.workerURL else { throw AISearchError.notConfigured }
         let decoded: AIWorkerResponse
         do {
-            decoded = try await AppNetworking.postJSON(url, body: ["query": query])
+            decoded = try await AppNetworking.postJSON(url, body: ["query": query], headers: Self.authHeaders)
         } catch {
             AstraLog.network.error("AI Worker request failed: \(error.localizedDescription, privacy: .public)")
             throw AISearchError.requestFailed

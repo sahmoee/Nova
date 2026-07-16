@@ -14,12 +14,13 @@ struct LibraryView: View {
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var nav: NavigationCoordinator
     @EnvironmentObject private var settings: SettingsStore
+    @StateObject private var profiles = ViewingProfileStore.shared
     @State private var filter: LibraryFilter = .recentlyAdded
     @State private var traktCatalog: [CatalogItem] = []
     @State private var traktLoading = false
     @State private var showCollectionPicker = false
     @State private var typeFilter: LibraryTypeFilter = .all
-    @AppStorage("library.hideWatched") private var hideWatched = false
+    @State private var hideWatched = false
     @State private var selectedItem: MediaItem?
     @State private var detailItem: MediaItem?
     // Batch B: sort, hidden view, tag filter, bulk edit.
@@ -136,7 +137,12 @@ struct LibraryView: View {
         .onChange(of: nav.pendingContentKey) { _, key in
             openPendingContent(key)
         }
-        .onAppear { openPendingContent(nav.pendingContentKey) }
+        .onAppear { openPendingContent(nav.pendingContentKey); loadLibraryPrefs() }
+        .onChange(of: profiles.activeProfileID) { _, _ in loadLibraryPrefs() }
+        .onChange(of: filter) { _, _ in saveLibraryPrefs() }
+        .onChange(of: sortOrder) { _, _ in saveLibraryPrefs() }
+        .onChange(of: typeFilter) { _, _ in saveLibraryPrefs() }
+        .onChange(of: hideWatched) { _, _ in saveLibraryPrefs() }
         .onChange(of: displayedItems) { _, items in
             ImageLoader.shared.prefetch(items.compactMap(\.posterURL), maxPixel: 700)
         }
@@ -378,6 +384,33 @@ HStack(spacing: 6) {
     }
 
     private var isTraktTab: Bool { filter == .traktWatchlist || filter == .traktTrending }
+
+    // MARK: - Per-profile filter persistence
+    /// Library sort/filter/type/hide-watched are remembered independently for each
+    /// viewing profile, so switching profiles restores that profile's view.
+    private func libKey(_ field: String) -> String {
+        "library.\(profiles.activeProfileID.uuidString).\(field)"
+    }
+
+    private func loadLibraryPrefs() {
+        let d = UserDefaults.standard
+        if let raw = d.string(forKey: libKey("sort")), let s = LibrarySortOrder(rawValue: raw) { sortOrder = s }
+        if let fi = d.object(forKey: libKey("filter")) as? Int, LibraryFilter.allCases.indices.contains(fi) {
+            filter = LibraryFilter.allCases[fi]
+        }
+        if let ti = d.object(forKey: libKey("type")) as? Int, LibraryTypeFilter.allCases.indices.contains(ti) {
+            typeFilter = LibraryTypeFilter.allCases[ti]
+        }
+        hideWatched = d.bool(forKey: libKey("hideWatched"))
+    }
+
+    private func saveLibraryPrefs() {
+        let d = UserDefaults.standard
+        d.set(sortOrder.rawValue, forKey: libKey("sort"))
+        if let fi = LibraryFilter.allCases.firstIndex(of: filter) { d.set(fi, forKey: libKey("filter")) }
+        if let ti = LibraryTypeFilter.allCases.firstIndex(of: typeFilter) { d.set(ti, forKey: libKey("type")) }
+        d.set(hideWatched, forKey: libKey("hideWatched"))
+    }
 
     private func loadTraktIfNeeded() async {
         guard isTraktTab else { return }

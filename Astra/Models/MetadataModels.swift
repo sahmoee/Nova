@@ -276,6 +276,29 @@ struct TMDBRelatedResponse: Codable {
     let results: [TMDBRelatedEntry]
 }
 
+/// A person's combined (movie + TV) filmography from TMDB.
+struct TMDBPersonCreditsResponse: Codable {
+    let cast: [TMDBPersonCredit]
+}
+
+struct TMDBPersonCredit: Codable {
+    let id: Int
+    let title: String?
+    let name: String?
+    let posterPath: String?
+    let releaseDate: String?
+    let firstAirDate: String?
+    let mediaType: String?
+    let popularity: Double?
+    enum CodingKeys: String, CodingKey {
+        case id, title, name, popularity
+        case posterPath = "poster_path"
+        case releaseDate = "release_date"
+        case firstAirDate = "first_air_date"
+        case mediaType = "media_type"
+    }
+}
+
 struct TMDBRelatedEntry: Codable {
     let id: Int
     let title: String?

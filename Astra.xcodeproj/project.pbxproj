@@ -36,6 +36,7 @@
 		11DE36C7D95CA38D74C70931 /* PlayerCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74DFF01A452FEB5CEEF16C78 /* PlayerCore.swift */; };
 		1392B493A888476E8EC33B68 /* PlatformCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 663628D232164D65A7B67613 /* PlatformCapabilities.swift */; };
 		13ABF6F475BA0F5DB6F77796 /* StreamHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEA7F133A395D7BB5996E293 /* StreamHistoryStore.swift */; };
+		93A19CECE9815A7A27D56B36 /* RecommendationFeedbackStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BD943F44F89A49EAC1736DD /* RecommendationFeedbackStore.swift */; };
 		141BF1095C8EEF53C7B98B18 /* Shimmer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE7D48EBB51FC4F7FF4A79E /* Shimmer.swift */; };
 		156B2972B629C29C0279B189 /* NowPlayingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E658E90B445C5F22C32F7996 /* NowPlayingStore.swift */; };
 		16DFD579A56B29B7155815AA /* AddonModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE6A4FDCD25B45BA32E3775D /* AddonModels.swift */; };
@@ -72,6 +73,7 @@
 		2FBA2AE3B71570960E2AA182 /* CollectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD28AB0F57F8C90396EEF8DA /* CollectionsView.swift */; };
 		2FE20AC91A84A06E2235EEE7 /* CloudBackedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C4F43F1FF1B7D16F4D0D0D9 /* CloudBackedStore.swift */; };
 		30BF6037871EA9216F222BAE /* ContentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB93FE6531785B3E58686B8D /* ContentDetailView.swift */; };
+		3C4C7A7CAA590457F390FACC /* PersonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58165057D48A7EAA60F6E97F /* PersonView.swift */; };
 		3167C2EAE91670A5FF46D71E /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC594B0BAEC0D365B05066C1 /* LibraryStore.swift */; };
 		3180A8DF0AC50FFE7D788635 /* PlaybackProgressStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8DDEC4592E90E4DF8676EBD /* PlaybackProgressStore.swift */; };
 		31B0CB7D474392BBD6EE8BDD /* SetupChecklistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06B9BFD55EBC9B683B9709 /* SetupChecklistView.swift */; };
@@ -121,6 +123,7 @@
 		5107ED73861BF850AB3D8E41 /* SourceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B88A11CF177FBA4F22DEB5B4 /* SourceCard.swift */; };
 		58373B44B44E45B5B7799E06 /* PlatformCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 663628D232164D65A7B67613 /* PlatformCapabilities.swift */; };
 		584DB902ED22C8402205C97F /* ContentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB93FE6531785B3E58686B8D /* ContentDetailView.swift */; };
+		1120144850CC3BFDD361DF43 /* PersonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58165057D48A7EAA60F6E97F /* PersonView.swift */; };
 		599A1F3A07A4BD7461A12AB7 /* AMSMB2 in Frameworks */ = {isa = PBXBuildFile; productRef = 0AA93A977A91C256389533FA /* AMSMB2 */; };
 		5A0490C752F3F4D8093BD30E /* SubtitleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACDB5AA48815D510D257E950 /* SubtitleService.swift */; };
 		5A405587EB51B96C18386C8E /* FocusableButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CADDA5C3797534329077911 /* FocusableButton.swift */; };
@@ -137,6 +140,8 @@
 		60FD5B9E3C68FA80856E085F /* VideoFileDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCE5B2E24E31F6EA00E7F72C /* VideoFileDetector.swift */; };
 		62AFF3FB543BE81C419FAD03 /* SMBCheckerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE0682914797AE3EA83CDB1A /* SMBCheckerView.swift */; };
 		6309DA6AAEAE2B305736B0CD /* AppCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5005F2A02597D598C91C8021 /* AppCore.swift */; };
+		96EF56FF2EE6785D4705F1DD /* PerformanceBudgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = D237F26E9F614CB2F26CBF87 /* PerformanceBudgets.swift */; };
+		8BFA54D12C263CF561354144 /* AstraIdentifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1481FC0BFBF3C1250AAE76E /* AstraIdentifiers.swift */; };
 		635F22A163C349F4A8F920A1 /* TitleCleanupRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B80A7183C7C485E86CDDC66 /* TitleCleanupRules.swift */; };
 		63DC5B4A6A7A2C061B38C0B1 /* LanguageNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F142E8F22DC6AF0074871BC /* LanguageNames.swift */; };
 		64C096E9A415042C71812DAA /* UniversalSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0617E7F6BCC1DB992B3DA1C9 /* UniversalSearchView.swift */; };
@@ -324,11 +329,14 @@
 		F0BEA67237F2EA9FCF8C7658 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F203E983862F009E3CE49675 /* Theme.swift */; };
 		F171FE5F14D976CAFF3558BD /* CloudSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E57411D31532633B500CBFA /* CloudSync.swift */; };
 		F1FDAACD99CDC31B4321D621 /* StreamHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEA7F133A395D7BB5996E293 /* StreamHistoryStore.swift */; };
+		C67136304C3B55F7861A66EA /* RecommendationFeedbackStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BD943F44F89A49EAC1736DD /* RecommendationFeedbackStore.swift */; };
 		F229DB054B56D0A75241E865 /* FeaturedHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = F61EA3D5970E9100BB084B82 /* FeaturedHero.swift */; };
 		F3799BAD9209428398BA8AFA /* ../Views/Settings/GuestModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2835FF8A9D0C4E3295CF4244 /* ../Views/Settings/GuestModeView.swift */; };
 		F3EABCEE3E9D4579B86B755D /* ../Views/App/PersonalMediaDisclosureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9096BB0AB70541318ACCE62E /* ../Views/App/PersonalMediaDisclosureView.swift */; };
 		F58C988935A46F29CD723E18 /* ShelfLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F16D56BBEF5E4054DEC43DE /* ShelfLoader.swift */; };
 		F6A40738C3E751DA6D54D34A /* AppCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5005F2A02597D598C91C8021 /* AppCore.swift */; };
+		CE4CE286E9D27A7E056FFA7E /* PerformanceBudgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = D237F26E9F614CB2F26CBF87 /* PerformanceBudgets.swift */; };
+		452EEB22ABE68615C6E42310 /* AstraIdentifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1481FC0BFBF3C1250AAE76E /* AstraIdentifiers.swift */; };
 		F6ACDDB1BDDCEDFE2F2B3EEA /* AccentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 744ED6AB3E35952BC5C636AA /* AccentManager.swift */; };
 		F716773D49C7ACCAD7EB3B32 /* MenuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3942CEEC0089118857658DE6 /* MenuOverlay.swift */; };
 		F763BAF56303DCCAF2C20326 /* Toast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7971F8C33FC8B250056CB48E /* Toast.swift */; };
@@ -445,6 +453,8 @@
 		4CD9936F13F04501BF9006FB /* OMDbClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OMDbClient.swift; sourceTree = "<group>"; };
 		4DAED2A694E04D1F4DDAC46E /* MediaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailView.swift; sourceTree = "<group>"; };
 		5005F2A02597D598C91C8021 /* AppCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCore.swift; sourceTree = "<group>"; };
+		D237F26E9F614CB2F26CBF87 /* PerformanceBudgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceBudgets.swift; sourceTree = "<group>"; };
+		F1481FC0BFBF3C1250AAE76E /* AstraIdentifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstraIdentifiers.swift; sourceTree = "<group>"; };
 		54DF98E49C2F8631D90C0346 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		5519B507B9E49505F005D45A /* StateViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateViews.swift; sourceTree = "<group>"; };
 		5661074A0B5D89CA5246FD0C /* DiscoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverView.swift; sourceTree = "<group>"; };
@@ -524,6 +534,7 @@
 		CB06B9BFD55EBC9B683B9709 /* SetupChecklistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupChecklistView.swift; sourceTree = "<group>"; };
 		CB0FA42F693AECB67486AF1B /* PlaybackEngineRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackEngineRouter.swift; sourceTree = "<group>"; };
 		CB93FE6531785B3E58686B8D /* ContentDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentDetailView.swift; sourceTree = "<group>"; };
+		58165057D48A7EAA60F6E97F /* PersonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonView.swift; sourceTree = "<group>"; };
 		CBF62EC4C0977A9564D41FC8 /* Info-iOS.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-iOS.plist"; sourceTree = "<group>"; };
 		CC332E4AAF036B86D4FECE00 /* PlaybackDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackDiagnostics.swift; sourceTree = "<group>"; };
 		CC542829C9B9623A7B195ABD /* SubtitleMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleMatcher.swift; sourceTree = "<group>"; };
@@ -540,6 +551,7 @@
 		DA8E2B5F459F4270DEB4A277 /* MetadataParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataParser.swift; sourceTree = "<group>"; };
 		DD61DA3F4315330B41ED6EF7 /* PlayerOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerOptions.swift; sourceTree = "<group>"; };
 		DEA7F133A395D7BB5996E293 /* StreamHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamHistoryStore.swift; sourceTree = "<group>"; };
+		6BD943F44F89A49EAC1736DD /* RecommendationFeedbackStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationFeedbackStore.swift; sourceTree = "<group>"; };
 		DEFB4E40EEB8790716864FAA /* Assets-tvOS.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Assets-tvOS.xcassets"; sourceTree = "<group>"; };
 		E45D69187B2E8B1C20FF0E81 /* AstraIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstraIntents.swift; sourceTree = "<group>"; };
 		E501EBDA1415CB797D128711 /* MediaItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaItem.swift; sourceTree = "<group>"; };
@@ -699,6 +711,8 @@
 				D6874AC4F6CBD256D3FA35C3 /* DiskJSONCache.swift */,
 				4C4F43F1FF1B7D16F4D0D0D9 /* CloudBackedStore.swift */,
 				5005F2A02597D598C91C8021 /* AppCore.swift */,
+				D237F26E9F614CB2F26CBF87 /* PerformanceBudgets.swift */,
+				F1481FC0BFBF3C1250AAE76E /* AstraIdentifiers.swift */,
 				33C5EA3C89FCC7B7E2881DDB /* LegalAccessGate.swift */,
 				CB0FA42F693AECB67486AF1B /* PlaybackEngineRouter.swift */,
 				33236A6077A5F4CA49B5B9E7 /* SMBURLParser.swift */,
@@ -769,6 +783,7 @@
 			children = (
 				0F8B62C534634083DFCAA2ED /* AddonsView.swift */,
 				CB93FE6531785B3E58686B8D /* ContentDetailView.swift */,
+				58165057D48A7EAA60F6E97F /* PersonView.swift */,
 				5661074A0B5D89CA5246FD0C /* DiscoverView.swift */,
 				6F7EDAAABFD97A69DE400E19 /* StreamPickerView.swift */,
 			);
@@ -806,6 +821,7 @@
 				D9A3CF2809BE0FF038926BC0 /* NetworkRetry.swift */,
 				E658E90B445C5F22C32F7996 /* NowPlayingStore.swift */,
 				DEA7F133A395D7BB5996E293 /* StreamHistoryStore.swift */,
+				6BD943F44F89A49EAC1736DD /* RecommendationFeedbackStore.swift */,
 				D3EF3A6949DBE620FBC19616 /* PlaybackCoordinator.swift */,
 				E8DDEC4592E90E4DF8676EBD /* PlaybackProgressStore.swift */,
 				2090DCADB481BDF4EDDCA1AF /* RealDebridClient.swift */,
@@ -1165,6 +1181,7 @@
 				37D0C5B4609F15FCDBB13270 /* NetworkRetry.swift in Sources */,
 				156B2972B629C29C0279B189 /* NowPlayingStore.swift in Sources */,
 				13ABF6F475BA0F5DB6F77796 /* StreamHistoryStore.swift in Sources */,
+				C67136304C3B55F7861A66EA /* RecommendationFeedbackStore.swift in Sources */,
 				3F380348032B86AE1C4825AE /* PlaybackCoordinator.swift in Sources */,
 				827EF6B04218B4A1E2AA9227 /* PlaybackProgressStore.swift in Sources */,
 				CE8C02D01EB26FB096971EAB /* RealDebridClient.swift in Sources */,
@@ -1193,6 +1210,8 @@
 				BCE709EDB43F14A2D1AE18AB /* DiskJSONCache.swift in Sources */,
 				2FE20AC91A84A06E2235EEE7 /* CloudBackedStore.swift in Sources */,
 				6309DA6AAEAE2B305736B0CD /* AppCore.swift in Sources */,
+				CE4CE286E9D27A7E056FFA7E /* PerformanceBudgets.swift in Sources */,
+				452EEB22ABE68615C6E42310 /* AstraIdentifiers.swift in Sources */,
 				18535B5E2E691CD39CDCAABC /* LegalAccessGate.swift in Sources */,
 				BACAEDA4117B8C2645BA102A /* PlaybackEngineRouter.swift in Sources */,
 				D7A6E452E55A2789883BA5AB /* SMBURLParser.swift in Sources */,
@@ -1200,6 +1219,7 @@
 				A614E5D42F837A7B74FE3BE7 /* VideoFileDetector.swift in Sources */,
 				3F09171A562F09E1830C26E7 /* AddonsView.swift in Sources */,
 				584DB902ED22C8402205C97F /* ContentDetailView.swift in Sources */,
+				1120144850CC3BFDD361DF43 /* PersonView.swift in Sources */,
 				0DBCC2B965A1EBF5E51D9CDE /* DiscoverView.swift in Sources */,
 				9AEC69E9D98C42ABF0E7F86A /* StreamPickerView.swift in Sources */,
 				ECB5718C21C1AD83F7DE1DB6 /* DirectURLView.swift in Sources */,
@@ -1333,6 +1353,7 @@
 				F97853D45251273A4560E351 /* NetworkRetry.swift in Sources */,
 				7789224A734D31BF3BC8F5FB /* NowPlayingStore.swift in Sources */,
 				F1FDAACD99CDC31B4321D621 /* StreamHistoryStore.swift in Sources */,
+				93A19CECE9815A7A27D56B36 /* RecommendationFeedbackStore.swift in Sources */,
 				DF4E01B19535E44056C95650 /* PlaybackCoordinator.swift in Sources */,
 				3180A8DF0AC50FFE7D788635 /* PlaybackProgressStore.swift in Sources */,
 				74364A7B259B873F821DC6DA /* RealDebridClient.swift in Sources */,
@@ -1361,6 +1382,8 @@
 				E69E30C19E64483DB3B0FB6D /* DiskJSONCache.swift in Sources */,
 				9E77809DB16E46383CB2AB0C /* CloudBackedStore.swift in Sources */,
 				F6A40738C3E751DA6D54D34A /* AppCore.swift in Sources */,
+				96EF56FF2EE6785D4705F1DD /* PerformanceBudgets.swift in Sources */,
+				8BFA54D12C263CF561354144 /* AstraIdentifiers.swift in Sources */,
 				1ADD94017E26D18652A8DED9 /* LegalAccessGate.swift in Sources */,
 				FC1BA51480A907BB98120A04 /* PlaybackEngineRouter.swift in Sources */,
 				9316092C2180428BB12CEB68 /* SMBURLParser.swift in Sources */,
@@ -1368,6 +1391,7 @@
 				60FD5B9E3C68FA80856E085F /* VideoFileDetector.swift in Sources */,
 				85EFB0A9C2A1C05C570E9428 /* AddonsView.swift in Sources */,
 				30BF6037871EA9216F222BAE /* ContentDetailView.swift in Sources */,
+				3C4C7A7CAA590457F390FACC /* PersonView.swift in Sources */,
 				E378B5A10E4A3A3DDD8A5298 /* DiscoverView.swift in Sources */,
 				A2738F7F55E63369DEF01A31 /* StreamPickerView.swift in Sources */,
 				482D06AC4A4E0A6FEB079033 /* DirectURLView.swift in Sources */,
@@ -1516,7 +1540,8 @@
 				PRODUCT_NAME = Astra;
 				SDKROOT = appletvos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 3;
 				TVOS_DEPLOYMENT_TARGET = 26.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -1540,7 +1565,8 @@
 				PRODUCT_NAME = Astra;
 				SDKROOT = appletvos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 3;
 				TVOS_DEPLOYMENT_TARGET = 26.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -1566,7 +1592,7 @@
 				INFOPLIST_FILE = AstraWidgets/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = AstraWidgets;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1583,7 +1609,8 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -1609,7 +1636,7 @@
 				INFOPLIST_FILE = AstraWidgets/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = AstraWidgets;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1625,7 +1652,8 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
 			};
@@ -1649,7 +1677,8 @@
 				PRODUCT_NAME = Astra;
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
 			};
@@ -1673,7 +1702,8 @@
 				PRODUCT_NAME = Astra;
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
 			};

@@ -19,6 +19,7 @@
 //
 
 import Foundation
+import CryptoKit
 #if os(iOS)
 import UIKit
 #endif
@@ -140,7 +141,8 @@ final class BackupManager: ObservableObject {
     /// Data, which the prefix scan also handles, but listing them documents intent.
     private let settingDataKeys = [
         "home.shelves.v1",                       // customized home/discover shelves
-        "stream.history.v1"                      // last-used stream per movie/episode
+        "stream.history.v1",                     // last-used stream per movie/episode
+        "reco.feedback.v1"                       // recommendation feedback (hidden/genres)
     ]
 
     /// Prefixes for every app-owned UserDefaults key. The backup captures ALL keys
@@ -447,7 +449,7 @@ final class BackupManager: ObservableObject {
     }
 
     private struct ShareCreateResponse: Decodable { let code: String; let expiresAt: String? }
-    private struct ShareFetchResponse: Decodable { let snapshot: String; let contents: Int? }
+    private struct ShareFetchResponse: Decodable { let snapshot: String; let contents: Int?; let enc: Bool? }
 
     /// The Worker base URL, reused from the AI Search configuration.
     private var shareWorkerURL: URL? { AISearchService.workerURL }
@@ -462,15 +464,23 @@ final class BackupManager: ObservableObject {
         guard let base = shareWorkerURL,
               let data = buildSnapshotData(including: contents) else { return nil }
         let url = base.appendingPathComponent("share/create")
+        // Encrypt on-device (AES-GCM). The Worker only ever stores ciphertext; the
+        // decryption key travels inside the share code, never to the server.
+        let key = SymmetricKey(size: .bits256)
+        guard let sealed = try? AES.GCM.seal(data, using: key), let combined = sealed.combined else {
+            return nil
+        }
         let payload: [String: Any] = [
-            "snapshot": data.base64EncodedString(),
+            "snapshot": combined.base64EncodedString(),
             "contents": contents.rawValue,
+            "enc": true,
             "ttlDays": ttlDays
         ]
         do {
             var req = URLRequest(url: url)
             req.httpMethod = "POST"
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            for (k, v) in AISearchService.authHeaders { req.setValue(v, forHTTPHeaderField: k) }
             req.httpBody = try JSONSerialization.data(withJSONObject: payload)
             req.timeoutInterval = 30
             let (respData, response) = try await URLSession.shared.data(for: req)
@@ -480,8 +490,12 @@ final class BackupManager: ObservableObject {
             }
             let decoded = try JSONDecoder().decode(ShareCreateResponse.self, from: respData)
             let expires = decoded.expiresAt.flatMap { ISO8601DateFormatter().date(from: $0) }
-            AstraLog.sync.info("Created share code")
-            return ShareCodeResult(code: decoded.code.uppercased(), expiresAt: expires)
+            // Full share code = lookup code + "~" + base64(key). The "~" separator is
+            // outside the base64 alphabet, and the lookup code is A-Z0-9 only.
+            let keyB64 = key.withUnsafeBytes { Data($0) }.base64EncodedString()
+            let fullCode = "\(decoded.code.uppercased())~\(keyB64)"
+            AstraLog.sync.info("Created encrypted share code")
+            return ShareCodeResult(code: fullCode, expiresAt: expires)
         } catch {
             AstraLog.sync.error("Share create error: \(String(describing: error), privacy: .public)")
             return nil
@@ -491,14 +505,20 @@ final class BackupManager: ObservableObject {
     /// Fetches a shared snapshot by code from the Worker. Returns the raw snapshot
     /// Data (ready for contentsOfSnapshotData / importSnapshotData), or nil.
     func fetchSharedSnapshot(code: String) async -> Data? {
-        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let base = shareWorkerURL, !trimmed.isEmpty else { return nil }
+        // Split "<lookup>~<base64 key>". Uppercase ONLY the lookup part (the key is
+        // case-sensitive base64).
+        let parts = trimmed.split(separator: "~", maxSplits: 1, omittingEmptySubsequences: false)
+        let lookup = String(parts[0]).uppercased()
+        let keyB64 = parts.count > 1 ? String(parts[1]) : nil
         let url = base.appendingPathComponent("share/fetch")
         do {
             var req = URLRequest(url: url)
             req.httpMethod = "POST"
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            req.httpBody = try JSONSerialization.data(withJSONObject: ["code": trimmed])
+            for (k, v) in AISearchService.authHeaders { req.setValue(v, forHTTPHeaderField: k) }
+            req.httpBody = try JSONSerialization.data(withJSONObject: ["code": lookup])
             req.timeoutInterval = 30
             let (respData, response) = try await URLSession.shared.data(for: req)
             guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
@@ -506,7 +526,19 @@ final class BackupManager: ObservableObject {
                 return nil
             }
             let decoded = try JSONDecoder().decode(ShareFetchResponse.self, from: respData)
-            return Data(base64Encoded: decoded.snapshot)
+            guard let blob = Data(base64Encoded: decoded.snapshot) else { return nil }
+            // Encrypted payload: decrypt with the key from the code. If the key is
+            // missing we can't recover it — fail rather than returning ciphertext.
+            if decoded.enc == true {
+                guard let keyB64, let keyData = Data(base64Encoded: keyB64),
+                      let box = try? AES.GCM.SealedBox(combined: blob),
+                      let plain = try? AES.GCM.open(box, using: SymmetricKey(data: keyData)) else {
+                    AstraLog.sync.error("Share fetch: decryption failed (bad or missing key)")
+                    return nil
+                }
+                return plain
+            }
+            return blob  // legacy unencrypted snapshot
         } catch {
             AstraLog.sync.error("Share fetch error: \(String(describing: error), privacy: .public)")
             return nil

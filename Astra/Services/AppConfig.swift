@@ -36,29 +36,30 @@ struct AstraConfigFile: Codable {
     var aiWorkerUrl: String?
 }
 
-final class AppConfig {
+final class AppConfig: @unchecked Sendable {
 
     static let shared = AppConfig()
 
     private let keychain = KeychainStore.shared
-    private(set) var fileConfig: AstraConfigFile?
+    /// Loaded once at init from the bundled/Documents AstraConfig.json. Immutable
+    /// after construction, which keeps the shared singleton concurrency-safe.
+    let fileConfig: AstraConfigFile?
 
     private init() {
-        loadFileConfig()
+        fileConfig = AppConfig.loadFileConfig()
     }
 
     // MARK: - Config file
 
     /// Looks for AstraConfig.json first in the app bundle, then in the app's
     /// Documents directory (so it can be dropped in via file sharing).
-    private func loadFileConfig() {
+    private static func loadFileConfig() -> AstraConfigFile? {
         let decoder = JSONDecoder()
 
         if let bundleURL = Bundle.main.url(forResource: "AstraConfig", withExtension: "json"),
            let data = try? Data(contentsOf: bundleURL),
            let cfg = try? decoder.decode(AstraConfigFile.self, from: data) {
-            fileConfig = cfg
-            return
+            return cfg
         }
 
         let docs = FileManager.default
@@ -67,12 +68,11 @@ final class AppConfig {
             let docURL = docs.appendingPathComponent("AstraConfig.json")
             if let data = try? Data(contentsOf: docURL),
                let cfg = try? decoder.decode(AstraConfigFile.self, from: data) {
-                fileConfig = cfg
+                return cfg
             }
         }
+        return nil
     }
-
-    func reloadFileConfig() { loadFileConfig() }
 
     // MARK: - Credential access (Keychain first, then config file)
 

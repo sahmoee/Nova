@@ -212,6 +212,32 @@ actor TMDBClient {
         }
     }
 
+    /// A person's filmography (movies + TV), most popular first, deduplicated.
+    func personCredits(personID: Int) async throws -> [CatalogItem] {
+        let resp: TMDBPersonCreditsResponse = try await get("person/\(personID)/combined_credits")
+        var seen = Set<Int>()
+        return resp.cast
+            .filter { $0.mediaType == "movie" || $0.mediaType == "tv" }
+            .sorted { ($0.popularity ?? 0) > ($1.popularity ?? 0) }
+            .compactMap { c -> CatalogItem? in
+                let title = c.title ?? c.name
+                guard let title, !title.isEmpty, !seen.contains(c.id) else { return nil }
+                seen.insert(c.id)
+                let isMovie = c.mediaType == "movie"
+                let yearString = (c.releaseDate ?? c.firstAirDate)?.prefix(4)
+                return CatalogItem(
+                    contentID: ContentID(tmdb: c.id, type: isMovie ? .movie : .series),
+                    title: title,
+                    overview: nil,
+                    posterURL: TMDBImage.poster(c.posterPath),
+                    backdropURL: nil,
+                    year: yearString.flatMap { Int($0) },
+                    rating: nil,
+                    genres: []
+                )
+            }
+    }
+
     /// Enriches a list of CatalogItems (e.g. from Trakt) that have TMDB ids but no
     /// artwork. Runs lookups concurrently and leaves items without a TMDB id untouched.
     func enrichArtwork(_ items: [CatalogItem]) async -> [CatalogItem] {

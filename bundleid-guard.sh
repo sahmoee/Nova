@@ -77,14 +77,28 @@ DISTINCT=$(grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' "$PBX" \
   | sed 's/PRODUCT_BUNDLE_IDENTIFIER = //; s/;$//; s/^"//; s/"$//' \
   | sort -u | wc -l | tr -d ' ')
 
+# The three intentional per-target identifiers. Having these three is CORRECT,
+# not a conflict — the old logic wrongly flagged them.
+ALLOWED_IDS="com.astra.app.ios com.astra.app.ios.widgets com.astra.app.tvos"
+UNEXPECTED=""
+while read -r id; do
+  [ -z "$id" ] && continue
+  case " $ALLOWED_IDS " in
+    *" $id "*) : ;;                 # expected per-target id
+    *) UNEXPECTED="$UNEXPECTED $id" ;;
+  esac
+done < <(grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' "$PBX" \
+  | sed 's/PRODUCT_BUNDLE_IDENTIFIER = //; s/;$//; s/^"//; s/"$//' | sort -u)
+
 echo
-if [ "$DISTINCT" -gt 1 ]; then
-  echo ">> $DISTINCT DIFFERENT ids exist. That mismatch is why the General tab"
-  echo "   'reverts': Debug and Release (or a duplicated target) disagree, and"
-  echo "   Xcode shows whichever config is selected."
+if [ -n "$UNEXPECTED" ]; then
+  echo ">> UNEXPECTED bundle id(s):$UNEXPECTED"
+  echo "   Expected only: $ALLOWED_IDS"
+  GUARD_STATUS=1
 else
-  echo ">> All occurrences agree. If it still reverts, an .xcconfig below is"
-  echo "   overriding it, or a git checkout is restoring an old pbxproj."
+  echo ">> OK — only the three intended per-target ids are present:"
+  echo "   $ALLOWED_IDS"
+  GUARD_STATUS=0
 fi
 
 # ----------------------------------------------------------------------------
@@ -157,3 +171,4 @@ fi
 
 echo
 echo "Done."
+exit "${GUARD_STATUS:-0}"

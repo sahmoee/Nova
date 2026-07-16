@@ -13,7 +13,7 @@ import Foundation
 
 final class TopShelfProvider: NSObject, TVTopShelfContentProvider {
 
-    private static let appGroup = "group.com.astra.shared"
+    private static let appGroup = "group.astra.ios"
     private static let snapshotFile = "widget_snapshot.json"
 
     func loadTopShelfContent(completionHandler: @escaping (TVTopShelfContent?) -> Void) {

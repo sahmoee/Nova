@@ -14,13 +14,21 @@
 //  IMPORTANT - Xcode setup:
 //   • This file belongs to the AstraWidgets extension target only.
 //   • WidgetShared.swift must be a member of BOTH the app and this extension target.
-//   • Both targets must have the App Group "group.com.astra.shared" enabled.
+//   • Both targets must have the App Group "group.astra.ios" enabled.
 //
 
 import WidgetKit
 import SwiftUI
 
 // MARK: - Timeline
+
+/// Wraps a WidgetKit completion handler so it can be captured by a `Task` under
+/// Swift 6 strict concurrency. Safe because the completion is called exactly once,
+/// off the render pass.
+private struct SendableCompletion<T>: @unchecked Sendable {
+    let call: (T) -> Void
+    init(_ call: @escaping (T) -> Void) { self.call = call }
+}
 
 struct AstraProvider: TimelineProvider {
     func placeholder(in context: Context) -> AstraTimelineEntry {
@@ -29,25 +37,27 @@ struct AstraProvider: TimelineProvider {
 
     func getSnapshot(in context: Context, completion: @escaping (AstraTimelineEntry) -> Void) {
         let snapshot = WidgetShared.read()
+        let done = SendableCompletion(completion)
         Task {
             let posters = await PosterLoader.load(for: snapshot)
-            completion(AstraTimelineEntry(date: Date(), snapshot: snapshot, posters: posters))
+            done.call(AstraTimelineEntry(date: Date(), snapshot: snapshot, posters: posters))
         }
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<AstraTimelineEntry>) -> Void) {
         let snapshot = WidgetShared.read()
+        let done = SendableCompletion(completion)
         Task {
             let posters = await PosterLoader.load(for: snapshot)
             let entry = AstraTimelineEntry(date: Date(), snapshot: snapshot, posters: posters)
             // Refresh every 30 minutes as a fallback; the app also reloads on library change.
             let next = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date().addingTimeInterval(1800)
-            completion(Timeline(entries: [entry], policy: .after(next)))
+            done.call(Timeline(entries: [entry], policy: .after(next)))
         }
     }
 }
 
-struct AstraTimelineEntry: TimelineEntry {
+struct AstraTimelineEntry: TimelineEntry, Sendable {
     let date: Date
     let snapshot: WidgetSnapshot
     /// Poster image bytes keyed by entry id, pre-fetched so views render instantly.

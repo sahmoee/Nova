@@ -10,7 +10,7 @@
 //  IMPORTANT — Xcode setup (see TOPSHELF_SETUP.md):
 //   • This file belongs to the AstraTopShelf extension target only (tvOS).
 //   • WidgetShared.swift must be a member of this target too (it holds the snapshot model).
-//   • This target and the tvOS app must both enable App Group "group.com.astra.shared".
+//   • This target and the tvOS app must both enable App Group "group.astra.ios".
 //
 
 import TVServices

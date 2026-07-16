@@ -28,6 +28,10 @@ fi
 # Add a filename here ONLY if it is deliberately unregistered.
 EXCLUDE=(
   "MockData.swift"
+  # Orphan: enum Haptics is actually defined in Components/Toast.swift. This
+  # Utilities copy is intentionally unregistered (registering it would cause a
+  # duplicate-type build error). Delete it during cleanup if desired.
+  "Haptics.swift"
 )
 
 is_excluded() {
@@ -62,7 +66,9 @@ while IFS= read -r -d '' f; do
     echo "UNREGISTERED: $base" >&2
     for p in "${problems[@]}"; do echo "    - $p" >&2; done
   fi
-done < <(find "$SRC_DIR" -name '*.swift' -type f -print0)
+done < <(find "$SRC_DIR" -name '*.swift' -type f \
+             -not -name '._*' \
+             -not -path '*/.buildbuddy-backups/*' -print0)
 
 if [[ "$FAIL" -ne 0 ]]; then
   echo "" >&2

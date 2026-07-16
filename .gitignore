@@ -11,3 +11,5 @@ Packages/
 
 commit.sh
 COMMIT_MSG.txt
+._*
+*.bak.*

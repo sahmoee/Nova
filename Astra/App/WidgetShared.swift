@@ -18,7 +18,7 @@ import WidgetKit
 /// The App Group identifier shared by the app and the widget. This must match the
 /// App Group you create in the Apple Developer portal and enable on both targets.
 enum WidgetShared {
-    static let appGroup = "group.com.astra.shared"
+    static let appGroup = "group.astra.ios"
     private static let snapshotFile = "widget_snapshot.json"
 
     /// The shared container URL, or nil if the App Group isn't configured.
@@ -49,7 +49,7 @@ enum WidgetShared {
 
 /// A compact, Codable view of the few titles a widget needs to render. Keeps the
 /// shared payload tiny and independent of the app's full MediaItem model.
-struct WidgetSnapshot: Codable, Equatable {
+struct WidgetSnapshot: Codable, Equatable, Sendable {
     var continueWatching: [WidgetEntry]
     var recentlyAdded: [WidgetEntry]
     var updated: Date
@@ -58,7 +58,7 @@ struct WidgetSnapshot: Codable, Equatable {
 }
 
 /// One title in a widget.
-struct WidgetEntry: Codable, Equatable, Identifiable {
+struct WidgetEntry: Codable, Equatable, Identifiable, Sendable {
     var id: String            // stable content key
     var title: String
     var subtitle: String      // e.g. "Movie · 2017" or "S2 E4"

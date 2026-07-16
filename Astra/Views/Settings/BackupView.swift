@@ -239,7 +239,7 @@ struct BackupView: View {
         }
         // Enter a code to restore from someone else.
         .alert("Restore from a Code", isPresented: $showCodeEntry) {
-            TextField("6-character code", text: $codeText)
+            TextField("Paste the share code", text: $codeText)
                 #if os(iOS)
                 .textInputAutocapitalization(.characters)
                 .autocorrectionDisabled()
@@ -353,7 +353,7 @@ struct BackupView: View {
     /// Message shown in the share-code result alert, including expiry.
     private var shareCodeMessage: String {
         guard let code = shareCode else { return "" }
-        var msg = "Share this code with the other person:\n\n\(code)\n\nThey enter it under Restore from a Code."
+        var msg = "Share this code with the other person:\n\n\(code)\n\nIt includes the decryption key, so treat it like a password. They enter it under Restore from a Code."
         if let exp = shareCodeExpiry {
             msg += "\n\nExpires \(dateText(exp))."
         }

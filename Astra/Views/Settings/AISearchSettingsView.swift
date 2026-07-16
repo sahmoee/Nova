@@ -14,6 +14,7 @@ import UIKit
 
 struct AISearchSettingsView: View {
     @State private var workerURL = AISearchService.workerURLString
+    @State private var workerToken = AppConfig.shared.workerToken ?? ""
     @State private var showWorkerCode = false
     @State private var didCopyCode = false
 
@@ -53,6 +54,26 @@ struct AISearchSettingsView: View {
                     }
                     #endif
                 }
+
+                Text("Worker Token (optional)")
+                    .font(.appFont(17, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .padding(.top, Theme.Spacing.sm)
+                SecureField("Bearer token (if your Worker sets ASTRA_SHARED_TOKEN)", text: $workerToken)
+                    .textFieldStyle(.plain)
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled(true)
+                    #endif
+                    .padding(Theme.Spacing.md)
+                    .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .onChange(of: workerToken) { _, newValue in
+                        AppConfig.shared.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), for: .workerToken)
+                    }
+                Text("Stored securely in your Keychain and sent as a Bearer token to your Worker. Leave blank if your Worker doesn't require one.")
+                    .font(.appFont(14))
+                    .foregroundStyle(Theme.Colors.textTertiary)
 
                 Label(AISearchService.isConfigured ? "AI search is ready" : "Not configured yet",
                       systemImage: AISearchService.isConfigured ? "checkmark.circle.fill" : "exclamationmark.circle")

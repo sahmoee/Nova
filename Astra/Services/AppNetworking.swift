@@ -41,18 +41,27 @@ enum AppNetworking {
 
     // MARK: - Shared request helpers
 
-    enum RequestError: Error { case badStatus(Int) }
+    enum RequestError: Error { case badStatus(Int, retryAfter: TimeInterval?) }
+
+    /// Parses a Retry-After header (integer seconds form) if present.
+    static func retryAfterSeconds(_ http: HTTPURLResponse) -> TimeInterval? {
+        guard let v = http.value(forHTTPHeaderField: "Retry-After")?.trimmingCharacters(in: .whitespaces),
+              let secs = TimeInterval(v) else { return nil }
+        return max(0, secs)
+    }
 
     /// GETs a URL and decodes JSON — the request/status-check/decode boilerplate
     /// previously reimplemented by each API client.
     static func getJSON<T: Decodable>(_ url: URL,
                                       timeout: TimeInterval = 20,
+                                      headers: [String: String] = [:],
                                       decoder: JSONDecoder = Coders.decoder) async throws -> T {
         var req = URLRequest(url: url)
         req.timeoutInterval = timeout
+        for (k, v) in headers { req.setValue(v, forHTTPHeaderField: k) }
         let (data, response) = try await shared.data(for: req)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw RequestError.badStatus(http.statusCode)
+            throw RequestError.badStatus(http.statusCode, retryAfter: retryAfterSeconds(http))
         }
         return try decoder.decode(T.self, from: data)
     }
@@ -61,15 +70,17 @@ enum AppNetworking {
     static func postJSON<Body: Encodable, T: Decodable>(_ url: URL,
                                                         body: Body,
                                                         timeout: TimeInterval = 30,
+                                                        headers: [String: String] = [:],
                                                         decoder: JSONDecoder = Coders.decoder) async throws -> T {
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        for (k, v) in headers { req.setValue(v, forHTTPHeaderField: k) }
         req.httpBody = try Coders.encoder.encode(body)
         req.timeoutInterval = timeout
         let (data, response) = try await shared.data(for: req)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw RequestError.badStatus(http.statusCode)
+            throw RequestError.badStatus(http.statusCode, retryAfter: retryAfterSeconds(http))
         }
         return try decoder.decode(T.self, from: data)
     }

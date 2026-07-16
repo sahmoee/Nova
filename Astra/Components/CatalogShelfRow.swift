@@ -54,7 +54,10 @@ struct CatalogShelfRow: View {
             // Discover refreshes every time it appears so it always looks different;
             // Home loads once and keeps its ordering stable.
             if variant == .home && loaded { return }
-            items = await env.shelfLoader.items(for: shelf, variant: variant)
+            let loadedItems = await env.shelfLoader.items(for: shelf, variant: variant)
+            // Respect recommendation feedback: drop titles the user marked Not
+            // Interested / Already Watched from recommendation rows.
+            items = RecommendationFeedbackStore.shared.visible(loadedItems) { $0.contentID.stableKey }
             loaded = true
             ImageLoader.shared.prefetch(items.compactMap(\.posterURL))
         }

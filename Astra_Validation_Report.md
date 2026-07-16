@@ -27,7 +27,7 @@ nothing needed changing.** The repo is icon/asset submission-ready.
    correct and purges any stray App Store imagestack).
 2. Build to a device + tvOS: confirm the icon renders at the smallest iOS sizes
    and the tvOS layers separate with parallax on focus.
-3. Reminder (outside the code): new bundle IDs + `group.com.astra.shared` still
+3. Reminder (outside the code): new bundle IDs + `group.astra.ios` still
    need registering in the Apple Developer portal with fresh provisioning
    profiles, and the `astra-ai-worker` still needs `wrangler deploy` + its new
    URL pasted into the app's AI settings.
