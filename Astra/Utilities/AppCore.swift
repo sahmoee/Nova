@@ -48,8 +48,12 @@ enum Signposts {
     static let shelf  = OSSignposter(subsystem: "com.astra.app", category: "shelf")
     static let stream = OSSignposter(subsystem: "com.astra.app", category: "stream")
 
-    /// Measures an async operation as a signpost interval.
-    static func measure<T>(_ poster: OSSignposter, _ name: StaticString,
+    /// Measures an async operation as a signpost interval. Inherits the caller's
+    /// isolation (via `#isolation`) so `operation` runs in the caller's actor
+    /// context instead of being sent across an isolation boundary — which keeps a
+    /// non-Sendable closure that captures actor-isolated state race-free.
+    static func measure<T>(isolation: isolated (any Actor)? = #isolation,
+                           _ poster: OSSignposter, _ name: StaticString,
                            _ operation: () async -> T) async -> T {
         let state = poster.beginInterval(name)
         defer { poster.endInterval(name, state) }

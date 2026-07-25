@@ -38,9 +38,9 @@ enum PendingRoute {
 
 /// "Continue watching on Astra" — opens the app to the Library / Continue Watching.
 struct ContinueWatchingIntent: AppIntent {
-    static var title: LocalizedStringResource = "Continue Watching"
-    static var description = IntentDescription("Open Astra to your Continue Watching list.")
-    static var openAppWhenRun = true
+    static let title: LocalizedStringResource = "Continue Watching"
+    static let description = IntentDescription("Open Astra to your Continue Watching list.")
+    static let openAppWhenRun = true
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -51,9 +51,9 @@ struct ContinueWatchingIntent: AppIntent {
 
 /// "Open Astra Library" — jumps straight to the Library tab.
 struct OpenLibraryIntent: AppIntent {
-    static var title: LocalizedStringResource = "Open Library"
-    static var description = IntentDescription("Open Astra to your library.")
-    static var openAppWhenRun = true
+    static let title: LocalizedStringResource = "Open Library"
+    static let description = IntentDescription("Open Astra to your library.")
+    static let openAppWhenRun = true
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -64,9 +64,9 @@ struct OpenLibraryIntent: AppIntent {
 
 /// "Discover on Astra" — opens the Discover tab.
 struct OpenDiscoverIntent: AppIntent {
-    static var title: LocalizedStringResource = "Open Discover"
-    static var description = IntentDescription("Open Astra to Discover.")
-    static var openAppWhenRun = true
+    static let title: LocalizedStringResource = "Open Discover"
+    static let description = IntentDescription("Open Astra to Discover.")
+    static let openAppWhenRun = true
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -77,9 +77,9 @@ struct OpenDiscoverIntent: AppIntent {
 
 /// "Ask Astra AI" — opens the AI tab to build a shelf or search by vibe.
 struct OpenAIIntent: AppIntent {
-    static var title: LocalizedStringResource = "Open Astra AI"
-    static var description = IntentDescription("Open Astra's AI tab to build shelves and playlists.")
-    static var openAppWhenRun = true
+    static let title: LocalizedStringResource = "Open Astra AI"
+    static let description = IntentDescription("Open Astra's AI tab to build shelves and playlists.")
+    static let openAppWhenRun = true
 
     @MainActor
     func perform() async throws -> some IntentResult {

@@ -36,7 +36,23 @@ final class CloudSync: ObservableObject {
 
     // MARK: - External change handling
 
-    @objc private func handleExternalChange(_ note: Notification) {
+    // IMPORTANT: this handler MUST stay `nonisolated`.
+    //
+    // `CloudSync` is `@MainActor`, so *without* `nonisolated` this @objc method is
+    // implicitly main-actor-isolated. iCloud (the SyncedDefaults daemon) posts
+    // `didChangeExternallyNotification` on a background queue, and NotificationCenter
+    // invokes this selector synchronously on that background queue. On iOS 18+ /
+    // Swift 6 runtimes the compiler inserts an executor precondition at the start of
+    // an isolated @objc method; when the selector fires off-main that precondition
+    // calls `dispatch_assert_queue(main)`, which fails and hard-crashes the app with
+    // EXC_BREAKPOINT (SIGTRAP) *before the body runs* — so the `Task { @MainActor }`
+    // hop below is never reached and cannot help.
+    //
+    // Marking the method `nonisolated` lets the notification be delivered on any
+    // thread without the precondition. We read the Sendable `keys` array here (off
+    // the main actor is fine — we only touch the immutable `note`) and then hop onto
+    // the main actor to publish through `externalChange`.
+    @objc private nonisolated func handleExternalChange(_ note: Notification) {
         let keys = (note.userInfo?[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String]) ?? []
         Task { @MainActor in
             self.externalChange.send(Set(keys))

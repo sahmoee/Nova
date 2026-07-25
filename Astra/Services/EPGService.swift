@@ -85,9 +85,9 @@ private final class XMLTVParser: NSObject, XMLParserDelegate {
     private var insideTitle = false
 
     /// XMLTV timestamps look like "20260708193000 +0000" (offset optional).
-    /// nonisolated(unsafe) is safe here: built once from a pure closure and only
-    /// read afterward (DateFormatter reads are thread-safe post-configuration).
-    nonisolated(unsafe) private static let formats: [DateFormatter] = {
+    /// Built once from a pure closure and only read afterward. `DateFormatter` is
+    /// `Sendable`, so this immutable array needs no `nonisolated(unsafe)`.
+    private static let formats: [DateFormatter] = {
         ["yyyyMMddHHmmss Z", "yyyyMMddHHmmss"].map { fmt in
             let f = DateFormatter()
             f.dateFormat = fmt

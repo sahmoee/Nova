@@ -69,6 +69,9 @@ extension View {
 
 // MARK: - Haptics
 
+/// UIKit feedback generators are main-actor-isolated, and haptics are UI feedback
+/// fired from view actions, so the whole helper is `@MainActor`.
+@MainActor
 enum Haptics {
     enum Kind { case success, warning, error, light }
     enum Impact { case light, medium, rigid, soft }

@@ -13,7 +13,10 @@
 import Foundation
 
 #if os(iOS)
-import CoreSpotlight
+// CoreSpotlight isn't Sendable-audited yet; `@preconcurrency` suppresses the
+// spurious Sendable warnings for its types (CSSearchableIndex / CSSearchableItem)
+// captured in the completion-handler closures below.
+@preconcurrency import CoreSpotlight
 import UniformTypeIdentifiers
 
 enum SpotlightIndexer {

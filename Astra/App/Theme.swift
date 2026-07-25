@@ -29,7 +29,12 @@ enum Theme {
     /// On iPad we render a roomier, "regular" layout closer to the tvOS scale so the
     /// large screen isn't wasted on iPhone-sized cards; on iPhone we keep the compact
     /// handheld scale. Determined once at launch from the device idiom.
-    static let isPad: Bool = UIDevice.current.userInterfaceIdiom == .pad
+    // `UIDevice` is main-actor-isolated under Swift 6, but the idiom is a fixed
+    // device trait. These design tokens are first read during SwiftUI rendering on
+    // the main actor, so assume main isolation to read it for this constant.
+    static let isPad: Bool = MainActor.assumeIsolated {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
     /// iPad is treated as "regular" width (false) so the many `isCompact ? a : b`
     /// branches across the app give iPad the wider treatment automatically.
     static let isCompact: Bool = !isPad
@@ -110,7 +115,9 @@ enum Theme {
     /// Whether the user has Reduce Motion enabled, so animations can be skipped.
     static var isReduceMotion: Bool {
         #if canImport(UIKit)
-        return UIAccessibility.isReduceMotionEnabled
+        // Read live (the setting can change at runtime). `UIAccessibility` is
+        // main-actor-isolated; this is only read from SwiftUI style bodies on main.
+        return MainActor.assumeIsolated { UIAccessibility.isReduceMotionEnabled }
         #else
         return false
         #endif

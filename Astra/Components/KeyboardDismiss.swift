@@ -21,10 +21,14 @@ extension View {
     }
 }
 
-/// Resigns first responder app-wide, which closes the keyboard.
+/// Resigns first responder app-wide, which closes the keyboard. `UIApplication` is
+/// main-actor-isolated; this is only invoked from SwiftUI gesture callbacks on main.
 func hideKeyboard() {
-    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
-                                    to: nil, from: nil, for: nil)
+    MainActor.assumeIsolated {
+        // Discard the Bool result so the closure (and assumeIsolated) returns Void.
+        _ = UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                            to: nil, from: nil, for: nil)
+    }
 }
 
 private struct KeyboardDismissModifier: ViewModifier {

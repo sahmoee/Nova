@@ -666,9 +666,13 @@ extension LibraryStore {
     }
 
     var continueWatching: [MediaItem] {
-        items
-            .filter { $0.hasResumePoint }
-            .sorted { ($0.lastPlayedDate ?? .distantPast) > ($1.lastPlayedDate ?? .distantPast) }
+        // Collapse to one entry per show: the most recently played in-progress episode
+        // represents the whole series, so a show isn't listed once per episode.
+        collapseToShow(
+            items
+                .filter { $0.hasResumePoint }
+                .sorted { ($0.lastPlayedDate ?? .distantPast) > ($1.lastPlayedDate ?? .distantPast) }
+        )
     }
 
     var recentlyAdded: [MediaItem] {
@@ -695,22 +699,22 @@ extension LibraryStore {
     }
 
     /// The library grid's entries: standalone movies as-is, but episodes collapsed so
-    /// each series-season shows a single entry (represented by its most recently added
-    /// episode) instead of one card per episode. Sorted by most recently added.
+    /// each series shows a single entry (represented by its most recently added
+    /// episode) instead of one card per episode or per season. The individual episodes
+    /// live under the show on its detail screen. Sorted by most recently added.
     var libraryEntries: [MediaItem] {
         let sorted = items.sorted { $0.addedDate > $1.addedDate }
-        var seenSeasonKeys = Set<String>()
+        var seenShowKeys = Set<String>()
         var movieSlots: [String: Int] = [:]
         var result: [MediaItem] = []
         for item in sorted {
-            if let ep = item.episode {
-                // Group key: series identity + season number.
+            if item.isSeries {
+                // Group key: series identity — one entry for the whole show.
                 let seriesKey = item.seriesTitle?.lowercased()
                     ?? item.contentID?.stableKey
                     ?? item.title.lowercased()
-                let key = "\(seriesKey)|s\(ep.season)"
-                if seenSeasonKeys.insert(key).inserted {
-                    result.append(item)   // first (most recent) episode represents the season
+                if seenShowKeys.insert(seriesKey).inserted {
+                    result.append(item)   // first (most recent) episode represents the show
                 }
             } else {
                 // Movies: never show the same title twice. Prefer a real content ID,

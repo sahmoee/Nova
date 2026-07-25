@@ -115,14 +115,33 @@ actor RealSMBProvider: SMBProviding {
         guard let client else { throw SMBError.notConnected }
         let smbPath = normalizedPath(path)
 
-        let entries: [[URLResourceKey: any Sendable]]
+        // AMSMB2's async `contentsOfDirectory` returns `[[URLResourceKey: Any]]`,
+        // which is non-Sendable and therefore can't cross back to this actor. Use
+        // the completion-handler variant and reduce the raw attributes to Sendable
+        // `RemoteFileItem`s inside the handler, so only Sendable data crosses the
+        // continuation boundary.
         do {
-            entries = try await client.contentsOfDirectory(atPath: smbPath)
+            return try await withCheckedThrowingContinuation { continuation in
+                client.contentsOfDirectory(atPath: smbPath) { result in
+                    switch result {
+                    case .success(let entries):
+                        continuation.resume(returning: Self.mapEntries(entries, parentPath: smbPath))
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
         } catch {
             throw mapError(error)
         }
+    }
 
-        return entries.compactMap { attrs -> RemoteFileItem? in
+    /// Reduces AMSMB2's raw `[URLResourceKey: Any]` attribute dictionaries to
+    /// Sendable `RemoteFileItem`s. Static (hence nonisolated) so it can run inside
+    /// the SMB library's completion handler without hopping onto the actor and
+    /// without sending non-Sendable `Any` values across an isolation boundary.
+    private static func mapEntries(_ entries: [[URLResourceKey: Any]], parentPath: String) -> [RemoteFileItem] {
+        entries.compactMap { attrs -> RemoteFileItem? in
             guard let name = attrs[.nameKey] as? String else { return nil }
             if name == "." || name == ".." { return nil }
 
@@ -136,9 +155,9 @@ actor RealSMBProvider: SMBProviding {
             else { size = nil }
             let modified = attrs[.contentModificationDateKey] as? Date
 
-            let childPath = smbPath.isEmpty || smbPath == "/"
+            let childPath = parentPath.isEmpty || parentPath == "/"
                 ? "/\(name)"
-                : "\(smbPath)/\(name)"
+                : "\(parentPath)/\(name)"
 
             return RemoteFileItem(
                 name: name,

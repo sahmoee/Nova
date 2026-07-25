@@ -112,16 +112,23 @@ final class QRScannerController: UIViewController, AVCaptureMetadataOutputObject
         if session.isRunning { session.stopRunning() }
     }
 
-    func metadataOutput(_ output: AVCaptureMetadataOutput,
-                        didOutput objects: [AVMetadataObject],
-                        from connection: AVCaptureConnection) {
-        guard !didReport,
-              let obj = objects.first as? AVMetadataMachineReadableCodeObject,
-              let value = obj.stringValue else { return }
-        didReport = true
-        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
-        if session.isRunning { session.stopRunning() }
-        onCode?(value)
+    // The delegate requirement is nonisolated, but this controller is @MainActor.
+    // The output is delivered on `.main` (see `setMetadataObjectsDelegate` above),
+    // so it's safe to assume main-actor isolation to touch the controller's state.
+    nonisolated func metadataOutput(_ output: AVCaptureMetadataOutput,
+                                    didOutput objects: [AVMetadataObject],
+                                    from connection: AVCaptureConnection) {
+        // Pull the Sendable `String` out of the non-Sendable metadata objects here in
+        // the nonisolated context, so nothing non-Sendable is captured by the hop.
+        guard let value = (objects.first as? AVMetadataMachineReadableCodeObject)?.stringValue
+        else { return }
+        MainActor.assumeIsolated {
+            guard !didReport else { return }
+            didReport = true
+            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+            if session.isRunning { session.stopRunning() }
+            onCode?(value)
+        }
     }
 }
 #endif

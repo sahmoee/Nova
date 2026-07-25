@@ -21,6 +21,7 @@ enum CredentialKey: String, CaseIterable {
     case traktRefreshToken = "trakt.refreshToken"
     case openSubtitlesAPIKey = "opensubtitles.apiKey"
     case omdbAPIKey = "omdb.apiKey"
+    case workerToken = "worker.token"
 }
 
 /// Shape of the optional AstraConfig.json fallback file.
@@ -91,7 +92,7 @@ final class AppConfig: @unchecked Sendable {
         case .traktClientSecret:     return nonEmpty(fileConfig.traktClientSecret)
         case .openSubtitlesAPIKey:   return nonEmpty(fileConfig.openSubtitlesApiKey)
         case .omdbAPIKey:            return nonEmpty(fileConfig.omdbApiKey)
-        case .traktAccessToken, .traktRefreshToken:
+        case .traktAccessToken, .traktRefreshToken, .workerToken:
             return nil   // tokens are runtime-only, never from the static file
         }
     }
@@ -122,6 +123,11 @@ final class AppConfig: @unchecked Sendable {
     var traktClientSecret: String? { value(for: .traktClientSecret) }
     var openSubtitlesKey: String? { value(for: .openSubtitlesAPIKey) }
     var omdbKey: String? { value(for: .omdbAPIKey) }
+
+    /// Optional Bearer token for the AI Worker, stored in the Keychain (set in
+    /// Settings). Sent only when non-empty; the Worker enforces it when its
+    /// ASTRA_SHARED_TOKEN secret is configured.
+    var workerToken: String? { value(for: .workerToken) }
 
     /// Addon manifest URLs to seed on first run, from the config file (if any).
     var seedAddonURLs: [URL] {

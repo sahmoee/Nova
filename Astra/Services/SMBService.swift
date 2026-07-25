@@ -126,7 +126,7 @@ actor MockSMBProvider: SMBProviding {
 /// Wraps whichever SMBProviding implementation is active and exposes a simple
 /// API to the view models. Uses the real AMSMB2-backed provider; the mock remains
 /// available for previews and tests by injecting it explicitly.
-final class SMBService {
+final class SMBService: Sendable {
 
     static let shared = SMBService()
 

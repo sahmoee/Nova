@@ -17,7 +17,9 @@ enum PlaybackEngine: String {
 
 enum PlayerMemory {
     private static let prefix = "player.engine."
-    private static let defaults = UserDefaults.standard
+    // UserDefaults is documented as thread-safe, but it isn't `Sendable`. Mark the
+    // shared instance `nonisolated(unsafe)` to opt out of the concurrency check.
+    nonisolated(unsafe) private static let defaults = UserDefaults.standard
 
     /// Records the engine that successfully started playback for an item.
     static func remember(_ engine: PlaybackEngine, for item: MediaItem) {

@@ -2,7 +2,10 @@
 //  SettingsView.swift
 //  Astra
 //
-//  Settings: Real-Debrid account, SMB shares, Playback, Library, Privacy, Legal.
+//  The Settings home. On iOS/iPadOS it's an Apple-Settings-style directory: grouped
+//  rounded cards of rows, each with a colored icon tile, that push into a category
+//  screen. On tvOS it's a horizontal strip of category tabs with the selected
+//  category's controls filling the panel below.
 //
 
 import SwiftUI
@@ -12,406 +15,265 @@ struct SettingsView: View {
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var settings: SettingsStore
-    @StateObject private var profiles = ViewingProfileStore.shared
 
-    @State private var confirmClearLibrary = false
-    @State private var confirmClearHistory = false
-    @State private var expandedSections: [String: Bool] = [:]
-    @State private var inlineWorkerURL = ""
     @State private var settingsSearch = ""
     @State private var sourcesPath = NavigationPath()
+    #if os(tvOS)
+    @State private var selectedCategory: String = "playback"
+    #endif
 
-    /// Summary detail for the Sources & Health row, e.g. "All connected" or
-    /// "2 need attention".
-    private var sourcesHealthDetail: String {
-        let items = SourceHealth.all(addonStore: env.addonStore, smbShareCount: 0)
-        let s = SourceHealth.summary(items)
-        if s.needsAttention == 0 { return "All connected" }
-        return "\(s.needsAttention) need attention"
+    // MARK: - Directory model
+
+    /// A single directory entry: how it looks in the list plus the screen it opens.
+    private struct Category: Identifiable {
+        let id: String
+        let icon: String
+        let color: Color
+        let title: String
+        var detail: String? = nil
+        var status: Color? = nil
+        let destination: () -> AnyView
     }
 
-    private var sourcesHealthStatusColor: Color {
-        let items = SourceHealth.all(addonStore: env.addonStore, smbShareCount: 0)
-        return SourceHealth.summary(items).needsAttention == 0
-            ? Theme.Colors.success : Theme.Colors.warning
+    private struct CategoryGroup: Identifiable {
+        let id = UUID()
+        var header: String? = nil
+        let items: [Category]
     }
 
     var body: some View {
+        #if os(tvOS)
+        tvOSBody
+        #else
+        iOSBody
+        #endif
+    }
+
+    // MARK: - iOS / iPadOS directory
+
+    #if !os(tvOS)
+    private var iOSBody: some View {
         NavigationStack(path: $path) {
-            ZStack {
-                Theme.Colors.appBackground.ignoresSafeArea()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                        Text("Settings")
-                            .font(Theme.Font.screenTitle())
-                            .screenTitleStyle()
-                            .foregroundStyle(Theme.Colors.textPrimary)
-                            .padding(.top, Theme.Spacing.lg)
-                            .padding(.horizontal, Theme.Spacing.edge)
-
-                        // Quick filter: type to show only matching sections, all
-                        // expanded so results are immediately visible.
-                        #if os(iOS)
-                        HStack(spacing: Theme.Spacing.sm) {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundStyle(Theme.Colors.textTertiary)
-                            TextField("Search settings", text: $settingsSearch)
-                                .textFieldStyle(.plain)
-                                .foregroundStyle(Theme.Colors.textPrimary)
-                                .autocorrectionDisabled(true)
-                            if !settingsSearch.isEmpty {
-                                Button {
-                                    settingsSearch = ""
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(Theme.Colors.textTertiary)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(Theme.Spacing.md)
-                        .refinedCardBackground(cornerRadius: Theme.Radius.button)
-                        .padding(.horizontal, Theme.Spacing.edge)
-                        #endif
-
-                        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                            // Guest mode hides source setup, advanced streaming, and
-                            // account screens on shared devices.
-                            if !settings.guestMode {
-                                accountsSection
-                                streamingSection
-                            }
-                            playbackSection
-                            appleTVExperienceSection
-                            appearanceSection
-                            subtitleSection
-                            accessibilitySection
-                            librarySection
-                            if !settings.guestMode {
-                                backupSection
-                            }
-                            advancedSection
-                            privacyLegalSection
-                        }
-                        // Edge-to-edge accordion: only a slim inset so the section cards
-                        // span nearly the full width of the screen.
-                        .padding(.horizontal, Theme.isCompact ? Theme.Spacing.sm : Theme.Spacing.edge)
-                    }
-                    .padding(.bottom, Theme.Spacing.xl)
-                    .frame(maxWidth: Theme.contentMaxWidth(1100), alignment: .leading)
-                }
-            }
-            .alert("Clear entire library?", isPresented: $confirmClearLibrary) {
-                Button("Clear", role: .destructive) { library.clearAll() }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This removes all saved items. Your sources and credentials stay.")
-            }
-            .alert("Clear watch history?", isPresented: $confirmClearHistory) {
-                Button("Clear", role: .destructive) { library.clearWatchHistory() }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This resets resume points and Continue Watching.")
-            }
-        }
-    }
-
-    // MARK: - Sections
-
-    private var accountsSection: some View {
-        section("Accounts & Sources") {
-            NavigationLink { SetupChecklistView() } label: {
-                settingRow("Setup Checklist", systemImage: "checklist",
-                           detail: "Get started")
-            }.astraRowStyle()
-            NavigationLink { SourcesView(path: $sourcesPath) } label: {
-                settingRow("Sources & Health", systemImage: "point.3.connected.trianglepath.dotted",
-                           detail: sourcesHealthDetail,
-                           status: sourcesHealthStatusColor)
-            }.astraRowStyle()
-
-            if !settings.reviewSafeMode {
-                NavigationLink { RealDebridView() } label: {
-                    settingRow("Real-Debrid Account", systemImage: "arrow.down.circle",
-                               detail: KeychainStore.shared.realDebridToken == nil ? "Not connected" : "Connected",
-                               status: KeychainStore.shared.realDebridToken == nil
-                                   ? Theme.Colors.warning : Theme.Colors.success)
-                }.astraRowStyle()
-            }
-
-            // SMB Shares temporarily hidden while the SMB sign-in issue is sorted out.
-
-            if !settings.reviewSafeMode {
-                NavigationLink { AddonsView() } label: {
-                    settingRow("Addons", systemImage: "puzzlepiece.extension",
-                               detail: "\(env.addonStore.addons.count) installed")
-                }.astraRowStyle()
-            }
-
-            NavigationLink { PlayFromLinkView() } label: {
-                settingRow("Play from Link", systemImage: "link",
-                           detail: settings.reviewSafeMode ? "Direct video links" : "URL or magnet")
-            }.astraRowStyle()
-
-            NavigationLink { AccountsView() } label: {
-                settingRow("Metadata & Accounts", systemImage: "key",
-                           detail: "TMDB · Trakt · Subtitles")
-            }.astraRowStyle()
-
-            NavigationLink { AISearchSettingsView() } label: {
-                settingRow("AI Search", systemImage: "sparkles",
-                           detail: AISearchService.isConfigured ? "Ready" : "Set up",
-                           status: AISearchService.isConfigured
-                               ? Theme.Colors.success : Theme.Colors.warning)
-            }.astraRowStyle()
-
-            // Quick inline setup: paste the Worker URL right here; the full screen
-            // above keeps the guided instructions and worker code.
-            if !AISearchService.isConfigured {
-                HStack(spacing: Theme.Spacing.sm) {
-                    Image(systemName: "link")
-                        .foregroundStyle(Theme.Colors.textTertiary)
-                    TextField("Paste AI Worker URL", text: $inlineWorkerURL)
-                        .font(.appFont(16))
+            ScrollView {
+                VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                    Text("Settings")
+                        .font(Theme.Font.screenTitle())
+                        .screenTitleStyle()
                         .foregroundStyle(Theme.Colors.textPrimary)
-                        .autocorrectionDisabled(true)
-                        #if os(iOS)
-                        .textInputAutocapitalization(.never)
-                        #endif
-                    Button("Save") {
-                        AISearchService.workerURLString = inlineWorkerURL
-                            .trimmingCharacters(in: .whitespacesAndNewlines)
-                        ToastCenter.shared.show("AI Worker URL saved")
+                        .padding(.top, Theme.Spacing.md)
+
+                    searchField
+
+                    ForEach(filteredGroups) { group in
+                        SettingsGroup(header: group.header, rows: group.items.map { rowLink(for: $0) })
                     }
-                    .font(.appFont(15, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.accent)
-                    .buttonStyle(AstraChipButtonStyle())
-                    .disabled(inlineWorkerURL.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                .padding(Theme.Spacing.sm)
-                .background(Theme.Colors.card,
-                            in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                .padding(.horizontal, Theme.isCompact ? Theme.Spacing.md : Theme.Spacing.edge)
+                .padding(.bottom, Theme.Spacing.xl)
+                .frame(maxWidth: 900, alignment: .leading)
+                .frame(maxWidth: .infinity)
             }
-
+            .background(Theme.Colors.appBackground.ignoresSafeArea())
         }
     }
 
-    private var appleTVExperienceSection: some View {
-        section("Apple TV Experience") {
-            NavigationLink {
-                ViewingProfileSwitcherView(store: profiles)
-            } label: {
-                settingRow("Viewing Profiles", systemImage: "person.2.circle",
-                           detail: "Active: \(profiles.activeProfile.name)")
-            }.astraRowStyle()
-
-            toggleRow("Auto-Advance Featured Titles", systemImage: "rectangle.on.rectangle.angled",
-                      isOn: experienceBinding(\.autoAdvanceHero))
-            toggleRow("Quick Access Row", systemImage: "square.grid.2x2",
-                      isOn: experienceBinding(\.showQuickAccess))
-            toggleRow("Source Health on Home", systemImage: "point.3.connected.trianglepath.dotted",
-                      isOn: experienceBinding(\.showSourceHub))
-            toggleRow("Smart Collections", systemImage: "sparkles.rectangle.stack",
-                      isOn: experienceBinding(\.showSmartCollections))
-            toggleRow("Watch History Rail", systemImage: "clock.arrow.circlepath",
-                      isOn: experienceBinding(\.showWatchHistory))
-            toggleRow("Because You Watched", systemImage: "wand.and.stars",
-                      isOn: experienceBinding(\.showBecauseYouWatched))
-            toggleRow("Reduce Artwork Motion", systemImage: "figure.walk.motion",
-                      isOn: experienceBinding(\.reduceArtworkMotion))
-
-            settingRow("This Device", systemImage: platformSymbol,
-                       detail: PlatformCapabilities.platform.displayName)
+    private var searchField: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(Theme.Colors.textTertiary)
+            TextField("Search", text: $settingsSearch)
+                .textFieldStyle(.plain)
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .autocorrectionDisabled(true)
+            if !settingsSearch.isEmpty {
+                Button { settingsSearch = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.Colors.textTertiary)
+                }
+                .buttonStyle(.plain)
+            }
         }
+        .padding(.horizontal, SettingsMetrics.rowSpacing + 2)
+        .padding(.vertical, SettingsMetrics.rowVPad)
+        .background(SettingsStyle.groupBackground,
+                    in: RoundedRectangle(cornerRadius: SettingsMetrics.groupRadius, style: .continuous))
     }
 
-    private func experienceBinding(_ keyPath: WritableKeyPath<AppleTVExperiencePreferences, Bool>) -> Binding<Bool> {
-        Binding(
-            get: { profiles.preferences[keyPath: keyPath] },
-            set: { value in profiles.preferences[keyPath: keyPath] = value }
+    private func rowLink(for cat: Category) -> AnyView {
+        AnyView(
+            NavigationLink { cat.destination() } label: {
+                SettingsRow(icon: cat.icon, color: cat.color, title: cat.title,
+                            detail: cat.detail, status: cat.status)
+            }
+            .buttonStyle(.plain)
         )
     }
 
-    private var platformSymbol: String {
-        switch PlatformCapabilities.platform {
-        case .iPhone: return "iphone"
-        case .iPad: return "ipad"
-        case .appleTV: return "appletv.fill"
+    /// Groups filtered by the search query (matched against the row titles).
+    private var filteredGroups: [CategoryGroup] {
+        let query = settingsSearch.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return directoryGroups }
+        return directoryGroups.compactMap { group in
+            let items = group.items.filter { $0.title.localizedCaseInsensitiveContains(query) }
+            return items.isEmpty ? nil : CategoryGroup(header: group.header, items: items)
         }
     }
+    #endif
 
-    private var backupSection: some View {
-        section("Sync & Backup") {
-            NavigationLink { BackupView() } label: {
-                settingRow("iCloud Backup & Restore", systemImage: "icloud.and.arrow.up",
-                           detail: backupDetail)
-            }.astraRowStyle()
-        }
-    }
+    // MARK: - tvOS horizontal tabs + panel
 
-    private var backupDetail: String {
-        if let date = BackupManager.shared.lastBackupDate {
-            return "Last: \(date.mediumDateTimeText)"
-        }
-        return "Not backed up"
-    }
+    #if os(tvOS)
+    private var tvOSBody: some View {
+        NavigationStack(path: $path) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                Text("Settings")
+                    .font(Theme.Font.screenTitle())
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .padding(.horizontal, Theme.Spacing.edge)
+                    .padding(.top, Theme.Spacing.lg)
 
-    private var streamingSection: some View {
-        section("Streaming") {
-            toggleRow("Auto-Select Best Stream", systemImage: "wand.and.stars",
-                      isOn: $settings.autoSelectStream)
-            toggleRow("Prefer Cached / Instant Streams", systemImage: "bolt",
-                      isOn: $settings.requireCachedStreams)
-            toggleRow("Prefer Efficient Codecs (HEVC / AV1)", systemImage: "square.stack.3d.down.right",
-                      isOn: $settings.preferEfficientCodec)
-
-            pickerRow("Preferred Quality", systemImage: "4k.tv",
-                      selection: $settings.preferredStreamQuality,
-                      options: StreamQuality.allCases.filter { $0 != .unknown && $0 != .cam },
-                      label: { $0.rawValue })
-
-            pickerRow("Preferred Source", systemImage: "point.3.connected.trianglepath.dotted",
-                      selection: $settings.preferredSourceKind,
-                      options: SourceKindPreference.allCases,
-                      label: { $0.displayName })
-
-            sourcePriorityRows
-
-            pickerRow("Max File Size", systemImage: "internaldrive",
-                      selection: $settings.maxStreamSizeGB,
-                      options: [0, 5, 10, 15, 20, 30, 50, 80],
-                      label: { $0 == 0 ? "No Limit" : "\($0) GB" })
-
-            pickerRow("Minimum Seeders", systemImage: "person.3",
-                      selection: $settings.minSeeders,
-                      options: [0, 1, 3, 5, 10, 20, 50],
-                      label: { $0 == 0 ? "No Minimum" : "\($0)+" })
-
-            pickerRow("Preferred Audio Language", systemImage: "waveform",
-                      selection: $settings.preferredAudioLanguage,
-                      options: audioLanguageOptions,
-                      label: { audioLanguageLabel($0) })
-        }
-    }
-
-    /// Language tag options for the preferred-audio picker. Empty string = "Any".
-    private var audioLanguageOptions: [String] {
-        ["", "EN", "ES", "FR", "DE", "IT", "PT", "JA", "KO", "ZH", "HI", "RU"]
-    }
-
-    private func audioLanguageLabel(_ tag: String) -> String {
-        guard !tag.isEmpty else { return "Any" }
-        let names = ["EN": "English", "ES": "Spanish", "FR": "French", "DE": "German",
-                     "IT": "Italian", "PT": "Portuguese", "JA": "Japanese", "KO": "Korean",
-                     "ZH": "Chinese", "HI": "Hindi", "RU": "Russian"]
-        return names[tag] ?? tag
-    }
-
-    /// A labeled menu picker row matching the streaming section styling.
-    private func pickerRow<T: Hashable>(_ title: String, systemImage: String,
-                                        selection: Binding<T>, options: [T],
-                                        label: @escaping (T) -> String) -> some View {
-        HStack {
-            Label(title, systemImage: systemImage)
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .font(.appFont(22))
-            Spacer()
-            Picker("", selection: selection) {
-                ForEach(options, id: \.self) { opt in
-                    Text(label(opt)).tag(opt)
-                }
-            }
-            .pickerStyle(.menu)
-            .frame(maxWidth: Theme.isCompact ? .infinity : 220)
-        }
-        .padding(Theme.Spacing.md)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-    }
-
-    /// Reorderable source fallback chain (57): earlier kinds are preferred by the
-    /// stream ranker. Kept compact: up/down arrows instead of a drag list.
-    private var sourcePriorityRows: some View {
-        let kinds: [SourceKind] = [.cloud, .torrent, .localSMB, .directURL]
-        let current = settings.sourceKindPriority.compactMap(SourceKind.init(rawValue:))
-        let ordered = current.isEmpty ? kinds : current + kinds.filter { !current.contains($0) }
-        return VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Text("Source Priority")
-                .font(.appFont(17, weight: .semibold))
-                .foregroundStyle(Theme.Colors.textSecondary)
-            ForEach(Array(ordered.enumerated()), id: \.element) { index, kind in
-                HStack {
-                    Text("\(index + 1).")
-                        .font(.appFont(16, weight: .bold))
-                        .foregroundStyle(Theme.Colors.textTertiary)
-                        .frame(width: 26, alignment: .leading)
-                    Text(sourceKindLabel(kind))
-                        .font(.appFont(18))
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                    Spacer()
-                    Button {
-                        moveSourcePriority(kind, up: true, in: ordered)
-                    } label: {
-                        Image(systemName: "chevron.up").font(.appFont(15, weight: .semibold))
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Theme.Spacing.md) {
+                        ForEach(allCategories) { cat in
+                            categoryTab(cat)
+                        }
                     }
-                    .buttonStyle(AstraChipButtonStyle())
-                    .disabled(index == 0)
-                    Button {
-                        moveSourcePriority(kind, up: false, in: ordered)
-                    } label: {
-                        Image(systemName: "chevron.down").font(.appFont(15, weight: .semibold))
-                    }
-                    .buttonStyle(AstraChipButtonStyle())
-                    .disabled(index == ordered.count - 1)
+                    .padding(.horizontal, Theme.Spacing.edge)
+                    .padding(.vertical, Theme.Spacing.sm)
                 }
-                .padding(.vertical, 2)
+
+                // The selected category screen scrolls itself, so it isn't wrapped in
+                // another ScrollView here (which would break tvOS focus scrolling).
+                selectedDestination
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
-            Text("Streams from higher sources rank first when quality is comparable.")
-                .font(.appFont(13))
-                .foregroundStyle(Theme.Colors.textTertiary)
-        }
-        .padding(.vertical, Theme.Spacing.xs)
-    }
-
-    private func sourceKindLabel(_ kind: SourceKind) -> String {
-        switch kind {
-        case .cloud:     return "Cloud (Debrid)"
-        case .torrent:   return "Torrent"
-        case .localSMB:  return "SMB / Local"
-        case .directURL: return "Direct URL"
-        case .liveTV:    return "Live TV"
-        case .unknown:   return "Other"
+            .background(Theme.Colors.appBackground.ignoresSafeArea())
         }
     }
 
-    private func moveSourcePriority(_ kind: SourceKind, up: Bool, in ordered: [SourceKind]) {
-        var list = ordered
-        guard let idx = list.firstIndex(of: kind) else { return }
-        let target = up ? idx - 1 : idx + 1
-        guard list.indices.contains(target) else { return }
-        list.swapAt(idx, target)
-        settings.sourceKindPriority = list.map(\.rawValue)
+    private var selectedDestination: some View {
+        (allCategories.first { $0.id == selectedCategory } ?? allCategories[0]).destination()
     }
 
-    private var playbackSection: some View {
-        section("Playback") {
-            NavigationLink { PlayerSettingsView() } label: {
-                settingRow("Player", systemImage: "play.rectangle.on.rectangle",
-                           detail: playerDetail)
-            }.astraRowStyle()
-            toggleRow("Resume Playback", systemImage: "play.circle",
-                      isOn: $settings.resumePlaybackEnabled)
-            toggleRow("Auto-Play Next Episode", systemImage: "forward.end",
-                      isOn: $settings.autoPlayNext)
-            toggleRow("Show Skip Intro", systemImage: "forward",
-                      isOn: $settings.skipIntroEnabled)
-            toggleRow("Automatically Skip Intro", systemImage: "forward.fill",
-                      isOn: $settings.autoSkipIntro)
-            toggleRow("Show Skip Outro", systemImage: "forward.frame",
-                      isOn: $settings.skipOutroEnabled)
-            toggleRow("Scrobble to Trakt", systemImage: "checkmark.seal",
-                      isOn: $settings.traktScrobblingEnabled)
+    private func categoryTab(_ cat: Category) -> some View {
+        Button { selectedCategory = cat.id } label: {
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: cat.icon)
+                Text(cat.title)
+            }
+            .font(.appFont(22, weight: .semibold))
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.vertical, Theme.Spacing.sm)
+            .background(selectedCategory == cat.id ? Theme.Colors.accent : Theme.Colors.card,
+                        in: Capsule())
+            .foregroundStyle(selectedCategory == cat.id ? Color.white : Theme.Colors.textSecondary)
         }
+        .buttonStyle(.plain)
     }
+    #endif
+
+    // MARK: - Categories
+
+    /// Every category, flat. iOS arranges these into the grouped directory; tvOS uses
+    /// them as horizontal tabs.
+    private var allCategories: [Category] {
+        directoryGroups.flatMap(\.items)
+    }
+
+    private var directoryGroups: [CategoryGroup] {
+        var groups: [CategoryGroup] = []
+
+        // Experience & playback.
+        var core: [Category] = [
+            Category(id: "playback", icon: "play.rectangle.on.rectangle", color: .purple,
+                     title: "Playback", detail: playerDetail) {
+                         AnyView(SettingsScreen(title: "Playback") { PlaybackSettingsContent() })
+                     },
+        ]
+        if !settings.guestMode {
+            core.append(Category(id: "streaming", icon: "dot.radiowaves.left.and.right",
+                                 color: .orange, title: "Streaming") {
+                AnyView(SettingsScreen(title: "Streaming") { StreamingSettingsContent() })
+            })
+        }
+        core.append(Category(id: "appearance", icon: "paintbrush.fill", color: .pink, title: "Appearance") {
+            AnyView(SettingsScreen(title: "Appearance") { AppearanceSettingsContent() })
+        })
+        core.append(Category(id: "subtitles", icon: "captions.bubble.fill", color: .teal, title: "Subtitles") {
+            AnyView(SettingsScreen(title: "Subtitles") { SubtitleSettingsContent() })
+        })
+        core.append(Category(id: "accessibility", icon: "accessibility", color: .blue, title: "Accessibility") {
+            AnyView(SettingsScreen(title: "Accessibility") { AccessibilitySettingsContent() })
+        })
+        groups.append(CategoryGroup(items: core))
+
+        // Sources & accounts (hidden in guest mode).
+        if !settings.guestMode {
+            var accounts: [Category] = [
+                Category(id: "sources", icon: "point.3.connected.trianglepath.dotted", color: .green,
+                         title: "Sources & Health", detail: sourcesHealthDetail, status: sourcesHealthStatusColor) {
+                             AnyView(SourcesView(path: self.$sourcesPath))
+                         },
+            ]
+            if !settings.reviewSafeMode {
+                accounts.append(Category(id: "addons", icon: "puzzlepiece.extension.fill", color: .orange,
+                                         title: "Add-ons", detail: "\(env.addonStore.addons.count) installed") {
+                    AnyView(AddonsView())
+                })
+                accounts.append(Category(id: "realdebrid", icon: "arrow.down.circle.fill", color: .red,
+                                         title: "Real-Debrid",
+                                         detail: KeychainStore.shared.realDebridToken == nil ? "Not connected" : "Connected",
+                                         status: KeychainStore.shared.realDebridToken == nil ? Theme.Colors.warning : Theme.Colors.success) {
+                    AnyView(RealDebridView())
+                })
+            }
+            accounts.append(Category(id: "aisearch", icon: "sparkles", color: .indigo, title: "AI Search",
+                                     detail: AISearchService.isConfigured ? "Ready" : "Set up",
+                                     status: AISearchService.isConfigured ? Theme.Colors.success : Theme.Colors.warning) {
+                AnyView(AISearchSettingsView())
+            })
+            accounts.append(Category(id: "playlink", icon: "link", color: .blue, title: "Play from Link") {
+                AnyView(PlayFromLinkView())
+            })
+            accounts.append(Category(id: "metadata", icon: "key.fill", color: .gray, title: "Metadata & Accounts",
+                                     detail: "TMDB · Trakt") {
+                AnyView(AccountsView())
+            })
+            accounts.append(Category(id: "setup", icon: "checklist", color: .green, title: "Setup Checklist") {
+                AnyView(SetupChecklistView())
+            })
+            groups.append(CategoryGroup(header: "Sources & Accounts", items: accounts))
+        }
+
+        // Library & home.
+        groups.append(CategoryGroup(header: "Content", items: [
+            Category(id: "library", icon: "books.vertical.fill", color: .brown, title: "Library") {
+                AnyView(SettingsScreen(title: "Library") { LibrarySettingsContent() })
+            },
+            Category(id: "experience", icon: "appletv.fill", color: .blue, title: "Home & Profiles") {
+                AnyView(SettingsScreen(title: "Home & Profiles") { ExperienceSettingsContent() })
+            },
+        ]))
+
+        // Sync & system.
+        var system: [Category] = []
+        if !settings.guestMode {
+            system.append(Category(id: "backup", icon: "icloud.fill", color: .blue,
+                                   title: "iCloud Backup & Restore", detail: backupDetail) {
+                AnyView(BackupView())
+            })
+        }
+        system.append(Category(id: "advanced", icon: "gearshape.2.fill", color: .gray, title: "Advanced") {
+            AnyView(SettingsScreen(title: "Advanced") { AdvancedSettingsContent() })
+        })
+        system.append(Category(id: "privacy", icon: "hand.raised.fill", color: .gray, title: "Privacy & Legal") {
+            AnyView(SettingsScreen(title: "Privacy & Legal") { PrivacyLegalSettingsContent() })
+        })
+        groups.append(CategoryGroup(header: "System", items: system))
+
+        return groups
+    }
+
+    // MARK: - Row detail values
 
     private var playerDetail: String {
         #if os(iOS)
@@ -420,274 +282,21 @@ struct SettingsView: View {
         return settings.builtInPlayer.title
     }
 
-    private var appearanceSection: some View {
-        section("Appearance") {
-            pickerRow("App Style", systemImage: "paintbrush",
-                      selection: $settings.uiStyle,
-                      options: UIComponentStyle.allCases) { $0.displayName }
-            pickerRow("Home Style", systemImage: "house",
-                      selection: $settings.homeStyle,
-                      options: HomeStyle.allCases) { $0.displayName }
-            pickerRow("Library Style", systemImage: "books.vertical",
-                      selection: $settings.libraryStyle,
-                      options: LibraryStyle.allCases) { $0.displayName }
-            pickerRow("Detail Style", systemImage: "rectangle.portrait.on.rectangle.portrait",
-                      selection: $settings.detailStyle,
-                      options: DetailStyle.allCases) { $0.displayName }
-            #if os(iOS)
-            pickerRow("Tab Bar Style", systemImage: "square.bottomthird.inset.filled",
-                      selection: $settings.tabBarStyle,
-                      options: TabBarStyle.allCases) { $0.displayName }
-            #endif
-            pickerRow("Search Layout", systemImage: "square.grid.2x2",
-                      selection: $settings.searchLayout,
-                      options: SearchLayoutStyle.allCases) { $0.displayName }
-            pickerRow("VLC Player Overlay", systemImage: "play.rectangle",
-                      selection: $settings.vlcOverlayStyle,
-                      options: PlayerOverlayStyle.allCases) { $0.displayName }
-            Text("The Apple player already uses the native overlay. This controls the look of the VLC player used for MKV and other formats.")
-                .font(.appFont(15))
-                .foregroundStyle(Theme.Colors.textTertiary)
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.bottom, Theme.Spacing.xs)
-        }
+    private var sourcesHealthDetail: String {
+        let items = SourceHealth.all(addonStore: env.addonStore, smbShareCount: 0)
+        let s = SourceHealth.summary(items)
+        return s.needsAttention == 0 ? "All connected" : "\(s.needsAttention) need attention"
     }
 
-    private var accessibilitySection: some View {
-        section("Accessibility") {
-            #if os(iOS)
-            toggleRow("Respect System Text Size", systemImage: "textformat.size",
-                      isOn: $settings.respectSystemTextSize)
-
-            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                HStack {
-                    Label("Text Size", systemImage: "character.magnify")
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                        .font(.appFont(22))
-                    Spacer()
-                    Text("\(Int(settings.textSizeBoost * 100))%")
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                        .font(.appFont(20))
-                        .monospacedDigit()
-                }
-                HStack(spacing: Theme.Spacing.md) {
-                    Image(systemName: "textformat.size.smaller")
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                    Slider(value: $settings.textSizeBoost, in: 0.8...1.6, step: 0.05)
-                        .tint(Theme.Colors.accent)
-                    Image(systemName: "textformat.size.larger")
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                }
-                if settings.textSizeBoost != 1.0 {
-                    Button("Reset to 100%") { settings.textSizeBoost = 1.0 }
-                        .font(.appFont(16))
-                        .foregroundStyle(Theme.Colors.accent)
-                }
-                Text("Adjusts Astra's text. Turn on Respect System Text Size to also follow your device's Display & Text Size setting. Changes apply as you move between screens.")
-                    .font(.appFont(15))
-                    .foregroundStyle(Theme.Colors.textTertiary)
-            }
-            .padding(Theme.Spacing.md)
-            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-            #else
-            Text("Text size follows the living-room layout on Apple TV. Adjust text size on iPhone or iPad in Settings ▸ Accessibility.")
-                .font(.appFont(20))
-                .foregroundStyle(Theme.Colors.textSecondary)
-                .padding(Theme.Spacing.md)
-                .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-            #endif
-        }
+    private var sourcesHealthStatusColor: Color {
+        let items = SourceHealth.all(addonStore: env.addonStore, smbShareCount: 0)
+        return SourceHealth.summary(items).needsAttention == 0 ? Theme.Colors.success : Theme.Colors.warning
     }
 
-    private var subtitleSection: some View {
-        section("Subtitles") {
-            toggleRow("Enable Subtitles", systemImage: "captions.bubble",
-                      isOn: $settings.subtitlesEnabled)
-            if settings.subtitlesEnabled {
-                toggleRow("Auto-Download from Add-ons", systemImage: "arrow.down.circle",
-                          isOn: $settings.autoDownloadSubtitles)
-                Text("When playback starts, Astra searches enabled subtitle providers and automatically uses your preferred language. You can also search manually from the player subtitle picker.")
-                    .font(.appFont(15))
-                    .foregroundStyle(Theme.Colors.textTertiary)
-                    .padding(.horizontal, Theme.Spacing.md)
-            }
-            HStack {
-                Label("Preferred Language", systemImage: "globe")
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .font(.appFont(22))
-                Spacer()
-                Picker("", selection: $settings.subtitleLanguage) {
-                    ForEach(Self.subtitleLanguages, id: \.0) { code, name in
-                        Text(name).tag(code)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(maxWidth: Theme.isCompact ? .infinity : 240)
-            }
-            .padding(Theme.Spacing.md)
-            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+    private var backupDetail: String {
+        if let date = BackupManager.shared.lastBackupDate {
+            return "Last: \(date.mediumDateTimeText)"
         }
-    }
-
-    private static let subtitleLanguages: [(String, String)] = [
-        ("en", "English"), ("es", "Spanish"), ("fr", "French"), ("de", "German"),
-        ("it", "Italian"), ("pt", "Portuguese"), ("ru", "Russian"), ("ja", "Japanese"),
-        ("ko", "Korean"), ("zh", "Chinese"), ("ar", "Arabic"), ("nl", "Dutch")
-    ]
-
-    private var librarySection: some View {
-        section("Library") {
-            NavigationLink { LibraryHealthView() } label: {
-                settingRow("Library Health", systemImage: "checkmark.seal",
-                           detail: duplicateCountDetail)
-            }.astraRowStyle()
-            toggleRow("Safe Mode", systemImage: "exclamationmark.shield",
-                      isOn: $settings.safeMode)
-            if settings.safeMode {
-                Text("Safe Mode is on. Addons, AI search, and external sources are disabled so the app loads quickly. Turn it off once things are stable.")
-                    .font(.appFont(15))
-                    .foregroundStyle(Theme.Colors.warning)
-                    .padding(.horizontal, Theme.Spacing.md)
-                    .padding(.bottom, Theme.Spacing.sm)
-            }
-            actionRow("Clear Watch History", systemImage: "clock.arrow.circlepath",
-                      tint: Theme.Colors.warning) { confirmClearHistory = true }
-            actionRow("Clear Library", systemImage: "trash",
-                      tint: Theme.Colors.error) { confirmClearLibrary = true }
-        }
-    }
-
-    /// Detail string for the Duplicate Cleanup row.
-    private var duplicateCountDetail: String {
-        let n = library.duplicateGroups().count
-        return n == 0 ? "None found" : "\(n) to review"
-    }
-
-    private var privacyLegalSection: some View {
-        section("Privacy & Legal") {
-            NavigationLink {
-                WhatsNewView(note: WhatsNewTracker.shared.currentNote) {}
-            } label: {
-                settingRow("What's New", systemImage: "sparkles",
-                           detail: "Version \(WhatsNewTracker.shared.currentVersion) · Build \(WhatsNewTracker.shared.currentBuild)")
-            }.astraRowStyle()
-
-            toggleRow("Require Legal Confirmation", systemImage: "checkmark.shield",
-                      isOn: $settings.requireLegalConfirmation)
-            NavigationLink { PrivacyLegalView() } label: {
-                settingRow("Privacy & Legal Info", systemImage: "hand.raised", detail: "View")
-            }.astraRowStyle()
-        }
-    }
-
-    private var advancedSection: some View {
-        section("Advanced") {
-            NavigationLink { GuestModeView() } label: {
-                settingRow("Guest Mode", systemImage: "person.2",
-                           detail: settings.guestMode ? "On" : "Off")
-            }.astraRowStyle()
-            if !settings.guestMode {
-                NavigationLink { DebugReportView() } label: {
-                    settingRow("Debug Report", systemImage: "ladybug", detail: "Export")
-                }.astraRowStyle()
-            }
-        }
-    }
-
-    // MARK: - Builders
-
-    @ViewBuilder
-    private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
-        // Build the section's body once so it isn't captured by DisclosureGroup's
-        // escaping closure (which would require `content` to be @escaping).
-        let body = VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            content()
-        }
-        let query = settingsSearch.trimmingCharacters(in: .whitespaces)
-        if !query.isEmpty && !title.localizedCaseInsensitiveContains(query) {
-            EmptyView()
-        } else {
-        #if os(iOS)
-        // Expandable accordion. Starts expanded; the user can collapse sections.
-        DisclosureGroup(
-            isExpanded: Binding(
-                get: {
-                    if !settingsSearch.trimmingCharacters(in: .whitespaces).isEmpty { return true }
-                    return expandedSections[title] ?? defaultExpanded(title)
-                },
-                set: { expandedSections[title] = $0 }
-            )
-        ) {
-            body.padding(.top, Theme.Spacing.sm)
-        } label: {
-            Text(title)
-                .font(Theme.Font.sectionTitle())
-                .foregroundStyle(Theme.Colors.textPrimary)
-        }
-        .tint(Theme.Colors.textSecondary)
-        .padding(Theme.Spacing.md)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-        #else
-        // tvOS: keep sections always visible (DisclosureGroup isn't focus-friendly).
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text(title)
-                .font(Theme.Font.sectionTitle())
-                .foregroundStyle(Theme.Colors.textPrimary)
-            body
-        }
-        #endif
-        }
-    }
-
-    /// Sections that start expanded; others start collapsed to keep Settings tidy.
-    /// While a search is active, every matching section is expanded so results are
-    /// immediately visible.
-    private func defaultExpanded(_ title: String) -> Bool {
-        if !settingsSearch.trimmingCharacters(in: .whitespaces).isEmpty { return true }
-        return ["Accounts & Sources", "Backup & Sync"].contains(title)
-    }
-
-    private func settingRow(_ title: String, systemImage: String, detail: String,
-                            status: Color? = nil) -> some View {
-        HStack {
-            Label(title, systemImage: systemImage)
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .font(.appFont(22))
-            Spacer()
-            // A colored status dot makes connected/not-connected scannable without
-            // reading the detail text.
-            if let status {
-                Circle().fill(status).frame(width: 10, height: 10)
-            }
-            Text(detail).foregroundStyle(Theme.Colors.textSecondary).font(.appFont(20))
-            Image(systemName: "chevron.right").foregroundStyle(Theme.Colors.textTertiary)
-        }
-        .padding(.vertical, Theme.Spacing.xs)
-        .contentShape(Rectangle())
-    }
-
-    private func toggleRow(_ title: String, systemImage: String, isOn: Binding<Bool>) -> some View {
-        Toggle(isOn: isOn) {
-            Label(title, systemImage: systemImage)
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .font(.appFont(22))
-        }
-        .tint(Theme.Colors.accent)
-        .padding(Theme.Spacing.md)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-    }
-
-    private func actionRow(_ title: String, systemImage: String, tint: Color, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack {
-                Label(title, systemImage: systemImage)
-                    .foregroundStyle(tint)
-                    .font(.appFont(22))
-                Spacer()
-            }
-            .padding(.vertical, Theme.Spacing.xs)
-            .contentShape(Rectangle())
-        }
-        .astraRowStyle()
+        return "Not backed up"
     }
 }

@@ -546,7 +546,11 @@ struct AVPlayerContainer: UIViewControllerRepresentable {
         #endif
     }
 
-    final class Coordinator: NSObject, AVPlayerViewControllerDelegate {
+    // `@MainActor` makes the coordinator Sendable and its delegate callbacks main-
+    // isolated; `@preconcurrency` bridges the not-yet-annotated AVKit delegate
+    // protocol (UIKit calls these on the main thread) with a runtime main-actor check.
+    @MainActor
+    final class Coordinator: NSObject, @preconcurrency AVPlayerViewControllerDelegate {
         let onExitFullscreen: (() -> Void)?
         var onPlayNext: (() -> Void)?
         var onShowSubtitles: (() -> Void)?
@@ -559,11 +563,13 @@ struct AVPlayerContainer: UIViewControllerRepresentable {
         }
 
         #if os(iOS)
-        // Called when the user taps the exit-fullscreen (minimize) control.
+        // Called when the user taps the exit-fullscreen (minimize) control. The method
+        // is main-actor (see the class annotations above), so the transition
+        // coordinator and our state are used directly. The Bool result is unused.
         func playerViewController(_ playerViewController: AVPlayerViewController,
                                   willEndFullScreenPresentationWithAnimationCoordinator
                                   coordinator: UIViewControllerTransitionCoordinator) {
-            coordinator.animate(alongsideTransition: nil) { [weak self] _ in
+            _ = coordinator.animate(alongsideTransition: nil) { [weak self] _ in
                 self?.onExitFullscreen?()
             }
         }

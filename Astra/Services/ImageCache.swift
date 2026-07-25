@@ -52,7 +52,10 @@ actor ImageLoader {
 
         #if os(iOS)
         Task { @MainActor in
-            NotificationCenter.default.addObserver(
+            // Discard the observer token: it's a lifetime-of-process singleton, and
+            // ignoring the returned `any NSObjectProtocol` keeps this Task's result
+            // `Void` (that non-Sendable token can't be the Task's success value).
+            _ = NotificationCenter.default.addObserver(
                 forName: UIApplication.didReceiveMemoryWarningNotification,
                 object: nil, queue: .main) { _ in
                 Task { await ImageLoader.shared.purgeMemory() }

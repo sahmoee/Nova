@@ -51,11 +51,21 @@ enum PlatformNavigationStyle {
 }
 
 enum PlatformCapabilities {
+    #if os(iOS)
+    /// The device idiom, read once on the main actor. It's a fixed device trait, so
+    /// caching it lets the nonisolated capability accessors below stay synchronous.
+    /// `UIDevice` is main-actor-isolated under Swift 6; these tokens are first read
+    /// during SwiftUI rendering on the main actor.
+    private static let idiom: UIUserInterfaceIdiom = MainActor.assumeIsolated {
+        UIDevice.current.userInterfaceIdiom
+    }
+    #endif
+
     static var platform: AstraPlatform {
         #if os(tvOS)
         return .appleTV
         #else
-        return UIDevice.current.userInterfaceIdiom == .pad ? .iPad : .iPhone
+        return idiom == .pad ? .iPad : .iPhone
         #endif
     }
 
@@ -87,7 +97,7 @@ enum PlatformCapabilities {
 
         case .multiColumnNavigation:
             #if os(iOS)
-            return UIDevice.current.userInterfaceIdiom == .pad
+            return idiom == .pad
             #else
             return false
             #endif
