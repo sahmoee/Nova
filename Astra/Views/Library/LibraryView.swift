@@ -31,6 +31,9 @@ struct LibraryView: View {
     @State private var selectedIDs: Set<UUID> = []
     @State private var showTagPrompt = false
     @State private var newTagText = ""
+    @State private var confirmClearContinueWatching = false
+    @State private var confirmBulkRemove = false
+    @State private var pendingRemovalItem: MediaItem?
 
     private var columns: [GridItem] { Theme.posterGridColumns }
 
@@ -55,6 +58,7 @@ struct LibraryView: View {
                             title: emptyTitle,
                             message: emptyMessage,
                             actionTitle: emptyActionTitle,
+                            actionSystemImage: emptyActionSystemImage,
                             action: emptyAction
                         )
                     } else {
@@ -75,6 +79,7 @@ struct LibraryView: View {
                                                 .foregroundStyle(selectedIDs.contains(item.id) ? Theme.Colors.accent : .white)
                                                 .padding(8)
                                                 .shadow(radius: 3)
+                                                .accessibilityHidden(true)
                                         }
                                     }
                                     .contextMenu {
@@ -104,7 +109,7 @@ struct LibraryView: View {
                                             Label(item.isHidden ? "Unhide" : "Hide", systemImage: item.isHidden ? "eye" : "eye.slash")
                                         }
                                         Button(role: .destructive) {
-                                            withAnimation { library.remove(item) }
+                                            pendingRemovalItem = item
                                         } label: {
                                             Label("Remove from Library", systemImage: "trash")
                                         }
@@ -153,6 +158,39 @@ struct LibraryView: View {
         }
         .task(id: filter) { await loadTraktIfNeeded() }
         .sheet(isPresented: $showCollectionPicker) { CollectionPickerSheet() }
+        .alert("Clear Continue Watching?", isPresented: $confirmClearContinueWatching) {
+            Button("Clear", role: .destructive) {
+                withAnimation { library.clearContinueWatching() }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This removes saved resume points from every visible Continue Watching item.")
+        }
+        .alert("Remove Selected Items?", isPresented: $confirmBulkRemove) {
+            Button("Remove \(selectedIDs.count)", role: .destructive) {
+                library.remove(ids: selectedIDs)
+                endBulk()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This removes the selected items from your library.")
+        }
+        .alert("Remove from Library?", isPresented: Binding(
+            get: { pendingRemovalItem != nil },
+            set: { if !$0 { pendingRemovalItem = nil } }
+        )) {
+            Button("Remove", role: .destructive) {
+                if let item = pendingRemovalItem {
+                    withAnimation { library.remove(item) }
+                }
+                pendingRemovalItem = nil
+            }
+            Button("Cancel", role: .cancel) {
+                pendingRemovalItem = nil
+            }
+        } message: {
+            Text("This item will be removed from your library.")
+        }
     }
 
     /// Opens the library item matching a deep-link content key, then clears the
