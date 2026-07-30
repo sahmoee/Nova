@@ -217,18 +217,20 @@ struct HomeView: View {
                         }
                 )
                 #else
-                TabView(selection: $heroIndex) {
-                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                        FeaturedHero(item: item,
-                                     height: PlatformCapabilities.homeHeroHeight,
-                                     badge: heroBadge(for: item),
-                                     onMoreInfo: openDetail,
-                                     playFocusNamespace: heroFocusNS) { play($0) }
-                            .overlay(alignment: .topTrailing) { customizeButton }
-                            .tag(index)
-                    }
+                ZStack {
+                    let safeIndex = min(heroIndex, items.count - 1)
+                    let item = items[safeIndex]
+                    FeaturedHero(item: item,
+                                 height: PlatformCapabilities.homeHeroHeight,
+                                 badge: heroBadge(for: item),
+                                 onMoreInfo: openDetail,
+                                 playFocusNamespace: heroFocusNS) { play($0) }
+                        .overlay(alignment: .topTrailing) { customizeButton }
+                        .id(item.id)
+                        .transition(.opacity)
                 }
-                .tabViewStyle(.automatic)
+                .animation(profiles.preferences.reduceArtworkMotion ? nil : .easeInOut(duration: 0.55),
+                           value: heroIndex)
                 .frame(height: PlatformCapabilities.homeHeroHeight)
                 #endif
 
