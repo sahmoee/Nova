@@ -205,7 +205,7 @@ struct HomeView: View {
                            value: heroIndex)
                 .frame(height: PlatformCapabilities.homeHeroHeight)
                 .contentShape(Rectangle())
-                .gesture(
+                .simultaneousGesture(
                     DragGesture(minimumDistance: 25)
                         .onEnded { value in
                             guard items.count > 1 else { return }
