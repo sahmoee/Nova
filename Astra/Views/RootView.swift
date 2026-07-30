@@ -249,6 +249,9 @@ struct RootView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Now Playing, \(item.displayTitle)")
+                    .accessibilityValue(nowPlayingSubtitle(item))
+                    .accessibilityHint("Open the player")
 
                     Button {
                         // Light tap confirms resuming playback (no-op on tvOS).
@@ -263,6 +266,7 @@ struct RootView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Resume playback")
+                    .accessibilityHint("Open the player and continue \(item.displayTitle)")
 
                     Button { withAnimation { nowPlaying.clear() } } label: {
                         Image(systemName: "xmark")
@@ -272,6 +276,7 @@ struct RootView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Close Now Playing")
+                    .accessibilityHint("Hide the mini player")
                 }
                 .padding(.horizontal, isTV ? Theme.Spacing.md : 12)
                 .padding(.vertical, isTV ? Theme.Spacing.sm : 8)
@@ -288,6 +293,7 @@ struct RootView: View {
                 .frame(height: isTV ? 5 : 3)
                 .padding(.horizontal, isTV ? Theme.Spacing.md : 12)
                 .padding(.bottom, isTV ? 12 : 8)
+                .accessibilityHidden(true)
             }
             .background(.regularMaterial,
                         in: RoundedRectangle(cornerRadius: isTV ? 20 : 16,

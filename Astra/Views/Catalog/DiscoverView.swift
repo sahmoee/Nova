@@ -31,6 +31,7 @@ struct DiscoverView: View {
     @StateObject private var shelfStore = HomeShelfStore.shared
     @State private var aiSearching = false
     @State private var aiError: String?
+    @State private var confirmClearRecentSearches = false
     /// Bumped each time Discover appears so its shelves reshuffle and refresh.
     @State private var discoverRefreshToken = 0
 
@@ -142,6 +143,12 @@ struct DiscoverView: View {
             } message: {
                 Text(aiError ?? "")
             }
+            .alert("Clear Recent Searches?", isPresented: $confirmClearRecentSearches) {
+                Button("Clear", role: .destructive) { recentSearchesRaw = "" }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This removes the recent search suggestions stored on this device.")
+            }
         }
         .task { await onAppear() }
         #if os(iOS)
@@ -167,6 +174,7 @@ struct DiscoverView: View {
                 .font(.appFont(26))
                 .foregroundStyle(Theme.Colors.textPrimary)
                 .focused($searchFocused)
+                .submitLabel(.search)
                 #if os(iOS)
                 .autocorrectionDisabled(false)
                 .textInputAutocapitalization(.words)
@@ -175,7 +183,11 @@ struct DiscoverView: View {
                 .onChange(of: query) { _, _ in debounceSearch(); debounceSuggest() }
             if !query.isEmpty {
                 Button {
-                    query = ""; results = []; suggestions = []; state = .idle
+                    query = ""
+                    results = []
+                    suggestions = []
+                    correctedQuery = nil
+                    state = .idle
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.appFont(22))
@@ -189,17 +201,28 @@ struct DiscoverView: View {
             Button {
                 Task { await runAISearch() }
             } label: {
-                Image(systemName: "sparkles")
-                    .font(.appFont(22))
-                    .foregroundStyle(aiSearching ? Theme.Colors.textTertiary : Theme.Colors.accent)
+                ZStack {
+                    if aiSearching {
+                        ProgressView()
+                            .scaleEffect(0.75)
+                            .tint(Theme.Colors.accent)
+                    } else {
+                        Image(systemName: "sparkles")
+                            .font(.appFont(22))
+                            .foregroundStyle(Theme.Colors.accent)
+                    }
+                }
+                .frame(width: Theme.minTouchTarget * 0.7, height: Theme.minTouchTarget * 0.7)
             }
             .astraIconStyle()
             // Accessibility: name the sparkles icon so its purpose is clear.
             .accessibilityLabel("AI search")
+            .accessibilityHint("Search using a natural-language prompt")
             .disabled(aiSearching || query.trimmingCharacters(in: .whitespaces).count < 2)
         }
         .padding(Theme.Spacing.md)
         .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .accessibilityElement(children: .contain)
     }
 
     /// Predictive suggestions: recent searches when empty/short, live title matches
@@ -238,9 +261,10 @@ struct DiscoverView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(AstraListRowStyle())
+                    .accessibilityLabel("Search for \(term)")
                 }
                 if !recentSearches.isEmpty {
-                    Button("Clear recent searches") { recentSearchesRaw = "" }
+                    Button("Clear recent searches") { confirmClearRecentSearches = true }
                         .font(.appFont(16))
                         .foregroundStyle(Theme.Colors.accent)
                         .padding(Theme.Spacing.md)
@@ -267,6 +291,7 @@ struct DiscoverView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(AstraListRowStyle())
+                    .accessibilityLabel(suggestionAccessibilityLabel(for: item))
                 }
             }
             .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
@@ -421,6 +446,16 @@ struct DiscoverView: View {
             .foregroundStyle(Theme.Colors.textTertiary)
         }
         .frame(maxWidth: Theme.CardSize.posterWidth * 0.95)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(suggestionAccessibilityLabel(for: item))
+        .accessibilityHint("Open details")
+    }
+
+    private func suggestionAccessibilityLabel(for item: CatalogItem) -> String {
+        if let year = item.year {
+            return "\(item.title), \(year)"
+        }
+        return item.title
     }
 
     // MARK: - Logic

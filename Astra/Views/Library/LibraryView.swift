@@ -233,10 +233,11 @@ struct LibraryView: View {
                     .foregroundStyle(Theme.Colors.accent)
             }
             Button { showCollectionPicker = true } label: {
-HStack(spacing: 6) {
+                HStack(spacing: 6) {
                     Image(systemName: "rectangle.stack")
                     Text("Collections")
-                }.font(.appFont(18, weight: .semibold))
+                }
+                .font(.appFont(18, weight: .semibold))
                 .foregroundStyle(Theme.Colors.accent)
             }
             .astraRowStyle()
@@ -256,7 +257,7 @@ HStack(spacing: 6) {
             Spacer()
             if filter == .continueWatching && !displayedItems.isEmpty {
                 Button {
-                    withAnimation { library.clearContinueWatching() }
+                    confirmClearContinueWatching = true
                 } label: {
                     Text("Clear All")
                         .font(.appFont(17, weight: .semibold))
@@ -266,6 +267,7 @@ HStack(spacing: 6) {
                 .padding(.trailing, Theme.Spacing.edge)
             }
         }
+        .accessibilityElement(children: .contain)
     }
 
     /// The new default header: a large title, a single options button (sort,
@@ -292,6 +294,8 @@ HStack(spacing: 6) {
         .pickerStyle(.segmented)
         .padding(.horizontal, Theme.Spacing.edge)
         .padding(.top, Theme.Spacing.xs)
+
+        libraryStatusRow
 
         if !library.allTags.isEmpty {
             tagFilterRow
@@ -345,7 +349,7 @@ HStack(spacing: 6) {
             }
             if filter == .continueWatching && !displayedItems.isEmpty {
                 Button(role: .destructive) {
-                    withAnimation { library.clearContinueWatching() }
+                    confirmClearContinueWatching = true
                 } label: {
                     Label("Clear Continue Watching", systemImage: "xmark.circle")
                 }
@@ -358,6 +362,50 @@ HStack(spacing: 6) {
                 .background(Theme.Colors.card, in: Circle())
         }
         .astraIconStyle()
+        .accessibilityLabel("Library options")
+    }
+
+    private var libraryStatusRow: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Label(librarySummaryText, systemImage: "line.3.horizontal.decrease.circle")
+                .font(.appFont(14, weight: .medium))
+                .foregroundStyle(Theme.Colors.textSecondary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
+            Spacer(minLength: 0)
+            if activeTag != nil || hideWatched || showingHidden || typeFilter != .all {
+                Button("Reset Filters") {
+                    activeTag = nil
+                    hideWatched = false
+                    showingHidden = false
+                    typeFilter = .all
+                }
+                .font(.appFont(14, weight: .semibold))
+                .foregroundStyle(Theme.Colors.accent)
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, Theme.Spacing.edge)
+        .padding(.top, Theme.Spacing.xs)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var librarySummaryText: String {
+        let count = displayedItems.count
+        let itemWord = count == 1 ? "item" : "items"
+        if isTraktTab {
+            return traktLoading ? "Loading \(filterTitle(filter))" : "\(traktCatalog.count) Trakt \(traktCatalog.count == 1 ? "item" : "items")"
+        }
+        if let activeTag {
+            return "\(count) \(itemWord) tagged \(activeTag)"
+        }
+        if showingHidden {
+            return "\(count) hidden \(itemWord)"
+        }
+        if hideWatched {
+            return "\(count) unwatched \(itemWord)"
+        }
+        return "\(count) \(itemWord)"
     }
 
     private func filterIcon(_ f: LibraryFilter) -> String {
@@ -561,7 +609,7 @@ HStack(spacing: 6) {
                     }
                 }
                 // Toggle showing hidden/archived items.
-                tagChip(title: showingHidden ? "Hiding Shown" : "Show Hidden",
+                tagChip(title: showingHidden ? "Hidden Items" : "Show Hidden",
                         active: showingHidden,
                         systemImage: "eye.slash") { showingHidden.toggle() }
             }
@@ -582,7 +630,9 @@ HStack(spacing: 6) {
             .background(active ? Theme.Colors.accent : Theme.Colors.card, in: Capsule())
             .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(AstraChipButtonStyle())
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(active ? [.isButton, .isSelected] : .isButton)
     }
 
     private var bulkBar: some View {
@@ -591,10 +641,17 @@ HStack(spacing: 6) {
                 .font(.appFont(15, weight: .semibold))
                 .foregroundStyle(Theme.Colors.textSecondary)
             Spacer()
+            Button(allVisibleSelected ? "Deselect" : "Select All") {
+                toggleVisibleSelection()
+            }
+            .font(.appFont(12, weight: .semibold))
+            .foregroundStyle(Theme.Colors.accent)
+            .buttonStyle(.plain)
+            .disabled(displayedItems.isEmpty)
             bulkAction("star", "Favorite") { library.setFavorite(true, for: selectedIDs); endBulk() }
             bulkAction("tag", "Tag") { showTagPrompt = true }
             bulkAction("eye.slash", "Hide") { library.setHidden(!showingHidden, for: selectedIDs); endBulk() }
-            bulkAction("trash", "Remove", destructive: true) { library.remove(ids: selectedIDs); endBulk() }
+            bulkAction("trash", "Remove", destructive: true) { confirmBulkRemove = true }
         }
         .padding(.horizontal, Theme.Spacing.edge)
         .padding(.vertical, Theme.Spacing.sm)
@@ -608,6 +665,7 @@ HStack(spacing: 6) {
         } message: {
             Text("Tag \(selectedIDs.count) selected items.")
         }
+        .background(.thinMaterial)
     }
 
     private func bulkAction(_ icon: String, _ label: String, destructive: Bool = false, action: @escaping () -> Void) -> some View {
@@ -618,11 +676,13 @@ HStack(spacing: 6) {
             }
             .foregroundStyle(destructive ? Theme.Colors.error : Theme.Colors.accent)
             .padding(.horizontal, Theme.Spacing.sm)
+            .frame(minWidth: Theme.minTouchTarget, minHeight: Theme.minTouchTarget)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(selectedIDs.isEmpty)
         .opacity(selectedIDs.isEmpty ? 0.4 : 1)
+        .accessibilityLabel(label)
     }
 
     private func endBulk() {
@@ -634,7 +694,26 @@ HStack(spacing: 6) {
         if selectedIDs.contains(id) { selectedIDs.remove(id) } else { selectedIDs.insert(id) }
     }
 
+    private var visibleIDs: Set<UUID> {
+        Set(displayedItems.map(\.id))
+    }
+
+    private var allVisibleSelected: Bool {
+        !visibleIDs.isEmpty && visibleIDs.isSubset(of: selectedIDs)
+    }
+
+    private func toggleVisibleSelection() {
+        if allVisibleSelected {
+            selectedIDs.subtract(visibleIDs)
+        } else {
+            selectedIDs.formUnion(visibleIDs)
+        }
+    }
+
     private var emptyMessage: String {
+        if showingHidden { return "Hidden titles appear here after you hide them from the main library." }
+        if activeTag != nil { return "No titles match this tag with the current filters." }
+        if hideWatched { return "Everything in this view is already watched, or nothing matches the current filters." }
         switch filter {
         case .favorites:        return "Tap the star on any title to keep it close."
         case .continueWatching: return "Start watching something and it'll show up here."
@@ -643,6 +722,8 @@ HStack(spacing: 6) {
     }
 
     private var emptyTitle: String {
+        if showingHidden { return "No hidden items" }
+        if activeTag != nil { return "No tagged items" }
         switch filter {
         case .favorites:        return "No favorites yet"
         case .continueWatching: return "Nothing in progress"
@@ -651,6 +732,8 @@ HStack(spacing: 6) {
     }
 
     private var emptyIcon: String {
+        if showingHidden { return "eye.slash" }
+        if activeTag != nil { return "tag" }
         switch filter {
         case .favorites:        return "star"
         case .continueWatching: return "play.circle"
@@ -659,6 +742,7 @@ HStack(spacing: 6) {
     }
 
     private var emptyActionTitle: String? {
+        if showingHidden || activeTag != nil || hideWatched { return "Reset Filters" }
         switch filter {
         case .favorites:        return nil
         case .continueWatching: return "Discover"
@@ -666,7 +750,23 @@ HStack(spacing: 6) {
         }
     }
 
+    private var emptyActionSystemImage: String? {
+        if showingHidden || activeTag != nil || hideWatched { return "line.3.horizontal.decrease.circle" }
+        switch filter {
+        case .continueWatching: return "magnifyingglass"
+        case .favorites:        return nil
+        default:                return "gearshape"
+        }
+    }
+
     private func emptyAction() {
+        if showingHidden || activeTag != nil || hideWatched {
+            showingHidden = false
+            activeTag = nil
+            hideWatched = false
+            typeFilter = .all
+            return
+        }
         switch filter {
         case .continueWatching: nav.selection = .discover
         case .favorites:        break
