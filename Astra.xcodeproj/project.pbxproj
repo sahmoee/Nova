@@ -1544,6 +1544,7 @@
 				CODE_SIGN_ENTITLEMENTS = Astra/Resources/Astra.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 18;
+				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Astra/Resources/Info-tvOS.plist";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
@@ -1569,6 +1570,7 @@
 				CODE_SIGN_ENTITLEMENTS = Astra/Resources/Astra.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 18;
+				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Astra/Resources/Info-tvOS.plist";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
@@ -1680,6 +1682,7 @@
 				CODE_SIGN_ENTITLEMENTS = Astra/Resources/Astra.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 18;
+				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Astra/Resources/Info-iOS.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -1705,6 +1708,7 @@
 				CODE_SIGN_ENTITLEMENTS = Astra/Resources/Astra.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 18;
+				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Astra/Resources/Info-iOS.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
