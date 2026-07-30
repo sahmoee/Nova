@@ -14,6 +14,7 @@ struct ToastMessage: Identifiable, Equatable {
     let text: String
     var systemImage: String = "info.circle"
     var isError: Bool = false
+    var duration: Duration = .seconds(2.5)
 }
 
 @MainActor
@@ -23,18 +24,26 @@ final class ToastCenter: ObservableObject {
 
     private var dismissTask: Task<Void, Never>?
 
-    func show(_ text: String, systemImage: String = "checkmark.circle.fill", isError: Bool = false) {
-        let msg = ToastMessage(text: text, systemImage: systemImage, isError: isError)
+    func show(_ text: String,
+              systemImage: String = "checkmark.circle.fill",
+              isError: Bool = false,
+              duration: Duration = .seconds(2.5)) {
+        let msg = ToastMessage(text: text, systemImage: systemImage, isError: isError, duration: duration)
         current = msg
         Haptics.play(isError ? .error : .success)
         dismissTask?.cancel()
         dismissTask = Task {
-            try? await Task.sleep(nanoseconds: 2_500_000_000)
+            try? await Task.sleep(for: duration)
             if Task.isCancelled { return }
             if current?.id == msg.id {
                 withAnimation { current = nil }
             }
         }
+    }
+
+    func dismiss() {
+        dismissTask?.cancel()
+        withAnimation { current = nil }
     }
 }
 
@@ -44,17 +53,38 @@ private struct ToastHost: ViewModifier {
     func body(content: Content) -> some View {
         content.overlay(alignment: .bottom) {
             if let msg = center.current {
-                HStack(spacing: Theme.Spacing.sm) {
-                    Image(systemName: msg.systemImage)
-                        .foregroundStyle(msg.isError ? Theme.Colors.error : Theme.Colors.accent)
-                    Text(msg.text)
-                        .font(.appFont(18, weight: .semibold))
-                        .foregroundStyle(Theme.Colors.textPrimary)
+                Button {
+                    center.dismiss()
+                } label: {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Image(systemName: msg.systemImage)
+                            .foregroundStyle(msg.isError ? Theme.Colors.error : Theme.Colors.accent)
+                            .accessibilityHidden(true)
+                        Text(msg.text)
+                            .font(.appFont(18, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                        Image(systemName: "xmark")
+                            .font(.appFont(12, weight: .bold))
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                            .accessibilityHidden(true)
+                    }
+                    .padding(.horizontal, Theme.Spacing.lg)
+                    .padding(.vertical, Theme.Spacing.md)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .overlay(
+                        Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                    )
                 }
-                .padding(.horizontal, Theme.Spacing.lg)
-                .padding(.vertical, Theme.Spacing.md)
-                .background(.ultraThinMaterial, in: Capsule())
+                .buttonStyle(.plain)
+                .accessibilityLabel(msg.text)
+                .accessibilityHint("Dismiss notification")
+                .accessibilityAddTraits(.updatesFrequently)
+                .frame(maxWidth: Theme.isCompact ? 360 : 620)
+                .padding(.horizontal, Theme.Spacing.edge)
                 .padding(.bottom, Theme.Spacing.xl)
+                .allowsHitTesting(true)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }

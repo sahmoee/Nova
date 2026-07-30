@@ -35,8 +35,10 @@ struct AstraRowButtonStyle: ButtonStyle {
         let configuration: Configuration
         @Environment(\.isFocused) private var isFocused
         @Environment(\.dynamicAccent) private var accent
+        @Environment(\.isEnabled) private var isEnabled
 
         private var active: Bool {
+            guard isEnabled else { return false }
             #if os(tvOS)
             return isFocused
             #else
@@ -62,8 +64,9 @@ struct AstraRowButtonStyle: ButtonStyle {
                 )
                 .shadow(color: active ? accent.opacity(0.4) : .clear,
                         radius: active ? 22 : 0, y: active ? 8 : 0)
-                .scaleEffect(active ? 1.035 : 1.0)
-                .animation(.easeOut(duration: 0.2), value: active)
+                .scaleEffect(active && !Theme.isReduceMotion ? 1.035 : 1.0)
+                .opacity(isEnabled ? 1 : 0.45)
+                .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.2), value: active)
         }
     }
 }
@@ -88,8 +91,10 @@ struct AstraChipButtonStyle: ButtonStyle {
         let configuration: Configuration
         @Environment(\.isFocused) private var isFocused
         @Environment(\.dynamicAccent) private var accent
+        @Environment(\.isEnabled) private var isEnabled
 
         private var active: Bool {
+            guard isEnabled else { return false }
             #if os(tvOS)
             return isFocused
             #else
@@ -104,8 +109,9 @@ struct AstraChipButtonStyle: ButtonStyle {
                 )
                 .shadow(color: active ? accent.opacity(0.45) : .clear,
                         radius: active ? 18 : 0, y: active ? 6 : 0)
-                .scaleEffect(active ? 1.08 : 1.0)
-                .animation(.easeOut(duration: 0.18), value: active)
+                .scaleEffect(active && !Theme.isReduceMotion ? 1.08 : 1.0)
+                .opacity(isEnabled ? 1 : 0.45)
+                .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18), value: active)
         }
     }
 }
@@ -116,17 +122,19 @@ struct FocusHighlight: ViewModifier {
     var cornerRadius: CGFloat = Theme.Radius.card
     @Environment(\.isFocused) private var isFocused
     @Environment(\.dynamicAccent) private var accent
+    @Environment(\.isEnabled) private var isEnabled
 
     func body(content: Content) -> some View {
+        let active = isFocused && isEnabled
         content
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(isFocused ? accent : .clear, lineWidth: 4)
+                    .strokeBorder(active ? accent : .clear, lineWidth: 4)
             )
-            .shadow(color: isFocused ? accent.opacity(0.45) : .clear,
-                    radius: isFocused ? 26 : 0, y: isFocused ? 10 : 0)
-            .scaleEffect(isFocused ? 1.06 : 1.0)
-            .animation(.easeOut(duration: 0.2), value: isFocused)
+            .shadow(color: active ? accent.opacity(0.45) : .clear,
+                    radius: active ? 26 : 0, y: active ? 10 : 0)
+            .scaleEffect(active && !Theme.isReduceMotion ? 1.06 : 1.0)
+            .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.2), value: active)
     }
 }
 
@@ -148,8 +156,10 @@ struct AstraIconButtonStyle: ButtonStyle {
         let configuration: Configuration
         @Environment(\.isFocused) private var isFocused
         @Environment(\.dynamicAccent) private var accent
+        @Environment(\.isEnabled) private var isEnabled
 
         private var active: Bool {
+            guard isEnabled else { return false }
             #if os(tvOS)
             return isFocused
             #else
@@ -166,8 +176,9 @@ struct AstraIconButtonStyle: ButtonStyle {
                 .overlay(
                     Circle().strokeBorder(active ? accent : .clear, lineWidth: 2)
                 )
-                .scaleEffect(active ? 1.12 : 1.0)
-                .animation(.easeOut(duration: 0.18), value: active)
+                .scaleEffect(active && !Theme.isReduceMotion ? 1.12 : 1.0)
+                .opacity(isEnabled ? 1 : 0.45)
+                .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18), value: active)
         }
     }
 }
@@ -191,8 +202,10 @@ struct AstraListRowStyle: ButtonStyle {
         let configuration: Configuration
         @Environment(\.isFocused) private var isFocused
         @Environment(\.dynamicAccent) private var accent
+        @Environment(\.isEnabled) private var isEnabled
 
         private var active: Bool {
+            guard isEnabled else { return false }
             #if os(tvOS)
             return isFocused
             #else
@@ -210,8 +223,9 @@ struct AstraListRowStyle: ButtonStyle {
                     RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
                         .strokeBorder(active ? accent : .clear, lineWidth: 2)
                 )
-                .scaleEffect(active ? 1.01 : 1.0)
-                .animation(.easeOut(duration: 0.18), value: active)
+                .scaleEffect(active && !Theme.isReduceMotion ? 1.01 : 1.0)
+                .opacity(isEnabled ? 1 : 0.45)
+                .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18), value: active)
         }
     }
 }

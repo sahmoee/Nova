@@ -57,10 +57,11 @@ struct SettingsIconTile: View {
 
     var body: some View {
         Image(systemName: systemImage)
-            .font(.system(size: SettingsMetrics.symbol, weight: .semibold))
+            .font(.appFont(SettingsMetrics.symbol, weight: .semibold))
             .foregroundStyle(.white)
             .frame(width: SettingsMetrics.tile, height: SettingsMetrics.tile)
             .background(color, in: RoundedRectangle(cornerRadius: SettingsMetrics.tileRadius, style: .continuous))
+            .accessibilityHidden(true)
     }
 }
 
@@ -78,7 +79,7 @@ struct SettingsGroup: View {
         VStack(alignment: .leading, spacing: SettingsMetrics.rowSpacing * 0.6) {
             if let header, !header.isEmpty {
                 Text(header.uppercased())
-                    .font(.system(size: SettingsMetrics.header, weight: .semibold))
+                    .font(.appFont(SettingsMetrics.header, weight: .semibold))
                     .foregroundStyle(Theme.Colors.textTertiary)
                     .padding(.leading, SettingsMetrics.rowSpacing + 4)
             }
@@ -97,9 +98,10 @@ struct SettingsGroup: View {
             .clipShape(RoundedRectangle(cornerRadius: SettingsMetrics.groupRadius, style: .continuous))
             if let footer, !footer.isEmpty {
                 Text(footer)
-                    .font(.system(size: SettingsMetrics.header))
+                    .font(.appFont(SettingsMetrics.header))
                     .foregroundStyle(Theme.Colors.textTertiary)
                     .padding(.horizontal, SettingsMetrics.rowSpacing + 2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -122,29 +124,39 @@ struct SettingsRow: View {
         HStack(spacing: SettingsMetrics.rowSpacing) {
             SettingsIconTile(systemImage: icon, color: color)
             Text(title)
-                .font(.system(size: SettingsMetrics.title))
+                .font(.appFont(SettingsMetrics.title))
                 .foregroundStyle(tint ?? Theme.Colors.textPrimary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.85)
             Spacer(minLength: 8)
             if let status {
                 Circle().fill(status)
                     .frame(width: SettingsMetrics.header * 0.7, height: SettingsMetrics.header * 0.7)
+                    .accessibilityHidden(true)
             }
             if let detail, !detail.isEmpty {
                 Text(detail)
-                    .font(.system(size: SettingsMetrics.detail))
+                    .font(.appFont(SettingsMetrics.detail))
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             if showsChevron {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: SettingsMetrics.chevron, weight: .semibold))
+                    .font(.appFont(SettingsMetrics.chevron, weight: .semibold))
                     .foregroundStyle(Theme.Colors.textTertiary)
+                    .accessibilityHidden(true)
             }
         }
         .padding(.horizontal, SettingsMetrics.rowSpacing + 2)
         .padding(.vertical, SettingsMetrics.rowVPad)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        [title, detail].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
     }
 }
 
@@ -160,13 +172,14 @@ struct SettingsToggleRow: View {
             SettingsIconTile(systemImage: icon, color: color)
             Toggle(isOn: $isOn) {
                 Text(title)
-                    .font(.system(size: SettingsMetrics.title))
+                    .font(.appFont(SettingsMetrics.title))
                     .foregroundStyle(Theme.Colors.textPrimary)
             }
             .tint(Theme.Colors.accent)
         }
         .padding(.horizontal, SettingsMetrics.rowSpacing + 2)
         .padding(.vertical, SettingsMetrics.rowVPad * 0.7)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -183,10 +196,12 @@ struct SettingsPickerRow<T: Hashable>: View {
         HStack(spacing: SettingsMetrics.rowSpacing) {
             SettingsIconTile(systemImage: icon, color: color)
             Text(title)
-                .font(.system(size: SettingsMetrics.title))
+                .font(.appFont(SettingsMetrics.title))
                 .foregroundStyle(Theme.Colors.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
             Spacer(minLength: 8)
-            Picker("", selection: $selection) {
+            Picker(title, selection: $selection) {
                 ForEach(options, id: \.self) { opt in
                     Text(label(opt)).tag(opt)
                 }
@@ -208,9 +223,10 @@ struct SettingsNote: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: SettingsMetrics.detail))
+            .font(.appFont(SettingsMetrics.detail))
             .foregroundStyle(tint ?? Theme.Colors.textTertiary)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, SettingsMetrics.rowSpacing + 2)
             .padding(.vertical, SettingsMetrics.rowVPad * 0.6)
     }

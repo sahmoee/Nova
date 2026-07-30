@@ -48,6 +48,9 @@ struct MediaCard: View {
     /// A spoken label combining the title with watched/progress context.
     private var accessibilityText: String {
         var parts = [item.displayTitle]
+        if !subtitleText.isEmpty {
+            parts.append(subtitleText)
+        }
         if item.isWatched {
             parts.append("watched")
         } else if item.hasResumePoint {
@@ -55,6 +58,14 @@ struct MediaCard: View {
             parts.append("\(pct) percent watched")
         }
         return parts.joined(separator: ", ")
+    }
+
+    private var accessibilityHint: String {
+        quickActions ? "Double tap to open. Long press for quick actions." : "Double tap to open details."
+    }
+
+    private var clampedProgress: Double {
+        min(max(item.progressFraction, 0), 1)
     }
 
     @ViewBuilder
@@ -78,6 +89,7 @@ struct MediaCard: View {
         .focused($focused)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
+        .accessibilityHint(accessibilityHint)
         .accessibilityAddTraits(.isButton)
         .scaleEffect(focused ? Theme.CardSize.focusScale : 1.0)
         // Apple TV style: a soft black drop plus a colored glow in the artwork's accent.
@@ -155,6 +167,7 @@ struct MediaCard: View {
                     Image(systemName: "star.fill")
                         .font(.appFont(12))
                         .foregroundStyle(Theme.Colors.warning)
+                        .accessibilityHidden(true)
                 }
             }
             .padding(8)
@@ -226,13 +239,14 @@ struct MediaCard: View {
                     .fill(.black.opacity(0.5))
                 Rectangle()
                     .fill(Theme.Colors.accent)
-                    .frame(width: geo.size.width * item.progressFraction)
+                    .frame(width: geo.size.width * clampedProgress)
             }
         }
         .frame(height: 6)
         .clipShape(Capsule())
         .padding(.horizontal, 8)
         .padding(.bottom, 8)
+        .accessibilityHidden(true)
     }
 
     // MARK: - Title
@@ -243,11 +257,13 @@ struct MediaCard: View {
                 .font(Theme.Font.cardTitle())
                 .foregroundStyle(focused ? Theme.Colors.textPrimary : Theme.Colors.textSecondary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.85)
             if !subtitleText.isEmpty {
                 Text(subtitleText)
                     .font(.appFont(16))
                     .foregroundStyle(Theme.Colors.textTertiary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
         }
         .padding(.top, 4)
@@ -276,7 +292,21 @@ struct CatalogPosterCard: View {
                 .font(.appFont(17, weight: .medium))
                 .foregroundStyle(Theme.Colors.textPrimary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.85)
                 .frame(width: width, alignment: .leading)
         }
+        // Larger tap target: the whole card (including the gap under the poster)
+        // is tappable, and VoiceOver reads it as one element.
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint("Open details")
+    }
+
+    private var accessibilityLabel: String {
+        if let year = item.year {
+            return "\(item.title), \(year)"
+        }
+        return item.title
     }
 }

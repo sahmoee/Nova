@@ -50,7 +50,8 @@ struct FeaturedHero: View {
             CachedAsyncImage(url: item.backdropURL ?? item.posterURL, maxPixel: 1600) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
             } placeholder: {
-                Rectangle().fill(Theme.Colors.card)
+                // Shimmer while the backdrop loads, matching the app's other skeletons.
+                Rectangle().fill(Theme.Colors.card).shimmering()
             }
             .frame(width: width, height: heroHeight)
             .clipped()
@@ -81,9 +82,10 @@ struct FeaturedHero: View {
                         .shadow(color: .black.opacity(0.4), radius: 4)
                 }
                 Text(item.displayTitle)
-                    .font(.system(size: Theme.scaledFont(44), weight: .heavy))
+                    .font(.appFont(44, weight: .heavy))
                     .foregroundStyle(.white)
                     .lineLimit(2)
+                    .minimumScaleFactor(0.72)
                     .shadow(color: .black.opacity(0.5), radius: 8, y: 2)
 
                 if !item.subtitleLine.isEmpty {
@@ -91,6 +93,7 @@ struct FeaturedHero: View {
                         .font(.appFont(18, weight: .medium))
                         .foregroundStyle(.white.opacity(0.85))
                         .lineLimit(1)
+                        .minimumScaleFactor(0.82)
                 }
 
                 HStack(spacing: Theme.Spacing.sm) {
@@ -141,6 +144,7 @@ struct FeaturedHero: View {
         }
         .buttonStyle(HeroPlayButtonStyle(accent: accent))
         .accessibilityLabel("\(item.hasResumePoint ? "Resume" : "Play") \(item.title)")
+        .accessibilityHint(item.hasResumePoint ? "Continue from the saved position" : "Start playback")
 
         #if os(tvOS)
         if let ns = playFocusNamespace {
@@ -177,8 +181,8 @@ private struct HeroInfoButtonStyle: ButtonStyle {
                 .background(.ultraThinMaterial, in: Capsule())
                 .overlay(Capsule().stroke(.white.opacity(active ? 0.9 : 0.35), lineWidth: 1))
                 .foregroundStyle(.white)
-                .scaleEffect(active ? 1.06 : 1.0)
-                .animation(.easeOut(duration: 0.18), value: active)
+                .scaleEffect(active && !Theme.isReduceMotion ? 1.06 : 1.0)
+                .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18), value: active)
         }
     }
 }
@@ -209,10 +213,10 @@ private struct HeroPlayButtonStyle: ButtonStyle {
             configuration.label
                 .background(active ? accent : .white, in: Capsule())
                 .foregroundStyle(active ? .white : .black)
-                .scaleEffect(active ? 1.06 : 1.0)
+                .scaleEffect(active && !Theme.isReduceMotion ? 1.06 : 1.0)
                 .shadow(color: active ? accent.opacity(0.5) : .clear,
                         radius: active ? 20 : 0, y: 6)
-                .animation(.easeOut(duration: 0.18), value: active)
+                .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18), value: active)
         }
     }
 }

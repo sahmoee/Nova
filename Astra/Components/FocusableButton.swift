@@ -11,6 +11,7 @@ struct FocusableButton: View {
     let title: String
     var systemImage: String? = nil
     var prominent: Bool = false
+    var accessibilityHint: String? = nil
     let action: () -> Void
 
     var body: some View {
@@ -32,6 +33,7 @@ struct FocusableButton: View {
                    minHeight: Theme.minTouchTarget)
         }
         .buttonStyle(FocusableButtonStyle(prominent: prominent))
+        .accessibilityHint(accessibilityHint ?? "")
     }
 }
 
@@ -50,8 +52,10 @@ struct FocusableButtonStyle: ButtonStyle {
         let prominent: Bool
         @Environment(\.isFocused) private var isFocused
         @Environment(\.dynamicAccent) private var accent
+        @Environment(\.isEnabled) private var isEnabled
 
         private var active: Bool {
+            guard isEnabled else { return false }
             #if os(tvOS)
             return isFocused
             #else
@@ -73,6 +77,7 @@ struct FocusableButtonStyle: ButtonStyle {
         }
 
         private var foreground: Color {
+            guard isEnabled else { return Theme.Colors.textTertiary }
             if prominent { return .white }
             return active ? .white : Theme.Colors.textPrimary
         }
@@ -93,8 +98,9 @@ struct FocusableButtonStyle: ButtonStyle {
                 .shadow(color: prominent && refined ? accent.opacity(0.35) : (active ? accent.opacity(0.45) : .clear),
                         radius: prominent && refined ? 14 : (active ? 20 : 0),
                         y: prominent && refined ? 5 : (active ? 6 : 0))
-                .scaleEffect(active ? 1.06 : 1.0)
-                .animation(.easeOut(duration: 0.18), value: active)
+                .scaleEffect(active && !Theme.isReduceMotion ? 1.06 : 1.0)
+                .opacity(isEnabled ? 1 : 0.45)
+                .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18), value: active)
         }
     }
 }

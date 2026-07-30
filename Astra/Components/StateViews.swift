@@ -20,8 +20,14 @@ struct LoadingView: View {
             Text(message)
                 .font(.appFont(22))
                 .foregroundStyle(Theme.Colors.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(Theme.Spacing.xl)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(message)
     }
 }
 
@@ -32,29 +38,38 @@ struct EmptyStateView: View {
     var title: String
     var message: String
     var actionTitle: String? = nil
+    var actionSystemImage: String? = nil
     var action: (() -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: Theme.Spacing.md) {
+        VStack(spacing: Theme.Spacing.sm) {
             Image(systemName: systemImage)
                 .font(.appFont(72))
                 .foregroundStyle(Theme.Colors.textTertiary)
+                .symbolRenderingMode(.hierarchical)
+                .accessibilityHidden(true)
             Text(title)
                 .font(.appFont(30, weight: .bold))
                 .foregroundStyle(Theme.Colors.textPrimary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
             Text(message)
                 .font(.appFont(20))
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 720)
+                .lineLimit(4)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: Theme.isCompact ? 360 : 720)
             if let actionTitle, let action {
-                FocusableButton(title: actionTitle, prominent: true, action: action)
-                    .frame(width: 360)
+                FocusableButton(title: actionTitle, systemImage: actionSystemImage, prominent: true, action: action)
+                    .frame(maxWidth: Theme.isCompact ? .infinity : 360)
                     .padding(.top, Theme.Spacing.sm)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(Theme.Spacing.xl)
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -84,7 +99,9 @@ struct ErrorStateView: View {
                 .font(.appFont(20))
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 720)
+                .lineLimit(5)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: Theme.isCompact ? 360 : 720)
 
             VStack(spacing: Theme.Spacing.sm) {
                 if let onPrimary, let primaryTitle {
@@ -104,6 +121,7 @@ struct ErrorStateView: View {
                             .frame(maxWidth: Theme.isCompact ? .infinity : 280)
                     }
                 }
+                .frame(maxWidth: .infinity)
                 if let onBack {
                     FocusableButton(title: backTitle, systemImage: "chevron.left",
                                     action: onBack)
@@ -115,6 +133,7 @@ struct ErrorStateView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(Theme.Spacing.xl)
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -127,7 +146,7 @@ struct ContentStateView: View {
     enum State {
         case loading(message: String = "Loading…")
         case empty(systemImage: String = "tray", title: String, message: String,
-                   actionTitle: String? = nil, action: (() -> Void)? = nil)
+                   actionTitle: String? = nil, actionSystemImage: String? = nil, action: (() -> Void)? = nil)
         case error(title: String, message: String,
                    actionTitle: String? = nil, action: (() -> Void)? = nil)
     }
@@ -138,9 +157,9 @@ struct ContentStateView: View {
         switch state {
         case .loading(let message):
             LoadingView(message: message)
-        case .empty(let symbol, let title, let message, let actionTitle, let action):
+        case .empty(let symbol, let title, let message, let actionTitle, let actionSystemImage, let action):
             EmptyStateView(systemImage: symbol, title: title, message: message,
-                           actionTitle: actionTitle, action: action)
+                           actionTitle: actionTitle, actionSystemImage: actionSystemImage, action: action)
         case .error(let title, let message, let actionTitle, let action):
             EmptyStateView(systemImage: "exclamationmark.triangle", title: title,
                            message: message, actionTitle: actionTitle, action: action)
