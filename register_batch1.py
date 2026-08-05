@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Registers Batch 1's new Swift files in Astra.xcodeproj (idempotent, self-healing).
+"""Registers Batch 1's new Swift files in Nova.xcodeproj (idempotent, self-healing).
 
 New files:
-  Astra/Utilities/AppCore.swift
-  Astra/Utilities/CloudBackedStore.swift
-  Astra/Utilities/DiskJSONCache.swift
-  Astra/Views/Player/PlayerCore.swift
+  Nova/Utilities/AppCore.swift
+  Nova/Utilities/CloudBackedStore.swift
+  Nova/Utilities/DiskJSONCache.swift
+  Nova/Views/Player/PlayerCore.swift
 
 For each file: 1 PBXFileReference, 1 group-children entry (anchored to a sibling),
 2 PBXBuildFile defs, 2 Sources-phase entries (iOS + tvOS app targets).
@@ -13,7 +13,7 @@ Run from the repo root: python3 register_batch1.py
 """
 import hashlib, pathlib, re, sys
 
-PBX = pathlib.Path("Astra.xcodeproj/project.pbxproj")
+PBX = pathlib.Path("Nova.xcodeproj/project.pbxproj")
 FILES = [
     # (filename, group-sibling anchor, sources-phase sibling anchor)
     ("AppCore.swift",          "DateFormatting.swift", "DateFormatting.swift"),
@@ -57,7 +57,7 @@ def main():
             if f"{bf} /* {name} in Sources */ = {{isa = PBXBuildFile" not in s:
                 first = re.search(
                     r"(\t\t[0-9A-F]{24} /\* " + re.escape(name) +
-                    r" in Sources \*/ = \{isa = PBXBuildFile[^\n]*\n)|(\t\t[0-9A-F]{24} /\* AstraApp.swift in Sources \*/ = \{isa = PBXBuildFile[^\n]*\n)", s)
+                    r" in Sources \*/ = \{isa = PBXBuildFile[^\n]*\n)|(\t\t[0-9A-F]{24} /\* NovaApp.swift in Sources \*/ = \{isa = PBXBuildFile[^\n]*\n)", s)
                 line = (f"\t\t{bf} /* {name} in Sources */ = {{isa = PBXBuildFile; "
                         f"fileRef = {ref} /* {name} */; }};\n")
                 anchor = first.group(0)

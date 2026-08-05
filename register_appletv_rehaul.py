@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Register Apple TV rehaul Swift sources in both Astra app targets."""
+"""Register Apple TV rehaul Swift sources in both Nova app targets."""
 import os
 import re
 import uuid
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-PBX = os.path.join(ROOT, "Astra.xcodeproj", "project.pbxproj")
+PBX = os.path.join(ROOT, "Nova.xcodeproj", "project.pbxproj")
 text = open(PBX, encoding="utf-8").read()
 
 

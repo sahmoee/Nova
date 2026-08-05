@@ -2,13 +2,12 @@
 //  ParserTests.swift
 //  JooTVTests
 //
-//  Unit tests for the pure parsing helpers. Add this file to a test target
-//  (an XCTest unit-test target) to run them. They cover the tricky edge cases in
+//  Unit tests for the pure parsing helpers. They cover the tricky edge cases in
 //  stream metadata parsing, SRT->VTT conversion, and SMB URL parsing.
 //
 
 import XCTest
-@testable import Astra
+@testable import Nova
 
 final class StreamRankerTests: XCTestCase {
 

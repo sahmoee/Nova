@@ -16,10 +16,10 @@
 # Read-only by default. Nothing is written unless you pass --set.
 #
 # Usage:
-#   ./bundleid-guard.sh                         # audit Astra.xcodeproj here
+#   ./bundleid-guard.sh                         # audit Nova.xcodeproj here
 #   ./bundleid-guard.sh --project /path/App.xcodeproj
-#   ./bundleid-guard.sh --set com.astra.app.ios --target Astra-iOS
-#   ./bundleid-guard.sh --set com.astra.app.ios --target Astra-iOS --apply
+#   ./bundleid-guard.sh --set com.astra.app.ios --target Nova-iOS
+#   ./bundleid-guard.sh --set com.astra.app.ios --target Nova-iOS --apply
 #
 # Without --apply, --set only PREVIEWS the change (writes nothing).
 # ============================================================================
@@ -77,9 +77,11 @@ DISTINCT=$(grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' "$PBX" \
   | sed 's/PRODUCT_BUNDLE_IDENTIFIER = //; s/;$//; s/^"//; s/"$//' \
   | sort -u | wc -l | tr -d ' ')
 
-# The three intentional per-target identifiers. Having these three is CORRECT,
+# The four intentional per-target identifiers. Having these is CORRECT,
 # not a conflict — the old logic wrongly flagged them.
-ALLOWED_IDS="com.astra.app.ios com.astra.app.ios.widgets com.astra.app.tvos"
+# Nova intentionally retains Astra's registered IDs. Rebranding these would make
+# Nova a different app and disconnect its sandbox, iCloud KVS, and Keychain data.
+ALLOWED_IDS="com.astra.app.ios com.astra.app.ios.widgets com.astra.app.tvos com.astra.app.ios.tests"
 UNEXPECTED=""
 while read -r id; do
   [ -z "$id" ] && continue
@@ -96,7 +98,7 @@ if [ -n "$UNEXPECTED" ]; then
   echo "   Expected only: $ALLOWED_IDS"
   GUARD_STATUS=1
 else
-  echo ">> OK — only the three intended per-target ids are present:"
+  echo ">> OK — only the intended per-target ids are present:"
   echo "   $ALLOWED_IDS"
   GUARD_STATUS=0
 fi

@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "nova-ai-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "vars": {
+    "SERVICE_NAME": "nova-ai-worker",
+    "MODEL": "claude-sonnet-4-6",
+    "ALLOWED_ORIGIN": ""
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "SHARE_STORE", "class_name": "ShareStore" },
+      { "name": "RATE_LIMITER", "class_name": "RateLimiter" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["ShareStore", "RateLimiter"] }
+  ],
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.05 }
+  }
+}

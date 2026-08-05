@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Clears the Xcode caches that make Astra keep showing the old Astra icon.
+# Clears the Xcode caches that make Nova keep showing the old Nova icon.
 # Only removes regenerable caches. Safe to run.
 set -euo pipefail
 
@@ -8,10 +8,10 @@ osascript -e 'tell application "Xcode" to quit' 2>/dev/null || true
 sleep 2
 
 DD="$HOME/Library/Developer/Xcode/DerivedData"
-echo "==> Removing Astra DerivedData..."
-if compgen -G "$DD/Astra-*" > /dev/null; then
-  rm -rf "$DD"/Astra-*
-  echo "    removed: $DD/Astra-*"
+echo "==> Removing Nova DerivedData..."
+if compgen -G "$DD/Nova-*" > /dev/null; then
+  rm -rf "$DD"/Nova-*
+  echo "    removed: $DD/Nova-*"
 else
   echo "    none found (nothing to remove)"
 fi
@@ -26,6 +26,6 @@ sudo find /private/var/folders -name com.apple.dock.iconcache -delete 2>/dev/nul
 
 echo ""
 echo "Done. Now:"
-echo "  1. Delete the Astra app from the device/simulator 'Key'."
+echo "  1. Delete the Nova app from the device/simulator 'Key'."
 echo "  2. Reopen Xcode -> Product -> Clean Build Folder (Shift-Cmd-K)."
-echo "  3. Build & run. The new Astra icon should appear everywhere."
+echo "  3. Build & run. The new Nova icon should appear everywhere."

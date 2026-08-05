@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import re, uuid, os
 here=os.path.dirname(os.path.abspath(__file__))
-pbx=os.path.join(here,"Astra.xcodeproj","project.pbxproj")
+pbx=os.path.join(here,"Nova.xcodeproj","project.pbxproj")
 s=open(pbx).read()
 def gen(): return uuid.uuid4().hex[:24].upper()
 def register(s, fname, anchor):
@@ -22,7 +22,15 @@ def register(s, fname, anchor):
         s=s.replace(pa, pa+f'\t\t\t\t{n} /* {fname} in Sources */,\n',1)
     return s, True
 c=False
-for fname, anchor in [("DownloadManager.swift","LibraryStore.swift"), ("SkeletonGrid.swift","MediaCard.swift")]:
+for fname, anchor in [
+    ("DownloadManager.swift", "LibraryStore.swift"),
+    ("NovaOnDeviceAI.swift", "LibraryStore.swift"),
+    ("NovaWorkerConfiguration.swift", "LibraryStore.swift"),
+    ("OfflineDownloadsView.swift", "SettingsView.swift"),
+    ("AddonCatalogBrowserView.swift", "AddonsView.swift"),
+    ("AddonManagementComponents.swift", "AddonsView.swift"),
+    ("SkeletonGrid.swift", "MediaCard.swift"),
+]:
     s, ch = register(s, fname, anchor); c = c or ch
     print(fname, "registered" if ch else "already present")
 if c: open(pbx,"w").write(s)

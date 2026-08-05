@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import re, sys, uuid
-PBX = "Astra.xcodeproj/project.pbxproj"
+PBX = "Nova.xcodeproj/project.pbxproj"
 # Register DateFormatting.swift in the Utilities group (anchor on an existing
 # Utilities file). Find a suitable anchor dynamically.
 FNAME = "DateFormatting.swift"

@@ -1,14 +1,12 @@
 //
 //  StreamFilterParserTests.swift
-//  AstraTests
+//  NovaTests
 //
 //  Pure-function tests for the natural-language stream filter parser.
-//  NOTE: The project has no test target yet; add one in Xcode (File > New >
-//  Target > Unit Testing Bundle, name AstraTests) and these files compile as-is.
 //
 
 import XCTest
-@testable import Astra
+@testable import Nova
 
 final class StreamFilterParserTests: XCTestCase {
 

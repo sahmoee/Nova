@@ -3,7 +3,7 @@
 # Anchors on RootView.swift, which lives in the same Views group and both targets.
 import re, sys, uuid
 
-PBX = "Astra.xcodeproj/project.pbxproj"
+PBX = "Nova.xcodeproj/project.pbxproj"
 FNAME = "MenuOverlay.swift"
 ANCHOR = "RootView.swift"
 

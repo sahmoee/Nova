@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # verify_registration.sh
-# Fails (nonzero exit) if any .swift source under the main Astra target
+# Fails (nonzero exit) if any .swift source under the main Nova target
 # is missing its required pbxproj entries. REPORT ONLY - never mutates.
 #
 # Required per source file (2 real targets: iOS/iPadOS + tvOS):
@@ -16,8 +16,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PBXPROJ="$ROOT/Astra.xcodeproj/project.pbxproj"
-SRC_DIR="$ROOT/Astra"
+PBXPROJ="$ROOT/Nova.xcodeproj/project.pbxproj"
+SRC_DIR="$ROOT/Nova"
 
 if [[ ! -f "$PBXPROJ" ]]; then
   echo "verify_registration: pbxproj not found at $PBXPROJ" >&2

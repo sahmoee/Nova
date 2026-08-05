@@ -1,14 +1,24 @@
 {
-  "name": "astra-ai-worker",
-  "version": "1.0.0",
+  "name": "nova-ai-worker",
+  "version": "2.0.0",
   "private": true,
-  "description": "Cloudflare Worker bridging the Astra app to the Anthropic API for AI features.",
+  "description": "Nova AI and encrypted snapshot-sharing Cloudflare Worker.",
+  "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "tail": "wrangler tail"
+    "deploy": "wrangler deploy --minify",
+    "deploy:dry": "wrangler deploy --dry-run",
+    "types": "wrangler types worker-configuration.d.ts",
+    "types:check": "wrangler types --check worker-configuration.d.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run types:check && npm run typecheck && npm test && npm run deploy:dry",
+    "tail": "wrangler tail --format json"
   },
   "devDependencies": {
-    "wrangler": "^3.0.0"
+    "@cloudflare/vitest-pool-workers": "^0.10.6",
+    "typescript": "^5.9.3",
+    "vitest": "~3.2.4",
+    "wrangler": "^4.118.0"
   }
 }

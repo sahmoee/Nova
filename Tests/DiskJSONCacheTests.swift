@@ -1,14 +1,12 @@
 //
 //  DiskJSONCacheTests.swift
-//  AstraTests
+//  NovaTests
 //
 //  Round-trip, expiry, and prefix-isolation tests for the generic disk cache.
-//  NOTE: The project has no test target yet; add one in Xcode (File > New >
-//  Target > Unit Testing Bundle, name AstraTests) and these files compile as-is.
 //
 
 import XCTest
-@testable import Astra
+@testable import Nova
 
 final class DiskJSONCacheTests: XCTestCase {
 

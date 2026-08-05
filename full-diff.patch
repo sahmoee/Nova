@@ -1,7 +1,7 @@
-diff --git a/Astra/App/SettingsStore.swift b/Astra/App/SettingsStore.swift
+diff --git a/Nova/App/SettingsStore.swift b/Nova/App/SettingsStore.swift
 index 78c5aaf..c83f66c 100644
---- a/Astra/App/SettingsStore.swift
-+++ b/Astra/App/SettingsStore.swift
+--- a/Nova/App/SettingsStore.swift
++++ b/Nova/App/SettingsStore.swift
 @@ -592,6 +592,13 @@ final class SettingsStore: ObservableObject {
          if let v = cloud.double(forKey: Key.textSizeBoost), v > 0, textSizeBoost != v {
              textSizeBoost = v
@@ -16,10 +16,10 @@ index 78c5aaf..c83f66c 100644
      }
  
      /// Like streamPreferences, but also biases ranking by the user's addon order
-diff --git a/Astra/App/Theme.swift b/Astra/App/Theme.swift
+diff --git a/Nova/App/Theme.swift b/Nova/App/Theme.swift
 index 397083e..cfc0def 100644
---- a/Astra/App/Theme.swift
-+++ b/Astra/App/Theme.swift
+--- a/Nova/App/Theme.swift
++++ b/Nova/App/Theme.swift
 @@ -195,6 +195,15 @@ enum Theme {
          static var y: CGFloat { Theme.scaled(10, min: 5) }
      }
@@ -145,10 +145,10 @@ index 397083e..cfc0def 100644
                  subviews[subviewIndex].place(at: CGPoint(x: x, y: y), anchor: .topLeading,
                                               proposal: ProposedViewSize(size))
                  x += size.width + spacing
-diff --git a/Astra/Components/CatalogShelfRow.swift b/Astra/Components/CatalogShelfRow.swift
+diff --git a/Nova/Components/CatalogShelfRow.swift b/Nova/Components/CatalogShelfRow.swift
 index 530cb2b..0747be8 100644
---- a/Astra/Components/CatalogShelfRow.swift
-+++ b/Astra/Components/CatalogShelfRow.swift
+--- a/Nova/Components/CatalogShelfRow.swift
++++ b/Nova/Components/CatalogShelfRow.swift
 @@ -73,7 +73,8 @@ struct CatalogShelfRow: View {
                      .font(.appFont(12, weight: .bold))
                      .foregroundStyle(Theme.Colors.textTertiary)
@@ -159,10 +159,10 @@ index 530cb2b..0747be8 100644
              }
              Spacer()
          }
-diff --git a/Astra/Components/FeaturedHero.swift b/Astra/Components/FeaturedHero.swift
+diff --git a/Nova/Components/FeaturedHero.swift b/Nova/Components/FeaturedHero.swift
 index 27b498d..f2c6eb6 100644
---- a/Astra/Components/FeaturedHero.swift
-+++ b/Astra/Components/FeaturedHero.swift
+--- a/Nova/Components/FeaturedHero.swift
++++ b/Nova/Components/FeaturedHero.swift
 @@ -50,7 +50,8 @@ struct FeaturedHero: View {
              CachedAsyncImage(url: item.backdropURL ?? item.posterURL, maxPixel: 1600) { image in
                  image.resizable().aspectRatio(contentMode: .fill)
@@ -173,10 +173,10 @@ index 27b498d..f2c6eb6 100644
              }
              .frame(width: width, height: heroHeight)
              .clipped()
-diff --git a/Astra/Components/MediaCard.swift b/Astra/Components/MediaCard.swift
+diff --git a/Nova/Components/MediaCard.swift b/Nova/Components/MediaCard.swift
 index d3ce076..cabbdae 100644
---- a/Astra/Components/MediaCard.swift
-+++ b/Astra/Components/MediaCard.swift
+--- a/Nova/Components/MediaCard.swift
++++ b/Nova/Components/MediaCard.swift
 @@ -278,5 +278,9 @@ struct CatalogPosterCard: View {
                  .lineLimit(1)
                  .frame(width: width, alignment: .leading)
@@ -187,10 +187,10 @@ index d3ce076..cabbdae 100644
 +        .accessibilityElement(children: .combine)
      }
  }
-diff --git a/Astra/Components/SourceCard.swift b/Astra/Components/SourceCard.swift
+diff --git a/Nova/Components/SourceCard.swift b/Nova/Components/SourceCard.swift
 index 1d640df..0016ff4 100644
---- a/Astra/Components/SourceCard.swift
-+++ b/Astra/Components/SourceCard.swift
+--- a/Nova/Components/SourceCard.swift
++++ b/Nova/Components/SourceCard.swift
 @@ -94,6 +94,10 @@ struct SourceCard: View {
          }
          .buttonStyle(.pressable)
@@ -202,14 +202,14 @@ index 1d640df..0016ff4 100644
          .scaleEffect(focused ? Theme.CardSize.focusScale : 1.0)
          .animation(.easeOut(duration: 0.16), value: focused)
      }
-diff --git a/Astra/Components/UniversalSearchView.swift b/Astra/Components/UniversalSearchView.swift
+diff --git a/Nova/Components/UniversalSearchView.swift b/Nova/Components/UniversalSearchView.swift
 index 47429d6..9aaabc7 100644
---- a/Astra/Components/UniversalSearchView.swift
-+++ b/Astra/Components/UniversalSearchView.swift
+--- a/Nova/Components/UniversalSearchView.swift
++++ b/Nova/Components/UniversalSearchView.swift
 @@ -127,6 +127,8 @@ struct UniversalSearchView: View {
                          .foregroundStyle(Theme.Colors.textTertiary)
                  }
-                 .astraIconStyle()
+                 .novaIconStyle()
 +                // Accessibility: icon-only clear button needs a spoken name.
 +                .accessibilityLabel("Clear search")
              }
@@ -218,16 +218,16 @@ index 47429d6..9aaabc7 100644
 @@ -136,6 +138,8 @@ struct UniversalSearchView: View {
                      .foregroundStyle(aiSearching ? Theme.Colors.textTertiary : Theme.Colors.accent)
              }
-             .astraIconStyle()
+             .novaIconStyle()
 +            // Accessibility: name the sparkles icon so its purpose is clear.
 +            .accessibilityLabel("AI search")
              .disabled(aiSearching || query.trimmingCharacters(in: .whitespaces).count < 2)
          }
          .padding(Theme.Spacing.md)
-diff --git a/Astra/Models/RealDebridModels.swift b/Astra/Models/RealDebridModels.swift
+diff --git a/Nova/Models/RealDebridModels.swift b/Nova/Models/RealDebridModels.swift
 index 3076a10..46b7a23 100644
---- a/Astra/Models/RealDebridModels.swift
-+++ b/Astra/Models/RealDebridModels.swift
+--- a/Nova/Models/RealDebridModels.swift
++++ b/Nova/Models/RealDebridModels.swift
 @@ -21,11 +21,17 @@ struct RealDebridUser: Codable, Hashable {
  
      var isPremium: Bool { type.lowercased() == "premium" }
@@ -248,10 +248,10 @@ index 3076a10..46b7a23 100644
      }
  }
  
-diff --git a/Astra/Services/AddonStore.swift b/Astra/Services/AddonStore.swift
+diff --git a/Nova/Services/AddonStore.swift b/Nova/Services/AddonStore.swift
 index 79c956b..ef58bf1 100644
---- a/Astra/Services/AddonStore.swift
-+++ b/Astra/Services/AddonStore.swift
+--- a/Nova/Services/AddonStore.swift
++++ b/Nova/Services/AddonStore.swift
 @@ -84,6 +84,10 @@ final class AddonStore: ObservableObject {
          guard let data = CloudSync.shared.data(forKey: Self.cloudKey),
                let cloudAddons = try? decoder.decode([InstalledAddon].self, from: data) else { return }
@@ -263,10 +263,10 @@ index 79c956b..ef58bf1 100644
          if cloudAddons != addons {
              addons = cloudAddons
              // Persist locally without re-pushing identical data to the cloud.
-diff --git a/Astra/Services/BackupManager.swift b/Astra/Services/BackupManager.swift
+diff --git a/Nova/Services/BackupManager.swift b/Nova/Services/BackupManager.swift
 index a13b38b..4766258 100644
---- a/Astra/Services/BackupManager.swift
-+++ b/Astra/Services/BackupManager.swift
+--- a/Nova/Services/BackupManager.swift
++++ b/Nova/Services/BackupManager.swift
 @@ -128,6 +128,13 @@ final class BackupManager: ObservableObject {
  
      private let keychain = KeychainStore.shared
@@ -298,7 +298,7 @@ index a13b38b..4766258 100644
 +        let stamp = Self.isoFormatter.string(from: snap.createdAt)
              .replacingOccurrences(of: ":", with: "-")
          let url = FileManager.default.temporaryDirectory
-             .appendingPathComponent("Astra-\(stamp).astra")
+             .appendingPathComponent("Nova-\(stamp).nova")
 @@ -489,7 +496,7 @@ final class BackupManager: ObservableObject {
                  return nil
              }
@@ -308,10 +308,10 @@ index a13b38b..4766258 100644
              // Full share code = lookup code + "~" + base64(key). The "~" separator is
              // outside the base64 alphabet, and the lookup code is A-Z0-9 only.
              let keyB64 = key.withUnsafeBytes { Data($0) }.base64EncodedString()
-diff --git a/Astra/Services/DirectURLService.swift b/Astra/Services/DirectURLService.swift
+diff --git a/Nova/Services/DirectURLService.swift b/Nova/Services/DirectURLService.swift
 index 8bfb6b9..6b4a3fb 100644
---- a/Astra/Services/DirectURLService.swift
-+++ b/Astra/Services/DirectURLService.swift
+--- a/Nova/Services/DirectURLService.swift
++++ b/Nova/Services/DirectURLService.swift
 @@ -31,7 +31,13 @@ actor DirectURLService {
              guard let http = response as? HTTPURLResponse else { return url }
  
@@ -327,10 +327,10 @@ index 8bfb6b9..6b4a3fb 100644
                  throw URLValidationError.unreachable
              }
  
-diff --git a/Astra/Services/EPGService.swift b/Astra/Services/EPGService.swift
+diff --git a/Nova/Services/EPGService.swift b/Nova/Services/EPGService.swift
 index 20f5a82..276d421 100644
---- a/Astra/Services/EPGService.swift
-+++ b/Astra/Services/EPGService.swift
+--- a/Nova/Services/EPGService.swift
++++ b/Nova/Services/EPGService.swift
 @@ -33,6 +33,12 @@ actor EPGService {
          else { return }
          let parsed = XMLTVParser.parse(data)
@@ -344,10 +344,10 @@ index 20f5a82..276d421 100644
          for programme in parsed {
              programmesByChannel[programme.channelID, default: []].append(programme)
          }
-diff --git a/Astra/Services/LibraryEnricher.swift b/Astra/Services/LibraryEnricher.swift
+diff --git a/Nova/Services/LibraryEnricher.swift b/Nova/Services/LibraryEnricher.swift
 index fa1098c..b6bca7d 100644
---- a/Astra/Services/LibraryEnricher.swift
-+++ b/Astra/Services/LibraryEnricher.swift
+--- a/Nova/Services/LibraryEnricher.swift
++++ b/Nova/Services/LibraryEnricher.swift
 @@ -79,6 +79,9 @@ final class LibraryEnricher: ObservableObject {
          var req = URLRequest(url: url)
          req.httpMethod = "POST"
@@ -358,10 +358,10 @@ index fa1098c..b6bca7d 100644
          req.httpBody = try? JSONEncoder().encode(["query": prompt])
          req.timeoutInterval = 20
          guard let (data, response) = try? await session.data(for: req),
-diff --git a/Astra/Services/LibraryStore.swift b/Astra/Services/LibraryStore.swift
+diff --git a/Nova/Services/LibraryStore.swift b/Nova/Services/LibraryStore.swift
 index 7aaf9a4..ab7190c 100644
---- a/Astra/Services/LibraryStore.swift
-+++ b/Astra/Services/LibraryStore.swift
+--- a/Nova/Services/LibraryStore.swift
++++ b/Nova/Services/LibraryStore.swift
 @@ -85,7 +85,10 @@ final class LibraryStore: ObservableObject {
          let cloudRev = CloudSync.shared.double(forKey: cloudRevisionKey) ?? 0
          let localRev = UserDefaults.standard.double(forKey: cloudRevisionKey)
@@ -374,10 +374,10 @@ index 7aaf9a4..ab7190c 100644
  
          applyingRemoteChange = true
          items = decoded
-diff --git a/Astra/Services/LiveTVSourceStore.swift b/Astra/Services/LiveTVSourceStore.swift
+diff --git a/Nova/Services/LiveTVSourceStore.swift b/Nova/Services/LiveTVSourceStore.swift
 index f67e5b3..10a839b 100644
---- a/Astra/Services/LiveTVSourceStore.swift
-+++ b/Astra/Services/LiveTVSourceStore.swift
+--- a/Nova/Services/LiveTVSourceStore.swift
++++ b/Nova/Services/LiveTVSourceStore.swift
 @@ -98,6 +98,16 @@ final class LiveTVSourceStore: ObservableObject {
          ) { [weak self] _ in
              Task { @MainActor [weak self] in self?.reload() }
@@ -438,10 +438,10 @@ index f67e5b3..10a839b 100644
          } catch {
              lastError = "Couldn't load \(source.name): \(error.localizedDescription)"
          }
-diff --git a/Astra/Services/MetadataParser.swift b/Astra/Services/MetadataParser.swift
+diff --git a/Nova/Services/MetadataParser.swift b/Nova/Services/MetadataParser.swift
 index acc20ea..90eb8c7 100644
---- a/Astra/Services/MetadataParser.swift
-+++ b/Astra/Services/MetadataParser.swift
+--- a/Nova/Services/MetadataParser.swift
++++ b/Nova/Services/MetadataParser.swift
 @@ -52,7 +52,9 @@ enum MetadataParser {
              if nums.count == 2 { return (nums[0], nums[1]) }
          }
@@ -453,10 +453,10 @@ index acc20ea..90eb8c7 100644
              let match = String(s[r])
              let nums = match.split(separator: "x").compactMap { Int($0) }
              if nums.count == 2 { return (nums[0], nums[1]) }
-diff --git a/Astra/Services/NowPlayingStore.swift b/Astra/Services/NowPlayingStore.swift
+diff --git a/Nova/Services/NowPlayingStore.swift b/Nova/Services/NowPlayingStore.swift
 index a80c891..8ebaead 100644
---- a/Astra/Services/NowPlayingStore.swift
-+++ b/Astra/Services/NowPlayingStore.swift
+--- a/Nova/Services/NowPlayingStore.swift
++++ b/Nova/Services/NowPlayingStore.swift
 @@ -29,12 +29,16 @@ final class NowPlayingStore: ObservableObject {
      func begin(_ item: MediaItem, initialProgress: Double = 0) {
          current = item
@@ -476,10 +476,10 @@ index a80c891..8ebaead 100644
          self.isPlaying = isPlaying
      }
  
-diff --git a/Astra/Services/RealDebridClient.swift b/Astra/Services/RealDebridClient.swift
+diff --git a/Nova/Services/RealDebridClient.swift b/Nova/Services/RealDebridClient.swift
 index a29014a..21963c6 100644
---- a/Astra/Services/RealDebridClient.swift
-+++ b/Astra/Services/RealDebridClient.swift
+--- a/Nova/Services/RealDebridClient.swift
++++ b/Nova/Services/RealDebridClient.swift
 @@ -94,8 +94,9 @@ final actor RealDebridClient {
          session: URLSession = AppNetworking.shared,
          tokenProvider: @escaping @Sendable () -> String? = { KeychainStore.shared.realDebridToken }
@@ -502,10 +502,10 @@ index a29014a..21963c6 100644
          req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
  
          if let form, endpoint.method == "POST" {
-diff --git a/Astra/Services/SMBStreamServer.swift b/Astra/Services/SMBStreamServer.swift
+diff --git a/Nova/Services/SMBStreamServer.swift b/Nova/Services/SMBStreamServer.swift
 index ffcb719..153a247 100644
---- a/Astra/Services/SMBStreamServer.swift
-+++ b/Astra/Services/SMBStreamServer.swift
+--- a/Nova/Services/SMBStreamServer.swift
++++ b/Nova/Services/SMBStreamServer.swift
 @@ -82,10 +82,10 @@ actor SMBStreamServer {
          guard let request = await readRequest(conn) else { conn.cancel(); return }
  
@@ -591,10 +591,10 @@ index ffcb719..153a247 100644
          conn.send(content: header.data(using: .utf8), completion: .contentProcessed { _ in })
  
          // Stream the requested byte range from SMB. AMSMB2 returns an async stream
-diff --git a/Astra/Services/StreamRanker.swift b/Astra/Services/StreamRanker.swift
+diff --git a/Nova/Services/StreamRanker.swift b/Nova/Services/StreamRanker.swift
 index 17040d5..372f366 100644
---- a/Astra/Services/StreamRanker.swift
-+++ b/Astra/Services/StreamRanker.swift
+--- a/Nova/Services/StreamRanker.swift
++++ b/Nova/Services/StreamRanker.swift
 @@ -264,7 +264,10 @@ enum StreamRanker {
  
      /// Parses seeders like "👤 1234", "Seeders: 56", "S:56".
@@ -607,10 +607,10 @@ index 17040d5..372f366 100644
          for p in patterns {
              if let r = s.range(of: p, options: .regularExpression) {
                  let digits = s[r].filter(\.isNumber)
-diff --git a/Astra/Services/TMDBClient.swift b/Astra/Services/TMDBClient.swift
+diff --git a/Nova/Services/TMDBClient.swift b/Nova/Services/TMDBClient.swift
 index 3fac26d..be9d08c 100644
---- a/Astra/Services/TMDBClient.swift
-+++ b/Astra/Services/TMDBClient.swift
+--- a/Nova/Services/TMDBClient.swift
++++ b/Nova/Services/TMDBClient.swift
 @@ -396,11 +396,20 @@ actor TMDBClient {
          }
      }
@@ -635,10 +635,10 @@ index 3fac26d..be9d08c 100644
 +        return Self.airDateFormatter.date(from: s)
      }
  }
-diff --git a/Astra/Views/AIView.swift b/Astra/Views/AIView.swift
+diff --git a/Nova/Views/AIView.swift b/Nova/Views/AIView.swift
 index fca1fb1..3749aee 100644
---- a/Astra/Views/AIView.swift
-+++ b/Astra/Views/AIView.swift
+--- a/Nova/Views/AIView.swift
++++ b/Nova/Views/AIView.swift
 @@ -119,8 +119,10 @@ struct AIView: View {
              .navigationDestination(for: CatalogItem.self) { item in
                  ContentDetailView(item: item)
@@ -668,14 +668,14 @@ index fca1fb1..3749aee 100644
 -                    .buttonStyle(.plain)
 +                    // Chip style gives these a proper tvOS focus/press effect,
 +                    // matching every other chip in the app.
-+                    .buttonStyle(AstraChipButtonStyle())
++                    .buttonStyle(NovaChipButtonStyle())
                  }
              }
          }
-diff --git a/Astra/Views/Catalog/AddonsView.swift b/Astra/Views/Catalog/AddonsView.swift
+diff --git a/Nova/Views/Catalog/AddonsView.swift b/Nova/Views/Catalog/AddonsView.swift
 index 30aa796..e890702 100644
---- a/Astra/Views/Catalog/AddonsView.swift
-+++ b/Astra/Views/Catalog/AddonsView.swift
+--- a/Nova/Views/Catalog/AddonsView.swift
++++ b/Nova/Views/Catalog/AddonsView.swift
 @@ -297,6 +297,8 @@ struct AddonsView: View {
                  set: { store.setEnabled(addon, $0) }
              ))
@@ -685,10 +685,10 @@ index 30aa796..e890702 100644
  
              FocusableButton(title: "Remove", systemImage: "trash") {
                  store.remove(addon)
-diff --git a/Astra/Views/Catalog/ContentDetailView.swift b/Astra/Views/Catalog/ContentDetailView.swift
+diff --git a/Nova/Views/Catalog/ContentDetailView.swift b/Nova/Views/Catalog/ContentDetailView.swift
 index 1e96bff..42d7cc0 100644
---- a/Astra/Views/Catalog/ContentDetailView.swift
-+++ b/Astra/Views/Catalog/ContentDetailView.swift
+--- a/Nova/Views/Catalog/ContentDetailView.swift
++++ b/Nova/Views/Catalog/ContentDetailView.swift
 @@ -48,8 +48,13 @@ struct ContentDetailView: View {
          GeometryReader { proxy in
              ScrollView {
@@ -717,7 +717,7 @@ index 1e96bff..42d7cc0 100644
 @@ -180,6 +185,8 @@ struct ContentDetailView: View {
                          .overlay(Circle().strokeBorder(Color.white.opacity(0.25), lineWidth: 1))
                  }
-                 .buttonStyle(AstraChipButtonStyle())
+                 .buttonStyle(NovaChipButtonStyle())
 +                // Accessibility: icon-only toggle needs a spoken name reflecting its state.
 +                .accessibilityLabel(isWatched ? "Mark as unwatched" : "Mark as watched")
              }
@@ -734,14 +734,14 @@ index 1e96bff..42d7cc0 100644
      }
  
      /// "TV Show · Comedy · Animation" style line.
-diff --git a/Astra/Views/Catalog/DiscoverView.swift b/Astra/Views/Catalog/DiscoverView.swift
+diff --git a/Nova/Views/Catalog/DiscoverView.swift b/Nova/Views/Catalog/DiscoverView.swift
 index 1d5d742..9947287 100644
---- a/Astra/Views/Catalog/DiscoverView.swift
-+++ b/Astra/Views/Catalog/DiscoverView.swift
+--- a/Nova/Views/Catalog/DiscoverView.swift
++++ b/Nova/Views/Catalog/DiscoverView.swift
 @@ -182,6 +182,8 @@ struct DiscoverView: View {
                          .foregroundStyle(Theme.Colors.textTertiary)
                  }
-                 .astraIconStyle()
+                 .novaIconStyle()
 +                // Accessibility: icon-only clear button needs a spoken name.
 +                .accessibilityLabel("Clear search")
              }
@@ -750,7 +750,7 @@ index 1d5d742..9947287 100644
 @@ -192,6 +194,8 @@ struct DiscoverView: View {
                      .foregroundStyle(aiSearching ? Theme.Colors.textTertiary : Theme.Colors.accent)
              }
-             .astraIconStyle()
+             .novaIconStyle()
 +            // Accessibility: name the sparkles icon so its purpose is clear.
 +            .accessibilityLabel("AI search")
              .disabled(aiSearching || query.trimmingCharacters(in: .whitespaces).count < 2)
@@ -766,10 +766,10 @@ index 1d5d742..9947287 100644
              .padding(.top, Theme.Spacing.md)
      }
  
-diff --git a/Astra/Views/Catalog/PersonView.swift b/Astra/Views/Catalog/PersonView.swift
+diff --git a/Nova/Views/Catalog/PersonView.swift b/Nova/Views/Catalog/PersonView.swift
 index 5196400..0a338a9 100644
---- a/Astra/Views/Catalog/PersonView.swift
-+++ b/Astra/Views/Catalog/PersonView.swift
+--- a/Nova/Views/Catalog/PersonView.swift
++++ b/Nova/Views/Catalog/PersonView.swift
 @@ -25,7 +25,8 @@ struct PersonView: View {
                  header
  
@@ -788,10 +788,10 @@ index 5196400..0a338a9 100644
 +        .accessibilityElement(children: .combine)
      }
  }
-diff --git a/Astra/Views/Catalog/StreamPickerView.swift b/Astra/Views/Catalog/StreamPickerView.swift
+diff --git a/Nova/Views/Catalog/StreamPickerView.swift b/Nova/Views/Catalog/StreamPickerView.swift
 index 786f04b..6aad1e0 100644
---- a/Astra/Views/Catalog/StreamPickerView.swift
-+++ b/Astra/Views/Catalog/StreamPickerView.swift
+--- a/Nova/Views/Catalog/StreamPickerView.swift
++++ b/Nova/Views/Catalog/StreamPickerView.swift
 @@ -71,14 +71,18 @@ struct StreamPickerView: View {
                  content
              }
@@ -840,14 +840,14 @@ index 786f04b..6aad1e0 100644
                  .foregroundStyle(active ? .white : Theme.Colors.textPrimary)
          }
 -        .buttonStyle(.plain)
-+        .buttonStyle(AstraChipButtonStyle())
++        .buttonStyle(NovaChipButtonStyle())
      }
  
      /// The remembered stream entry for this movie/episode, if any.
-diff --git a/Astra/Views/DirectURL/DirectURLView.swift b/Astra/Views/DirectURL/DirectURLView.swift
+diff --git a/Nova/Views/DirectURL/DirectURLView.swift b/Nova/Views/DirectURL/DirectURLView.swift
 index d690491..0d19f7e 100644
---- a/Astra/Views/DirectURL/DirectURLView.swift
-+++ b/Astra/Views/DirectURL/DirectURLView.swift
+--- a/Nova/Views/DirectURL/DirectURLView.swift
++++ b/Nova/Views/DirectURL/DirectURLView.swift
 @@ -37,9 +37,9 @@ struct DirectURLView: View {
                          .font(.appFont(22))
                          .foregroundStyle(Theme.Colors.textSecondary)
@@ -902,10 +902,10 @@ index d690491..0d19f7e 100644
      }
  
      /// Validates and constructs a MediaItem, surfacing any error inline.
-diff --git a/Astra/Views/Home/HomeView.swift b/Astra/Views/Home/HomeView.swift
+diff --git a/Nova/Views/Home/HomeView.swift b/Nova/Views/Home/HomeView.swift
 index 2523317..9b963b3 100644
---- a/Astra/Views/Home/HomeView.swift
-+++ b/Astra/Views/Home/HomeView.swift
+--- a/Nova/Views/Home/HomeView.swift
++++ b/Nova/Views/Home/HomeView.swift
 @@ -49,8 +49,10 @@ struct HomeView: View {
                      watchNowContent
                  }
@@ -931,7 +931,7 @@ index 2523317..9b963b3 100644
 @@ -271,6 +275,9 @@ struct HomeView: View {
                  .background(.ultraThinMaterial, in: Circle())
          }
-         .buttonStyle(AstraListRowStyle())
+         .buttonStyle(NovaListRowStyle())
 +        // Accessibility: icon-only button needs a spoken name and purpose.
 +        .accessibilityLabel("Customize Home")
 +        .accessibilityHint("Choose which shelves appear on Home")
@@ -947,10 +947,10 @@ index 2523317..9b963b3 100644
                              .listRowBackground(Theme.Colors.card)
                          }
                          .onMove { library.moveInQueue(from: $0, to: $1) }
-diff --git a/Astra/Views/Library/CollectionsView.swift b/Astra/Views/Library/CollectionsView.swift
+diff --git a/Nova/Views/Library/CollectionsView.swift b/Nova/Views/Library/CollectionsView.swift
 index 60b1440..2c5bf18 100644
---- a/Astra/Views/Library/CollectionsView.swift
-+++ b/Astra/Views/Library/CollectionsView.swift
+--- a/Nova/Views/Library/CollectionsView.swift
++++ b/Nova/Views/Library/CollectionsView.swift
 @@ -67,8 +67,10 @@ struct CollectionsView: View {
              }
          }
@@ -964,10 +964,10 @@ index 60b1440..2c5bf18 100644
          }
          .toolbar {
              if !library.collections.isEmpty {
-diff --git a/Astra/Views/Library/DuplicatesView.swift b/Astra/Views/Library/DuplicatesView.swift
+diff --git a/Nova/Views/Library/DuplicatesView.swift b/Nova/Views/Library/DuplicatesView.swift
 index f339720..5f2d521 100644
---- a/Astra/Views/Library/DuplicatesView.swift
-+++ b/Astra/Views/Library/DuplicatesView.swift
+--- a/Nova/Views/Library/DuplicatesView.swift
++++ b/Nova/Views/Library/DuplicatesView.swift
 @@ -35,7 +35,11 @@ struct DuplicatesView: View {
                              .padding(.horizontal, Theme.Spacing.edge)
  
@@ -989,10 +989,10 @@ index f339720..5f2d521 100644
              }
              .frame(maxWidth: 280)
              .padding(.top, Theme.Spacing.xs)
-diff --git a/Astra/Views/Library/LibraryView.swift b/Astra/Views/Library/LibraryView.swift
+diff --git a/Nova/Views/Library/LibraryView.swift b/Nova/Views/Library/LibraryView.swift
 index 05473fc..9abfe6e 100644
---- a/Astra/Views/Library/LibraryView.swift
-+++ b/Astra/Views/Library/LibraryView.swift
+--- a/Nova/Views/Library/LibraryView.swift
++++ b/Nova/Views/Library/LibraryView.swift
 @@ -120,8 +120,10 @@ struct LibraryView: View {
              .sheet(isPresented: $showStats) {
                  NavigationStack { WatchStatsView() }
@@ -1006,10 +1006,10 @@ index 05473fc..9abfe6e 100644
              }
              // Present the library item detail as a full navigation push on every
              // platform, matching how Home and Discover open detail. On iPad a plain
-diff --git a/Astra/Views/LiveTV/LiveTVSourcesView.swift b/Astra/Views/LiveTV/LiveTVSourcesView.swift
+diff --git a/Nova/Views/LiveTV/LiveTVSourcesView.swift b/Nova/Views/LiveTV/LiveTVSourcesView.swift
 index f1998cc..53a99e5 100644
---- a/Astra/Views/LiveTV/LiveTVSourcesView.swift
-+++ b/Astra/Views/LiveTV/LiveTVSourcesView.swift
+--- a/Nova/Views/LiveTV/LiveTVSourcesView.swift
++++ b/Nova/Views/LiveTV/LiveTVSourcesView.swift
 @@ -14,6 +14,8 @@ private struct LiveTVSourcesContent: View {
      @EnvironmentObject private var env: AppEnvironment
      @ObservedObject var store: LiveTVSourceStore
@@ -1053,10 +1053,10 @@ index f1998cc..53a99e5 100644
                      Image(systemName: "trash").foregroundStyle(Theme.Colors.error)
                  }.buttonStyle(.plain)
              }
-diff --git a/Astra/Views/LiveTV/LiveTVView.swift b/Astra/Views/LiveTV/LiveTVView.swift
+diff --git a/Nova/Views/LiveTV/LiveTVView.swift b/Nova/Views/LiveTV/LiveTVView.swift
 index da7bb78..1cb21bb 100644
---- a/Astra/Views/LiveTV/LiveTVView.swift
-+++ b/Astra/Views/LiveTV/LiveTVView.swift
+--- a/Nova/Views/LiveTV/LiveTVView.swift
++++ b/Nova/Views/LiveTV/LiveTVView.swift
 @@ -54,6 +54,13 @@ struct LiveTVView: View {
                      }
                      .padding(.vertical, Theme.Spacing.lg)
@@ -1084,10 +1084,10 @@ index da7bb78..1cb21bb 100644
          }
          .alert("Couldn't play channel", isPresented: .constant(errorMessage != nil)) {
              Button("OK") { errorMessage = nil }
-diff --git a/Astra/Views/Magnet/MagnetView.swift b/Astra/Views/Magnet/MagnetView.swift
+diff --git a/Nova/Views/Magnet/MagnetView.swift b/Nova/Views/Magnet/MagnetView.swift
 index 7c0abc7..e4f3543 100644
---- a/Astra/Views/Magnet/MagnetView.swift
-+++ b/Astra/Views/Magnet/MagnetView.swift
+--- a/Nova/Views/Magnet/MagnetView.swift
++++ b/Nova/Views/Magnet/MagnetView.swift
 @@ -64,8 +64,10 @@ struct MagnetView: View {
                  .frame(maxWidth: Theme.contentMaxWidth(1100), alignment: .leading)
              }
@@ -1110,10 +1110,10 @@ index 7c0abc7..e4f3543 100644
                  #if os(iOS)
                  PasteButton(text: $magnetText)
                  #endif
-diff --git a/Astra/Views/Player/PlayerView.swift b/Astra/Views/Player/PlayerView.swift
+diff --git a/Nova/Views/Player/PlayerView.swift b/Nova/Views/Player/PlayerView.swift
 index 6be52fe..1117d67 100644
---- a/Astra/Views/Player/PlayerView.swift
-+++ b/Astra/Views/Player/PlayerView.swift
+--- a/Nova/Views/Player/PlayerView.swift
++++ b/Nova/Views/Player/PlayerView.swift
 @@ -67,18 +67,28 @@ struct PlayerView: View {
              #endif
          }
@@ -1181,10 +1181,10 @@ index 6be52fe..1117d67 100644
          #endif
          .onChange(of: model.didFinish) { _, finished in
              if finished { handleFinish() }
-diff --git a/Astra/Views/Player/SubtitlePickerView.swift b/Astra/Views/Player/SubtitlePickerView.swift
+diff --git a/Nova/Views/Player/SubtitlePickerView.swift b/Nova/Views/Player/SubtitlePickerView.swift
 index d6199fc..baebbeb 100644
---- a/Astra/Views/Player/SubtitlePickerView.swift
-+++ b/Astra/Views/Player/SubtitlePickerView.swift
+--- a/Nova/Views/Player/SubtitlePickerView.swift
++++ b/Nova/Views/Player/SubtitlePickerView.swift
 @@ -129,7 +129,11 @@ struct SubtitlePickerView: View {
  
      private func row(title: String, subtitle: String?, isSelected: Bool,
@@ -1198,10 +1198,10 @@ index d6199fc..baebbeb 100644
              HStack(spacing: Theme.Spacing.md) {
                  Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                      .foregroundStyle(isSelected ? Theme.Colors.accent : Theme.Colors.textSecondary)
-diff --git a/Astra/Views/Player/VLCPlayerView.swift b/Astra/Views/Player/VLCPlayerView.swift
+diff --git a/Nova/Views/Player/VLCPlayerView.swift b/Nova/Views/Player/VLCPlayerView.swift
 index 70e15bc..d02444c 100644
---- a/Astra/Views/Player/VLCPlayerView.swift
-+++ b/Astra/Views/Player/VLCPlayerView.swift
+--- a/Nova/Views/Player/VLCPlayerView.swift
++++ b/Nova/Views/Player/VLCPlayerView.swift
 @@ -186,18 +186,33 @@ struct VLCPlayerView: View {
              if phase != .active { model.checkpointProgress() }
          }
@@ -1256,10 +1256,10 @@ index 70e15bc..d02444c 100644
                          model.togglePlayPause(); revealControls()
                      }
                      #if os(tvOS)
-diff --git a/Astra/Views/RealDebrid/RealDebridView.swift b/Astra/Views/RealDebrid/RealDebridView.swift
+diff --git a/Nova/Views/RealDebrid/RealDebridView.swift b/Nova/Views/RealDebrid/RealDebridView.swift
 index e59762c..54f3fe6 100644
---- a/Astra/Views/RealDebrid/RealDebridView.swift
-+++ b/Astra/Views/RealDebrid/RealDebridView.swift
+--- a/Nova/Views/RealDebrid/RealDebridView.swift
++++ b/Nova/Views/RealDebrid/RealDebridView.swift
 @@ -28,6 +28,8 @@ struct RealDebridView: View {
      @State private var linkText = ""
      @State private var legalConfirmed = false
@@ -1308,10 +1308,10 @@ index e59762c..54f3fe6 100644
              } else if let device = rdDeviceCode {
                  // Browser device-code flow in progress.
                  VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-diff --git a/Astra/Views/RootView.swift b/Astra/Views/RootView.swift
+diff --git a/Nova/Views/RootView.swift b/Nova/Views/RootView.swift
 index ccc1054..c915e3b 100644
---- a/Astra/Views/RootView.swift
-+++ b/Astra/Views/RootView.swift
+--- a/Nova/Views/RootView.swift
++++ b/Nova/Views/RootView.swift
 @@ -29,9 +29,13 @@ struct RootView: View {
              .tint(accentManager.accent)
              .onOpenURL { nav.handle(url: $0) }
@@ -1385,10 +1385,10 @@ index ccc1054..c915e3b 100644
                  .frame(height: isTV ? 5 : 3)
                  .padding(.horizontal, isTV ? Theme.Spacing.md : 12)
                  .padding(.bottom, isTV ? 12 : 8)
-diff --git a/Astra/Views/SMB/SMBBrowseView.swift b/Astra/Views/SMB/SMBBrowseView.swift
+diff --git a/Nova/Views/SMB/SMBBrowseView.swift b/Nova/Views/SMB/SMBBrowseView.swift
 index ff9d4e1..35bf00b 100644
---- a/Astra/Views/SMB/SMBBrowseView.swift
-+++ b/Astra/Views/SMB/SMBBrowseView.swift
+--- a/Nova/Views/SMB/SMBBrowseView.swift
++++ b/Nova/Views/SMB/SMBBrowseView.swift
 @@ -48,8 +48,10 @@ struct SMBBrowseView: View {
                  content
              }
@@ -1411,10 +1411,10 @@ index ff9d4e1..35bf00b 100644
          } catch {
              state = .error((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
          }
-diff --git a/Astra/Views/SMB/SMBListView.swift b/Astra/Views/SMB/SMBListView.swift
+diff --git a/Nova/Views/SMB/SMBListView.swift b/Nova/Views/SMB/SMBListView.swift
 index a989e7c..c7249de 100644
---- a/Astra/Views/SMB/SMBListView.swift
-+++ b/Astra/Views/SMB/SMBListView.swift
+--- a/Nova/Views/SMB/SMBListView.swift
++++ b/Nova/Views/SMB/SMBListView.swift
 @@ -16,6 +16,8 @@ import Combine
  struct SMBListView: View {
      @StateObject private var model = SMBSharesModel()
@@ -1455,10 +1455,10 @@ index a989e7c..c7249de 100644
              } label: {
                  Image(systemName: "trash")
                      .font(.appFont(22))
-diff --git a/Astra/Views/Settings/AccountsView.swift b/Astra/Views/Settings/AccountsView.swift
+diff --git a/Nova/Views/Settings/AccountsView.swift b/Nova/Views/Settings/AccountsView.swift
 index 6daf404..78a927a 100644
---- a/Astra/Views/Settings/AccountsView.swift
-+++ b/Astra/Views/Settings/AccountsView.swift
+--- a/Nova/Views/Settings/AccountsView.swift
++++ b/Nova/Views/Settings/AccountsView.swift
 @@ -106,6 +106,9 @@ struct AccountsView: View {
                  }
                  .frame(maxWidth: Theme.isCompact ? .infinity : 360)
@@ -1491,10 +1491,10 @@ index 6daf404..78a927a 100644
          savedFlash = true
          Task {
              try? await Task.sleep(nanoseconds: 1_500_000_000)
-diff --git a/Astra/Views/Settings/LibraryFoldersView.swift b/Astra/Views/Settings/LibraryFoldersView.swift
+diff --git a/Nova/Views/Settings/LibraryFoldersView.swift b/Nova/Views/Settings/LibraryFoldersView.swift
 index 842e0e0..2c79cfc 100644
---- a/Astra/Views/Settings/LibraryFoldersView.swift
-+++ b/Astra/Views/Settings/LibraryFoldersView.swift
+--- a/Nova/Views/Settings/LibraryFoldersView.swift
++++ b/Nova/Views/Settings/LibraryFoldersView.swift
 @@ -18,6 +18,8 @@ private struct LibraryFoldersContent: View {
      @ObservedObject var store: LibraryFolderStore
      @State private var showPicker = false
@@ -1527,17 +1527,17 @@ index 842e0e0..2c79cfc 100644
 @@ -95,7 +110,8 @@ private struct LibraryFoldersContent: View {
                      }
                  } label: { Label("Rescan", systemImage: "arrow.clockwise").font(.appFont(15, weight: .semibold)) }
-                 .buttonStyle(AstraChipButtonStyle()).disabled(scanning)
+                 .buttonStyle(NovaChipButtonStyle()).disabled(scanning)
 -                Button(role: .destructive) { store.removeFolder(folder) } label: {
 +                // Ask before removing instead of deleting immediately.
 +                Button(role: .destructive) { pendingDelete = folder } label: {
                      Label("Remove", systemImage: "trash").font(.appFont(15, weight: .semibold)).foregroundStyle(Theme.Colors.error)
                  }
-                 .buttonStyle(AstraChipButtonStyle()).disabled(scanning)
-diff --git a/Astra/Views/Settings/TitleCleanupRulesView.swift b/Astra/Views/Settings/TitleCleanupRulesView.swift
+                 .buttonStyle(NovaChipButtonStyle()).disabled(scanning)
+diff --git a/Nova/Views/Settings/TitleCleanupRulesView.swift b/Nova/Views/Settings/TitleCleanupRulesView.swift
 index 194e67e..d748108 100644
---- a/Astra/Views/Settings/TitleCleanupRulesView.swift
-+++ b/Astra/Views/Settings/TitleCleanupRulesView.swift
+--- a/Nova/Views/Settings/TitleCleanupRulesView.swift
++++ b/Nova/Views/Settings/TitleCleanupRulesView.swift
 @@ -15,6 +15,8 @@ struct TitleCleanupRulesView: View {
      @State private var editing: TitleCleanupRule?
      @State private var showingNew = false
@@ -1566,10 +1566,10 @@ index 194e67e..d748108 100644
              }
          }
          .navigationTitle("Cleanup Rules")
-diff --git a/Astra/Views/Settings/TraktConnectView.swift b/Astra/Views/Settings/TraktConnectView.swift
+diff --git a/Nova/Views/Settings/TraktConnectView.swift b/Nova/Views/Settings/TraktConnectView.swift
 index 0c7b2e5..bb2c495 100644
---- a/Astra/Views/Settings/TraktConnectView.swift
-+++ b/Astra/Views/Settings/TraktConnectView.swift
+--- a/Nova/Views/Settings/TraktConnectView.swift
++++ b/Nova/Views/Settings/TraktConnectView.swift
 @@ -17,6 +17,8 @@ struct TraktConnectView: View {
  
      @AppStorage("settings.traktLastSync") private var lastSyncStamp: Double = 0
@@ -1617,10 +1617,10 @@ index 0c7b2e5..bb2c495 100644
      }
  
      private var deviceCodeView: some View {
-diff --git a/Astra/Views/TVMenuOverlay.swift b/Astra/Views/TVMenuOverlay.swift
+diff --git a/Nova/Views/TVMenuOverlay.swift b/Nova/Views/TVMenuOverlay.swift
 index ca46ead..912a52e 100644
---- a/Astra/Views/TVMenuOverlay.swift
-+++ b/Astra/Views/TVMenuOverlay.swift
+--- a/Nova/Views/TVMenuOverlay.swift
++++ b/Nova/Views/TVMenuOverlay.swift
 @@ -91,8 +91,10 @@ private struct TVTabPillBody: View {
              )
              .shadow(color: isFocused ? Color.black.opacity(0.5) : .clear,

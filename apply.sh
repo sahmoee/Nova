@@ -6,11 +6,11 @@ set -euo pipefail
 
 # ViewingProfileStore.swift is relocated from Services/ to App/ to match the
 # location the Xcode project (App group) already expects. Remove the stale copy.
-if [ -f "Astra/Services/ViewingProfileStore.swift" ]; then
-  git rm -f --quiet "Astra/Services/ViewingProfileStore.swift" || rm -f "Astra/Services/ViewingProfileStore.swift"
-  echo "Removed stale Astra/Services/ViewingProfileStore.swift"
+if [ -f "Nova/Services/ViewingProfileStore.swift" ]; then
+  git rm -f --quiet "Nova/Services/ViewingProfileStore.swift" || rm -f "Nova/Services/ViewingProfileStore.swift"
+  echo "Removed stale Nova/Services/ViewingProfileStore.swift"
 else
-  echo "No stale Astra/Services/ViewingProfileStore.swift to remove"
+  echo "No stale Nova/Services/ViewingProfileStore.swift to remove"
 fi
 
 git add -A

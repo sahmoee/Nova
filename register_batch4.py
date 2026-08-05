@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Batch 4 project updates (idempotent). Run from the repo root.
 
-Adds:    Astra/Views/Settings/LibraryHealthView.swift
-         Astra/Views/Settings/PlayFromLinkView.swift
+Adds:    Nova/Views/Settings/LibraryHealthView.swift
+         Nova/Views/Settings/PlayFromLinkView.swift
 Removes: Components/Polish.swift registration (its contents moved into
          App/Theme.swift; apply.sh deletes the file itself).
 """
 import hashlib, pathlib, re, sys
 
-PBX = pathlib.Path("Astra.xcodeproj/project.pbxproj")
+PBX = pathlib.Path("Nova.xcodeproj/project.pbxproj")
 ADD = [
     ("LibraryHealthView.swift", "SettingsView.swift", "SettingsView.swift"),
     ("PlayFromLinkView.swift",  "SettingsView.swift", "SettingsView.swift"),
@@ -48,7 +48,7 @@ def main():
             s = s.replace(m.group(1), m.group(1) + child, 1); changed = True
         for bf in (bf1, bf2):
             if f"{bf} /* {name} in Sources */ = {{isa = PBXBuildFile" not in s:
-                m = re.search(r"(\t\t[0-9A-F]{24} /\* AstraApp.swift in Sources \*/ = \{isa = PBXBuildFile[^\n]*\n)", s)
+                m = re.search(r"(\t\t[0-9A-F]{24} /\* NovaApp.swift in Sources \*/ = \{isa = PBXBuildFile[^\n]*\n)", s)
                 line = (f"\t\t{bf} /* {name} in Sources */ = {{isa = PBXBuildFile; "
                         f"fileRef = {ref} /* {name} */; }};\n")
                 s = s.replace(m.group(1), m.group(1) + line, 1); changed = True

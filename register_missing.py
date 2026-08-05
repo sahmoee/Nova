@@ -3,7 +3,7 @@
 # CollectionPickerSheet.swift (Views/Library) across iOS + tvOS targets.
 import re, sys, uuid
 
-PBX = "Astra.xcodeproj/project.pbxproj"
+PBX = "Nova.xcodeproj/project.pbxproj"
 
 def mkid():
     return uuid.uuid4().hex[:24].upper()

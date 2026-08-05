@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Registers Batch 3's new Swift file (EPGService.swift) in Astra.xcodeproj.
+"""Registers Batch 3's new Swift file (EPGService.swift) in Nova.xcodeproj.
 Idempotent; run from the repo root: python3 register_batch3.py"""
 import hashlib, pathlib, re, sys
 
-PBX = pathlib.Path("Astra.xcodeproj/project.pbxproj")
+PBX = pathlib.Path("Nova.xcodeproj/project.pbxproj")
 FILES = [("EPGService.swift", "LiveTVSourceStore.swift", "LiveTVSourceStore.swift")]
 
 def hid(seed):
@@ -29,7 +29,7 @@ def main():
             s = s.replace(m.group(1), m.group(1) + child, 1); changed = True
         for bf in (bf1, bf2):
             if f"{bf} /* {name} in Sources */ = {{isa = PBXBuildFile" not in s:
-                m = re.search(r"(\t\t[0-9A-F]{24} /\* AstraApp.swift in Sources \*/ = \{isa = PBXBuildFile[^\n]*\n)", s)
+                m = re.search(r"(\t\t[0-9A-F]{24} /\* NovaApp.swift in Sources \*/ = \{isa = PBXBuildFile[^\n]*\n)", s)
                 line = (f"\t\t{bf} /* {name} in Sources */ = {{isa = PBXBuildFile; "
                         f"fileRef = {ref} /* {name} */; }};\n")
                 s = s.replace(m.group(1), m.group(1) + line, 1); changed = True

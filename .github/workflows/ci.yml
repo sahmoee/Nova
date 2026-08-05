@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - run: npm ci
+      - run: npm run check
+
+  apple-platforms:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Validate project registration and configuration
+        run: |
+          ./validate_nova_config.sh
+          ./bundleid-guard.sh
+          ./verify_registration.sh
+          plutil -lint Nova.xcodeproj/project.pbxproj
+      - name: Build and test iOS
+        run: >-
+          xcodebuild
+          -project Nova.xcodeproj
+          -scheme Nova-iOS
+          -configuration Debug
+          -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest'
+          -skipPackagePluginValidation
+          CODE_SIGNING_ALLOWED=NO
+          test
+      - name: Build tvOS
+        run: >-
+          xcodebuild
+          -project Nova.xcodeproj
+          -scheme Nova-tvOS
+          -configuration Debug
+          -destination 'generic/platform=tvOS Simulator'
+          -skipPackagePluginValidation
+          CODE_SIGNING_ALLOWED=NO
+          build
