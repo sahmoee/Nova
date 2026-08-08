@@ -562,3 +562,319 @@ struct AIView: View {
         ToastCenter.shared.show("Queued \(items.count) title\(items.count == 1 ? "" : "s")")
     }
 }
+
+// MARK: - New & Hot
+
+/// Nova's editorial catalog destination, reached from Search now that the dedicated
+/// tab once again exposes the complete AI feature directory.
+struct NewAndHotView: View {
+    @Binding var path: NavigationPath
+    @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var nav: NavigationCoordinator
+    @StateObject private var reminders = CatalogReminderStore.shared
+    @StateObject private var network = NetworkConditionMonitor.shared
+
+    @State private var trending: [CatalogItem] = []
+    @State private var newThisWeek: [CatalogItem] = []
+    @State private var comingSoon: [CatalogItem] = []
+    @State private var popular: [CatalogItem] = []
+    @State private var loading = true
+    @State private var errorMessage: String?
+    @State private var filter: NewHotFilter = .all
+
+    private enum NewHotFilter: String, CaseIterable, Identifiable {
+        case all = "Everything", movies = "Movies", shows = "TV Shows", reminders = "Reminders"
+        var id: Self { self }
+    }
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            ZStack {
+                Theme.Colors.appBackground.ignoresSafeArea()
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
+                        header
+                        if !network.isOnline { offlineBanner }
+                        content
+                    }
+                    .padding(.bottom, Theme.Spacing.xl)
+                }
+                #if os(iOS)
+                .refreshable { await load() }
+                #endif
+            }
+            .navigationDestination(for: CatalogItem.self) { ContentDetailView(item: $0) }
+        }
+        .task { if trending.isEmpty { await load() } }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("New & Hot")
+                        .font(Theme.Font.screenTitle())
+                        .screenTitleStyle()
+                    Text("The titles everyone is talking about.")
+                        .font(.appFont(17))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "sparkles")
+                    .font(.appFont(22, weight: .bold))
+                    .foregroundStyle(Theme.Colors.accent)
+                    .accessibilityHidden(true)
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    ForEach(NewHotFilter.allCases) { option in
+                        Button(option.rawValue) { withAnimation(Theme.Motion.spring) { filter = option } }
+                            .buttonStyle(NewHotFilterButtonStyle(selected: filter == option))
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, Theme.Spacing.edge)
+        .padding(.top, Theme.Spacing.lg)
+    }
+
+    @ViewBuilder private var content: some View {
+        if !env.tmdb.hasKey {
+            setupState
+        } else if loading && trending.isEmpty {
+            newHotSkeleton
+        } else if let errorMessage, trending.isEmpty {
+            retryState(errorMessage)
+        } else if filter == .reminders {
+            let saved = filtered((trending + newThisWeek + comingSoon + popular).uniquedCatalog)
+                .filter { reminders.contains($0) }
+            if saved.isEmpty {
+                EmptyStateView(systemImage: "bell", title: "No reminders yet",
+                               message: "Choose Remind Me on a coming-soon title and it will appear here.")
+            } else {
+                posterGrid(title: "My Reminders", items: saved)
+            }
+        } else {
+            if let hero = filtered(trending).first { editorialHero(hero) }
+            rankedRow(Array(filtered(trending).prefix(10)))
+            reminderRow(title: "Coming Soon", items: filtered(comingSoon))
+            posterRow(title: "New This Week", items: filtered(newThisWeek))
+            posterRow(title: "Popular on Nova", items: filtered(popular))
+        }
+    }
+
+    private var offlineBanner: some View {
+        Label("You're offline — showing the catalog already loaded on this device.", systemImage: "wifi.slash")
+            .font(.appFont(15, weight: .semibold))
+            .foregroundStyle(.white)
+            .padding(Theme.Spacing.sm)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.Colors.iconGraphite.opacity(0.8), in: RoundedRectangle(cornerRadius: Theme.Radius.button))
+            .padding(.horizontal, Theme.Spacing.edge)
+    }
+
+    private var setupState: some View {
+        EmptyStateView(systemImage: "film.stack", title: "Unlock New & Hot",
+                       message: "Add a free TMDB key in Settings to load current movies, shows, artwork, and release picks.",
+                       actionTitle: "Open Settings", actionSystemImage: "gearshape") {
+            nav.selection = .settings
+        }
+    }
+
+    private var newHotSkeleton: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+            RoundedRectangle(cornerRadius: Theme.Radius.largeCard)
+                .fill(Theme.Colors.card).frame(height: Theme.isCompact ? 330 : 460).shimmering()
+            ForEach(0..<2, id: \.self) { _ in
+                HStack(spacing: Theme.Spacing.md) {
+                    ForEach(0..<4, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: Theme.Radius.card)
+                            .fill(Theme.Colors.card)
+                            .frame(width: Theme.CardSize.posterWidth * 0.78,
+                                   height: Theme.CardSize.posterHeight * 0.78)
+                    }
+                }.shimmering()
+            }
+        }.padding(.horizontal, Theme.Spacing.edge)
+    }
+
+    private func retryState(_ message: String) -> some View {
+        EmptyStateView(systemImage: "exclamationmark.arrow.triangle.2.circlepath", title: "Couldn't refresh",
+                       message: message, actionTitle: "Try Again", actionSystemImage: "arrow.clockwise") {
+            Task { await load() }
+        }
+    }
+
+    private func editorialHero(_ item: CatalogItem) -> some View {
+        ZStack(alignment: .bottomLeading) {
+            CachedAsyncImage(url: item.backdropURL ?? item.posterURL, maxPixel: 1600) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: { Rectangle().fill(Theme.Colors.card).shimmering() }
+            .frame(maxWidth: .infinity).frame(height: Theme.isCompact ? 360 : 500).clipped()
+            LinearGradient(colors: [.clear, .black.opacity(0.35), .black], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [.black.opacity(0.75), .clear], startPoint: .leading, endPoint: .trailing)
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Text("#1 IN NEW & HOT").font(.appFont(13, weight: .black)).tracking(1.1).foregroundStyle(Theme.Colors.accent)
+                Text(item.title).font(.appFont(42, weight: .black)).lineLimit(2).minimumScaleFactor(0.65)
+                Text(item.overview ?? "A standout pick for your next watch.")
+                    .font(.appFont(16)).foregroundStyle(Theme.Colors.textSecondary).lineLimit(3)
+                NavigationLink(value: item) {
+                    Label("More Info", systemImage: "info.circle.fill")
+                        .font(.appFont(17, weight: .bold)).padding(.horizontal, 18).padding(.vertical, 11)
+                        .background(.white, in: RoundedRectangle(cornerRadius: Theme.Radius.button)).foregroundStyle(.black)
+                }.buttonStyle(.plain)
+            }
+            .frame(maxWidth: Theme.isCompact ? .infinity : 620, alignment: .leading)
+            .padding(Theme.Spacing.edge)
+        }
+        .frame(height: Theme.isCompact ? 360 : 500)
+        .clipped()
+    }
+
+    private func rankedRow(_ items: [CatalogItem]) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            sectionTitle("Top 10 Today")
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 0) {
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        NavigationLink(value: item) {
+                            HStack(alignment: .bottom, spacing: -18) {
+                                Text("\(index + 1)")
+                                    .font(.system(size: Theme.CardSize.posterHeight * 0.62, weight: .black, design: .rounded))
+                                    .foregroundStyle(.black)
+                                    .overlay(Text("\(index + 1)").font(.system(size: Theme.CardSize.posterHeight * 0.62, weight: .black, design: .rounded)).strokeText(color: .white.opacity(0.72), width: 1.5))
+                                CatalogPosterCard(item: item, scale: 0.82)
+                            }
+                        }.buttonStyle(NovaListRowStyle()).accessibilityLabel("Number \(index + 1), \(item.title)")
+                    }
+                }.padding(.horizontal, Theme.Spacing.edge)
+            }
+        }
+    }
+
+    private func posterRow(title: String, items: [CatalogItem]) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            sectionTitle(title)
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: Theme.Spacing.md) {
+                    ForEach(items) { item in
+                        NavigationLink(value: item) { CatalogPosterCard(item: item, scale: 0.82) }
+                            .buttonStyle(NovaListRowStyle())
+                    }
+                }.padding(.horizontal, Theme.Spacing.edge)
+            }
+        }
+    }
+
+    private func reminderRow(title: String, items: [CatalogItem]) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            sectionTitle(title)
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: Theme.Spacing.md) {
+                    ForEach(items) { item in
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                            NavigationLink(value: item) { CatalogPosterCard(item: item, scale: 0.82) }
+                                .buttonStyle(NovaListRowStyle())
+                            Button { reminders.toggle(item); Haptics.selection() } label: {
+                                Label(reminders.contains(item) ? "Reminder Set" : "Remind Me",
+                                      systemImage: reminders.contains(item) ? "bell.fill" : "bell")
+                                    .font(.appFont(14, weight: .bold))
+                            }.buttonStyle(NewHotFilterButtonStyle(selected: reminders.contains(item)))
+                        }
+                    }
+                }.padding(.horizontal, Theme.Spacing.edge)
+            }
+        }
+    }
+
+    private func posterGrid(title: String, items: [CatalogItem]) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            sectionTitle(title)
+            LazyVGrid(columns: Theme.posterGridColumns, spacing: Theme.Spacing.lg) {
+                ForEach(items) { item in
+                    NavigationLink(value: item) { CatalogPosterCard(item: item, scale: 0.82) }
+                        .buttonStyle(NovaListRowStyle())
+                }
+            }.padding(.horizontal, Theme.Spacing.edge)
+        }
+    }
+
+    private func sectionTitle(_ title: String) -> some View {
+        Text(title).font(Theme.Font.sectionTitle()).foregroundStyle(.white)
+            .padding(.horizontal, Theme.Spacing.edge)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    private func filtered(_ items: [CatalogItem]) -> [CatalogItem] {
+        switch filter {
+        case .movies: return items.filter { $0.contentID.type == .movie }
+        case .shows: return items.filter { $0.contentID.type == .series }
+        case .all, .reminders: return items
+        }
+    }
+
+    @MainActor private func load() async {
+        guard env.tmdb.hasKey else { loading = false; return }
+        loading = true
+        errorMessage = nil
+        do {
+            async let movies = env.tmdb.trendingMovies()
+            async let shows = env.tmdb.trendingShows()
+            async let currentMovies = env.tmdb.nowPlayingMovies()
+            async let currentShows = env.tmdb.airingTodayShows()
+            async let upcomingMovies = env.tmdb.upcomingMovies()
+            async let upcomingShows = env.tmdb.onTheAirShows()
+            async let popularMovies = env.tmdb.popularMovies()
+            async let popularShows = env.tmdb.popularShows()
+            trending = try await (movies + shows).uniquedCatalog
+            newThisWeek = try await (currentMovies + currentShows).uniquedCatalog
+            comingSoon = try await (upcomingMovies + upcomingShows).uniquedCatalog
+            popular = try await (popularMovies + popularShows).uniquedCatalog
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        loading = false
+    }
+}
+
+@MainActor
+private final class CatalogReminderStore: ObservableObject {
+    static let shared = CatalogReminderStore()
+    @Published private(set) var keys: Set<String>
+    private let defaultsKey = "nova.catalog.reminders"
+    private init() { keys = Set(UserDefaults.standard.stringArray(forKey: defaultsKey) ?? []) }
+    func contains(_ item: CatalogItem) -> Bool { keys.contains(item.id) }
+    func toggle(_ item: CatalogItem) {
+        if keys.contains(item.id) { keys.remove(item.id) } else { keys.insert(item.id) }
+        UserDefaults.standard.set(Array(keys).sorted(), forKey: defaultsKey)
+    }
+}
+
+private struct NewHotFilterButtonStyle: ButtonStyle {
+    let selected: Bool
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.appFont(15, weight: .bold))
+            .foregroundStyle(selected ? .white : Theme.Colors.textSecondary)
+            .padding(.horizontal, 15).padding(.vertical, 9)
+            .background(selected ? Theme.Colors.accent : Theme.Colors.card,
+                        in: Capsule())
+            .opacity(configuration.isPressed ? 0.7 : 1)
+    }
+}
+
+private extension Array where Element == CatalogItem {
+    var uniquedCatalog: [CatalogItem] {
+        var seen = Set<String>()
+        return filter { seen.insert($0.id).inserted }
+    }
+}
+
+private extension View {
+    func strokeText(color: Color, width: CGFloat) -> some View {
+        self.shadow(color: color, radius: 0, x: width, y: 0)
+            .shadow(color: color, radius: 0, x: -width, y: 0)
+            .shadow(color: color, radius: 0, x: 0, y: width)
+            .shadow(color: color, radius: 0, x: 0, y: -width)
+    }
+}

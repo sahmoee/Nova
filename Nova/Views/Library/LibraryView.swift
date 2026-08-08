@@ -210,7 +210,7 @@ struct LibraryView: View {
     @ViewBuilder
     private var classicHeader: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("Library")
+            Text("My Nova")
                 .font(Theme.Font.screenTitle())
                 .screenTitleStyle()
                 .foregroundStyle(Theme.Colors.textPrimary)
@@ -275,7 +275,7 @@ struct LibraryView: View {
     @ViewBuilder
     private var cleanHeader: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("My Library")
+            Text("My Nova")
                 .font(Theme.Font.screenTitle())
                 .screenTitleStyle()
                 .foregroundStyle(Theme.Colors.textPrimary)

@@ -92,6 +92,7 @@ struct ErrorStateView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.appFont(64))
                 .foregroundStyle(Theme.Colors.error)
+                .accessibilityHidden(true)
             Text(title)
                 .font(.appFont(30, weight: .bold))
                 .foregroundStyle(Theme.Colors.textPrimary)

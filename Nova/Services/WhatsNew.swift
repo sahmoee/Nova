@@ -35,6 +35,39 @@ enum WhatsNew {
     /// The changelog. Newest version first. Add a new entry on every release.
     static let releases: [ReleaseNote] = [
         ReleaseNote(
+            version: "1.7",
+            headline: "Meet the new cinematic Nova",
+            features: [
+                ReleaseFeature(
+                    symbol: "play.rectangle.on.rectangle.fill",
+                    title: "New & Hot",
+                    detail: "Browse a full-screen editorial feed with Top 10 Today, Coming Soon, New This Week, and popular picks.",
+                    tryItTab: .ai
+                ),
+                ReleaseFeature(
+                    symbol: "bell.fill",
+                    title: "Remind Me",
+                    detail: "Save upcoming movies and shows to a persistent reminder list, then filter the feed to see only your picks.",
+                    tryItTab: .ai
+                ),
+                ReleaseFeature(
+                    symbol: "rectangle.3.group.fill",
+                    title: "A sharper streaming layout",
+                    detail: "Edge-to-edge artwork, ranked poster rails, tighter cards, crimson accents, and a focused My Nova destination make browsing faster."
+                ),
+                ReleaseFeature(
+                    symbol: "textformat.size",
+                    title: "Built for every screen and text size",
+                    detail: "iPhone and iPad layouts respond to their live window size, while hero controls reflow for larger accessibility text."
+                ),
+                ReleaseFeature(
+                    symbol: "wifi.slash",
+                    title: "Clear loading and offline states",
+                    detail: "New skeletons, retry actions, setup guidance, and connectivity messaging explain what Nova is doing without dead ends."
+                )
+            ]
+        ),
+        ReleaseNote(
             version: "3",
             headline: "A cinematic redesign and smarter sources",
             features: [

@@ -1646,13 +1646,13 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 19;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-tvOS.plist";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				MARKETING_VERSION = 1.7;
-				PRODUCT_BUNDLE_IDENTIFIER = com.nova.app.Tvos;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nova.app.tvos;
 				PRODUCT_NAME = "Nova-tvOS";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = appletvos;
@@ -1674,13 +1674,13 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 19;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-tvOS.plist";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				MARKETING_VERSION = 1.7;
-				PRODUCT_BUNDLE_IDENTIFIER = com.nova.app.Tvos;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nova.app.tvos;
 				PRODUCT_NAME = "Nova-tvOS";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = appletvos;
@@ -1706,7 +1706,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CODE_SIGN_ENTITLEMENTS = NovaWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 19;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NovaWidgets/Info.plist;
@@ -1750,7 +1750,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CODE_SIGN_ENTITLEMENTS = NovaWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 19;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NovaWidgets/Info.plist;
@@ -1788,7 +1788,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 19;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-iOS.plist";
@@ -1816,7 +1816,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 19;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-iOS.plist";

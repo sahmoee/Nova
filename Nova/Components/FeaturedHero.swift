@@ -23,6 +23,7 @@ struct FeaturedHero: View {
     var onPlay: (MediaItem) -> Void
 
     @Environment(\.dynamicAccent) private var accent
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         GeometryReader { geo in
@@ -40,7 +41,8 @@ struct FeaturedHero: View {
         #if os(tvOS)
         return 560
         #else
-        return Theme.isCompact ? 400 : 460
+        if dynamicTypeSize.isAccessibilitySize { return Theme.isCompact ? 520 : 560 }
+        return Theme.isCompact ? 420 : 500
         #endif
     }
 
@@ -96,21 +98,9 @@ struct FeaturedHero: View {
                         .minimumScaleFactor(0.82)
                 }
 
-                HStack(spacing: Theme.Spacing.sm) {
-                    playButton
-                    if let onMoreInfo {
-                        Button { onMoreInfo(item) } label: {
-                            HStack(spacing: Theme.Spacing.xs) {
-                                Image(systemName: "info.circle")
-                                Text("More Info").fontWeight(.semibold)
-                            }
-                            .font(.appFont(18))
-                            .padding(.horizontal, Theme.Spacing.md)
-                            .padding(.vertical, Theme.Spacing.xs)
-                        }
-                        .buttonStyle(HeroInfoButtonStyle())
-                        .accessibilityLabel("More info about \(item.title)")
-                    }
+                ViewThatFits(in: .horizontal) {
+                    heroActions
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) { heroActions }
                 }
                 .padding(.top, 2)
             }
@@ -126,6 +116,25 @@ struct FeaturedHero: View {
         .frame(width: width, height: heroHeight)
         .clipped()
         .onAppear { AccentManager.shared.deriveAccent(from: item.posterURL ?? item.backdropURL) }
+    }
+
+    private var heroActions: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            playButton
+            if let onMoreInfo {
+                Button { onMoreInfo(item) } label: {
+                            HStack(spacing: Theme.Spacing.xs) {
+                                Image(systemName: "info.circle")
+                                Text("More Info").fontWeight(.semibold)
+                            }
+                            .font(.appFont(18))
+                            .padding(.horizontal, Theme.Spacing.md)
+                            .padding(.vertical, Theme.Spacing.xs)
+                }
+                .buttonStyle(HeroInfoButtonStyle())
+                .accessibilityLabel("More info about \(item.title)")
+            }
+        }
     }
 
     /// The Play/Resume button. On tvOS it registers as the preferred default focus

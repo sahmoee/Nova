@@ -21,6 +21,9 @@ struct RootView: View {
     @AppStorage("hasSeenPersonalMediaDisclosure") private var hasSeenDisclosure = false
     @State private var reopenItem: MediaItem?
     @Environment(\.scenePhase) private var scenePhase
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
 
     var body: some View {
         rootContent
@@ -86,10 +89,9 @@ struct RootView: View {
         #if os(tvOS)
         televisionTabRoot
         #else
-        switch PlatformCapabilities.navigationStyle {
-        case .sidebar:
+        if horizontalSizeClass == .regular {
             iPadSidebarRoot
-        case .bottomTabs, .televisionTabs:
+        } else {
             iPhoneTabRoot
         }
         #endif

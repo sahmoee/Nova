@@ -123,6 +123,10 @@ actor TMDBClient {
         let resp: TMDBSearchResponse<TMDBMovie> = try await get("movie/now_playing")
         return mapMovies(resp.results)
     }
+    func upcomingMovies() async throws -> [CatalogItem] {
+        let resp: TMDBSearchResponse<TMDBMovie> = try await get("movie/upcoming")
+        return mapMovies(resp.results)
+    }
     func topRatedMovies() async throws -> [CatalogItem] {
         let resp: TMDBSearchResponse<TMDBMovie> = try await get("movie/top_rated")
         return mapMovies(resp.results)
@@ -133,6 +137,10 @@ actor TMDBClient {
     }
     func airingTodayShows() async throws -> [CatalogItem] {
         let resp: TMDBSearchResponse<TMDBShow> = try await get("tv/airing_today")
+        return mapShows(resp.results)
+    }
+    func onTheAirShows() async throws -> [CatalogItem] {
+        let resp: TMDBSearchResponse<TMDBShow> = try await get("tv/on_the_air")
         return mapShows(resp.results)
     }
 

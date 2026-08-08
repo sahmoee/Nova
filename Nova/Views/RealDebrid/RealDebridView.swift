@@ -88,16 +88,15 @@ struct RealDebridView: View {
                             .foregroundStyle(Theme.Colors.textSecondary)
                     }
                 }
-                FocusableButton(title: "Remove Token", systemImage: "trash") {
-                    // Ask first — removing the token signs the account out.
+                FocusableButton(title: "Log Out", systemImage: "rectangle.portrait.and.arrow.right") {
                     confirmingRemoveToken = true
                 }
                 .frame(maxWidth: Theme.isCompact ? .infinity : 300)
-                .alert("Remove Real-Debrid Token?", isPresented: $confirmingRemoveToken) {
-                    Button("Remove", role: .destructive) {
+                .alert("Log Out of Real-Debrid?", isPresented: $confirmingRemoveToken) {
+                    Button("Log Out", role: .destructive) {
                         try? KeychainStore.shared.clearRealDebridToken()
                         user = nil
-                        statusMessage = "Token removed."
+                        statusMessage = "Logged out."
                         isError = false
                     }
                     Button("Cancel", role: .cancel) {}
@@ -147,29 +146,26 @@ struct RealDebridView: View {
                 }
                 .frame(maxWidth: Theme.isCompact ? .infinity : 340)
 
+                #if os(tvOS)
+                FocusableButton(
+                    title: showingTokenFallback ? "Hide API Token" : "Use API Token",
+                    systemImage: showingTokenFallback ? "chevron.up" : "key.fill"
+                ) {
+                    withAnimation(Theme.Motion.spring) { showingTokenFallback.toggle() }
+                }
+                .frame(maxWidth: 340)
+                .accessibilityHint(showingTokenFallback ? "Hide token entry" : "Show token entry")
+                if showingTokenFallback { tokenEntryForm }
+                #else
                 DisclosureGroup("Use API token", isExpanded: $showingTokenFallback) {
-                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                        SecureField("API token", text: $tokenText)
-                            .textFieldStyle(.plain)
-                            .padding(Theme.Spacing.md)
-                            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
-                            .foregroundStyle(Theme.Colors.textPrimary)
-
-                        FocusableButton(
-                            title: isWorking ? "Validating…" : "Connect with Token",
-                            systemImage: "checkmark.circle"
-                        ) {
-                            Task { await connect() }
-                        }
-                        .frame(maxWidth: Theme.isCompact ? .infinity : 300)
-                        .disabled(isWorking || tokenText.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
-                    .padding(.top, Theme.Spacing.sm)
+                    tokenEntryForm
+                        .padding(.top, Theme.Spacing.sm)
                 }
                 .font(.appFont(16, weight: .semibold))
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .tint(Theme.Colors.accent)
                 .padding(.top, Theme.Spacing.sm)
+                #endif
             }
 
             if let statusMessage {
@@ -177,6 +173,25 @@ struct RealDebridView: View {
                     .foregroundStyle(isError ? Theme.Colors.error : Theme.Colors.success)
                     .font(.appFont(20))
             }
+        }
+    }
+
+    private var tokenEntryForm: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            SecureField("API token", text: $tokenText)
+                .textFieldStyle(.plain)
+                .padding(Theme.Spacing.md)
+                .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                .foregroundStyle(Theme.Colors.textPrimary)
+
+            FocusableButton(
+                title: isWorking ? "Validating…" : "Connect with Token",
+                systemImage: "checkmark.circle"
+            ) {
+                Task { await connect() }
+            }
+            .frame(maxWidth: Theme.isCompact ? .infinity : 300)
+            .disabled(isWorking || tokenText.trimmingCharacters(in: .whitespaces).isEmpty)
         }
     }
 

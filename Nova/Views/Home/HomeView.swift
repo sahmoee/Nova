@@ -140,12 +140,15 @@ struct HomeView: View {
 
     private var topBar: some View {
         HStack(alignment: .center, spacing: Theme.Spacing.sm) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Home")
-                    .font(.appFont(PlatformCapabilities.platform == .appleTV ? 34 : 28, weight: .bold))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                Text("Watch Now")
-                    .font(.appFont(15, weight: .medium))
+            Text("NOVA")
+                .font(.appFont(PlatformCapabilities.platform == .appleTV ? 38 : 30, weight: .black))
+                .tracking(2.5)
+                .foregroundStyle(Theme.Colors.accent)
+                .accessibilityLabel("Nova Home")
+            if !Theme.isCompact {
+                Text("WATCH NOW")
+                    .font(.appFont(13, weight: .bold))
+                    .tracking(1.4)
                     .foregroundStyle(Theme.Colors.textSecondary)
             }
             Spacer()
@@ -292,7 +295,11 @@ struct HomeView: View {
 
     private var primarySmartRails: [SmartHomeRail] {
         let excluded: Set<SmartHomeRailKind> = [.becauseYouWatched, .recentlyAdded]
-        return PersonalizedHomeEngine.rails(library: library, profile: profiles.activeProfile)
+        return PersonalizedHomeEngine.distinctRails(
+            library: library,
+            profile: profiles.activeProfile,
+            excluding: PersonalizedHomeEngine.upNext(library: library)
+        )
             .filter { !excluded.contains($0.kind) }
             .filter { rail in
                 if rail.kind == .recentlyWatched { return profiles.preferences.showWatchHistory }

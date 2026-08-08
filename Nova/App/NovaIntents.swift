@@ -75,10 +75,10 @@ struct OpenDiscoverIntent: AppIntent {
     }
 }
 
-/// "Ask Nova AI" — opens the AI tab to build a shelf or search by vibe.
+/// "Ask Nova AI" — opens Search, where natural-language AI search remains available.
 struct OpenAIIntent: AppIntent {
     static let title: LocalizedStringResource = "Open Nova AI"
-    static let description = IntentDescription("Open Nova's AI tab to build shelves and playlists.")
+    static let description = IntentDescription("Open Nova Search to find titles with natural-language AI.")
     static let openAppWhenRun = true
 
     @MainActor

@@ -568,11 +568,10 @@ struct AVPlayerContainer: UIViewControllerRepresentable {
         #endif
     }
 
-    // `@MainActor` makes the coordinator Sendable and its delegate callbacks main-
-    // isolated; `@preconcurrency` bridges the not-yet-annotated AVKit delegate
-    // protocol (UIKit calls these on the main thread) with a runtime main-actor check.
+    // AVKit delivers these delegate callbacks on the main actor, matching the
+    // coordinator's UI-bound state.
     @MainActor
-    final class Coordinator: NSObject, @preconcurrency AVPlayerViewControllerDelegate {
+    final class Coordinator: NSObject {
         let onExitFullscreen: (() -> Void)?
         var onPlayNext: (() -> Void)?
         var onShowSubtitles: (() -> Void)?
@@ -598,3 +597,12 @@ struct AVPlayerContainer: UIViewControllerRepresentable {
         #endif
     }
 }
+
+// The older iOS delegate declaration is not actor-annotated, so bridge that
+// conformance explicitly. tvOS's declaration already matches the main actor and
+// does not need (or accept) the compatibility annotation.
+#if os(iOS)
+extension AVPlayerContainer.Coordinator: @preconcurrency AVPlayerViewControllerDelegate {}
+#else
+extension AVPlayerContainer.Coordinator: AVPlayerViewControllerDelegate {}
+#endif

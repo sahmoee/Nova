@@ -119,33 +119,24 @@ struct SettingsRow: View {
     var status: Color? = nil
     var showsChevron: Bool = true
     var tint: Color? = nil
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        HStack(spacing: SettingsMetrics.rowSpacing) {
+        HStack(alignment: dynamicTypeSize.isAccessibilitySize ? .top : .center,
+               spacing: SettingsMetrics.rowSpacing) {
             SettingsIconTile(systemImage: icon, color: color)
-            Text(title)
-                .font(.appFont(SettingsMetrics.title))
-                .foregroundStyle(tint ?? Theme.Colors.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
-            Spacer(minLength: 8)
-            if let status {
-                Circle().fill(status)
-                    .frame(width: SettingsMetrics.header * 0.7, height: SettingsMetrics.header * 0.7)
-                    .accessibilityHidden(true)
-            }
-            if let detail, !detail.isEmpty {
-                Text(detail)
-                    .font(.appFont(SettingsMetrics.detail))
-                    .foregroundStyle(Theme.Colors.textSecondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            if showsChevron {
-                Image(systemName: "chevron.right")
-                    .font(.appFont(SettingsMetrics.chevron, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.textTertiary)
-                    .accessibilityHidden(true)
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 4) {
+                    titleLabel
+                    if let detail, !detail.isEmpty { detailLabel(detail) }
+                }
+                Spacer(minLength: 4)
+                trailingIndicators
+            } else {
+                titleLabel
+                Spacer(minLength: 8)
+                if let detail, !detail.isEmpty { detailLabel(detail) }
+                trailingIndicators
             }
         }
         .padding(.horizontal, SettingsMetrics.rowSpacing + 2)
@@ -153,6 +144,36 @@ struct SettingsRow: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var titleLabel: some View {
+        Text(title)
+            .font(.appFont(SettingsMetrics.title))
+            .foregroundStyle(tint ?? Theme.Colors.textPrimary)
+            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func detailLabel(_ detail: String) -> some View {
+        Text(detail)
+            .font(.appFont(SettingsMetrics.detail))
+            .foregroundStyle(Theme.Colors.textSecondary)
+            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder private var trailingIndicators: some View {
+        if let status {
+            Circle().fill(status)
+                .frame(width: SettingsMetrics.header * 0.7, height: SettingsMetrics.header * 0.7)
+                .accessibilityHidden(true)
+        }
+        if showsChevron {
+            Image(systemName: "chevron.right")
+                .font(.appFont(SettingsMetrics.chevron, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textTertiary)
+                .accessibilityHidden(true)
+        }
     }
 
     private var accessibilityLabel: String {

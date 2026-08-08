@@ -22,8 +22,9 @@ struct PersonalMediaDisclosureView: View {
                     Spacer(minLength: Theme.Spacing.xl)
 
                     Image(systemName: "play.rectangle.on.rectangle")
-                        .font(.system(size: 54, weight: .semibold))
+                        .font(.appFont(54, weight: .semibold))
                         .foregroundStyle(Theme.Colors.accent)
+                        .accessibilityHidden(true)
 
                     Text("Welcome to Nova")
                         .font(Theme.Font.screenTitle())
@@ -52,9 +53,10 @@ struct PersonalMediaDisclosureView: View {
                         .font(.appFont(15))
                         .foregroundStyle(Theme.Colors.textTertiary)
 
-                    FocusableButton(title: "I understand", systemImage: "checkmark") {
+                    FocusableButton(title: "I understand", systemImage: "checkmark", prominent: true) {
                         onContinue()
                     }
+                    .frame(maxWidth: Theme.isCompact ? .infinity : 420)
                     .padding(.top, Theme.Spacing.sm)
 
                     Spacer(minLength: Theme.Spacing.xl)

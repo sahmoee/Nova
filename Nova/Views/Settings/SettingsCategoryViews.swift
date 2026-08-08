@@ -27,23 +27,23 @@ struct PlaybackSettingsContent: View {
             SettingsGroup(rows: [
                 AnyView(
                     NavigationLink { PlayerSettingsView() } label: {
-                        SettingsRow(icon: "play.rectangle.on.rectangle", color: .purple,
+                        SettingsRow(icon: "play.rectangle.on.rectangle", color: Theme.Colors.iconRed,
                                     title: "Player", detail: playerDetail)
                     }.buttonStyle(.plain)
                 )
             ])
             SettingsGroup(header: "Playback", rows: [
-                AnyView(SettingsToggleRow(icon: "play.circle", color: .green,
+                AnyView(SettingsToggleRow(icon: "play.circle", color: Theme.Colors.iconSilver,
                                           title: "Resume Playback", isOn: $settings.resumePlaybackEnabled)),
-                AnyView(SettingsToggleRow(icon: "forward.end", color: .blue,
+                AnyView(SettingsToggleRow(icon: "forward.end", color: Theme.Colors.iconGraphite,
                                           title: "Auto-Play Next Episode", isOn: $settings.autoPlayNext)),
-                AnyView(SettingsToggleRow(icon: "forward", color: .orange,
+                AnyView(SettingsToggleRow(icon: "forward", color: Theme.Colors.iconRed,
                                           title: "Show Skip Intro", isOn: $settings.skipIntroEnabled)),
-                AnyView(SettingsToggleRow(icon: "forward.fill", color: .orange,
+                AnyView(SettingsToggleRow(icon: "forward.fill", color: Theme.Colors.iconRed,
                                           title: "Automatically Skip Intro", isOn: $settings.autoSkipIntro)),
-                AnyView(SettingsToggleRow(icon: "forward.frame", color: .orange,
+                AnyView(SettingsToggleRow(icon: "forward.frame", color: Theme.Colors.iconRed,
                                           title: "Show Skip Outro", isOn: $settings.skipOutroEnabled)),
-                AnyView(SettingsToggleRow(icon: "checkmark.seal", color: .red,
+                AnyView(SettingsToggleRow(icon: "checkmark.seal", color: Theme.Colors.iconRed,
                                           title: "Scrobble to Trakt", isOn: $settings.traktScrobblingEnabled)),
             ])
         }
@@ -70,33 +70,33 @@ struct StreamingSettingsContent: View {
     var body: some View {
         Group {
             SettingsGroup(rows: [
-                AnyView(SettingsToggleRow(icon: "wand.and.stars", color: .indigo,
+                AnyView(SettingsToggleRow(icon: "wand.and.stars", color: Theme.Colors.iconRed,
                                           title: "Auto-Select Best Stream", isOn: $settings.autoSelectStream)),
-                AnyView(SettingsToggleRow(icon: "bolt", color: .yellow,
+                AnyView(SettingsToggleRow(icon: "bolt", color: Theme.Colors.iconSilver,
                                           title: "Prefer Cached / Instant", isOn: $settings.requireCachedStreams)),
-                AnyView(SettingsToggleRow(icon: "square.stack.3d.down.right", color: .teal,
+                AnyView(SettingsToggleRow(icon: "square.stack.3d.down.right", color: Theme.Colors.iconSilver,
                                           title: "Prefer Efficient Codecs", isOn: $settings.preferEfficientCodec)),
             ])
 
             SettingsGroup(header: "Preferences", rows: [
-                AnyView(SettingsPickerRow(icon: "4k.tv", color: .orange, title: "Preferred Quality",
+                AnyView(SettingsPickerRow(icon: "4k.tv", color: Theme.Colors.iconRed, title: "Preferred Quality",
                                           selection: $settings.preferredStreamQuality,
                                           options: StreamQuality.allCases.filter { $0 != .unknown && $0 != .cam },
                                           label: { $0.rawValue })),
-                AnyView(SettingsPickerRow(icon: "point.3.connected.trianglepath.dotted", color: .green,
+                AnyView(SettingsPickerRow(icon: "point.3.connected.trianglepath.dotted", color: Theme.Colors.iconSilver,
                                           title: "Preferred Source",
                                           selection: $settings.preferredSourceKind,
                                           options: SourceKindPreference.allCases,
                                           label: { $0.displayName })),
-                AnyView(SettingsPickerRow(icon: "internaldrive", color: .gray, title: "Max File Size",
+                AnyView(SettingsPickerRow(icon: "internaldrive", color: Theme.Colors.iconGraphite, title: "Max File Size",
                                           selection: $settings.maxStreamSizeGB,
                                           options: [0, 5, 10, 15, 20, 30, 50, 80],
                                           label: { $0 == 0 ? "No Limit" : "\($0) GB" })),
-                AnyView(SettingsPickerRow(icon: "person.3", color: .blue, title: "Minimum Seeders",
+                AnyView(SettingsPickerRow(icon: "person.3", color: Theme.Colors.iconGraphite, title: "Minimum Seeders",
                                           selection: $settings.minSeeders,
                                           options: [0, 1, 3, 5, 10, 20, 50],
                                           label: { $0 == 0 ? "No Minimum" : "\($0)+" })),
-                AnyView(SettingsPickerRow(icon: "waveform", color: .pink, title: "Preferred Audio",
+                AnyView(SettingsPickerRow(icon: "waveform", color: Theme.Colors.iconRed, title: "Preferred Audio",
                                           selection: $settings.preferredAudioLanguage,
                                           options: audioLanguageOptions,
                                           label: { audioLanguageLabel($0) })),
@@ -183,7 +183,7 @@ struct AppearanceSettingsContent: View {
             SettingsGroup(rows: appearanceRows)
             SettingsGroup(footer: "The Apple player already uses the native overlay. This controls the look of the VLC player used for MKV and other formats.",
                           rows: [
-                AnyView(SettingsPickerRow(icon: "play.rectangle", color: .purple, title: "VLC Player Overlay",
+                AnyView(SettingsPickerRow(icon: "play.rectangle", color: Theme.Colors.iconRed, title: "VLC Player Overlay",
                                           selection: $settings.vlcOverlayStyle,
                                           options: PlayerOverlayStyle.allCases,
                                           label: { $0.displayName })),
@@ -193,25 +193,25 @@ struct AppearanceSettingsContent: View {
 
     private var appearanceRows: [AnyView] {
         var rows: [AnyView] = [
-            AnyView(SettingsPickerRow(icon: "paintbrush", color: .pink, title: "App Style",
+            AnyView(SettingsPickerRow(icon: "paintbrush", color: Theme.Colors.iconRed, title: "App Style",
                                       selection: $settings.uiStyle, options: UIComponentStyle.allCases,
                                       label: { $0.displayName })),
-            AnyView(SettingsPickerRow(icon: "house", color: .orange, title: "Home Style",
+            AnyView(SettingsPickerRow(icon: "house", color: Theme.Colors.iconRed, title: "Home Style",
                                       selection: $settings.homeStyle, options: HomeStyle.allCases,
                                       label: { $0.displayName })),
-            AnyView(SettingsPickerRow(icon: "books.vertical", color: .brown, title: "Library Style",
+            AnyView(SettingsPickerRow(icon: "books.vertical", color: Theme.Colors.iconRed, title: "Library Style",
                                       selection: $settings.libraryStyle, options: LibraryStyle.allCases,
                                       label: { $0.displayName })),
-            AnyView(SettingsPickerRow(icon: "rectangle.portrait.on.rectangle.portrait", color: .blue,
+            AnyView(SettingsPickerRow(icon: "rectangle.portrait.on.rectangle.portrait", color: Theme.Colors.iconGraphite,
                                       title: "Detail Style", selection: $settings.detailStyle,
                                       options: DetailStyle.allCases, label: { $0.displayName })),
         ]
         #if os(iOS)
-        rows.append(AnyView(SettingsPickerRow(icon: "square.bottomthird.inset.filled", color: .indigo,
+        rows.append(AnyView(SettingsPickerRow(icon: "square.bottomthird.inset.filled", color: Theme.Colors.iconRed,
                                               title: "Tab Bar Style", selection: $settings.tabBarStyle,
                                               options: TabBarStyle.allCases, label: { $0.displayName })))
         #endif
-        rows.append(AnyView(SettingsPickerRow(icon: "square.grid.2x2", color: .teal, title: "Search Layout",
+        rows.append(AnyView(SettingsPickerRow(icon: "square.grid.2x2", color: Theme.Colors.iconSilver, title: "Search Layout",
                                               selection: $settings.searchLayout,
                                               options: SearchLayoutStyle.allCases, label: { $0.displayName })))
         return rows
@@ -233,7 +233,7 @@ struct SubtitleSettingsContent: View {
         Group {
             SettingsGroup(rows: enableRows)
             SettingsGroup(rows: [
-                AnyView(SettingsPickerRow(icon: "globe", color: .blue, title: "Preferred Language",
+                AnyView(SettingsPickerRow(icon: "globe", color: Theme.Colors.iconGraphite, title: "Preferred Language",
                                           selection: $settings.subtitleLanguage,
                                           options: Self.languages.map(\.0),
                                           label: { code in Self.languages.first { $0.0 == code }?.1 ?? code })),
@@ -243,11 +243,11 @@ struct SubtitleSettingsContent: View {
 
     private var enableRows: [AnyView] {
         var rows: [AnyView] = [
-            AnyView(SettingsToggleRow(icon: "captions.bubble", color: .teal,
+            AnyView(SettingsToggleRow(icon: "captions.bubble", color: Theme.Colors.iconSilver,
                                       title: "Enable Subtitles", isOn: $settings.subtitlesEnabled)),
         ]
         if settings.subtitlesEnabled {
-            rows.append(AnyView(SettingsToggleRow(icon: "arrow.down.circle", color: .blue,
+            rows.append(AnyView(SettingsToggleRow(icon: "arrow.down.circle", color: Theme.Colors.iconGraphite,
                                                   title: "Auto-Download from Add-ons",
                                                   isOn: $settings.autoDownloadSubtitles)))
             rows.append(AnyView(SettingsNote("When playback starts, Nova searches enabled subtitle providers and automatically uses your preferred language. You can also search manually from the player subtitle picker.")))
@@ -265,7 +265,7 @@ struct AccessibilitySettingsContent: View {
         Group {
             #if os(iOS)
             SettingsGroup(rows: [
-                AnyView(SettingsToggleRow(icon: "textformat.size", color: .blue,
+                AnyView(SettingsToggleRow(icon: "textformat.size", color: Theme.Colors.iconGraphite,
                                           title: "Respect System Text Size", isOn: $settings.respectSystemTextSize)),
             ])
             SettingsGroup(footer: "Adjusts Nova's text. Turn on Respect System Text Size to also follow your device's Display & Text Size setting. Changes apply as you move between screens.",
@@ -294,7 +294,7 @@ struct AccessibilitySettingsContent: View {
             }
             HStack(spacing: SettingsMetrics.rowSpacing) {
                 Image(systemName: "textformat.size.smaller").foregroundStyle(Theme.Colors.textSecondary)
-                Slider(value: $settings.textSizeBoost, in: 0.8...1.6, step: 0.05).tint(Theme.Colors.accent)
+                Slider(value: $settings.textSizeBoost, in: 0.65...1.25, step: 0.05).tint(Theme.Colors.accent)
                 Image(systemName: "textformat.size.larger").foregroundStyle(Theme.Colors.textSecondary)
             }
             if settings.textSizeBoost != 1.0 {
@@ -334,29 +334,29 @@ struct ExperienceSettingsContent: View {
             SettingsGroup(rows: [
                 AnyView(
                     NavigationLink { ViewingProfileSwitcherView(store: profiles) } label: {
-                        SettingsRow(icon: "person.2.circle", color: .teal, title: "Viewing Profiles",
+                        SettingsRow(icon: "person.2.circle", color: Theme.Colors.iconSilver, title: "Viewing Profiles",
                                     detail: profiles.activeProfile.name)
                     }.buttonStyle(.plain)
                 )
             ])
             SettingsGroup(header: "Home Rows", rows: [
-                AnyView(SettingsToggleRow(icon: "rectangle.on.rectangle.angled", color: .purple,
+                AnyView(SettingsToggleRow(icon: "rectangle.on.rectangle.angled", color: Theme.Colors.iconRed,
                                           title: "Auto-Advance Featured", isOn: experienceBinding(\.autoAdvanceHero))),
-                AnyView(SettingsToggleRow(icon: "square.grid.2x2", color: .blue,
+                AnyView(SettingsToggleRow(icon: "square.grid.2x2", color: Theme.Colors.iconGraphite,
                                           title: "Quick Access Row", isOn: experienceBinding(\.showQuickAccess))),
-                AnyView(SettingsToggleRow(icon: "point.3.connected.trianglepath.dotted", color: .green,
+                AnyView(SettingsToggleRow(icon: "point.3.connected.trianglepath.dotted", color: Theme.Colors.iconSilver,
                                           title: "Source Health on Home", isOn: experienceBinding(\.showSourceHub))),
-                AnyView(SettingsToggleRow(icon: "sparkles.rectangle.stack", color: .indigo,
+                AnyView(SettingsToggleRow(icon: "sparkles.rectangle.stack", color: Theme.Colors.iconRed,
                                           title: "Smart Collections", isOn: experienceBinding(\.showSmartCollections))),
-                AnyView(SettingsToggleRow(icon: "clock.arrow.circlepath", color: .orange,
+                AnyView(SettingsToggleRow(icon: "clock.arrow.circlepath", color: Theme.Colors.iconRed,
                                           title: "Watch History Rail", isOn: experienceBinding(\.showWatchHistory))),
-                AnyView(SettingsToggleRow(icon: "wand.and.stars", color: .pink,
+                AnyView(SettingsToggleRow(icon: "wand.and.stars", color: Theme.Colors.iconRed,
                                           title: "Because You Watched", isOn: experienceBinding(\.showBecauseYouWatched))),
-                AnyView(SettingsToggleRow(icon: "figure.walk.motion", color: .mint,
+                AnyView(SettingsToggleRow(icon: "figure.walk.motion", color: Theme.Colors.iconSilver,
                                           title: "Reduce Artwork Motion", isOn: experienceBinding(\.reduceArtworkMotion))),
             ])
             SettingsGroup(rows: [
-                AnyView(SettingsRow(icon: platformSymbol, color: .gray, title: "This Device",
+                AnyView(SettingsRow(icon: platformSymbol, color: Theme.Colors.iconGraphite, title: "This Device",
                                     detail: PlatformCapabilities.platform.displayName, showsChevron: false)),
             ])
         }
@@ -381,13 +381,13 @@ struct LibrarySettingsContent: View {
             SettingsGroup(rows: [
                 AnyView(
                     NavigationLink { LibraryHealthView() } label: {
-                        SettingsRow(icon: "checkmark.seal", color: .green, title: "Library Health",
+                        SettingsRow(icon: "checkmark.seal", color: Theme.Colors.iconSilver, title: "Library Health",
                                     detail: duplicateCountDetail)
                     }.buttonStyle(.plain)
                 ),
                 AnyView(
                     NavigationLink { LibraryEnrichView() } label: {
-                        SettingsRow(icon: "wand.and.stars", color: .indigo, title: "Clean Up Library (AI)")
+                        SettingsRow(icon: "wand.and.stars", color: Theme.Colors.iconRed, title: "Clean Up Library (AI)")
                     }.buttonStyle(.plain)
                 ),
             ])
@@ -395,13 +395,13 @@ struct LibrarySettingsContent: View {
             SettingsGroup(rows: [
                 AnyView(
                     Button { confirmClearHistory = true } label: {
-                        SettingsRow(icon: "clock.arrow.circlepath", color: .orange,
+                        SettingsRow(icon: "clock.arrow.circlepath", color: Theme.Colors.iconRed,
                                     title: "Clear Watch History", showsChevron: false, tint: Theme.Colors.warning)
                     }.buttonStyle(.plain)
                 ),
                 AnyView(
                     Button { confirmClearLibrary = true } label: {
-                        SettingsRow(icon: "trash", color: .red, title: "Clear Library",
+                        SettingsRow(icon: "trash", color: Theme.Colors.iconRed, title: "Clear Library",
                                     showsChevron: false, tint: Theme.Colors.error)
                     }.buttonStyle(.plain)
                 ),
@@ -423,7 +423,7 @@ struct LibrarySettingsContent: View {
 
     private var safeModeRows: [AnyView] {
         var rows: [AnyView] = [
-            AnyView(SettingsToggleRow(icon: "exclamationmark.shield", color: .orange,
+            AnyView(SettingsToggleRow(icon: "exclamationmark.shield", color: Theme.Colors.iconRed,
                                       title: "Safe Mode", isOn: $settings.safeMode)),
         ]
         if settings.safeMode {
@@ -449,7 +449,7 @@ struct AdvancedSettingsContent: View {
         var rows: [AnyView] = [
             AnyView(
                 NavigationLink { GuestModeView() } label: {
-                    SettingsRow(icon: "person.2", color: .gray, title: "Guest Mode",
+                    SettingsRow(icon: "person.2", color: Theme.Colors.iconGraphite, title: "Guest Mode",
                                 detail: settings.guestMode ? "On" : "Off")
                 }.buttonStyle(.plain)
             ),
@@ -457,7 +457,7 @@ struct AdvancedSettingsContent: View {
         if !settings.guestMode {
             rows.append(AnyView(
                 NavigationLink { DebugReportView() } label: {
-                    SettingsRow(icon: "ladybug", color: .red, title: "Debug Report", detail: "Export")
+                    SettingsRow(icon: "ladybug", color: Theme.Colors.iconRed, title: "Debug Report", detail: "Export")
                 }.buttonStyle(.plain)
             ))
         }
@@ -477,16 +477,16 @@ struct PrivacyLegalSettingsContent: View {
                     NavigationLink {
                         WhatsNewView(note: WhatsNewTracker.shared.currentNote) {}
                     } label: {
-                        SettingsRow(icon: "sparkles", color: .yellow, title: "What's New",
+                        SettingsRow(icon: "sparkles", color: Theme.Colors.iconSilver, title: "What's New",
                                     detail: "v\(WhatsNewTracker.shared.currentVersion)")
                     }.buttonStyle(.plain)
                 ),
-                AnyView(SettingsToggleRow(icon: "checkmark.shield", color: .green,
+                AnyView(SettingsToggleRow(icon: "checkmark.shield", color: Theme.Colors.iconSilver,
                                           title: "Require Legal Confirmation",
                                           isOn: $settings.requireLegalConfirmation)),
                 AnyView(
                     NavigationLink { PrivacyLegalView() } label: {
-                        SettingsRow(icon: "hand.raised", color: .gray, title: "Privacy & Legal Info")
+                        SettingsRow(icon: "hand.raised", color: Theme.Colors.iconGraphite, title: "Privacy & Legal Info")
                     }.buttonStyle(.plain)
                 ),
             ])

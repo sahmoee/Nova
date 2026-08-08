@@ -21,6 +21,7 @@ private enum AddonInstallTimeout: Error { case timedOut }
 struct AddonsView: View {
     @EnvironmentObject private var env: AppEnvironment
     @State private var showAdd = false
+    @State private var showOnlineDirectory = false
     @State private var health: [UUID: AddonStore.Health] = [:]
     @State private var isChecking = false
     @State private var searchText = ""
@@ -154,6 +155,15 @@ struct AddonsView: View {
         .sheet(isPresented: $showAdd) {
             AddAddonView()
         }
+        .sheet(isPresented: $showOnlineDirectory) {
+            OnlineAddonDirectoryView {
+                showOnlineDirectory = false
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(250))
+                    showAdd = true
+                }
+            }
+        }
         .sheet(item: $editingAddon) { addon in
             AddonMetadataEditor(addon: addon)
         }
@@ -261,14 +271,31 @@ struct AddonsView: View {
 
     private var header: some View {
         ScreenHeader(title: "Addons", subtitle: "Stream sources you've installed") {
-            HStack(spacing: Theme.Spacing.sm) {
-                if !store.addons.isEmpty {
-                    FocusableButton(title: isChecking ? "Checking…" : "Health",
-                                    systemImage: "stethoscope") {
-                        runHealthCheck()
-                    }
-                    #if os(iOS)
-                    Menu {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: Theme.Spacing.sm) { headerActions }
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) { headerActions }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var headerActions: some View {
+        FocusableButton(title: "Browse Online", systemImage: "globe") {
+            showOnlineDirectory = true
+        }
+        .frame(maxWidth: Theme.isCompact ? .infinity : 240)
+
+        FocusableButton(title: "Add URL", systemImage: "plus", prominent: true) {
+            showAdd = true
+        }
+        .frame(maxWidth: Theme.isCompact ? .infinity : 200)
+
+        if !store.addons.isEmpty {
+            Menu {
+                Button { runHealthCheck() } label: {
+                    Label(isChecking ? "Checking Health…" : "Check Health", systemImage: "stethoscope")
+                }
+                #if os(iOS)
                         Button {
                             if let data = try? store.exportData() {
                                 exportDoc = AddonExportDocument(data: data)
@@ -286,18 +313,14 @@ struct AddonsView: View {
                                   systemImage: "arrow.triangle.2.circlepath")
                         }
                         .disabled(isRefreshingManifests)
-                    } label: {
-                        Image(systemName: "arrow.up.arrow.down.circle")
-                            .font(.appFont(22))
-                            .foregroundStyle(Theme.Colors.accent)
-                    }
-                    #endif
-                }
-                FocusableButton(title: "Add", systemImage: "plus", prominent: true) {
-                    showAdd = true
-                }
-                .frame(maxWidth: Theme.isCompact ? .infinity : 200)
+                #endif
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.appFont(22))
+                    .foregroundStyle(Theme.Colors.accent)
+                    .frame(minWidth: Theme.minTouchTarget, minHeight: Theme.minTouchTarget)
             }
+            .accessibilityLabel("Addon tools")
         }
     }
 
@@ -355,82 +378,113 @@ struct AddonsView: View {
     }
 
     private func addonRow(_ addon: InstalledAddon) -> some View {
-        HStack(spacing: Theme.Spacing.md) {
-            ZStack(alignment: .bottomTrailing) {
-                Image(systemName: "puzzlepiece.extension.fill")
-                    .font(.appFont(28))
-                    .foregroundStyle(addon.isEnabled ? Theme.Colors.accent : Theme.Colors.textTertiary)
-                if let h = health[addon.id] {
-                    Circle()
-                        .fill(healthColor(h))
-                        .frame(width: 12, height: 12)
-                        .overlay(Circle().strokeBorder(Theme.Colors.appBackground, lineWidth: 2))
-                        .offset(x: 4, y: 2)
+        Group {
+            if Theme.isCompact {
+                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                    HStack(alignment: .top, spacing: Theme.Spacing.sm) {
+                        addonIcon(addon)
+                        addonDetails(addon)
+                    }
+                    Divider().overlay(Theme.Colors.separator)
+                    HStack(spacing: Theme.Spacing.md) {
+                        Toggle("Enabled", isOn: enabledBinding(for: addon))
+                            .font(.appFont(16, weight: .semibold))
+                            .tint(Theme.Colors.accent)
+                        Spacer(minLength: Theme.Spacing.sm)
+                        Button(role: .destructive) { pendingRemoval = addon } label: {
+                            Label("Remove", systemImage: "trash")
+                                .font(.appFont(16, weight: .semibold))
+                        }
+                    }
+                }
+            } else {
+                HStack(spacing: Theme.Spacing.md) {
+                    addonIcon(addon)
+                    addonDetails(addon)
+                    Spacer()
+                    Toggle("", isOn: enabledBinding(for: addon))
+                        .labelsHidden()
+                        .accessibilityLabel("\(addon.name) enabled")
+                    FocusableButton(title: "Remove", systemImage: "trash") {
+                        pendingRemoval = addon
+                    }
+                    .frame(maxWidth: 200)
                 }
             }
-            .frame(width: 56)
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: Theme.Spacing.sm) {
-                    Text(addon.name)
-                        .font(.appFont(24, weight: .semibold))
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                    if let category = addon.category {
-                        Text(category)
-                            .font(.appFont(13, weight: .semibold))
-                            .foregroundStyle(Theme.Colors.accent)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .overlay(Capsule().strokeBorder(Theme.Colors.accent.opacity(0.5), lineWidth: 1))
-                    }
-                }
-                HStack(spacing: Theme.Spacing.sm) {
-                    Text(capabilityText(for: addon))
-                        .font(.appFont(16))
-                        .foregroundStyle(Theme.Colors.textTertiary)
-                    if let version = addon.version {
-                        Text("v\(version)")
-                            .font(.appFont(14, weight: .semibold))
-                            .foregroundStyle(Theme.Colors.textTertiary)
-                    }
-                    if let ms = store.lastPingMS[addon.id] {
-                        Text("\(ms) ms")
-                            .font(.appFont(13, weight: .bold))
-                            .foregroundStyle(ms < 800 ? Theme.Colors.success : Theme.Colors.warning)
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(Color.white.opacity(0.08), in: Capsule())
-                    }
-                    if store.availableUpdates[addon.id] != nil {
-                        Text("UPDATE")
-                            .font(.appFont(12, weight: .bold))
-                            .foregroundStyle(.black)
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(Theme.Colors.warning, in: Capsule())
-                    }
-                }
-                if let desc = addon.description, !desc.isEmpty {
-                    Text(desc)
-                        .font(.appFont(16))
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                        .lineLimit(2)
-                }
-            }
-            Spacer()
-
-            Toggle("", isOn: Binding(
-                get: { addon.isEnabled },
-                set: { store.setEnabled(addon, $0) }
-            ))
-            .labelsHidden()
-            // Accessibility: the visual label is hidden, so name the toggle for VoiceOver.
-            .accessibilityLabel("\(addon.name) enabled")
-
-            FocusableButton(title: "Remove", systemImage: "trash") {
-                pendingRemoval = addon
-            }
-            .frame(maxWidth: Theme.isCompact ? .infinity : 200)
         }
         .softCard()
+    }
+
+    private func enabledBinding(for addon: InstalledAddon) -> Binding<Bool> {
+        Binding(get: { addon.isEnabled }, set: { store.setEnabled(addon, $0) })
+    }
+
+    private func addonIcon(_ addon: InstalledAddon) -> some View {
+        ZStack(alignment: .bottomTrailing) {
+            Image(systemName: "puzzlepiece.extension.fill")
+                .font(.appFont(28))
+                .foregroundStyle(addon.isEnabled ? Theme.Colors.accent : Theme.Colors.textTertiary)
+            if let h = health[addon.id] {
+                Circle()
+                    .fill(healthColor(h))
+                    .frame(width: 12, height: 12)
+                    .overlay(Circle().strokeBorder(Theme.Colors.appBackground, lineWidth: 2))
+                    .offset(x: 4, y: 2)
+            }
+        }
+        .frame(width: 46)
+    }
+
+    private func addonDetails(_ addon: InstalledAddon) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: Theme.Spacing.sm) {
+                Text(addon.name)
+                    .font(.appFont(21, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                if let category = addon.category {
+                    Text(category)
+                        .font(.appFont(12, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.accent)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .overlay(Capsule().strokeBorder(Theme.Colors.accent.opacity(0.5), lineWidth: 1))
+                }
+            }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: Theme.Spacing.sm) { addonBadges(addon) }
+                VStack(alignment: .leading, spacing: 3) { addonBadges(addon) }
+            }
+            if let desc = addon.description, !desc.isEmpty {
+                Text(desc)
+                    .font(.appFont(15))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .lineLimit(2)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func addonBadges(_ addon: InstalledAddon) -> some View {
+        Text(capabilityText(for: addon))
+            .font(.appFont(15))
+            .foregroundStyle(Theme.Colors.textTertiary)
+            .lineLimit(2)
+        if let version = addon.version {
+            Text("v\(version)")
+                .font(.appFont(13, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textTertiary)
+        }
+        if let ms = store.lastPingMS[addon.id] {
+            Text("\(ms) ms")
+                .font(.appFont(12, weight: .bold))
+                .foregroundStyle(ms < 800 ? Theme.Colors.success : Theme.Colors.warning)
+        }
+        if store.availableUpdates[addon.id] != nil {
+            Text("UPDATE")
+                .font(.appFont(11, weight: .bold))
+                .foregroundStyle(Theme.Colors.warning)
+        }
     }
 
     private var presetSection: some View {
@@ -438,7 +492,7 @@ struct AddonsView: View {
             Text("Quick Add")
                 .font(Theme.Font.sectionTitle())
                 .foregroundStyle(Theme.Colors.textPrimary)
-            Text("These addons require your own configured instance URL.")
+            Text("Popular options. Nova validates every manifest before it is installed.")
                 .font(.appFont(18))
                 .foregroundStyle(Theme.Colors.textSecondary)
 
@@ -500,6 +554,7 @@ struct AddAddonView: View {
 
     @EnvironmentObject private var env: AppEnvironment
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     @State private var urlText = ""
     @State private var isInstalling = false
@@ -521,6 +576,20 @@ struct AddAddonView: View {
                     Text("Paste the addon's manifest URL (ends in /manifest.json).")
                         .font(.appFont(20))
                         .foregroundStyle(Theme.Colors.textSecondary)
+
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Label("Find an addon online", systemImage: "globe")
+                            .font(.appFont(19, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                        Text("Open a directory, copy the addon's manifest URL, then return and tap Paste.")
+                            .font(.appFont(15))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: Theme.Spacing.sm) { directoryButtons }
+                            VStack(alignment: .leading, spacing: Theme.Spacing.sm) { directoryButtons }
+                        }
+                    }
+                    .softCard()
                 }
 
                 // Setup steps for this preset.
@@ -598,6 +667,17 @@ struct AddAddonView: View {
         .background(Theme.Colors.appBackground.ignoresSafeArea())
     }
 
+    @ViewBuilder
+    private var directoryButtons: some View {
+        Button("Official Catalog") { openDirectory("https://addons.stremio.com/") }
+        Button("Community Directory") { openDirectory("https://stremio-addons.net/") }
+    }
+
+    private func openDirectory(_ address: String) {
+        guard let url = URL(string: address) else { return }
+        openURL(url)
+    }
+
     private var normalizedURL: URL? {
         var text = urlText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
@@ -652,6 +732,79 @@ struct AddAddonView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Online discovery
+
+private struct OnlineAddonDirectoryView: View {
+    let addManifest: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                    ScreenHeader(title: "Find Addons Online",
+                                 subtitle: "Choose a directory, copy a manifest URL, then install it in Nova.")
+
+                    directoryCard(title: "Official Addon Catalog",
+                                  detail: "Stremio's maintained catalog of official addons.",
+                                  address: "https://addons.stremio.com/",
+                                  icon: "checkmark.seal.fill")
+                    directoryCard(title: "Community Directory",
+                                  detail: "An independent directory of community-published addons. Review each provider before installing.",
+                                  address: "https://stremio-addons.net/",
+                                  icon: "person.3.fill")
+
+                    FocusableButton(title: "Paste Manifest URL",
+                                    systemImage: "doc.on.clipboard",
+                                    prominent: true) {
+                        addManifest()
+                    }
+                    .frame(maxWidth: Theme.isCompact ? .infinity : 340)
+
+                    Text("Nova does not host or endorse third-party content. Only install addons you trust and use sources you are authorized to access.")
+                        .font(.appFont(14))
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                }
+                .padding(Theme.Spacing.edge)
+                .frame(maxWidth: Theme.contentMaxWidth(900), alignment: .leading)
+            }
+            .background(Theme.Colors.appBackground.ignoresSafeArea())
+            .toolbar { Button("Done") { dismiss() } }
+        }
+    }
+
+    private func directoryCard(title: String,
+                               detail: String,
+                               address: String,
+                               icon: String) -> some View {
+        Button {
+            if let url = URL(string: address) { openURL(url) }
+        } label: {
+            HStack(spacing: Theme.Spacing.md) {
+                Image(systemName: icon)
+                    .font(.appFont(26, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accent)
+                    .frame(width: 44)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.appFont(20, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    Text(detail)
+                        .font(.appFont(15))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer()
+                Image(systemName: "arrow.up.right.square")
+                    .foregroundStyle(Theme.Colors.accent)
+            }
+            .softCard()
+        }
+        .buttonStyle(.plain)
     }
 }
 

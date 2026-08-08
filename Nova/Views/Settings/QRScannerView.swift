@@ -69,7 +69,9 @@ private struct QRScannerRepresentable: UIViewControllerRepresentable {
 
 final class QRScannerController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
     var onCode: ((String) -> Void)?
-    private let session = AVCaptureSession()
+    private let sessionBox = CaptureSessionBox()
+    private let sessionQueue = DispatchQueue(label: "com.nova.qr-capture", qos: .userInitiated)
+    private var session: AVCaptureSession { sessionBox.value }
     private var preview: AVCaptureVideoPreviewLayer?
     private var didReport = false
 
@@ -97,8 +99,9 @@ final class QRScannerController: UIViewController, AVCaptureMetadataOutputObject
         view.layer.addSublayer(layer)
         preview = layer
 
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.session.startRunning()
+        let sessionBox = sessionBox
+        sessionQueue.async {
+            sessionBox.value.startRunning()
         }
     }
 
@@ -109,7 +112,10 @@ final class QRScannerController: UIViewController, AVCaptureMetadataOutputObject
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        if session.isRunning { session.stopRunning() }
+        let sessionBox = sessionBox
+        sessionQueue.async {
+            if sessionBox.value.isRunning { sessionBox.value.stopRunning() }
+        }
     }
 
     // The delegate requirement is nonisolated, but this controller is @MainActor.
@@ -130,5 +136,12 @@ final class QRScannerController: UIViewController, AVCaptureMetadataOutputObject
             onCode?(value)
         }
     }
+}
+
+/// AVCaptureSession is internally synchronized but has not adopted Sendable in
+/// AVFoundation. All start/stop access is serialized by QRScannerController's
+/// dedicated queue, so this narrow wrapper documents that invariant.
+private final class CaptureSessionBox: @unchecked Sendable {
+    let value = AVCaptureSession()
 }
 #endif

@@ -499,7 +499,7 @@ final class SettingsStore: ObservableObject {
             ? true : defaults.bool(forKey: Key.respectSystemTextSize)
         self.respectSystemTextSize = resolvedRespect
         let savedBoost = defaults.double(forKey: Key.textSizeBoost)
-        let resolvedBoost = savedBoost > 0 ? savedBoost : 1.0
+        let resolvedBoost = min(max(savedBoost > 0 ? savedBoost : 1.0, 0.65), 1.25)
         self.textSizeBoost = resolvedBoost
 
         // Reflect text-size prefs into Theme before any view builds a font. Uses the
@@ -589,8 +589,9 @@ final class SettingsStore: ObservableObject {
         if let v = cloud.string(forKey: Key.vlcOverlayStyle),
            let s = PlayerOverlayStyle(rawValue: v), vlcOverlayStyle != s { vlcOverlayStyle = s }
         applyBool(Key.respectSystemTextSize, \.respectSystemTextSize)
-        if let v = cloud.double(forKey: Key.textSizeBoost), v > 0, textSizeBoost != v {
-            textSizeBoost = v
+        if let v = cloud.double(forKey: Key.textSizeBoost), v > 0 {
+            let clamped = min(max(v, 0.65), 1.25)
+            if textSizeBoost != clamped { textSizeBoost = clamped }
         }
         // FIX: pinned collections were pushed to iCloud in didSet but never merged
         // back here, so pins made on one device never appeared on the others.

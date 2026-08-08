@@ -64,8 +64,17 @@ struct SettingsView: View {
 
                     searchField
 
-                    ForEach(filteredGroups) { group in
-                        SettingsGroup(header: group.header, rows: group.items.map { rowLink(for: $0) })
+                    if filteredGroups.isEmpty {
+                        EmptyStateView(
+                            systemImage: "magnifyingglass",
+                            title: "No settings found",
+                            message: "Try a broader search term."
+                        )
+                        .frame(minHeight: 280)
+                    } else {
+                        ForEach(filteredGroups) { group in
+                            SettingsGroup(header: group.header, rows: group.items.map { rowLink(for: $0) })
+                        }
                     }
                 }
                 .padding(.horizontal, Theme.isCompact ? Theme.Spacing.md : Theme.Spacing.edge)
@@ -83,6 +92,7 @@ struct SettingsView: View {
                 .foregroundStyle(Theme.Colors.textTertiary)
             TextField("Search", text: $settingsSearch)
                 .textFieldStyle(.plain)
+                .font(.appFont(SettingsMetrics.title))
                 .foregroundStyle(Theme.Colors.textPrimary)
                 .autocorrectionDisabled(true)
             if !settingsSearch.isEmpty {
@@ -90,6 +100,7 @@ struct SettingsView: View {
                     Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.Colors.textTertiary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Clear settings search")
             }
         }
         .padding(.horizontal, SettingsMetrics.rowSpacing + 2)
@@ -167,7 +178,8 @@ struct SettingsView: View {
                         in: Capsule())
             .foregroundStyle(selectedCategory == cat.id ? Color.white : Theme.Colors.textSecondary)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(NovaChipButtonStyle())
+        .accessibilityValue(selectedCategory == cat.id ? "Selected" : "")
     }
     #endif
 
@@ -184,24 +196,24 @@ struct SettingsView: View {
 
         // Experience & playback.
         var core: [Category] = [
-            Category(id: "playback", icon: "play.rectangle.on.rectangle", color: .purple,
+            Category(id: "playback", icon: "play.rectangle.on.rectangle", color: Theme.Colors.iconRed,
                      title: "Playback", detail: playerDetail) {
                          AnyView(SettingsScreen(title: "Playback") { PlaybackSettingsContent() })
                      },
         ]
         if !settings.guestMode {
             core.append(Category(id: "streaming", icon: "dot.radiowaves.left.and.right",
-                                 color: .orange, title: "Streaming") {
+                                 color: Theme.Colors.iconRed, title: "Streaming") {
                 AnyView(SettingsScreen(title: "Streaming") { StreamingSettingsContent() })
             })
         }
-        core.append(Category(id: "appearance", icon: "paintbrush.fill", color: .pink, title: "Appearance") {
+        core.append(Category(id: "appearance", icon: "paintbrush.fill", color: Theme.Colors.iconRed, title: "Appearance") {
             AnyView(SettingsScreen(title: "Appearance") { AppearanceSettingsContent() })
         })
-        core.append(Category(id: "subtitles", icon: "captions.bubble.fill", color: .teal, title: "Subtitles") {
+        core.append(Category(id: "subtitles", icon: "captions.bubble.fill", color: Theme.Colors.iconSilver, title: "Subtitles") {
             AnyView(SettingsScreen(title: "Subtitles") { SubtitleSettingsContent() })
         })
-        core.append(Category(id: "accessibility", icon: "accessibility", color: .blue, title: "Accessibility") {
+        core.append(Category(id: "accessibility", icon: "accessibility", color: Theme.Colors.iconGraphite, title: "Accessibility") {
             AnyView(SettingsScreen(title: "Accessibility") { AccessibilitySettingsContent() })
         })
         groups.append(CategoryGroup(items: core))
@@ -209,30 +221,30 @@ struct SettingsView: View {
         // Sources & accounts (hidden in guest mode).
         if !settings.guestMode {
             var accounts: [Category] = [
-                Category(id: "sources", icon: "point.3.connected.trianglepath.dotted", color: .green,
+                Category(id: "sources", icon: "point.3.connected.trianglepath.dotted", color: Theme.Colors.iconSilver,
                          title: "Sources & Health", detail: sourcesHealthDetail, status: sourcesHealthStatusColor) {
                              AnyView(SourcesView(path: self.$sourcesPath))
                          },
             ]
-            accounts.append(Category(id: "accounts", icon: "person.crop.circle.badge.checkmark", color: .blue,
+            accounts.append(Category(id: "accounts", icon: "person.crop.circle.badge.checkmark", color: Theme.Colors.iconGraphite,
                                      title: "Accounts", detail: accountsDetail, status: accountsStatusColor) {
                 AnyView(AccountsView())
             })
             if !settings.reviewSafeMode {
-                accounts.append(Category(id: "addons", icon: "puzzlepiece.extension.fill", color: .orange,
+                accounts.append(Category(id: "addons", icon: "puzzlepiece.extension.fill", color: Theme.Colors.iconRed,
                                          title: "Add-ons", detail: "\(env.addonStore.addons.count) installed") {
                     AnyView(AddonsView())
                 })
             }
-            accounts.append(Category(id: "aisearch", icon: "sparkles", color: .indigo, title: "AI Search",
+            accounts.append(Category(id: "aisearch", icon: "sparkles", color: Theme.Colors.iconRed, title: "AI Search",
                                      detail: AISearchService.isConfigured ? "Ready" : "Set up",
                                      status: AISearchService.isConfigured ? Theme.Colors.success : Theme.Colors.warning) {
                 AnyView(AISearchSettingsView())
             })
-            accounts.append(Category(id: "playlink", icon: "link", color: .blue, title: "Play from Link") {
+            accounts.append(Category(id: "playlink", icon: "link", color: Theme.Colors.iconGraphite, title: "Play from Link") {
                 AnyView(PlayFromLinkView())
             })
-            accounts.append(Category(id: "setup", icon: "checklist", color: .green, title: "Setup Checklist") {
+            accounts.append(Category(id: "setup", icon: "checklist", color: Theme.Colors.iconSilver, title: "Setup Checklist") {
                 AnyView(SetupChecklistView())
             })
             groups.append(CategoryGroup(header: "Sources & Accounts", items: accounts))
@@ -240,15 +252,15 @@ struct SettingsView: View {
 
         // Library & home.
         groups.append(CategoryGroup(header: "Content", items: [
-            Category(id: "library", icon: "books.vertical.fill", color: .brown, title: "Library") {
+            Category(id: "library", icon: "books.vertical.fill", color: Theme.Colors.iconRed, title: "Library") {
                 AnyView(SettingsScreen(title: "Library") { LibrarySettingsContent() })
             },
-            Category(id: "downloads", icon: "arrow.down.circle.fill", color: .indigo,
+            Category(id: "downloads", icon: "arrow.down.circle.fill", color: Theme.Colors.iconRed,
                      title: "Offline Downloads",
                      detail: "\(env.downloads.downloads.count) items") {
                 AnyView(OfflineDownloadsView())
             },
-            Category(id: "experience", icon: "appletv.fill", color: .blue, title: "Home & Profiles") {
+            Category(id: "experience", icon: "appletv.fill", color: Theme.Colors.iconGraphite, title: "Home & Profiles") {
                 AnyView(SettingsScreen(title: "Home & Profiles") { ExperienceSettingsContent() })
             },
         ]))
@@ -256,15 +268,15 @@ struct SettingsView: View {
         // Sync & system.
         var system: [Category] = []
         if !settings.guestMode {
-            system.append(Category(id: "backup", icon: "icloud.fill", color: .blue,
+            system.append(Category(id: "backup", icon: "icloud.fill", color: Theme.Colors.iconGraphite,
                                    title: "iCloud Backup & Restore", detail: backupDetail) {
                 AnyView(BackupView())
             })
         }
-        system.append(Category(id: "advanced", icon: "gearshape.2.fill", color: .gray, title: "Advanced") {
+        system.append(Category(id: "advanced", icon: "gearshape.2.fill", color: Theme.Colors.iconGraphite, title: "Advanced") {
             AnyView(SettingsScreen(title: "Advanced") { AdvancedSettingsContent() })
         })
-        system.append(Category(id: "privacy", icon: "hand.raised.fill", color: .gray, title: "Privacy & Legal") {
+        system.append(Category(id: "privacy", icon: "hand.raised.fill", color: Theme.Colors.iconGraphite, title: "Privacy & Legal") {
             AnyView(SettingsScreen(title: "Privacy & Legal") { PrivacyLegalSettingsContent() })
         })
         groups.append(CategoryGroup(header: "System", items: system))

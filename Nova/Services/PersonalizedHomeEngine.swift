@@ -108,6 +108,25 @@ enum PersonalizedHomeEngine {
         deduplicated(library.continueWatching + library.queuedItems)
     }
 
+    /// Produces a Home feed where a title appears only once across all rails. A
+    /// small library should become a short, useful feed instead of repeating the
+    /// same artwork under several slightly different headings.
+    @MainActor
+    static func distinctRails(library: LibraryStore,
+                              profile: ViewingProfile,
+                              excluding excludedItems: [MediaItem] = []) -> [SmartHomeRail] {
+        var seen = Set(excludedItems.map(displayIdentity))
+        return rails(library: library, profile: profile).compactMap { rail in
+            let uniqueItems = rail.items.filter { seen.insert(displayIdentity($0)).inserted }
+            guard !uniqueItems.isEmpty else { return nil }
+            return SmartHomeRail(kind: rail.kind,
+                                 title: rail.title,
+                                 subtitle: rail.subtitle,
+                                 systemImage: rail.systemImage,
+                                 items: uniqueItems)
+        }
+    }
+
     private static func append(_ rails: inout [SmartHomeRail],
                                kind: SmartHomeRailKind,
                                title: String,
@@ -213,7 +232,32 @@ enum PersonalizedHomeEngine {
 
     private static func deduplicated(_ items: [MediaItem]) -> [MediaItem] {
         var seen = Set<String>()
-        return items.filter { seen.insert($0.contentKey).inserted }
+        return items.filter { seen.insert(displayIdentity($0)).inserted }
+    }
+
+    /// Content IDs are preferred, but restored libraries and different addons can
+    /// represent the same title with different URLs. The semantic fallback catches
+    /// those copies while keeping individual series episodes distinct.
+    private static func displayIdentity(_ item: MediaItem) -> String {
+        if let contentID = item.contentID, !contentID.stableKey.hasPrefix("unknown:") {
+            if let episode = item.episode {
+                return "\(contentID.stableKey)|s\(episode.season)e\(episode.number)"
+            }
+            return contentID.stableKey
+        }
+        if let episode = item.episode {
+            return "episode:\((item.seriesTitle ?? item.title).normalizedIdentity)|s\(episode.season)e\(episode.number)"
+        }
+        return "title:\(item.title.normalizedIdentity)|\(item.metadata.year.map(String.init) ?? "")"
+    }
+}
+
+private extension String {
+    var normalizedIdentity: String {
+        folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
     }
 }
 

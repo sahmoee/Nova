@@ -42,7 +42,7 @@ struct AccountsView: View {
                 NavigationLink { TraktConnectView() } label: {
                     SettingsRow(
                         icon: "checkmark.seal.fill",
-                        color: .red,
+                        color: Theme.Colors.iconRed,
                         title: "Trakt",
                         detail: traktDetail,
                         status: traktStatusColor
@@ -54,7 +54,7 @@ struct AccountsView: View {
                 NavigationLink { RealDebridView() } label: {
                     SettingsRow(
                         icon: "arrow.down.circle.fill",
-                        color: .orange,
+                        color: Theme.Colors.iconRed,
                         title: "Real-Debrid",
                         detail: realDebridDetail,
                         status: realDebridStatusColor
@@ -70,7 +70,7 @@ struct AccountsView: View {
             AnyView(
                 credentialRow(
                     icon: "photo.on.rectangle",
-                    color: .blue,
+                    color: Theme.Colors.iconGraphite,
                     title: "TMDB",
                     subtitle: "Posters, search, descriptions, seasons, and episodes.",
                     text: $tmdbKey,
@@ -81,7 +81,7 @@ struct AccountsView: View {
             AnyView(
                 credentialRow(
                     icon: "captions.bubble.fill",
-                    color: .teal,
+                    color: Theme.Colors.iconSilver,
                     title: "OpenSubtitles",
                     subtitle: "Optional subtitle search provider.",
                     text: $openSubtitlesKey,
@@ -92,7 +92,7 @@ struct AccountsView: View {
             AnyView(
                 credentialRow(
                     icon: "star.bubble.fill",
-                    color: .yellow,
+                    color: Theme.Colors.iconSilver,
                     title: "OMDb",
                     subtitle: "Optional IMDb, Rotten Tomatoes, and Metacritic ratings.",
                     text: $omdbKey,
@@ -107,17 +107,17 @@ struct AccountsView: View {
     }
 
     private var traktDetail: String {
-        if AppConfig.shared.value(for: .traktAccessToken)?.isEmpty == false { return "Connected" }
-        if config.traktClientID?.isEmpty == false && config.traktClientSecret?.isEmpty == false { return "Ready to sign in" }
-        return "Set up"
+        if AppConfig.shared.value(for: .traktAccessToken)?.isEmpty == false { return "Connected · Log out" }
+        if config.traktClientID?.isEmpty == false && config.traktClientSecret?.isEmpty == false { return "Log in" }
+        return "Set up login"
     }
 
     private var traktStatusColor: Color {
-        traktDetail == "Connected" ? Theme.Colors.success : Theme.Colors.textTertiary
+        traktDetail.hasPrefix("Connected") ? Theme.Colors.success : Theme.Colors.textTertiary
     }
 
     private var realDebridDetail: String {
-        KeychainStore.shared.realDebridToken == nil ? "Set up" : "Connected"
+        KeychainStore.shared.realDebridToken == nil ? "Log in" : "Connected · Log out"
     }
 
     private var realDebridStatusColor: Color {

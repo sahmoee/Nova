@@ -19,7 +19,7 @@ enum AppTab: Hashable, CaseIterable {
         case .home:     return "Home"
         case .discover: return "Search"
         case .ai:       return "AI"
-        case .library:  return "Library"
+        case .library:  return "My Nova"
         case .settings: return "Settings"
         }
     }
@@ -30,7 +30,7 @@ enum AppTab: Hashable, CaseIterable {
         case .home:     return "house.fill"
         case .discover: return "magnifyingglass"
         case .ai:       return "sparkles"
-        case .library:  return "rectangle.stack.fill"
+        case .library:  return "person.crop.square.fill"
         case .settings: return "gearshape.fill"
         }
     }

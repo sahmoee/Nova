@@ -52,9 +52,27 @@ enum Theme {
         Swift.max(value * uiScale, floor)
     }
 
-    /// Scales a font point size, keeping a sensible minimum.
-    static func scaledFont(_ size: CGFloat, min floor: CGFloat = 11) -> CGFloat {
-        Swift.max(size * uiScale, floor)
+    /// Scales typography independently from artwork and spacing. Body copy must not
+    /// shrink by the same ratio as a 240-point television poster: doing so made many
+    /// perfectly ordinary 15–20 point labels render at the old 11-point floor on an
+    /// iPhone. Small values are already authored as readable body sizes; only display
+    /// type needs substantial reduction on handheld devices.
+    static func scaledFont(_ size: CGFloat, min floor: CGFloat = 13) -> CGFloat {
+        #if os(tvOS)
+        let factor: CGFloat = 1
+        #elseif os(iOS)
+        let factor: CGFloat
+        if size <= 24 {
+            factor = 1
+        } else if size <= 40 {
+            factor = isPad ? 0.86 : 0.72
+        } else {
+            factor = isPad ? 0.72 : 0.58
+        }
+        #else
+        let factor: CGFloat = 1
+        #endif
+        return Swift.max(size * factor, floor)
     }
 
     // MARK: - Dynamic Type (accessibility text sizes)
@@ -72,8 +90,18 @@ enum Theme {
     /// An additional multiplier the user can apply in-app (1.0 = none). Lets people
     /// enlarge Nova's text without changing their whole phone.
     nonisolated(unsafe) static var textSizeBoost: CGFloat = 1.0
-    /// A ceiling so very large accessibility sizes don't shatter dense layouts.
-    private static let maxDynamicScale: CGFloat = 1.6
+    /// Dense streaming layouts need progressively tighter caps as the designed
+    /// font gets larger. Body copy can still grow substantially, while display
+    /// titles no longer expand until they consume most of an iPhone screen.
+    private static func maxDynamicScale(for designedSize: CGFloat) -> CGFloat {
+        switch designedSize {
+        case ..<18: return 1.50
+        case ..<24: return 1.38
+        case ..<32: return 1.26
+        case ..<42: return 1.18
+        default:    return 1.10
+        }
+    }
     #endif
 
     // MARK: - Component style (app-wide look)
@@ -95,7 +123,7 @@ enum Theme {
             // Grow/shrink with the system Dynamic Type setting, capped so extreme
             // accessibility sizes stay within the layout.
             let metric = UIFontMetrics(forTextStyle: .body).scaledValue(for: scaled)
-            let ratio = Swift.min(metric / scaled, maxDynamicScale)
+            let ratio = Swift.min(metric / scaled, maxDynamicScale(for: scaled))
             value = scaled * ratio
         }
         value *= textSizeBoost
@@ -126,29 +154,32 @@ enum Theme {
     // MARK: - Colors
 
     enum Colors {
-        // Nova pairs true-black cinematic surfaces with the electric indigo and cyan
-        // used by the nova-burst mark across iOS and tvOS.
+        // Nova pairs true-black cinematic surfaces with the crimson, graphite, and
+        // white used by the crystalline nova mark across iOS and tvOS.
         static let background = Color.black
-        static let backgroundElevated = Color(white: 0.055)
+        static let backgroundElevated = Color(white: 0.045)
 
-        static let card = Color.white.opacity(0.08)
-        static let cardElevated = Color.white.opacity(0.14)
+        static let card = Color(white: 0.38).opacity(0.18)
+        static let cardElevated = Color(white: 0.52).opacity(0.24)
 
-        static let accent = Color(red: 0.37, green: 0.40, blue: 1.0)
-        static let accentSecondary = Color(red: 0.19, green: 0.78, blue: 1.0)
+        static let accent = Color(red: 0.94, green: 0.07, blue: 0.11)
+        static let accentSecondary = Color(red: 0.67, green: 0.04, blue: 0.07)
+        static let iconRed = accent
+        static let iconGraphite = Color(white: 0.26)
+        static let iconSilver = Color(white: 0.58)
 
         static let textPrimary = Color.white
         static let textSecondary = Color.white.opacity(0.72)
         static let textTertiary = Color.white.opacity(0.42)
 
-        static let success = Color.green
-        static let warning = Color.orange
-        static let error = Color.red
+        static let success = Color.white
+        static let warning = Color(white: 0.72)
+        static let error = accent
 
         static let separator = Color.white.opacity(0.10)
 
         static let appBackground = LinearGradient(
-            colors: [Color.black, Color(white: 0.025), Color.black],
+            colors: [Color.black, Color(red: 0.055, green: 0.012, blue: 0.016), Color.black],
             startPoint: .top,
             endPoint: .bottom
         )
@@ -179,9 +210,9 @@ enum Theme {
     // MARK: - Radii
 
     enum Radius {
-        static var card: CGFloat { Theme.scaled(18, min: 12) }
-        static var largeCard: CGFloat { Theme.scaled(24, min: 16) }
-        static var button: CGFloat { Theme.scaled(14, min: 10) }
+        static var card: CGFloat { Theme.scaled(12, min: 7) }
+        static var largeCard: CGFloat { Theme.scaled(18, min: 12) }
+        static var button: CGFloat { Theme.scaled(10, min: 7) }
         static let pill: CGFloat = 999
     }
 

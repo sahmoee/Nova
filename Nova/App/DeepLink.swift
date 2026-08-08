@@ -9,7 +9,8 @@
 //  Supported forms:
 //    nova://home                     -> Home tab
 //    nova://discover                 -> Discover tab
-//    nova://ai                       -> AI tab
+//    nova://ai                       -> Search (where AI search lives)
+//    nova://new                      -> New & Hot tab
 //    nova://library                  -> Library tab
 //    nova://settings                 -> Settings tab
 //    nova://settings/sources         -> Settings tab, Sources screen
@@ -46,7 +47,8 @@ enum DeepLink: Equatable {
         switch head {
         case "home":     return .tab(.home)
         case "discover": return .tab(.discover)
-        case "ai":       return .tab(.ai)
+        case "ai":       return .tab(.discover)
+        case "new", "new-and-hot": return .tab(.ai)
         case "library":  return .tab(.library)
         case "continue": return .continueWatching
         case "settings":

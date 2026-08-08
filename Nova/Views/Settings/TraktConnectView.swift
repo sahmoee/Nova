@@ -67,37 +67,69 @@ struct TraktConnectView: View {
         .background(Theme.Colors.appBackground.ignoresSafeArea())
         .task { await onAppear() }
         .onDisappear { pollTask?.cancel() }
+        .alert("Log Out of Trakt?", isPresented: $confirmingDisconnect) {
+            Button("Log Out", role: .destructive) {
+                env.trakt.signOut()
+                username = nil
+                errorMessage = nil
+                phase = .notConfigured
+                ToastCenter.shared.show("Logged out of Trakt", systemImage: "rectangle.portrait.and.arrow.right")
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your watchlist and watched progress will stop syncing until you log in again.")
+        }
     }
 
     private var notConfigured: some View {
         Group {
-            SettingsGroup(
-                header: "Sign In",
-                footer: "Trakt requires app credentials before device authorization can start. After saving them, Nova opens Trakt's own authorization flow.",
-                rows: [
-                    AnyView(SettingsNote("Add your Trakt client ID and secret once, then sign in with your Trakt account.")),
-                    AnyView(
-                        credentialRow(
-                            icon: "number",
-                            color: .red,
-                            title: "Client ID",
-                            text: $traktID,
-                            isPresent: config.isPresent(.traktClientID)
+            if hasClientCredentials {
+                SettingsGroup(
+                    header: "Account",
+                    footer: "Nova opens Trakt's secure device authorization page. Your password is never shared with Nova.",
+                    rows: [
+                        AnyView(SettingsNote("You are logged out. Log in to restore watchlist and progress syncing.")),
+                        AnyView(
+                            Button { Task { await beginDeviceFlow() } } label: {
+                                SettingsRow(icon: "person.crop.circle.badge.checkmark",
+                                            color: Theme.Colors.iconRed,
+                                            title: "Log In to Trakt",
+                                            detail: "Open secure authorization",
+                                            showsChevron: false)
+                            }
+                            .buttonStyle(.plain)
                         )
-                    ),
-                    AnyView(
-                        credentialRow(
-                            icon: "lock.fill",
-                            color: .gray,
-                            title: "Client Secret",
-                            text: $traktSecret,
-                            isPresent: config.isPresent(.traktClientSecret),
-                            secure: true
-                        )
-                    ),
-                    AnyView(saveAndSignInRow)
-                ]
-            )
+                    ]
+                )
+            } else {
+                SettingsGroup(
+                    header: "Sign In",
+                    footer: "Trakt requires app credentials before device authorization can start. After saving them, Nova opens Trakt's own authorization flow.",
+                    rows: [
+                        AnyView(SettingsNote("Add your Trakt client ID and secret once, then sign in with your Trakt account.")),
+                        AnyView(
+                            credentialRow(
+                                icon: "number",
+                                color: Theme.Colors.iconRed,
+                                title: "Client ID",
+                                text: $traktID,
+                                isPresent: config.isPresent(.traktClientID)
+                            )
+                        ),
+                        AnyView(
+                            credentialRow(
+                                icon: "lock.fill",
+                                color: Theme.Colors.iconGraphite,
+                                title: "Client Secret",
+                                text: $traktSecret,
+                                isPresent: config.isPresent(.traktClientSecret),
+                                secure: true
+                            )
+                        ),
+                        AnyView(saveAndSignInRow)
+                    ]
+                )
+            }
 
             SettingsGroup(rows: [
                 AnyView(
@@ -106,7 +138,7 @@ struct TraktConnectView: View {
                     } label: {
                         SettingsRow(
                             icon: "arrow.up.right.square",
-                            color: .red,
+                            color: Theme.Colors.iconRed,
                             title: "Create a Trakt App",
                             detail: "trakt.tv",
                             showsChevron: false
@@ -116,6 +148,10 @@ struct TraktConnectView: View {
                 )
             ])
         }
+    }
+
+    private var hasClientCredentials: Bool {
+        config.traktClientID?.isEmpty == false && config.traktClientSecret?.isEmpty == false
     }
 
     private func credentialRow(icon: String,
@@ -206,24 +242,11 @@ struct TraktConnectView: View {
 
             scrobbleControlPanel
 
-            FocusableButton(title: "Disconnect", systemImage: "rectangle.portrait.and.arrow.right") {
-                // Ask first — disconnecting stops watchlist and progress sync.
+            FocusableButton(title: "Log Out", systemImage: "rectangle.portrait.and.arrow.right") {
                 confirmingDisconnect = true
             }
             .frame(maxWidth: Theme.isCompact ? .infinity : 320)
             .padding(.top, Theme.Spacing.sm)
-            .alert("Disconnect Trakt?", isPresented: $confirmingDisconnect) {
-                Button("Disconnect", role: .destructive) {
-                    Task {
-                        await env.trakt.signOut()
-                        phase = .notConfigured
-                        await onAppear()
-                    }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Your watchlist and watched progress will stop syncing until you connect again.")
-            }
         }
     }
 
@@ -354,10 +377,16 @@ struct TraktConnectView: View {
             Text(errorMessage ?? "Couldn't connect to Trakt.")
                 .font(.appFont(22))
                 .foregroundStyle(Theme.Colors.error)
-            FocusableButton(title: "Try Again", systemImage: "arrow.clockwise", prominent: true) {
+            FocusableButton(title: "Reconnect", systemImage: "arrow.clockwise", prominent: true) {
                 Task { await beginDeviceFlow() }
             }
             .frame(maxWidth: Theme.isCompact ? .infinity : 280)
+            if config.value(for: .traktAccessToken)?.isEmpty == false {
+                FocusableButton(title: "Log Out", systemImage: "rectangle.portrait.and.arrow.right") {
+                    confirmingDisconnect = true
+                }
+                .frame(maxWidth: Theme.isCompact ? .infinity : 280)
+            }
         }
     }
 

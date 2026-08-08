@@ -32,12 +32,35 @@ struct DiscoverView: View {
     @State private var aiSearching = false
     @State private var aiError: String?
     @State private var confirmClearRecentSearches = false
+    @State private var newAndHotPath = NavigationPath()
     /// Bumped each time Discover appears so its shelves reshuffle and refresh.
     @State private var discoverRefreshToken = 0
 
     @ViewBuilder
     private var discoverShelves: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
+            NavigationLink {
+                NewAndHotView(path: $newAndHotPath)
+            } label: {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Image(systemName: "play.rectangle.on.rectangle.fill")
+                        .font(.appFont(22, weight: .semibold))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("New & Hot")
+                            .font(.appFont(20, weight: .semibold))
+                        Text("Trending, new this week, and coming soon")
+                            .font(.appFont(14))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.appFont(16))
+                }
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .padding(.vertical, Theme.Spacing.xs)
+                .contentShape(Rectangle())
+            }
+            .novaRowStyle()
+
             NavigationLink(value: DiscoverRoute.liveTV) {
                 HStack(spacing: Theme.Spacing.sm) {
                     Image(systemName: "dot.radiowaves.left.and.right")
