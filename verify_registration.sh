@@ -24,31 +24,12 @@ if [[ ! -f "$PBXPROJ" ]]; then
   exit 2
 fi
 
-# Files intentionally excluded from the build (known orphans).
-# Add a filename here ONLY if it is deliberately unregistered.
-EXCLUDE=(
-  "MockData.swift"
-  # Orphan: enum Haptics is actually defined in Components/Toast.swift. This
-  # Utilities copy is intentionally unregistered (registering it would cause a
-  # duplicate-type build error). Delete it during cleanup if desired.
-  "Haptics.swift"
-)
-
-is_excluded() {
-  local base="$1"
-  for e in "${EXCLUDE[@]}"; do
-    [[ "$base" == "$e" ]] && return 0
-  done
-  return 1
-}
-
 FAIL=0
 
 # Iterate every Swift file under the app sources (not widgets/topshelf, which
 # use PBXFileSystemSynchronizedRootGroup and register automatically).
 while IFS= read -r -d '' f; do
   base="$(basename "$f")"
-  is_excluded "$base" && continue
 
   escaped_base=$(printf '%s' "$base" | sed 's/[][\.^$*+?{}|()]/\\&/g')
   fileref=$(grep -Ec "/\* .*${escaped_base} \*/ = \{isa = PBXFileReference" "$PBXPROJ" || true)

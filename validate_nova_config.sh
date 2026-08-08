@@ -5,7 +5,7 @@
 # Fails (nonzero exit) if any of the authoritative build settings drift:
 #   • the retained Astra app identities required for upgrade/data compatibility
 #   • Team ID 5DV5N49VG8
-#   • App Group  group.astra.ios (retained across app, widgets, tvOS, Top Shelf)
+#   • App Group  group.astra.ios (retained across app, widgets, and tvOS)
 #   • URL scheme nova://
 #   • deployment targets (iOS + tvOS = 26.0)
 #   • version numbers consistent across targets
@@ -36,17 +36,17 @@ if grep -q "DEVELOPMENT_TEAM = 5DV5N49VG8" "$PBX"; then ok "Team 5DV5N49VG8"; el
 if grep -oE "DEVELOPMENT_TEAM = [A-Z0-9]+" "$PBX" | sort -u | grep -qv "5DV5N49VG8"; then bad "a different Team ID also present"; fi
 
 echo "== App Group =="
-# Use grep exit status only (no string capture): the three real entitlement files
+# Use grep exit status only (no string capture): both real entitlement files
 # must all retain Astra's registered group so Nova sees existing shared storage.
 GROUP_OK=1
-for ent in "NovaWidgetsExtension.entitlements" "Nova/Resources/Nova.entitlements" "NovaTopShelf/NovaTopShelf.entitlements"; do
+for ent in "NovaWidgetsExtension.entitlements" "Nova/Resources/Nova.entitlements"; do
   grep -q "group\.astra\.ios" "$ROOT/$ent" 2>/dev/null || GROUP_OK=0
 done
-if [ "$GROUP_OK" -eq 1 ]; then ok "retained App Group group.astra.ios (all 3 entitlements)"; else
+if [ "$GROUP_OK" -eq 1 ]; then ok "retained App Group group.astra.ios (both entitlements)"; else
   bad "App Group not retained as group.astra.ios"
 fi
 # Also ensure shared-storage code uses the same group.
-if grep -rq 'group\.nova\.ios\|group\.com\.frametv\.shared' "$ROOT/Nova" "$ROOT/NovaTopShelf" "$ROOT/NovaWidgets" --include=*.swift 2>/dev/null; then
+if grep -rq 'group\.nova\.ios\|group\.com\.frametv\.shared' "$ROOT/Nova" "$ROOT/NovaWidgets" --include=*.swift 2>/dev/null; then
   bad "source code references a noncanonical App Group id"
 else ok "source code uses the retained App Group"; fi
 

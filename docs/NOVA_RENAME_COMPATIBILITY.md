@@ -28,7 +28,7 @@ App IDs would install a separate app and make Astra iCloud snapshots invisible.
 1. Rename the existing Astra App Store listing to Nova; do not create a new app.
 2. Keep the existing Astra App IDs and enable iCloud Key-Value Storage on the iOS
    and tvOS identifiers.
-3. Keep `group.astra.ios` enabled on the app, widget, and Top Shelf profiles.
+3. Keep `group.astra.ios` enabled on the app, widget, and tvOS profiles.
 4. Regenerate development, ad-hoc, and distribution provisioning profiles after
    confirming those capabilities.
 5. Test an upgrade from the last shipped Astra build on physical iPhone/iPad and
