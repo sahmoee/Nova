@@ -46,7 +46,7 @@ struct PrivacyLegalView: View {
 
                     block(
                         title: "Your data stays on your device",
-                        body: "Your library, watch history, and settings are stored locally. Nova has no analytics and no servers of its own. The network calls Nova makes are to services you configure yourself, such as your metadata provider, your Real-Debrid account, your SMB shares, and (if you set it up) your own AI Worker."
+                        body: "Your library, watch history, and settings are stored locally. Nova has no advertising or analytics SDK and does not operate an account service. Network requests go only to Apple services and the providers you configure, such as a metadata provider, your media services, your SMB shares, and—if you set one up—your own AI Worker."
                     )
 
                     block(
@@ -116,13 +116,30 @@ struct PrivacyLegalView: View {
                             detail: "Swift Package Manager distribution of VLCKit. github.com/tylerjonesio/vlckit-spm.")
                         acknowledgement(
                             name: "AMSMB2",
-                            license: "MIT License",
-                            detail: "Provides SMB network share access. © Amir Abbas Mousavian. github.com/amosavian/AMSMB2.")
+                            license: "LGPL v2.1",
+                            detail: "Provides SMB network share access through AMSMB2 and libsmb2. github.com/amosavian/AMSMB2.")
 
                         Text("Metadata, when enabled, is provided by The Movie Database (TMDB) using your own API key. This product uses the TMDB API but is not endorsed or certified by TMDB.")
                             .font(.appFont(16))
                             .foregroundStyle(Theme.Colors.textTertiary)
                             .padding(.top, Theme.Spacing.xs)
+                    }
+                    .padding(Theme.Spacing.md)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .refinedCardBackground()
+
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Text("Published Policies")
+                            .font(.appFont(28, weight: .bold))
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                        legalLink("Privacy Policy", systemImage: "hand.raised.fill",
+                                  url: "https://sahmoee.github.io/Nova/privacy.html")
+                        legalLink("License & Open-Source Notices", systemImage: "doc.text.fill",
+                                  url: "https://sahmoee.github.io/Nova/license.html")
+                        legalLink("Support", systemImage: "questionmark.circle.fill",
+                                  url: "https://sahmoee.github.io/Nova/support.html")
+                        legalLink("Apple Standard EULA", systemImage: "checkmark.seal.fill",
+                                  url: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")
                     }
                     .padding(Theme.Spacing.md)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -186,5 +203,28 @@ struct PrivacyLegalView: View {
                 .foregroundStyle(Theme.Colors.textSecondary)
         }
         .padding(.top, Theme.Spacing.xs)
+    }
+
+    @ViewBuilder
+    private func legalLink(_ title: String, systemImage: String, url: String) -> some View {
+        if let destination = URL(string: url) {
+            Link(destination: destination) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Image(systemName: systemImage)
+                        .foregroundStyle(Theme.Colors.accent)
+                        .frame(width: 28)
+                    Text(title)
+                        .font(.appFont(17, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    Spacer(minLength: Theme.Spacing.sm)
+                    Image(systemName: "arrow.up.right")
+                        .font(.appFont(13, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                }
+                .padding(.vertical, Theme.Spacing.xs)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
     }
 }
