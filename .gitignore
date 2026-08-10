@@ -21,3 +21,5 @@ COMMIT_MSG.txt
 
 # Local operating guide — not part of the shipped repo
 README-FIRST.md
+
+AGENT-HANDOFF.md

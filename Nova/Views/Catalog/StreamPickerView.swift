@@ -565,6 +565,8 @@ struct StreamPickerView: View {
                     }
                     // Playback confidence: an instant plain-language read.
                     confidenceBadge(StreamRanker.confidence(stream))
+                    // Cinematic quality marks (boxd vibe) over Nova's parsed signals.
+                    StreamQualityChips(stream: stream)
                     Text(stream.rawTitle)
                         .font(.appFont(20, weight: .medium))
                         .foregroundStyle(Theme.Colors.textPrimary)
@@ -831,5 +833,93 @@ struct StreamPickerView: View {
     /// preferring cached/instant sources first.
     private func nextCandidate() -> StreamOption? {
         filteredStreams.first { !deadStreamIDs.contains($0.id) }
+    }
+}
+
+
+// MARK: - Stream quality chips (boxd vibe)
+// At-a-glance quality marks (HDR / Dolby Vision / audio format / channels / codec)
+// rendered as calm capsule chips over StreamOption's already-parsed signals.
+struct StreamQualityChips: View {
+    let stream: StreamOption
+
+    private struct Mark: Identifiable {
+        let id = UUID()
+        let label: String
+        let tint: Color
+        let systemImage: String?
+        let dolby: Bool
+    }
+
+    private var marks: [Mark] {
+        var out: [Mark] = []
+        switch stream.hdr {
+        case .dolbyVision: out.append(Mark(label: "Dolby Vision", tint: Theme.Colors.markVision, systemImage: nil, dolby: true))
+        case .hdr10Plus:   out.append(Mark(label: "HDR10+", tint: Theme.Colors.markHDR, systemImage: "sun.max.fill", dolby: false))
+        case .hdr10, .hdr: out.append(Mark(label: "HDR", tint: Theme.Colors.markHDR, systemImage: "sun.max.fill", dolby: false))
+        case .none: break
+        }
+        switch stream.audioFormat {
+        case .atmos:  out.append(Mark(label: "Atmos", tint: Theme.Colors.markAudio, systemImage: nil, dolby: true))
+        case .trueHD: out.append(Mark(label: "TrueHD", tint: Theme.Colors.markAudio, systemImage: "waveform", dolby: false))
+        case .dtsHD:  out.append(Mark(label: "DTS-HD", tint: Theme.Colors.markAudio, systemImage: "waveform.path.ecg", dolby: false))
+        case .dts:    out.append(Mark(label: "DTS", tint: Theme.Colors.markAudio, systemImage: "waveform.path.ecg", dolby: false))
+        case .eac3:   out.append(Mark(label: "DD+", tint: Theme.Colors.markAudio, systemImage: "speaker.wave.3.fill", dolby: false))
+        case .ac3:    out.append(Mark(label: "DD", tint: Theme.Colors.markAudio, systemImage: "speaker.wave.3.fill", dolby: false))
+        case .aac:    out.append(Mark(label: "AAC", tint: Theme.Colors.markAudio, systemImage: "speaker.wave.2.fill", dolby: false))
+        case .unknown: break
+        }
+        if let ch = stream.audioChannels, !ch.isEmpty {
+            out.append(Mark(label: ch, tint: Theme.Colors.markAudio, systemImage: "hifispeaker.fill", dolby: false))
+        }
+        if stream.videoCodec != .unknown {
+            out.append(Mark(label: stream.videoCodec.rawValue, tint: Theme.Colors.markNeutral, systemImage: "film", dolby: false))
+        }
+        return out
+    }
+
+    var body: some View {
+        if marks.isEmpty {
+            EmptyView()
+        } else {
+            WrapFlowLayout(spacing: 6, lineSpacing: 6) {
+                ForEach(marks) { mark in
+                    HStack(spacing: 5) {
+                        if mark.dolby {
+                            NovaDolbyDMark(color: mark.tint).frame(width: 14, height: 14)
+                        } else if let sys = mark.systemImage {
+                            Image(systemName: sys).font(.appFont(12, weight: .semibold))
+                        }
+                        Text(mark.label).font(.appFont(13, weight: .semibold)).lineLimit(1)
+                    }
+                    .foregroundStyle(mark.tint.opacity(0.95))
+                    .padding(.horizontal, 9).padding(.vertical, 5)
+                    .background(Theme.Colors.backgroundElevated.opacity(0.9), in: Capsule())
+                    .overlay(Capsule().strokeBorder(mark.tint.opacity(0.18), lineWidth: 1))
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(marks.map(\.label).joined(separator: ", "))
+        }
+    }
+}
+
+/// Minimal double-D Dolby glyph (boxd), drawn so no bundled asset is required.
+private struct NovaDolbyDMark: View {
+    var color: Color = .white
+    var body: some View {
+        Canvas { context, size in
+            let h = size.height, w = size.width
+            func dee(offsetX: CGFloat) -> Path {
+                var outer = Path(roundedRect: CGRect(x: offsetX, y: h * 0.05, width: w * 0.55, height: h * 0.9), cornerRadius: h * 0.22)
+                let inner = Path(roundedRect: CGRect(x: offsetX + w * 0.16, y: h * 0.22, width: w * 0.28, height: h * 0.56), cornerRadius: h * 0.12)
+                let stem = Path(CGRect(x: offsetX, y: h * 0.05, width: w * 0.14, height: h * 0.9))
+                outer.addPath(stem)
+                return outer.subtracting(inner)
+            }
+            context.fill(dee(offsetX: 0), with: .color(color))
+            context.fill(dee(offsetX: w * 0.30), with: .color(color))
+        }
+        .accessibilityHidden(true)
     }
 }

@@ -156,41 +156,57 @@ enum Theme {
     enum Colors {
         // A cool, cinematic near-black lets artwork remain the visual focus while
         // pale-blue controls provide a restrained, consistent interactive language.
-        static let background = Color(red: 0.018, green: 0.027, blue: 0.045)
-        static let backgroundElevated = Color(red: 0.035, green: 0.052, blue: 0.078)
+        // Cinematic tinted-neutral palette (boxd vibe): never pure black/white, a cool
+        // indigo near-black canvas, restrained pearl controls, artwork stays the focus.
+        static let background = Color(red: 0.045, green: 0.048, blue: 0.062)
+        static let backgroundElevated = Color(red: 0.085, green: 0.090, blue: 0.112)
 
-        static let card = Color(red: 0.16, green: 0.20, blue: 0.27).opacity(0.42)
-        static let cardElevated = Color(red: 0.24, green: 0.31, blue: 0.40).opacity(0.50)
+        static let card = Color(red: 0.105, green: 0.112, blue: 0.138).opacity(0.60)
+        static let cardElevated = Color(red: 0.105, green: 0.112, blue: 0.138).opacity(0.92)
 
-        static let accent = Color(red: 0.69, green: 0.86, blue: 0.96)
-        static let accentSecondary = Color(red: 0.35, green: 0.60, blue: 0.78)
+        // Accent is a calm pale blue used sparingly — never neon.
+        static let accent = Color(red: 0.78, green: 0.84, blue: 0.94)
+        static let accentSecondary = Color(red: 0.62, green: 0.68, blue: 0.82)
         static let iconRed = accent
         static let iconGraphite = Color(white: 0.26)
         static let iconSilver = Color(white: 0.58)
 
-        static let textPrimary = Color.white
-        static let textSecondary = Color(red: 0.79, green: 0.82, blue: 0.87).opacity(0.78)
-        static let textTertiary = Color(red: 0.66, green: 0.70, blue: 0.76).opacity(0.58)
+        static let textPrimary = Color(red: 0.96, green: 0.965, blue: 0.978)
+        static let textSecondary = Color(red: 0.72, green: 0.74, blue: 0.80)
+        static let textTertiary = Color(red: 0.52, green: 0.54, blue: 0.60)
+        static let textQuaternary = Color(red: 0.40, green: 0.42, blue: 0.48)
 
-        static let success = Color.white
-        static let warning = Color(white: 0.72)
-        static let error = accent
+        static let success = Color(red: 0.52, green: 0.78, blue: 0.68)   // muted sage
+        static let warning = Color(red: 0.90, green: 0.82, blue: 0.62)   // soft gold
+        static let error = Color(red: 0.88, green: 0.55, blue: 0.55)     // muted rose
 
-        static let separator = Color(red: 0.73, green: 0.84, blue: 0.94).opacity(0.12)
+        static let separator = Color(red: 0.78, green: 0.82, blue: 0.90).opacity(0.12)
+        static let hairlineStrong = Color(red: 0.78, green: 0.82, blue: 0.90).opacity(0.22)
+        static let focusRing = Color(red: 0.96, green: 0.97, blue: 0.99).opacity(0.92)
+
+        // Quiet quality-mark accents (Vision / HDR / Atmos chips) + progress + watched.
+        static let recommended = Color(red: 0.78, green: 0.84, blue: 0.94)
+        static let markNeutral = Color(red: 0.82, green: 0.84, blue: 0.90)
+        static let markVision = Color(red: 0.78, green: 0.72, blue: 0.92)
+        static let markHDR = Color(red: 0.90, green: 0.82, blue: 0.62)
+        static let markAudio = Color(red: 0.70, green: 0.82, blue: 0.94)
+        static let progressTrack = Color(red: 0.78, green: 0.82, blue: 0.90).opacity(0.22)
+        static let progressFill = Color(red: 0.92, green: 0.72, blue: 0.38)   // amber
+        static let watched = Color(red: 0.52, green: 0.78, blue: 0.68)        // sage
 
         static let appBackground = LinearGradient(
             colors: [
-                Color(red: 0.035, green: 0.058, blue: 0.090),
-                Color(red: 0.018, green: 0.027, blue: 0.045),
-                Color(red: 0.010, green: 0.014, blue: 0.024)
+                Color(red: 0.062, green: 0.066, blue: 0.085),
+                Color(red: 0.045, green: 0.048, blue: 0.062),
+                Color(red: 0.028, green: 0.030, blue: 0.040)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
 
         static let cardGradient = LinearGradient(
-            colors: [Color(red: 0.34, green: 0.43, blue: 0.55).opacity(0.28),
-                     Color(red: 0.12, green: 0.16, blue: 0.23).opacity(0.42)],
+            colors: [Color(red: 0.145, green: 0.152, blue: 0.182).opacity(0.55),
+                     Color(red: 0.085, green: 0.090, blue: 0.112).opacity(0.65)],
             startPoint: .top,
             endPoint: .bottom
         )
@@ -198,8 +214,8 @@ enum Theme {
         static let heroGradient = LinearGradient(
             stops: [
                 .init(color: Color.black.opacity(0.02), location: 0.0),
-                .init(color: Color.black.opacity(0.28), location: 0.55),
-                .init(color: Color.black.opacity(0.82), location: 1.0)
+                .init(color: Color.black.opacity(0.30), location: 0.55),
+                .init(color: Color.black.opacity(0.86), location: 1.0)
             ],
             startPoint: .top,
             endPoint: .bottom
@@ -219,6 +235,8 @@ enum Theme {
         static var largeCard: CGFloat { Theme.scaled(28, min: 18) }
         static var button: CGFloat { Theme.scaled(16, min: 11) }
         static let pill: CGFloat = 999
+        static let poster: CGFloat = 12
+        static let thumb: CGFloat = 10
     }
 
     // MARK: - Soft depth
@@ -238,6 +256,10 @@ enum Theme {
     enum Motion {
         /// Standard springy show/hide for panels, prompts, and the mini player bar.
         static let spring = SwiftUI.Animation.spring(response: 0.38, dampingFraction: 0.82)
+        // boxd motion scale — calm, quick easing for chrome and crossfades.
+        static let quick = SwiftUI.Animation.easeOut(duration: 0.18)
+        static let standard = SwiftUI.Animation.easeOut(duration: 0.28)
+        static let crossfade = SwiftUI.Animation.easeInOut(duration: 0.40)
     }
 
     // MARK: - Spacing

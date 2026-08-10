@@ -441,3 +441,42 @@ actor TMDBClient {
         return Self.airDateFormatter.date(from: s)
     }
 }
+
+
+// MARK: - Anime catalog (boxd feature #3)
+extension TMDBClient {
+    /// Anime = TMDB Animation genre (16), restricted to Japanese-origin titles so the
+    /// shelf reads as anime rather than all animation.
+    private func discoverAnime(isMovie: Bool, genres: [Int], sort: String,
+                               extra: [String: String] = [:]) async throws -> [CatalogItem] {
+        var query: [String: String] = [
+            "with_genres": genres.map(String.init).joined(separator: ","),
+            "with_original_language": "ja",
+            "sort_by": sort,
+            "include_adult": "false"
+        ]
+        for (k, v) in extra { query[k] = v }
+        if isMovie {
+            let resp: TMDBSearchResponse<TMDBMovie> = try await get("discover/movie", query: query)
+            return mapMovies(resp.results)
+        } else {
+            let resp: TMDBSearchResponse<TMDBShow> = try await get("discover/tv", query: query)
+            return mapShows(resp.results)
+        }
+    }
+
+    func popularAnimeShows() async throws -> [CatalogItem] {
+        try await discoverAnime(isMovie: false, genres: [16], sort: "popularity.desc")
+    }
+    func topRatedAnimeShows() async throws -> [CatalogItem] {
+        try await discoverAnime(isMovie: false, genres: [16], sort: "vote_average.desc",
+                                extra: ["vote_count.gte": "250"])
+    }
+    func popularAnimeMovies() async throws -> [CatalogItem] {
+        try await discoverAnime(isMovie: true, genres: [16], sort: "popularity.desc")
+    }
+    /// A genre-filtered anime shelf (TV genre id combined with Animation).
+    func animeShows(genre: Int) async throws -> [CatalogItem] {
+        try await discoverAnime(isMovie: false, genres: [16, genre], sort: "popularity.desc")
+    }
+}

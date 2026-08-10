@@ -1128,6 +1128,8 @@ struct PosterImage: View {
     let url: URL?
     var width: CGFloat
     var height: CGFloat
+    /// 0...100 watch progress; when set, a thin bar overlays the bottom of the art.
+    var progressPercent: Double? = nil
     /// When set, missing artwork renders the app's generated title poster instead
     /// of a generic film glyph — one fallback path shared with MediaCard.
     var title: String? = nil
@@ -1148,6 +1150,12 @@ struct PosterImage: View {
         .frame(width: width, height: height)
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .overlay(alignment: .bottom) {
+            if let progressPercent {
+                WatchProgressBar(percent: progressPercent)
+                    .padding(.horizontal, 6).padding(.bottom, 6)
+            }
+        }
         .accessibilityHidden(true)
     }
 
@@ -1159,5 +1167,39 @@ struct PosterImage: View {
                     .font(.appFont(40))
                     .foregroundStyle(Theme.Colors.textTertiary)
             )
+    }
+}
+
+
+// MARK: - Watch progress bar (boxd vibe)
+// Thin playback progress strip for posters / stills (0...100). Amber fill on a faint
+// track, using the shared Theme progress tokens.
+struct WatchProgressBar: View {
+    var percent: Double?
+    var height: CGFloat = 3
+    /// Continue Watching: keep the track visible even when percent is unknown.
+    var showsEmptyTrack: Bool = false
+
+    private var clamped: Double? {
+        guard let percent, percent > 1 else { return nil }
+        return min(100, max(0, percent))
+    }
+    private var shouldDraw: Bool { showsEmptyTrack || clamped != nil }
+
+    var body: some View {
+        if shouldDraw {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule(style: .continuous).fill(Theme.Colors.progressTrack)
+                    if let clamped {
+                        Capsule(style: .continuous).fill(Theme.Colors.progressFill)
+                            .frame(width: max(height, geo.size.width * clamped / 100))
+                    }
+                }
+            }
+            .frame(height: height)
+            .allowsHitTesting(false)
+            .accessibilityLabel(clamped != nil ? "Watched \(Int((clamped ?? 0).rounded())) percent" : "In progress")
+        }
     }
 }

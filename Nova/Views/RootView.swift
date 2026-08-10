@@ -132,6 +132,10 @@ struct RootView: View {
                 .tabItem { Label(AppTab.discover.title, systemImage: AppTab.discover.systemImage) }
                 .tag(AppTab.discover)
 
+            AnimeView(path: $nav.animePath)
+                .tabItem { Label(AppTab.anime.title, systemImage: AppTab.anime.systemImage) }
+                .tag(AppTab.anime)
+
             AIView(path: $nav.aiPath)
                 .tabItem { Label(AppTab.ai.title, systemImage: AppTab.ai.systemImage) }
                 .tag(AppTab.ai)
@@ -192,6 +196,7 @@ struct RootView: View {
             switch nav.selection {
             case .home:     HomeView(path: $nav.homePath)
             case .discover: DiscoverView(path: $nav.discoverPath)
+            case .anime:    AnimeView(path: $nav.animePath)
             case .ai:       AIView(path: $nav.aiPath)
             case .library:  LibraryView(path: $nav.libraryPath)
             case .settings: SettingsView(path: $nav.settingsPath)
@@ -342,5 +347,95 @@ struct RootView: View {
         if env.library.items.isEmpty, BackupManager.shared.hasCloudSnapshot() {
             offerRestore = true
         }
+    }
+}
+
+
+// MARK: - Anime tab (boxd feature #3)
+// A dedicated anime catalog: Japanese-origin Animation titles across several shelves,
+// each poster routing into the shared ContentDetailView. Uses the app's boxd-themed
+// tokens so it matches the rest of Nova.
+struct AnimeView: View {
+    @Binding var path: NavigationPath
+    @EnvironmentObject private var env: AppEnvironment
+
+    private struct AnimeShelf: Identifiable {
+        let id = UUID(); let title: String; let items: [CatalogItem]
+    }
+    @State private var shelves: [AnimeShelf] = []
+    @State private var loaded = false
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            ScrollView(showsIndicators: false) {
+                LazyVStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
+                    if !loaded && shelves.isEmpty {
+                        ProgressView().tint(Theme.Colors.accent)
+                            .frame(maxWidth: .infinity).padding(.top, 80)
+                    }
+                    ForEach(shelves) { shelf in
+                        if !shelf.items.isEmpty { row(shelf) }
+                    }
+                }
+                .padding(.vertical, Theme.Spacing.md)
+            }
+            .background(Theme.Colors.appBackground.ignoresSafeArea())
+            .navigationTitle("Anime")
+            .navigationDestination(for: CatalogItem.self) { ContentDetailView(item: $0) }
+            .task { await load() }
+        }
+    }
+
+    private func row(_ shelf: AnimeShelf) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text(shelf.title)
+                .font(Theme.Font.sectionTitle())
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .padding(.leading, Theme.Spacing.edge)
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: Theme.Spacing.md) {
+                    ForEach(shelf.items) { item in
+                        NavigationLink(value: item) { poster(item) }
+                            .buttonStyle(NovaListRowStyle())
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.edge)
+                .padding(.vertical, Theme.Spacing.sm)
+            }
+        }
+    }
+
+    private func poster(_ item: CatalogItem) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            PosterImage(url: item.posterURL,
+                        width: Theme.CardSize.posterWidth,
+                        height: Theme.CardSize.posterHeight,
+                        title: item.title, year: item.year)
+            Text(item.title)
+                .font(.appFont(16, weight: .medium))
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .lineLimit(1)
+                .frame(width: Theme.CardSize.posterWidth, alignment: .leading)
+        }
+        .frame(width: Theme.CardSize.posterWidth)
+    }
+
+    private func load() async {
+        guard !loaded else { return }
+        async let popular = env.tmdb.popularAnimeShows()
+        async let top = env.tmdb.topRatedAnimeShows()
+        async let movies = env.tmdb.popularAnimeMovies()
+        async let action = env.tmdb.animeShows(genre: 10759)
+        async let comedy = env.tmdb.animeShows(genre: 35)
+        async let fantasy = env.tmdb.animeShows(genre: 10765)
+        shelves = [
+            AnimeShelf(title: "Popular", items: (try? await popular) ?? []),
+            AnimeShelf(title: "Top Rated", items: (try? await top) ?? []),
+            AnimeShelf(title: "Anime Movies", items: (try? await movies) ?? []),
+            AnimeShelf(title: "Action & Adventure", items: (try? await action) ?? []),
+            AnimeShelf(title: "Comedy", items: (try? await comedy) ?? []),
+            AnimeShelf(title: "Fantasy & Sci-Fi", items: (try? await fantasy) ?? [])
+        ]
+        loaded = true
     }
 }
