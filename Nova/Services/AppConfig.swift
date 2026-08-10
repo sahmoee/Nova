@@ -19,6 +19,10 @@ enum CredentialKey: String, CaseIterable {
     case traktClientSecret = "trakt.clientSecret"
     case traktAccessToken = "trakt.accessToken"
     case traktRefreshToken = "trakt.refreshToken"
+    case simklClientID = "simkl.clientId"
+    case simklAccessToken = "simkl.accessToken"
+    case tmdbSessionID = "tmdb.sessionId"
+    case tmdbAccountID = "tmdb.accountId"
     case openSubtitlesAPIKey = "opensubtitles.apiKey"
     case omdbAPIKey = "omdb.apiKey"
     case workerToken = "worker.token"
@@ -29,6 +33,7 @@ struct NovaConfigFile: Codable {
     var tmdbApiKey: String?
     var traktClientId: String?
     var traktClientSecret: String?
+    var simklClientId: String?
     var openSubtitlesApiKey: String?
     var omdbApiKey: String?
     /// Optional list of addon manifest URLs to preinstall on first run.
@@ -90,9 +95,11 @@ final class AppConfig: @unchecked Sendable {
         case .tmdbAPIKey:            return nonEmpty(fileConfig.tmdbApiKey)
         case .traktClientID:         return nonEmpty(fileConfig.traktClientId)
         case .traktClientSecret:     return nonEmpty(fileConfig.traktClientSecret)
+        case .simklClientID:         return nonEmpty(fileConfig.simklClientId)
         case .openSubtitlesAPIKey:   return nonEmpty(fileConfig.openSubtitlesApiKey)
         case .omdbAPIKey:            return nonEmpty(fileConfig.omdbApiKey)
-        case .traktAccessToken, .traktRefreshToken, .workerToken:
+        case .traktAccessToken, .traktRefreshToken, .workerToken,
+             .simklAccessToken, .tmdbSessionID, .tmdbAccountID:
             return nil   // tokens are runtime-only, never from the static file
         }
     }
@@ -121,6 +128,7 @@ final class AppConfig: @unchecked Sendable {
     var tmdbKey: String? { value(for: .tmdbAPIKey) }
     var traktClientID: String? { value(for: .traktClientID) }
     var traktClientSecret: String? { value(for: .traktClientSecret) }
+    var simklClientID: String? { value(for: .simklClientID) }
     var openSubtitlesKey: String? { value(for: .openSubtitlesAPIKey) }
     var omdbKey: String? { value(for: .omdbAPIKey) }
 

@@ -52,7 +52,7 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
 
     private var progressStore: PlaybackProgressStore?
     private var settings: SettingsStore?
-    private var trakt: TraktClient?
+    private var trackers: TrackingHub?
     private var catalog: CatalogService?
     private var openSubtitles: OpenSubtitlesClient?
     /// Optional: lets the player persist a subtitle timing offset back to the item.
@@ -89,13 +89,13 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
 
     func configure(progressStore: PlaybackProgressStore,
                    settings: SettingsStore,
-                   trakt: TraktClient,
+                   trackers: TrackingHub,
                    catalog: CatalogService,
                    openSubtitles: OpenSubtitlesClient,
                    libraryStore: LibraryStore? = nil) {
         self.progressStore = progressStore
         self.settings = settings
-        self.trakt = trakt
+        self.trackers = trackers
         self.catalog = catalog
         self.openSubtitles = openSubtitles
         self.libraryStore = libraryStore
@@ -463,12 +463,12 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
 
     private func scrobble(_ action: ScrobbleAction) {
         guard settings?.traktScrobblingEnabled == true,
-              let trakt, let contentID = item.contentID else { return }
+              let trackers, let contentID = item.contentID else { return }
         if action == .start { hasScrobbledStart = true }
         let pct = progressPercent
         let ep = item.episode
         Task.detached {
-            await trakt.scrobble(action: action, contentID: contentID, episode: ep, progress: pct)
+            await trackers.scrobble(action: action, contentID: contentID, episode: ep, progress: pct)
         }
     }
 

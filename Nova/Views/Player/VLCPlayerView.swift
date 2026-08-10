@@ -192,7 +192,7 @@ struct VLCPlayerView: View {
         .onAppear {
             model.configure(progressStore: progress,
                             settings: settings,
-                            trakt: env.trakt,
+                            trackers: env.trackers,
                             catalog: env.catalog,
                             openSubtitles: env.openSubtitles,
                             libraryStore: env.library)

@@ -31,6 +31,12 @@ final class AppEnvironment: ObservableObject {
     let tmdb: TMDBClient
     let omdb: OMDbClient
     let trakt: TraktClient
+    let simkl: SimklClient
+    let tmdbTracker: TMDBAccountClient
+    /// Aggregates every optional tracker (Trakt, SIMKL, TMDB). Writes fan out to all
+    /// connected trackers; reads merge across them. Use this instead of a single
+    /// service for watchlist/trending/scrobble.
+    let trackers: TrackingHub
     let openSubtitles: OpenSubtitlesClient
     let addonClient: StremioAddonClient
     let resolver: StreamResolver
@@ -57,7 +63,13 @@ final class AppEnvironment: ObservableObject {
         let tmdbClient = TMDBClient()
         self.tmdb = tmdbClient
         self.omdb = OMDbClient()
-        self.trakt = TraktClient()
+        let traktClient = TraktClient()
+        self.trakt = traktClient
+        let simklClient = SimklClient()
+        self.simkl = simklClient
+        let tmdbAccount = TMDBAccountClient()
+        self.tmdbTracker = tmdbAccount
+        self.trackers = TrackingHub([traktClient, simklClient, tmdbAccount])
         let os = OpenSubtitlesClient()
         self.openSubtitles = os
         let addonCli = StremioAddonClient()
@@ -104,11 +116,8 @@ final class AppEnvironment: ObservableObject {
         // observers of the same notification.
         NotificationCenter.default.addObserver(
             forName: .novaBackupRestored, object: nil, queue: nil
-        ) { [trakt] _ in
-            Task {
-                await trakt.refreshIfNeeded()
-                _ = await trakt.validateConnection()
-            }
+        ) { [trackers] _ in
+            Task { await trackers.refreshAll() }
         }
     }
 }

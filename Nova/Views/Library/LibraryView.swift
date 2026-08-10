@@ -537,9 +537,9 @@ struct LibraryView: View {
         defer { traktLoading = false }
         let raw: [CatalogItem]
         if filter == .traktWatchlist {
-            raw = (try? await env.trakt.watchlist()) ?? []
+            raw = await env.trackers.watchlist()
         } else {
-            raw = (try? await env.trakt.trendingShows()) ?? []
+            raw = await env.trackers.trendingShows()
         }
         traktCatalog = await env.tmdb.enrichArtwork(raw)
     }

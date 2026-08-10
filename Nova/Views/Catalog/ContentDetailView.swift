@@ -56,6 +56,11 @@ struct ContentDetailView: View {
                     // child is proposed a width that actually fits.
                     heroHeader(width: proxy.size.width, screenHeight: proxy.size.height)
 
+                    if Theme.isCompact {
+                        compactHeroDetails
+                            .frame(width: proxy.size.width, alignment: .leading)
+                    }
+
                     if item.isSeries {
                         seriesBody
                             .frame(width: proxy.size.width, alignment: .leading)
@@ -159,15 +164,21 @@ struct ContentDetailView: View {
                         .foregroundStyle(Theme.Colors.textSecondary)
                         .lineLimit(2)
 
-                    if let overview = item.overview, !overview.isEmpty {
-                        Text(overview)
-                            .font(.appFont(16))
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                            .lineLimit(Theme.isCompact ? 3 : 4)
+                    // On regular width (iPad) the overview and action rails live
+                    // here, overlaid on the backdrop. On compact width (iPhone) they
+                    // move below the hero at full width (see compactHeroDetails) —
+                    // otherwise the action tiles are forced into a narrow one-per-row
+                    // column that overflows the fixed-height hero and overlaps the art.
+                    if !Theme.isCompact {
+                        if let overview = item.overview, !overview.isEmpty {
+                            Text(overview)
+                                .font(.appFont(16))
+                                .foregroundStyle(Theme.Colors.textSecondary)
+                                .lineLimit(4)
+                        }
+                        heroPrimaryActions
+                        secondaryActionsRail
                     }
-
-                    heroPrimaryActions
-                    secondaryActionsRail
                 }
                 .frame(maxWidth: Theme.isCompact ? .infinity : 720, alignment: .leading)
             }
@@ -176,6 +187,24 @@ struct ContentDetailView: View {
         }
         .frame(width: width, height: heroHeight(screenHeight: screenHeight))
         .clipped()
+    }
+
+    /// iPhone-only: the overview and both action rails render here, full width and
+    /// below the backdrop, so the secondary action tiles wrap several per row instead
+    /// of stacking in a narrow column over the artwork. On iPad these stay overlaid in
+    /// the hero (see heroHeader).
+    private var compactHeroDetails: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            if let overview = item.overview, !overview.isEmpty {
+                Text(overview)
+                    .font(.appFont(16))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .padding(.horizontal, Theme.Spacing.edge)
+            }
+            heroPrimaryActions
+                .padding(.horizontal, Theme.Spacing.edge)
+            secondaryActionsRail   // brings its own horizontal edge padding
+        }
     }
 
     private var heroPrimaryActions: some View {

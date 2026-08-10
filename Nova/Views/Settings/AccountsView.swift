@@ -51,6 +51,30 @@ struct AccountsView: View {
                 .buttonStyle(.plain)
             ),
             AnyView(
+                NavigationLink { SimklConnectView() } label: {
+                    SettingsRow(
+                        icon: "checkmark.seal",
+                        color: Theme.Colors.iconRed,
+                        title: "SIMKL",
+                        detail: "Optional tracker",
+                        showsChevron: true
+                    )
+                }
+                .buttonStyle(.plain)
+            ),
+            AnyView(
+                NavigationLink { TMDBAccountConnectView() } label: {
+                    SettingsRow(
+                        icon: "person.crop.circle",
+                        color: Theme.Colors.iconRed,
+                        title: "TMDB Account",
+                        detail: "Watchlist tracker",
+                        showsChevron: true
+                    )
+                }
+                .buttonStyle(.plain)
+            ),
+            AnyView(
                 NavigationLink { RealDebridView() } label: {
                     SettingsRow(
                         icon: "arrow.down.circle.fill",

@@ -68,6 +68,7 @@
 		26AF8FA1B930FF5785C4F166 /* SubtitleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACDB5AA48815D510D257E950 /* SubtitleService.swift */; };
 		27E85DA5960F76C6CAB778F5 /* RemoteFileItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A732AEF7E1C3C2DA2642B99A /* RemoteFileItem.swift */; };
 		29017800E6C9D484AA521BF6 /* PlaybackFailureReason.swift in Sources */ = {isa = PBXBuildFile; fileRef = 195002D833EFACCA7B669CDB /* PlaybackFailureReason.swift */; };
+		2949EFFBE12588BF52E92744 /* PlayerGestureOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 388E42C977C02DB5900E8FA8 /* PlayerGestureOverlay.swift */; };
 		2B20D0183B6445FBA89525BB /* ../Views/App/PersonalMediaDisclosureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9096BB0AB70541318ACCE62E /* ../Views/App/PersonalMediaDisclosureView.swift */; };
 		2C54E698554D464C8032273C /* LiveTVSourceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81593455C6754FA5A1512821 /* LiveTVSourceStore.swift */; };
 		2E0216E335184F03AABB1696 /* ../Views/Library/LibraryQualityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 360D8A22268241E9BC1980EA /* ../Views/Library/LibraryQualityView.swift */; };
@@ -128,6 +129,7 @@
 		5107ED73861BF850AB3D8E41 /* SourceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B88A11CF177FBA4F22DEB5B4 /* SourceCard.swift */; };
 		58373B44B44E45B5B7799E06 /* PlatformCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 663628D232164D65A7B67613 /* PlatformCapabilities.swift */; };
 		584DB902ED22C8402205C97F /* ContentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB93FE6531785B3E58686B8D /* ContentDetailView.swift */; };
+		58EC84E87A1AA2E605507D95 /* PosterCollectionGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A6FE1CD77347DBF34513A7 /* PosterCollectionGrid.swift */; };
 		599A1F3A07A4BD7461A12AB7 /* AMSMB2 in Frameworks */ = {isa = PBXBuildFile; productRef = 0AA93A977A91C256389533FA /* AMSMB2 */; };
 		5A0490C752F3F4D8093BD30E /* SubtitleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACDB5AA48815D510D257E950 /* SubtitleService.swift */; };
 		5A405587EB51B96C18386C8E /* FocusableButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CADDA5C3797534329077911 /* FocusableButton.swift */; };
@@ -216,6 +218,7 @@
 		907B0104A1AA205608EBD729 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FC301D6F2541CF2DFF3E673 /* AppConfig.swift */; };
 		90EBCFC9F81248DC3318FBB4 /* PlayerMemory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4455167B362AA66733DE71F5 /* PlayerMemory.swift */; };
 		91CE871B06CA54B23B2B4705 /* CatalogCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B6B11C8B202C03CABA9905 /* CatalogCache.swift */; };
+		9308F29862D975D400524372 /* PlayerGestureOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 388E42C977C02DB5900E8FA8 /* PlayerGestureOverlay.swift */; };
 		9316092C2180428BB12CEB68 /* SMBURLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33236A6077A5F4CA49B5B9E7 /* SMBURLParser.swift */; };
 		93A19CECE9815A7A27D56B36 /* RecommendationFeedbackStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BD943F44F89A49EAC1736DD /* RecommendationFeedbackStore.swift */; };
 		9414BDDC6455718454781E02 /* BackupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 402D3F833A9056E61BE51691 /* BackupManager.swift */; };
@@ -233,8 +236,6 @@
 		9B1BC7CC9FBA6370EA7CBDD6 /* CollectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD28AB0F57F8C90396EEF8DA /* CollectionsView.swift */; };
 		9BCDA39724E4B3192381730F /* WatchStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = D51ED4505C44CB38C11CFFD5 /* WatchStats.swift */; };
 		9C8610B008346C795486B9B4 /* MediaCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6307E16A16FB54315B4AF2C /* MediaCard.swift */; };
-		2949EFFBE12588BF52E92744 /* PlayerGestureOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 388E42C977C02DB5900E8FA8 /* PlayerGestureOverlay.swift */; };
-		B8C4B0D81C7E0372D33F1DDF /* PosterCollectionGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A6FE1CD77347DBF34513A7 /* PosterCollectionGrid.swift */; };
 		9D5E869535D332D20EDC7739 /* VLCKitSPM in Frameworks */ = {isa = PBXBuildFile; productRef = 9A07A06C9D0037B1C911F758 /* VLCKitSPM */; };
 		9E77809DB16E46383CB2AB0C /* CloudBackedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C4F43F1FF1B7D16F4D0D0D9 /* CloudBackedStore.swift */; };
 		9FFD2D733A17EC7C1F5F72A1 /* VLCPlayerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 623954A6B50ECFBB344C96F4 /* VLCPlayerModel.swift */; };
@@ -274,6 +275,7 @@
 		B5F503BE94A74F679EF0EA93 /* TitleCleanupRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B80A7183C7C485E86CDDC66 /* TitleCleanupRules.swift */; };
 		B860740617DD0DA54CF10691 /* SMBListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C36E60012F8E3116210EC657 /* SMBListView.swift */; };
 		B89D223928570CAE017012DA /* SubtitleMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC542829C9B9623A7B195ABD /* SubtitleMatcher.swift */; };
+		B8C4B0D81C7E0372D33F1DDF /* PosterCollectionGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A6FE1CD77347DBF34513A7 /* PosterCollectionGrid.swift */; };
 		B979825A57CFF051A12F24FD /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE3ABE58915541F160C540E1 /* QRScannerView.swift */; };
 		B9F9DD6F8B27BE824515A971 /* MediaCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30C308E6D55B3F1AE4525CB6 /* MediaCollection.swift */; };
 		BA04B98BD13A865FB18ADA56 /* CatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9A7C4E1AFA66F74900ABB30 /* CatalogService.swift */; };
@@ -309,8 +311,6 @@
 		D01F610D15B2D2990D059FBE /* MediaItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E501EBDA1415CB797D128711 /* MediaItem.swift */; };
 		D094CAD1B7E959336F1AEBBF /* Sources/SourcesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E739E2597C4A8700F5D8AA04 /* Sources/SourcesView.swift */; };
 		D0A3A638B8D080EB733B42A9 /* MediaCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6307E16A16FB54315B4AF2C /* MediaCard.swift */; };
-		9308F29862D975D400524372 /* PlayerGestureOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 388E42C977C02DB5900E8FA8 /* PlayerGestureOverlay.swift */; };
-		58EC84E87A1AA2E605507D95 /* PosterCollectionGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A6FE1CD77347DBF34513A7 /* PosterCollectionGrid.swift */; };
 		D174DF935C079BD7E7423DDF /* Assets-tvOS.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DEFB4E40EEB8790716864FAA /* Assets-tvOS.xcassets */; };
 		D25FD312E828F2D1D8CF7608 /* LibraryCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E01039EC91A80EEB10B225 /* LibraryCleanup.swift */; };
 		D26CDBBB815254F095694261 /* ShowSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B413F98B8E8C964230E17AF4 /* ShowSettingsStore.swift */; };
@@ -367,6 +367,16 @@
 		FC1BA51480A907BB98120A04 /* PlaybackEngineRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0FA42F693AECB67486AF1B /* PlaybackEngineRouter.swift */; };
 		FDAA8B4E828464A47C82F9F6 /* CodableFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86F479B94958CAD981263A79 /* CodableFileStore.swift */; };
 		FE74E1E5491345A6A15F85C5 /* AddonManagementComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F6EAC4729A4C13833E2C5D /* AddonManagementComponents.swift */; };
+		FEEDFACE000000000000B001 /* Tracking/SimklClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEDFACE000000000000A001 /* Tracking/SimklClient.swift */; };
+		FEEDFACE000000000000B002 /* Tracking/TMDBAccountClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEDFACE000000000000A002 /* Tracking/TMDBAccountClient.swift */; };
+		FEEDFACE000000000000B003 /* Tracking/TrackingProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEDFACE000000000000A003 /* Tracking/TrackingProvider.swift */; };
+		FEEDFACE000000000000B101 /* SimklConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEDFACE000000000000A101 /* SimklConnectView.swift */; };
+		FEEDFACE000000000000B102 /* TMDBAccountConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEDFACE000000000000A102 /* TMDBAccountConnectView.swift */; };
+		FEEDFACE000000000000C001 /* Tracking/SimklClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEDFACE000000000000A001 /* Tracking/SimklClient.swift */; };
+		FEEDFACE000000000000C002 /* Tracking/TMDBAccountClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEDFACE000000000000A002 /* Tracking/TMDBAccountClient.swift */; };
+		FEEDFACE000000000000C003 /* Tracking/TrackingProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEDFACE000000000000A003 /* Tracking/TrackingProvider.swift */; };
+		FEEDFACE000000000000C101 /* SimklConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEDFACE000000000000A101 /* SimklConnectView.swift */; };
+		FEEDFACE000000000000C102 /* TMDBAccountConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEDFACE000000000000A102 /* TMDBAccountConnectView.swift */; };
 		FF1AB243EE72928AE5F74A54 /* ContinueWatchingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B505409D19B9BAFC48A9DC7 /* ContinueWatchingCard.swift */; };
 		FF7F98269167CC82A62C99CE /* SourceHealth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F96447C15101D418D7A3D4D /* SourceHealth.swift */; };
 		FFB4E4E136A90C784BA56D03 /* NovaIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D69187B2E8B1C20FF0E81 /* NovaIntents.swift */; };
@@ -449,6 +459,7 @@
 		1FC301D6F2541CF2DFF3E673 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		2090DCADB481BDF4EDDCA1AF /* RealDebridClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealDebridClient.swift; sourceTree = "<group>"; };
 		23F2B55ABB6C8A1F656E4736 /* LiveTVView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTVView.swift; sourceTree = "<group>"; };
+		25A6FE1CD77347DBF34513A7 /* PosterCollectionGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PosterCollectionGrid.swift; sourceTree = "<group>"; };
 		26D445A6AA8D3FF6F146B03E /* AppNetworking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNetworking.swift; sourceTree = "<group>"; };
 		2835FF8A9D0C4E3295CF4244 /* ../Views/Settings/GuestModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../Views/Settings/GuestModeView.swift; sourceTree = "<group>"; };
 		2D9D32517F4A99A04FA76A0E /* Nova-tvOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Nova-tvOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -460,6 +471,7 @@
 		3605D97A79B9AC12B001BD24 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		360D8A22268241E9BC1980EA /* ../Views/Library/LibraryQualityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../Views/Library/LibraryQualityView.swift; sourceTree = "<group>"; };
 		36CDA0124FF84BFB849A499B /* LiveTVSourcesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTVSourcesView.swift; sourceTree = "<group>"; };
+		388E42C977C02DB5900E8FA8 /* PlayerGestureOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerGestureOverlay.swift; sourceTree = "<group>"; };
 		38A55F7C58A22DE3D4D4422D /* Nova.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Nova.entitlements; sourceTree = "<group>"; };
 		3942CEEC0089118857658DE6 /* MenuOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuOverlay.swift; sourceTree = "<group>"; };
 		39B2C5271E02B4684B46C23F /* BackupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupView.swift; sourceTree = "<group>"; };
@@ -548,8 +560,6 @@
 		B367746B094F55EA79020DCF /* StremioAddonClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StremioAddonClient.swift; sourceTree = "<group>"; };
 		B413F98B8E8C964230E17AF4 /* ShowSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowSettingsStore.swift; sourceTree = "<group>"; };
 		B6307E16A16FB54315B4AF2C /* MediaCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaCard.swift; sourceTree = "<group>"; };
-		388E42C977C02DB5900E8FA8 /* PlayerGestureOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerGestureOverlay.swift; sourceTree = "<group>"; };
-		25A6FE1CD77347DBF34513A7 /* PosterCollectionGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PosterCollectionGrid.swift; sourceTree = "<group>"; };
 		B66648CD3E46A9C0B154858F /* WatchStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStatsView.swift; sourceTree = "<group>"; };
 		B6E6E99F2C1AAF086CAAA463 /* DirectURLService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectURLService.swift; sourceTree = "<group>"; };
 		B796696F664D0CD960FF4E07 /* SettingsKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsKit.swift; sourceTree = "<group>"; };
@@ -613,6 +623,11 @@
 		FC594B0BAEC0D365B05066C1 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
 		FD28AB0F57F8C90396EEF8DA /* CollectionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionsView.swift; sourceTree = "<group>"; };
 		FDE46DE416DAE5E5DDEF2E31 /* PlayerModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerModel.swift; sourceTree = "<group>"; };
+		FEEDFACE000000000000A001 /* Tracking/SimklClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tracking/SimklClient.swift; sourceTree = "<group>"; };
+		FEEDFACE000000000000A002 /* Tracking/TMDBAccountClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tracking/TMDBAccountClient.swift; sourceTree = "<group>"; };
+		FEEDFACE000000000000A003 /* Tracking/TrackingProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tracking/TrackingProvider.swift; sourceTree = "<group>"; };
+		FEEDFACE000000000000A101 /* SimklConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimklConnectView.swift; sourceTree = "<group>"; };
+		FEEDFACE000000000000A102 /* TMDBAccountConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TMDBAccountConnectView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -907,6 +922,9 @@
 				9096BB0AB70541318ACCE62E /* ../Views/App/PersonalMediaDisclosureView.swift */,
 				4CD9936F13F04501BF9006FB /* OMDbClient.swift */,
 				5AC62884E4EFB136668EDA67 /* TraktClient.swift */,
+				FEEDFACE000000000000A001 /* Tracking/SimklClient.swift */,
+				FEEDFACE000000000000A002 /* Tracking/TMDBAccountClient.swift */,
+				FEEDFACE000000000000A003 /* Tracking/TrackingProvider.swift */,
 				8075DEF1D961A6A114567B88 /* WhatsNew.swift */,
 			);
 			path = Services;
@@ -1017,6 +1035,8 @@
 				B947EBA6614E226BEED803F7 /* LibraryHealthView.swift */,
 				CB06B9BFD55EBC9B683B9709 /* SetupChecklistView.swift */,
 				CAAA886CA126FFC76F3A830C /* TraktConnectView.swift */,
+				FEEDFACE000000000000A101 /* SimklConnectView.swift */,
+				FEEDFACE000000000000A102 /* TMDBAccountConnectView.swift */,
 				FC5898173AC34F3D610F77E2 /* WhatsNewView.swift */,
 			);
 			path = Settings;
@@ -1310,6 +1330,9 @@
 				2B20D0183B6445FBA89525BB /* ../Views/App/PersonalMediaDisclosureView.swift in Sources */,
 				4020F7BD23D44938BA29F844 /* OMDbClient.swift in Sources */,
 				08B4E66BF3C5BA672BFDD6DB /* TraktClient.swift in Sources */,
+				FEEDFACE000000000000B001 /* Tracking/SimklClient.swift in Sources */,
+				FEEDFACE000000000000B002 /* Tracking/TMDBAccountClient.swift in Sources */,
+				FEEDFACE000000000000B003 /* Tracking/TrackingProvider.swift in Sources */,
 				C85D2F2EB05A0AB7AA63B75D /* WhatsNew.swift in Sources */,
 				87CCAD4FD18803526D5D3B7F /* LanguageNames.swift in Sources */,
 				7E436A9EF41C4EDC8C517025 /* DateFormatting.swift in Sources */,
@@ -1395,6 +1418,8 @@
 				36BCFD8924BAA6DC2A488DE5 /* PlayFromLinkView.swift in Sources */,
 				80556087F7D6F7D9ADF17A37 /* LibraryHealthView.swift in Sources */,
 				7D6FD4DDFF63100F62EE3E97 /* TraktConnectView.swift in Sources */,
+				FEEDFACE000000000000B101 /* SimklConnectView.swift in Sources */,
+				FEEDFACE000000000000B102 /* TMDBAccountConnectView.swift in Sources */,
 				0D3A48495063D523111F44AC /* WhatsNewView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1492,6 +1517,9 @@
 				F3EABCEE3E9D4579B86B755D /* ../Views/App/PersonalMediaDisclosureView.swift in Sources */,
 				419EE9EEDFC346F3AE59A30C /* OMDbClient.swift in Sources */,
 				4FCC80430279E24B9ECDFD9C /* TraktClient.swift in Sources */,
+				FEEDFACE000000000000C001 /* Tracking/SimklClient.swift in Sources */,
+				FEEDFACE000000000000C002 /* Tracking/TMDBAccountClient.swift in Sources */,
+				FEEDFACE000000000000C003 /* Tracking/TrackingProvider.swift in Sources */,
 				0D358C9C68123D01561EC0A6 /* WhatsNew.swift in Sources */,
 				63DC5B4A6A7A2C061B38C0B1 /* LanguageNames.swift in Sources */,
 				D620C77D70844DDCB4E46894 /* DateFormatting.swift in Sources */,
@@ -1577,6 +1605,8 @@
 				424A4FB4933F5777FBF90C7A /* PlayFromLinkView.swift in Sources */,
 				0E003F02FA8C69EBD366EBF3 /* LibraryHealthView.swift in Sources */,
 				1AE64675717A970B90592A33 /* TraktConnectView.swift in Sources */,
+				FEEDFACE000000000000C101 /* SimklConnectView.swift in Sources */,
+				FEEDFACE000000000000C102 /* TMDBAccountConnectView.swift in Sources */,
 				BA600D04DF7FBF85EFB416BE /* WhatsNewView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1658,7 +1688,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20;
+				CURRENT_PROJECT_VERSION = 21;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-tvOS.plist";
@@ -1686,7 +1716,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20;
+				CURRENT_PROJECT_VERSION = 21;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-tvOS.plist";
@@ -1718,7 +1748,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CODE_SIGN_ENTITLEMENTS = NovaWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20;
+				CURRENT_PROJECT_VERSION = 21;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NovaWidgets/Info.plist;
@@ -1762,7 +1792,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CODE_SIGN_ENTITLEMENTS = NovaWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20;
+				CURRENT_PROJECT_VERSION = 21;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NovaWidgets/Info.plist;
@@ -1800,7 +1830,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20;
+				CURRENT_PROJECT_VERSION = 21;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-iOS.plist";
@@ -1828,7 +1858,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20;
+				CURRENT_PROJECT_VERSION = 21;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-iOS.plist";

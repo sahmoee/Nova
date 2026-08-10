@@ -78,6 +78,22 @@ struct SourcesView: View {
                                 .allowsHitTesting(false)
                         }.buttonStyle(.plain)
 
+                        NavigationLink { SimklConnectView() } label: {
+                            SourceCard(title: "SIMKL",
+                                       systemImage: "checkmark.seal",
+                                       status: trackerStatus(clientID: AppConfig.shared.simklClientID,
+                                                             token: .simklAccessToken)) {}
+                                .allowsHitTesting(false)
+                        }.buttonStyle(.plain)
+
+                        NavigationLink { TMDBAccountConnectView() } label: {
+                            SourceCard(title: "TMDB Account",
+                                       systemImage: "person.crop.circle",
+                                       status: trackerStatus(clientID: AppConfig.shared.tmdbKey,
+                                                             token: .tmdbSessionID)) {}
+                                .allowsHitTesting(false)
+                        }.buttonStyle(.plain)
+
                         NavigationLink { DirectURLView() } label: {
                             SourceCard(title: "Direct URL",
                                        systemImage: SourceType.directURL.systemImage,
@@ -172,6 +188,15 @@ struct SourcesView: View {
         }
         .padding(Theme.Spacing.md)
         .refinedCardBackground()
+    }
+
+    /// Synchronous status for the optional trackers, from stored credentials:
+    /// connected if a token exists, not-connected if only the client key is set,
+    /// otherwise not-set-up.
+    private func trackerStatus(clientID: String?, token: CredentialKey) -> SourceStatus {
+        if AppConfig.shared.value(for: token)?.isEmpty == false { return .connected }
+        if clientID?.isEmpty == false { return .disconnected }
+        return .notConfigured
     }
 
     private func liveStatus(_ id: String, fallback: SourceStatus) -> SourceStatus {

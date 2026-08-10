@@ -487,8 +487,8 @@ struct DiscoverView: View {
         hasTMDBKey = env.tmdb.hasKey
         if state == .noKey && hasTMDBKey { state = .idle }
         // Load watchlist if Trakt is connected.
-        if await env.trakt.isAuthenticated {
-            watchlist = (try? await env.trakt.watchlist()) ?? []
+        if await env.trackers.anyConnected() {
+            watchlist = await env.trackers.watchlist()
         }
     }
 

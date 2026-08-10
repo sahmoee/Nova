@@ -28,7 +28,7 @@
 import SwiftUI
 import UIKit
 
-struct PosterCollectionGrid<Item: Identifiable, Cell: View>: UIViewRepresentable where Item.ID: Hashable {
+struct PosterCollectionGrid<Item: Identifiable, Cell: View>: UIViewRepresentable where Item.ID: Hashable & Sendable {
 
     /// Items to render, in display order.
     let items: [Item]

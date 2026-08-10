@@ -515,7 +515,7 @@ struct TraktWatchlistCollectionView: View {
         }
         .navigationTitle("Trakt Watchlist")
         .task {
-            let list = (try? await env.trakt.watchlist()) ?? []
+            let list = await env.trackers.watchlist()
             items = await env.tmdb.enrichArtwork(list)
             loading = false
         }

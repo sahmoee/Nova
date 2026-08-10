@@ -310,7 +310,7 @@ struct PlayerView: View {
         .onAppear {
             model.configure(progressStore: progress,
                             settings: settings,
-                            trakt: env.trakt,
+                            trackers: env.trackers,
                             openSubtitles: env.openSubtitles,
                             catalog: env.catalog)
             // If there's saved progress, ask Resume or Restart before starting —

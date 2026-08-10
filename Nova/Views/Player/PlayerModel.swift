@@ -47,7 +47,7 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
     // Injected dependencies.
     private weak var progressStore: PlaybackProgressStore?
     private var settings: SettingsStore?
-    private var trakt: TraktClient?
+    private var trackers: TrackingHub?
     private var openSubtitles: OpenSubtitlesClient?
     private var catalog: CatalogService?
 
@@ -77,12 +77,12 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
 
     func configure(progressStore: PlaybackProgressStore,
                    settings: SettingsStore,
-                   trakt: TraktClient,
+                   trackers: TrackingHub,
                    openSubtitles: OpenSubtitlesClient,
                    catalog: CatalogService) {
         self.progressStore = progressStore
         self.settings = settings
-        self.trakt = trakt
+        self.trackers = trackers
         self.openSubtitles = openSubtitles
         self.catalog = catalog
     }
@@ -321,12 +321,12 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
 
     private func scrobble(_ action: ScrobbleAction) {
         guard settings?.traktScrobblingEnabled == true,
-              let trakt, let contentID = item.contentID else { return }
+              let trackers, let contentID = item.contentID else { return }
         if action == .start { hasScrobbledStart = true }
         let pct = progressPercent
         let ep = item.episode
         Task.detached {
-            await trakt.scrobble(action: action, contentID: contentID, episode: ep, progress: pct)
+            await trackers.scrobble(action: action, contentID: contentID, episode: ep, progress: pct)
         }
     }
 
