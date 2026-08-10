@@ -67,7 +67,7 @@ struct BackupSnapshot: Codable, Equatable {
 
     init() {}
 
-    /// FrameTV v1 and early Astra snapshots predate some fields. Decode missing
+    /// Early v1 snapshots predate some fields. Decode missing
     /// values defensively so a valid older snapshot never fails just because a
     /// newer Nova field did not exist when it was written.
     init(from decoder: Decoder) throws {
@@ -135,20 +135,17 @@ enum BackupValue: Codable, Equatable {
     case data(Data)
 }
 
-// MARK: - Legacy Astra / FrameTV compatibility
+// MARK: - Backup origin
 
 enum BackupOrigin: String, Equatable {
     case nova
-    case astra
-    case frameTV
-    case astraOrFrameTV
+    /// A snapshot whose schema predates the current writer marker; shown generically.
+    case imported
 
     var displayName: String {
         switch self {
         case .nova: return "Nova"
-        case .astra: return "Astra"
-        case .frameTV: return "FrameTV"
-        case .astraOrFrameTV: return "Astra / FrameTV"
+        case .imported: return "an earlier version"
         }
     }
 
@@ -162,16 +159,11 @@ struct DecodedBackupSnapshot {
 }
 
 enum BackupCompatibility {
-    // Keep the exact production key used by FrameTV and Astra. A brand rename is
-    // not a schema boundary, and duplicating the snapshot under a second key would
-    // waste iCloud KVS's 1 MB total budget.
+    // The stable production key for the snapshot in iCloud KVS. Duplicating the
+    // snapshot under a second key would waste KVS's 1 MB total budget.
     static let currentCloudKey = "backup.snapshot.v1"
-    static let legacyCloudKeys = [
-        "astra.backup.snapshot.v1",    // Accepted for pre-release/export variants.
-        "frametv.backup.snapshot.v1"
-    ]
     static let writerCloudKey = "backup.snapshot.writer"
-    static let supportedFileExtensions = ["nova", "astra", "frametv", "json"]
+    static let supportedFileExtensions = ["nova", "json"]
 
     static func decode(_ data: Data,
                        fileName: String? = nil,
@@ -186,17 +178,15 @@ enum BackupCompatibility {
     }
 
     static func origin(fileName: String?, snapshotVersion: Int) -> BackupOrigin? {
-        guard let fileName else { return snapshotVersion <= 1 ? .astraOrFrameTV : nil }
+        guard let fileName else { return snapshotVersion <= 1 ? .imported : nil }
         let lower = fileName.lowercased()
         let ext = URL(fileURLWithPath: fileName).pathExtension.lowercased()
-        if ext == "frametv" || lower.hasPrefix("frametv-") { return .frameTV }
-        if ext == "astra" || lower.hasPrefix("astra-") { return .astra }
         if ext == "nova" || lower.hasPrefix("nova-") { return .nova }
-        return snapshotVersion <= 1 ? .astraOrFrameTV : nil
+        return snapshotVersion <= 1 ? .imported : nil
     }
 
-    /// Converts persisted custom-scheme URLs in legacy settings and JSON blobs.
-    /// Account values and secrets are deliberately untouched.
+    /// Passes settings and JSON blobs through the normalizer. Account values and
+    /// secrets are deliberately untouched.
     static func normalize(_ input: BackupSnapshot) -> BackupSnapshot {
         var output = input
         output.settings = input.settings.mapValues { value in
@@ -213,11 +203,8 @@ enum BackupCompatibility {
     }
 
     static func normalizeURLScheme(in string: String) -> String {
-        let lower = string.lowercased()
-        for legacy in ["astra:", "frametv:"] where lower.hasPrefix(legacy) {
-            return "nova:" + String(string.dropFirst(legacy.count))
-        }
-        return string
+        // Nova is the only supported deep-link scheme; nothing to rewrite.
+        string
     }
 
     static func normalizeJSONData(_ data: Data) -> Data {
@@ -365,8 +352,7 @@ final class BackupManager: ObservableObject {
 
         // Persist to iCloud.
         if let data = try? JSONEncoder().encode(snap) {
-            // Continue writing the historical key so Astra devices can still read
-            // Nova-created snapshots. The tiny marker distinguishes new writes.
+            // Write the stable production key plus a tiny marker recording the writer.
             CloudSync.shared.setData(data, forKey: BackupCompatibility.currentCloudKey)
             CloudSync.shared.setString(BackupOrigin.nova.rawValue,
                                        forKey: BackupCompatibility.writerCloudKey)
@@ -460,9 +446,7 @@ final class BackupManager: ObservableObject {
         loadSnapshotRecordFromCloud()?.snapshot
     }
 
-    /// Reads the stable production key first, then pre-release aliases. Historical
-    /// values are normalized in place; the original schema/key remain readable by
-    /// Astra and FrameTV, and only a tiny writer marker is added.
+    /// Reads the stable production key and records the writer marker if absent.
     private func loadSnapshotRecordFromCloud() -> DecodedBackupSnapshot? {
         let cloud = CloudSync.shared
         if let data = cloud.data(forKey: BackupCompatibility.currentCloudKey) {
@@ -470,7 +454,7 @@ final class BackupManager: ObservableObject {
                 .flatMap(BackupOrigin.init(rawValue:))
             if let decoded = try? BackupCompatibility.decode(
                 data,
-                defaultOrigin: recordedOrigin ?? .astraOrFrameTV
+                defaultOrigin: recordedOrigin ?? .imported
             ) {
                 if recordedOrigin == nil {
                     cloud.setString(decoded.origin.rawValue,
@@ -480,26 +464,10 @@ final class BackupManager: ObservableObject {
                    let normalized = try? JSONEncoder().encode(decoded.snapshot) {
                     cloud.setData(normalized, forKey: BackupCompatibility.currentCloudKey)
                     cloud.flush()
-                    NovaLog.sync.info("Normalized a legacy \(decoded.origin.displayName, privacy: .public) iCloud snapshot")
+                    NovaLog.sync.info("Normalized an imported iCloud snapshot")
                 }
                 return decoded
             }
-        }
-
-        for key in BackupCompatibility.legacyCloudKeys {
-            guard let data = cloud.data(forKey: key),
-                  let decoded = try? BackupCompatibility.decode(
-                    data,
-                    defaultOrigin: .astraOrFrameTV
-                  ) else { continue }
-            if let normalized = try? JSONEncoder().encode(decoded.snapshot) {
-                cloud.setData(normalized, forKey: BackupCompatibility.currentCloudKey)
-                cloud.setString(decoded.origin.rawValue,
-                                forKey: BackupCompatibility.writerCloudKey)
-                cloud.flush()
-            }
-            NovaLog.sync.info("Detected and migrated a legacy \(decoded.origin.displayName, privacy: .public) iCloud snapshot")
-            return decoded
         }
         return nil
     }

@@ -28,8 +28,6 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>nova</string>
-				<string>astra</string>
-				<string>frametv</string>
 			</array>
 		</dict>
 	</array>
@@ -94,43 +92,6 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>nova</string>
-				</array>
-			</dict>
-		</dict>
-	</array>
-	<key>UTImportedTypeDeclarations</key>
-	<array>
-		<dict>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>public.json</string>
-			</array>
-			<key>UTTypeDescription</key>
-			<string>Astra Snapshot</string>
-			<key>UTTypeIdentifier</key>
-			<string>com.astra.snapshot</string>
-			<key>UTTypeTagSpecification</key>
-			<dict>
-				<key>public.filename-extension</key>
-				<array>
-					<string>astra</string>
-				</array>
-			</dict>
-		</dict>
-		<dict>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>public.json</string>
-			</array>
-			<key>UTTypeDescription</key>
-			<string>FrameTV Snapshot</string>
-			<key>UTTypeIdentifier</key>
-			<string>com.frametv.snapshot</string>
-			<key>UTTypeTagSpecification</key>
-			<dict>
-				<key>public.filename-extension</key>
-				<array>
-					<string>frametv</string>
 				</array>
 			</dict>
 		</dict>

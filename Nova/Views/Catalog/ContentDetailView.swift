@@ -115,100 +115,95 @@ struct ContentDetailView: View {
     private func heroHeight(screenHeight: CGFloat) -> CGFloat {
         #if os(iOS)
         if Theme.isPad {
-            return min(max(screenHeight * 0.42, 460), 760)
+            return min(max(screenHeight * 0.62, 560), 820)
         }
-        return min(max(screenHeight * 0.38, 300), 520)
+        return min(max(screenHeight * 0.68, 520), 690)
         #else
-        return 560
+        return 720
         #endif
     }
 
     private func heroHeader(width: CGFloat, screenHeight: CGFloat) -> some View {
-        VStack(alignment: .center, spacing: Theme.Spacing.sm) {
-            // Backdrop with a fade to the background at the bottom. Kept in the normal
-            // scroll flow (no safe-area escape) so the content below follows directly
-            // with no gap.
+        ZStack(alignment: .bottomLeading) {
             CachedAsyncImage(url: item.backdropURL ?? item.posterURL, maxPixel: 1600) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
             } placeholder: {
                 Rectangle().fill(Theme.Colors.card).shimmering()
             }
-            .frame(height: heroHeight(screenHeight: screenHeight))
-            .frame(maxWidth: .infinity)
+            .frame(width: width, height: heroHeight(screenHeight: screenHeight))
             .clipped()
+            .overlay(Theme.Colors.heroGradient)
             .overlay(
-                LinearGradient(
-                    colors: [.clear, .clear, Theme.Colors.background.opacity(0.7), Theme.Colors.background],
-                    startPoint: .top, endPoint: .bottom
-                )
+                LinearGradient(colors: [Theme.Colors.background.opacity(0.92), .clear],
+                               startPoint: .leading, endPoint: .trailing)
             )
 
-            // Type / genre line.
-            Text(metaLine)
-                .font(.appFont(18, weight: .medium))
-                .foregroundStyle(Theme.Colors.textSecondary)
-                .multilineTextAlignment(.center)
+            HStack(alignment: .bottom, spacing: Theme.Spacing.lg) {
+                PosterImage(url: item.posterURL,
+                            width: Theme.scaled(250, min: 108),
+                            height: Theme.scaled(375, min: 162))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
+                    .shadow(color: .black.opacity(0.55), radius: 24, y: 12)
 
-            // Primary Play + circular watched toggle.
-            HStack(spacing: Theme.Spacing.md) {
-                Button {
-                    if item.isSeries, let first = firstEpisode() {
-                        streamTarget = StreamTarget(catalog: item, episode: first)
-                    } else {
-                        streamTarget = StreamTarget(catalog: item, episode: nil)
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                    Text(item.title)
+                        .font(.appFont(Theme.isCompact ? 40 : 58, weight: .heavy))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.72)
+
+                    Text(metaLine)
+                        .font(.appFont(17, weight: .medium))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .lineLimit(2)
+
+                    if let overview = item.overview, !overview.isEmpty {
+                        Text(overview)
+                            .font(.appFont(16))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                            .lineLimit(Theme.isCompact ? 3 : 4)
                     }
-                } label: {
-                    HStack(spacing: Theme.Spacing.sm) {
-                        Image(systemName: "play.fill")
-                        Text(item.isSeries ? "Play First Episode" : playButtonTitle)
-                    }
-                    .font(.appFont(20, weight: .semibold))
-                    .foregroundStyle(.black)
-                    .padding(.vertical, Theme.Spacing.md)
-                    .padding(.horizontal, Theme.Spacing.xl)
-                    .background(Capsule().fill(.white))
-                }
-                .buttonStyle(NovaChipButtonStyle())
-                .contextMenu {
-                    Button {
-                        streamTarget = StreamTarget(catalog: item, episode: nil, forceManual: true)
-                    } label: { Label("Choose Stream…", systemImage: "list.bullet") }
-                }
 
-                Button { toggleWatched() } label: {
-                    Image(systemName: isWatched ? "checkmark.circle.fill" : "checkmark")
-                        .font(.appFont(24, weight: .semibold))
-                        .foregroundStyle(isWatched ? .black : .white)
-                        .frame(width: 58, height: 58)
-                        .background(Circle().fill(isWatched ? .white : Color.white.opacity(0.16)))
-                        .overlay(Circle().strokeBorder(Color.white.opacity(0.25), lineWidth: 1))
+                    heroPrimaryActions
+                    secondaryActionsRail
                 }
-                .buttonStyle(NovaChipButtonStyle())
-                // Accessibility: icon-only toggle needs a spoken name reflecting its state.
-                .accessibilityLabel(isWatched ? "Mark as unwatched" : "Mark as watched")
+                .frame(maxWidth: Theme.isCompact ? .infinity : 720, alignment: .leading)
             }
-
-            // Overview + year.
-            if let overview = item.overview, !overview.isEmpty {
-                ExpandableText(text: overview,
-                               collapsedLineLimit: 3,
-                               font: .appFont(17),
-                               alignment: .center)
-                    .padding(.horizontal, Theme.Spacing.edge)
-            }
-            if let year = item.year {
-                Text(String(year))
-                    .font(.appFont(15))
-                    .foregroundStyle(Theme.Colors.textTertiary)
-            }
-
-            // Secondary actions (Favorite / Collection / Trailer / links).
-            secondaryActionsRail
-                .padding(.top, Theme.Spacing.xs)
+            .padding(.horizontal, Theme.Spacing.edge)
+            .padding(.bottom, Theme.Spacing.xl)
         }
-        // A concrete width (not `maxWidth: .infinity`) so the overview text and the
-        // action rail are always proposed the real container width and wrap inside it.
-        .frame(width: width)
+        .frame(width: width, height: heroHeight(screenHeight: screenHeight))
+        .clipped()
+    }
+
+    private var heroPrimaryActions: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Button {
+                streamTarget = StreamTarget(catalog: item,
+                    episode: item.isSeries ? (nextUnwatchedEpisode() ?? firstEpisode()) : nil)
+            } label: {
+                Label(item.isSeries ? "Watch Now" : playButtonTitle, systemImage: "play.fill")
+                    .font(.appFont(18, weight: .bold))
+                    .foregroundStyle(Theme.Colors.background)
+                    .padding(.horizontal, Theme.Spacing.lg)
+                    .frame(minHeight: Theme.minTouchTarget)
+                    .background(Theme.Colors.accent, in: Capsule())
+            }
+            .buttonStyle(NovaChipButtonStyle())
+
+            Button { toggleWatched() } label: {
+                Image(systemName: isWatched ? "checkmark.circle.fill" : "checkmark")
+                    .font(.appFont(21, weight: .semibold))
+                    .foregroundStyle(isWatched ? Theme.Colors.background : .white)
+                    .frame(width: Theme.minTouchTarget, height: Theme.minTouchTarget)
+                    .background(isWatched ? Theme.Colors.accent : Color.white.opacity(0.12), in: Circle())
+                    .overlay(Circle().strokeBorder(Color.white.opacity(0.18), lineWidth: 1))
+            }
+            .buttonStyle(NovaChipButtonStyle())
+            .accessibilityLabel(isWatched ? "Mark as unwatched" : "Mark as watched")
+        }
     }
 
     /// "TV Show · Comedy · Animation" style line.
@@ -626,13 +621,15 @@ struct ContentDetailView: View {
                 } label: {
                     HStack(spacing: Theme.Spacing.xs) {
                         Text(seasons.first(where: { $0.number == activeSeason })?.displayName ?? "Season \(activeSeason)")
-                            .font(.appFont(28, weight: .bold))
-                            .foregroundStyle(Theme.Colors.textPrimary)
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.appFont(18, weight: .semibold))
-                            .foregroundStyle(Theme.Colors.textSecondary)
+                        Image(systemName: "chevron.down")
                     }
+                    .font(.appFont(18, weight: .bold))
+                    .foregroundStyle(Theme.Colors.background)
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .frame(minHeight: Theme.minTouchTarget)
+                    .background(Theme.Colors.accent, in: Capsule())
                 }
+                .buttonStyle(NovaChipButtonStyle())
                 .padding(.horizontal, Theme.Spacing.edge)
 
                 // Episode rail: wide 16:9 cards with the episode info overlaid on the
@@ -690,7 +687,7 @@ struct ContentDetailView: View {
                 } placeholder: {
                     Rectangle().fill(Theme.Colors.card).shimmering()
                 }
-                .frame(width: cardWidth, height: cardWidth * 9.0 / 16.0 + 120)
+                .frame(width: cardWidth, height: cardWidth * 9.0 / 16.0 + 104)
                 .clipped()
 
                 LinearGradient(colors: [.clear, .black.opacity(0.55), .black.opacity(0.92)],
@@ -747,6 +744,8 @@ struct ContentDetailView: View {
             }
             .frame(width: cardWidth)
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
             .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
         .buttonStyle(NovaListRowStyle())

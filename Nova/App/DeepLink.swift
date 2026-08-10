@@ -31,10 +31,9 @@ enum DeepLink: Equatable {
     case content(contentKey: String, isShow: Bool)
     case continueWatching
 
-    /// Parses a Nova URL. Astra and FrameTV schemes remain accepted so restored
-    /// widgets, shortcuts, and bookmarks continue to work after the rename.
+    /// Parses a Nova URL (nova://…).
     static func parse(_ url: URL) -> DeepLink? {
-        let supportedSchemes = ["nova", "astra", "frametv"]
+        let supportedSchemes = ["nova"]
         guard let scheme = url.scheme?.lowercased(), supportedSchemes.contains(scheme) else {
             return nil
         }

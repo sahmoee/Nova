@@ -14,7 +14,7 @@
 //  IMPORTANT - Xcode setup:
 //   • This file belongs to the NovaWidgets extension target only.
 //   • WidgetShared.swift must be a member of BOTH the app and this extension target.
-//   • Both targets must have the retained App Group "group.astra.ios" enabled.
+//   • Both targets must have the App Group "group.nova.ios" enabled.
 //
 
 import WidgetKit

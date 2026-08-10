@@ -2,9 +2,9 @@
 //  NovaWorkerConfiguration.swift
 //  Nova
 //
-//  Shared identity and URL construction for Nova's self-hosted Cloudflare Worker.
-//  The Worker URL remains user-controlled; Nova never silently redirects requests
-//  to a developer-owned service.
+//  Shared identity and URL construction for Nova's Cloudflare Worker.
+//  Nova ships with the unified production endpoint and still permits an
+//  explicit self-hosted override.
 //
 
 import Foundation
@@ -13,7 +13,8 @@ enum NovaWorkerConfiguration {
     static let serviceName = "nova-ai-worker"
     static let anthropicSecretName = "ANTHROPIC_API_KEY"
     static let sharedTokenSecretName = "NOVA_SHARED_TOKEN"
-    static let exampleBaseURL = "https://nova-ai-worker.your-subdomain.workers.dev"
+    static let defaultBaseURL = "https://api.sowensstudios.com/nova"
+    static let exampleBaseURL = defaultBaseURL
 
     /// Appends a canonical Worker route while preserving a base path used by a
     /// custom domain or reverse proxy (for example, `/nova`).

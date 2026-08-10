@@ -15,8 +15,6 @@ import UniformTypeIdentifiers
 
 private extension UTType {
     static let novaSnapshot = UTType(exportedAs: "com.nova.snapshot", conformingTo: .json)
-    static let astraSnapshot = UTType(importedAs: "com.astra.snapshot", conformingTo: .json)
-    static let frameTVSnapshot = UTType(importedAs: "com.frametv.snapshot", conformingTo: .json)
 }
 #endif
 
@@ -73,7 +71,7 @@ struct BackupView: View {
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(info.origin.isLegacy
-                                     ? "Legacy \(info.origin.displayName) snapshot found"
+                                     ? "Snapshot from \(info.origin.displayName) found"
                                      : "Snapshot available")
                                     .font(.appFont(19, weight: .semibold))
                                     .foregroundStyle(Theme.Colors.textPrimary)
@@ -161,7 +159,7 @@ struct BackupView: View {
                 Text("Share a Snapshot File")
                     .font(Theme.Font.sectionTitle())
                     .foregroundStyle(Theme.Colors.textPrimary)
-                Text("Export your setup as a file you can share or move to another device. Nova also recognizes Astra .astra files and FrameTV .frametv backups.")
+                Text("Export your setup as a .nova file you can share or move to another device.")
                     .font(.appFont(17))
                     .foregroundStyle(Theme.Colors.textSecondary)
 
@@ -286,7 +284,7 @@ struct BackupView: View {
             if let exportURL { ShareSheet(items: [exportURL]) }
         }
         .fileImporter(isPresented: $showImporter,
-                      allowedContentTypes: [.novaSnapshot, .astraSnapshot, .frameTVSnapshot, .json, .data],
+                      allowedContentTypes: [.novaSnapshot, .json, .data],
                       allowsMultipleSelection: false) { result in
             switch result {
             case .success(let urls):

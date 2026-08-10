@@ -2,7 +2,7 @@
 //  AccentManager.swift
 //  Nova
 //
-//  Keeps app chrome aligned with Nova's crimson identity. Artwork analysis remains
+//  Keeps app chrome aligned with Nova's pale-blue streaming identity. Artwork analysis remains
 //  available for future editorial treatments, while navigation, focus rings, progress,
 //  and player controls stay on the brand accent rather than recoloring per title.
 //
@@ -19,7 +19,7 @@ final class AccentManager: ObservableObject {
 
     /// The brand fallback accent (matches Theme.Colors.accent). Nonisolated so it can
     /// be used as an EnvironmentKey default value (which runs outside the main actor).
-    nonisolated static let fallback = Color(red: 0.94, green: 0.07, blue: 0.11)
+    nonisolated static let fallback = Color(red: 0.69, green: 0.86, blue: 0.96)
 
     /// The current accent color, animated when it changes.
     @Published private(set) var accent: Color = AccentManager.fallback
@@ -31,7 +31,7 @@ final class AccentManager: ObservableObject {
     /// image) and publishes it. No-ops gracefully if the image isn't available.
     func deriveAccent(from url: URL?) {
         // Keep navigation, focus rings, controls, and progress indicators on Nova's
-        // crimson brand accent instead of recoloring the interface from artwork.
+        // pale-blue brand accent instead of recoloring the interface from artwork.
         set(AccentManager.fallback)
     }
 

@@ -26,7 +26,7 @@ struct AISearchSettingsView: View {
                     .screenTitleStyle()
                     .foregroundStyle(Theme.Colors.textPrimary)
 
-                Text("Search for movies and shows using natural language, powered by Claude. For your security, Nova doesn't hold any AI keys. Instead, it calls a small Cloudflare Worker that you deploy and that keeps your key private on the server.")
+                Text("Search for movies and shows using natural language, powered by Claude. Nova uses its secure unified service by default; advanced users can still enter a self-hosted Worker URL.")
                     .font(.appFont(19))
                     .foregroundStyle(Theme.Colors.textSecondary)
 
@@ -83,7 +83,7 @@ struct AISearchSettingsView: View {
                 Button {
                     showWorkerSetup.toggle()
                 } label: {
-                    Label(showWorkerSetup ? "Hide Worker setup" : "How to deploy the Worker",
+                    Label(showWorkerSetup ? "Hide self-hosting setup" : "Advanced: self-host the Worker",
                           systemImage: "chevron.right.circle")
                         .font(.appFont(18, weight: .semibold))
                         .foregroundStyle(Theme.Colors.accent)
@@ -102,9 +102,9 @@ struct AISearchSettingsView: View {
 
     private var workerInstructions: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            instruction(1, "Open the included worker folder and run npm ci.")
+            instruction(1, "Clone the UnifiedWorker repository and run npm ci.")
             instruction(2, "Set ANTHROPIC_API_KEY with Wrangler. Optionally set NOVA_SHARED_TOKEN and enter the same token above.")
-            instruction(3, "Run npm run check, then npm run deploy. Paste the nova-ai-worker URL into the field above.")
+            instruction(3, "Run npm run check, then deploy your own Worker and paste its /nova endpoint above.")
 
             HStack {
                 Text("Worker setup commands")
@@ -157,7 +157,8 @@ struct AISearchSettingsView: View {
 
     private var workerSetupCommands: String {
         """
-        cd worker
+        git clone https://github.com/sahmoee/UnifiedWorker.git
+        cd UnifiedWorker
         npm ci
         npx wrangler secret put ANTHROPIC_API_KEY
         # Optional but recommended for private access:

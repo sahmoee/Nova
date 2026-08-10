@@ -26,8 +26,6 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>nova</string>
-				<string>astra</string>
-				<string>frametv</string>
 			</array>
 		</dict>
 	</array>

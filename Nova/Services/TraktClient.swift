@@ -58,6 +58,15 @@ actor TraktClient {
     private let config = AppConfig.shared
     private let keychain = KeychainStore.shared
 
+    /// In-flight token refresh, shared by every caller. Trakt rotates the refresh
+    /// token on each use (the old one is invalidated the moment a new pair is
+    /// issued), so two requests that both 401 and both refresh would double-spend
+    /// it: the first rotates successfully, the second posts the now-dead token,
+    /// gets 401, and wrongly concludes the login is expired — exactly the "HTTP
+    /// 401 / login expired" seen even though a valid token now exists. Coalescing
+    /// concurrent refreshes onto one Task means the rotation happens once.
+    private var refreshTask: Task<Bool, Never>?
+
     init(session: URLSession = AppNetworking.shared) {
         self.session = session
     }
@@ -120,8 +129,21 @@ actor TraktClient {
         config.set(nil, for: .traktRefreshToken)
     }
 
-    /// Refreshes the access token using the stored refresh token.
+    /// Refreshes the access token using the stored refresh token. Single-flighted:
+    /// concurrent callers share one network refresh so the rotating refresh token
+    /// is spent exactly once. Returns whether a usable access token exists after.
     private func refreshTokenIfPossible() async -> Bool {
+        if let refreshTask { return await refreshTask.value }
+        let task = Task { await self.performTokenRefresh() }
+        refreshTask = task
+        let result = await task.value
+        // Only clear if this call owns the current task (a later refresh may have
+        // already replaced it), so the next 401 can start a fresh refresh.
+        if refreshTask == task { refreshTask = nil }
+        return result
+    }
+
+    private func performTokenRefresh() async -> Bool {
         guard let refresh = config.value(for: .traktRefreshToken),
               let clientID = config.traktClientID,
               let clientSecret = config.traktClientSecret else { return false }

@@ -235,20 +235,22 @@ enum PersonalizedHomeEngine {
         return items.filter { seen.insert(displayIdentity($0)).inserted }
     }
 
-    /// Content IDs are preferred, but restored libraries and different addons can
-    /// represent the same title with different URLs. The semantic fallback catches
-    /// those copies while keeping individual series episodes distinct.
+    /// Identity used only to collapse the Home feed so one title never appears
+    /// under more than one rail. Deliberately *semantic* (normalized title + year,
+    /// or series + episode) rather than the source-specific content id: the same
+    /// movie imported from two sources — an addon carrying an IMDB id and an SMB
+    /// file carrying none, say — has two different `contentID`s but is a single
+    /// title to the viewer and must occupy a single card. Keying on the content id
+    /// let those copies slip past the cross-rail de-dupe, which is why a small
+    /// library showed the same two posters under Top Picks, Binge Next, Favorites,
+    /// and Rediscover at once. Episodes stay distinct by season/number.
     private static func displayIdentity(_ item: MediaItem) -> String {
-        if let contentID = item.contentID, !contentID.stableKey.hasPrefix("unknown:") {
-            if let episode = item.episode {
-                return "\(contentID.stableKey)|s\(episode.season)e\(episode.number)"
-            }
-            return contentID.stableKey
-        }
         if let episode = item.episode {
-            return "episode:\((item.seriesTitle ?? item.title).normalizedIdentity)|s\(episode.season)e\(episode.number)"
+            let show = (item.seriesTitle ?? item.title).normalizedIdentity
+            return "episode:\(show)|s\(episode.season)e\(episode.number)"
         }
-        return "title:\(item.title.normalizedIdentity)|\(item.metadata.year.map(String.init) ?? "")"
+        let year = item.metadata.year.map(String.init) ?? ""
+        return "title:\(item.title.normalizedIdentity)|\(year)"
     }
 }
 

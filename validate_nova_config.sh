@@ -3,9 +3,9 @@
 # validate_nova_config.sh — the configuration contract.
 #
 # Fails (nonzero exit) if any of the authoritative build settings drift:
-#   • the retained Astra app identities required for upgrade/data compatibility
+#   • the Nova app identities (com.nova.app.*)
 #   • Team ID 5DV5N49VG8
-#   • App Group  group.astra.ios (retained across app, widgets, and tvOS)
+#   • App Group  group.nova.ios (shared across app, widgets, and tvOS)
 #   • URL scheme nova://
 #   • deployment targets (iOS + tvOS = 26.0)
 #   • version numbers consistent across targets
@@ -24,7 +24,7 @@ ok()   { printf "  ✓ %s\n" "$1"; }
 if [[ ! -f "$PBX" ]]; then echo "validate_nova_config: pbxproj missing"; exit 2; fi
 
 echo "== Bundle identifiers =="
-EXPECTED_IDS=$(printf '%s\n' com.astra.app.ios com.astra.app.ios.widgets com.astra.app.tvos com.astra.app.ios.tests | sort)
+EXPECTED_IDS=$(printf '%s\n' com.nova.app.ios com.nova.app.ios.widgets com.nova.app.tvos com.nova.app.ios.tests | sort)
 FOUND_IDS=$(grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' "$PBX" \
   | sed 's/PRODUCT_BUNDLE_IDENTIFIER = //; s/;$//; s/^"//; s/"$//' | sort -u)
 if [[ "$FOUND_IDS" == "$EXPECTED_IDS" ]]; then ok "exactly the four intended IDs"; else
@@ -37,22 +37,22 @@ if grep -oE "DEVELOPMENT_TEAM = [A-Z0-9]+" "$PBX" | sort -u | grep -qv "5DV5N49V
 
 echo "== App Group =="
 # Use grep exit status only (no string capture): both real entitlement files
-# must all retain Astra's registered group so Nova sees existing shared storage.
+# must declare Nova's App Group so the shared container is visible everywhere.
 GROUP_OK=1
 for ent in "NovaWidgetsExtension.entitlements" "Nova/Resources/Nova.entitlements"; do
-  grep -q "group\.astra\.ios" "$ROOT/$ent" 2>/dev/null || GROUP_OK=0
+  grep -q "group\.nova\.ios" "$ROOT/$ent" 2>/dev/null || GROUP_OK=0
 done
-if [ "$GROUP_OK" -eq 1 ]; then ok "retained App Group group.astra.ios (both entitlements)"; else
-  bad "App Group not retained as group.astra.ios"
+if [ "$GROUP_OK" -eq 1 ]; then ok "App Group group.nova.ios (both entitlements)"; else
+  bad "App Group not set to group.nova.ios"
 fi
-# Also ensure shared-storage code uses the same group.
-if grep -rq 'group\.nova\.ios\|group\.com\.frametv\.shared' "$ROOT/Nova" "$ROOT/NovaWidgets" --include=*.swift 2>/dev/null; then
+# Also ensure shared-storage code uses the same group and no stale id.
+if grep -rq 'group\.astra\.ios\|group\.frametv' "$ROOT/Nova" "$ROOT/NovaWidgets" --include=*.swift 2>/dev/null; then
   bad "source code references a noncanonical App Group id"
-else ok "source code uses the retained App Group"; fi
+else ok "source code uses the canonical App Group"; fi
 
 echo "== iCloud continuity =="
 if grep -q '\$(TeamIdentifierPrefix)\$(CFBundleIdentifier)' "$ROOT/Nova/Resources/Nova.entitlements"; then
-  ok "KVS follows the retained Astra bundle IDs"
+  ok "KVS follows the Nova bundle IDs"
 else bad "iCloud KVS entitlement is not tied to the retained app identity"; fi
 
 echo "== URL scheme =="

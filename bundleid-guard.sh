@@ -18,8 +18,8 @@
 # Usage:
 #   ./bundleid-guard.sh                         # audit Nova.xcodeproj here
 #   ./bundleid-guard.sh --project /path/App.xcodeproj
-#   ./bundleid-guard.sh --set com.astra.app.ios --target Nova-iOS
-#   ./bundleid-guard.sh --set com.astra.app.ios --target Nova-iOS --apply
+#   ./bundleid-guard.sh --set com.nova.app.ios --target Nova-iOS
+#   ./bundleid-guard.sh --set com.nova.app.ios --target Nova-iOS --apply
 #
 # Without --apply, --set only PREVIEWS the change (writes nothing).
 # ============================================================================
@@ -79,9 +79,7 @@ DISTINCT=$(grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' "$PBX" \
 
 # The four intentional per-target identifiers. Having these is CORRECT,
 # not a conflict — the old logic wrongly flagged them.
-# Nova intentionally retains Astra's registered IDs. Rebranding these would make
-# Nova a different app and disconnect its sandbox, iCloud KVS, and Keychain data.
-ALLOWED_IDS="com.astra.app.ios com.astra.app.ios.widgets com.astra.app.tvos com.astra.app.ios.tests"
+ALLOWED_IDS="com.nova.app.ios com.nova.app.ios.widgets com.nova.app.tvos com.nova.app.ios.tests"
 UNEXPECTED=""
 while read -r id; do
   [ -z "$id" ] && continue

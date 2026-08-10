@@ -20,7 +20,7 @@ import WidgetKit
 enum WidgetShared {
     // Kept as a literal because this file also compiles in the widget target,
     // where the main app's NovaIdentifiers file is not a target member.
-    static let appGroup = "group.astra.ios"
+    static let appGroup = "group.nova.ios"
     private static let snapshotFile = "widget_snapshot.json"
 
     /// The shared container URL, or nil if the App Group isn't configured.

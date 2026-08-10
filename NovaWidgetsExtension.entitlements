@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.astra.ios</string>
+		<string>group.nova.ios</string>
 	</array>
 </dict>
 </plist>

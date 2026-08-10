@@ -15,17 +15,15 @@ import Foundation
 enum NovaIdentifiers {
 
     // MARK: - App Group (shared container: app <-> widgets <-> Top Shelf)
-    /// Stable storage identity retained from Astra so an in-place Nova update can
-    /// read the user's existing shared data. This is intentionally not rebranded.
-    static let appGroup = "group.astra.ios"
+    /// Shared container identity for Nova. Must match the App Group enabled on the
+    /// app, widgets, and tvOS entitlements.
+    static let appGroup = "group.nova.ios"
 
     // MARK: - App Store identities
     // Bundle identifiers are permanent technical identities, not display names.
-    // Keeping Astra's IDs makes Nova an update instead of an unrelated new app and
-    // preserves its sandbox, iCloud KVS namespace, Keychain access, and App Group.
-    static let bundleIDiOS = "com.astra.app.ios"
-    static let bundleIDWidgets = "com.astra.app.ios.widgets"
-    static let bundleIDtvOS = "com.astra.app.tvos"
+    static let bundleIDiOS = "com.nova.app.ios"
+    static let bundleIDWidgets = "com.nova.app.ios.widgets"
+    static let bundleIDtvOS = "com.nova.app.tvos"
 
     // MARK: - Team
     static let developmentTeam = "5DV5N49VG8"
@@ -37,7 +35,7 @@ enum NovaIdentifiers {
     static let subsystem = "com.nova.app"
 
     // MARK: - Keychain service
-    static let keychainService = "com.astra.app.secrets"
+    static let keychainService = "com.nova.app.secrets"
 
     // MARK: - Worker endpoints (paths appended to the configured Worker base URL)
     enum WorkerPath {

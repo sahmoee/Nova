@@ -59,10 +59,7 @@ struct FeaturedHero: View {
             .clipped()
 
             // Scrims + accent wash.
-            LinearGradient(
-                colors: [.clear, Theme.Colors.background.opacity(0.55), Theme.Colors.background],
-                startPoint: .top, endPoint: .bottom
-            )
+            Theme.Colors.heroGradient
             LinearGradient(
                 colors: [Theme.Colors.background.opacity(0.85), .clear],
                 startPoint: .leading, endPoint: .trailing
@@ -220,8 +217,8 @@ private struct HeroPlayButtonStyle: ButtonStyle {
 
         var body: some View {
             configuration.label
-                .background(active ? accent : .white, in: Capsule())
-                .foregroundStyle(active ? .white : .black)
+                .background(active ? .white : Theme.Colors.accent, in: Capsule())
+                .foregroundStyle(Theme.Colors.background)
                 .scaleEffect(active && !Theme.isReduceMotion ? 1.06 : 1.0)
                 .shadow(color: active ? accent.opacity(0.5) : .clear,
                         radius: active ? 20 : 0, y: 6)

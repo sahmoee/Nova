@@ -17,7 +17,7 @@ final class WorkerConfigurationTests: XCTestCase {
 
         XCTAssertEqual(
             NovaWorkerConfiguration.healthEndpoint(base: base).absoluteString,
-            "https://nova-ai-worker.your-subdomain.workers.dev/health"
+            "https://api.sowensstudios.com/nova/health"
         )
     }
 }

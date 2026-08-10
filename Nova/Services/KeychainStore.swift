@@ -32,8 +32,7 @@ struct KeychainStore {
 
     static let shared = KeychainStore()
 
-    // Keep Astra's service identifier so Nova can read existing credentials after
-    // the brand rename. New writes use the same service and remain compatible.
+    // Nova's Keychain service identifier (single source of truth).
     private let service = NovaIdentifiers.keychainService
 
     // MARK: - Save / Update

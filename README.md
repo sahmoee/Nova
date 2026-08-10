@@ -11,7 +11,7 @@ Nova does not provide media or access to third-party content. Users are responsi
 - SMB folders, Live TV playlists, direct media URLs, and user-installed add-ons
 - Optional Trakt, TMDB, OMDb, OpenSubtitles, and Real-Debrid integrations
 - Optional AI discovery through a user-controlled Cloudflare Worker
-- Private iCloud configuration backup, file export, and legacy Astra/FrameTV restore support
+- Private iCloud configuration backup and file export (.nova snapshots)
 - Apple player and VLCKit playback engines
 - Dynamic Type, VoiceOver labels, adaptable layouts, and tvOS focus support
 
@@ -22,7 +22,7 @@ Nova does not provide media or access to third-party content. Users are responsi
 3. Set your development team and signing configuration.
 4. Add service credentials in the app's Settings screen or use `NovaConfig.example.json` as a local template. Never commit real credentials.
 
-Swift Package Manager resolves AMSMB2 3.4.0 and vlckit-spm 3.6.0. The optional Worker lives in `worker/`; run `npm ci`, then `npm test` from that folder.
+Swift Package Manager resolves AMSMB2 3.4.0 and vlckit-spm 3.6.0. Network services are maintained separately in the [UnifiedWorker repository](https://github.com/sahmoee/UnifiedWorker); no backend secrets are stored here.
 
 ## App Store and support
 

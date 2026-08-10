@@ -46,7 +46,9 @@ final class AISearchService: ObservableObject {
                !cloud.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 return cloud
             }
-            return UserDefaults.standard.string(forKey: workerURLKey) ?? ""
+            return UserDefaults.standard.string(forKey: workerURLKey)
+                ?? AppConfig.shared.aiWorkerURL
+                ?? NovaWorkerConfiguration.defaultBaseURL
         }
         set {
             UserDefaults.standard.set(newValue, forKey: workerURLKey)
@@ -57,9 +59,7 @@ final class AISearchService: ObservableObject {
 
     static var workerURL: URL? {
         let trimmed = workerURLString.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return AppConfig.shared.aiWorkerURL.flatMap(URL.init(string:))
-        }
+        guard !trimmed.isEmpty else { return URL(string: NovaWorkerConfiguration.defaultBaseURL) }
         return URL(string: trimmed)
     }
 

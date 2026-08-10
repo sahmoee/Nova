@@ -154,38 +154,43 @@ enum Theme {
     // MARK: - Colors
 
     enum Colors {
-        // Nova pairs true-black cinematic surfaces with the crimson, graphite, and
-        // white used by the crystalline nova mark across iOS and tvOS.
-        static let background = Color.black
-        static let backgroundElevated = Color(white: 0.045)
+        // A cool, cinematic near-black lets artwork remain the visual focus while
+        // pale-blue controls provide a restrained, consistent interactive language.
+        static let background = Color(red: 0.018, green: 0.027, blue: 0.045)
+        static let backgroundElevated = Color(red: 0.035, green: 0.052, blue: 0.078)
 
-        static let card = Color(white: 0.38).opacity(0.18)
-        static let cardElevated = Color(white: 0.52).opacity(0.24)
+        static let card = Color(red: 0.16, green: 0.20, blue: 0.27).opacity(0.42)
+        static let cardElevated = Color(red: 0.24, green: 0.31, blue: 0.40).opacity(0.50)
 
-        static let accent = Color(red: 0.94, green: 0.07, blue: 0.11)
-        static let accentSecondary = Color(red: 0.67, green: 0.04, blue: 0.07)
+        static let accent = Color(red: 0.69, green: 0.86, blue: 0.96)
+        static let accentSecondary = Color(red: 0.35, green: 0.60, blue: 0.78)
         static let iconRed = accent
         static let iconGraphite = Color(white: 0.26)
         static let iconSilver = Color(white: 0.58)
 
         static let textPrimary = Color.white
-        static let textSecondary = Color.white.opacity(0.72)
-        static let textTertiary = Color.white.opacity(0.42)
+        static let textSecondary = Color(red: 0.79, green: 0.82, blue: 0.87).opacity(0.78)
+        static let textTertiary = Color(red: 0.66, green: 0.70, blue: 0.76).opacity(0.58)
 
         static let success = Color.white
         static let warning = Color(white: 0.72)
         static let error = accent
 
-        static let separator = Color.white.opacity(0.10)
+        static let separator = Color(red: 0.73, green: 0.84, blue: 0.94).opacity(0.12)
 
         static let appBackground = LinearGradient(
-            colors: [Color.black, Color(red: 0.055, green: 0.012, blue: 0.016), Color.black],
-            startPoint: .top,
-            endPoint: .bottom
+            colors: [
+                Color(red: 0.035, green: 0.058, blue: 0.090),
+                Color(red: 0.018, green: 0.027, blue: 0.045),
+                Color(red: 0.010, green: 0.014, blue: 0.024)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
         )
 
         static let cardGradient = LinearGradient(
-            colors: [Color.white.opacity(0.14), Color.white.opacity(0.07)],
+            colors: [Color(red: 0.34, green: 0.43, blue: 0.55).opacity(0.28),
+                     Color(red: 0.12, green: 0.16, blue: 0.23).opacity(0.42)],
             startPoint: .top,
             endPoint: .bottom
         )
@@ -210,9 +215,9 @@ enum Theme {
     // MARK: - Radii
 
     enum Radius {
-        static var card: CGFloat { Theme.scaled(12, min: 7) }
-        static var largeCard: CGFloat { Theme.scaled(18, min: 12) }
-        static var button: CGFloat { Theme.scaled(10, min: 7) }
+        static var card: CGFloat { Theme.scaled(18, min: 12) }
+        static var largeCard: CGFloat { Theme.scaled(28, min: 18) }
+        static var button: CGFloat { Theme.scaled(16, min: 11) }
         static let pill: CGFloat = 999
     }
 
