@@ -1,0 +1,9 @@
+{
+  "id" : "755b93f6-2e71-4284-8864-d6b1e15c2af9",
+  "targets" : [
+    {
+      "id" : "e393d9c0-56bb-4fa3-ae86-d349f8fc776c",
+      "name" : "Nova-iOS"
+    }
+  ]
+}

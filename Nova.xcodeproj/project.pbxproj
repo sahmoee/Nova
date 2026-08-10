@@ -233,6 +233,8 @@
 		9B1BC7CC9FBA6370EA7CBDD6 /* CollectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD28AB0F57F8C90396EEF8DA /* CollectionsView.swift */; };
 		9BCDA39724E4B3192381730F /* WatchStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = D51ED4505C44CB38C11CFFD5 /* WatchStats.swift */; };
 		9C8610B008346C795486B9B4 /* MediaCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6307E16A16FB54315B4AF2C /* MediaCard.swift */; };
+		2949EFFBE12588BF52E92744 /* PlayerGestureOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 388E42C977C02DB5900E8FA8 /* PlayerGestureOverlay.swift */; };
+		B8C4B0D81C7E0372D33F1DDF /* PosterCollectionGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A6FE1CD77347DBF34513A7 /* PosterCollectionGrid.swift */; };
 		9D5E869535D332D20EDC7739 /* VLCKitSPM in Frameworks */ = {isa = PBXBuildFile; productRef = 9A07A06C9D0037B1C911F758 /* VLCKitSPM */; };
 		9E77809DB16E46383CB2AB0C /* CloudBackedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C4F43F1FF1B7D16F4D0D0D9 /* CloudBackedStore.swift */; };
 		9FFD2D733A17EC7C1F5F72A1 /* VLCPlayerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 623954A6B50ECFBB344C96F4 /* VLCPlayerModel.swift */; };
@@ -307,6 +309,8 @@
 		D01F610D15B2D2990D059FBE /* MediaItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E501EBDA1415CB797D128711 /* MediaItem.swift */; };
 		D094CAD1B7E959336F1AEBBF /* Sources/SourcesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E739E2597C4A8700F5D8AA04 /* Sources/SourcesView.swift */; };
 		D0A3A638B8D080EB733B42A9 /* MediaCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6307E16A16FB54315B4AF2C /* MediaCard.swift */; };
+		9308F29862D975D400524372 /* PlayerGestureOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 388E42C977C02DB5900E8FA8 /* PlayerGestureOverlay.swift */; };
+		58EC84E87A1AA2E605507D95 /* PosterCollectionGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A6FE1CD77347DBF34513A7 /* PosterCollectionGrid.swift */; };
 		D174DF935C079BD7E7423DDF /* Assets-tvOS.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DEFB4E40EEB8790716864FAA /* Assets-tvOS.xcassets */; };
 		D25FD312E828F2D1D8CF7608 /* LibraryCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E01039EC91A80EEB10B225 /* LibraryCleanup.swift */; };
 		D26CDBBB815254F095694261 /* ShowSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B413F98B8E8C964230E17AF4 /* ShowSettingsStore.swift */; };
@@ -544,6 +548,8 @@
 		B367746B094F55EA79020DCF /* StremioAddonClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StremioAddonClient.swift; sourceTree = "<group>"; };
 		B413F98B8E8C964230E17AF4 /* ShowSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowSettingsStore.swift; sourceTree = "<group>"; };
 		B6307E16A16FB54315B4AF2C /* MediaCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaCard.swift; sourceTree = "<group>"; };
+		388E42C977C02DB5900E8FA8 /* PlayerGestureOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerGestureOverlay.swift; sourceTree = "<group>"; };
+		25A6FE1CD77347DBF34513A7 /* PosterCollectionGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PosterCollectionGrid.swift; sourceTree = "<group>"; };
 		B66648CD3E46A9C0B154858F /* WatchStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStatsView.swift; sourceTree = "<group>"; };
 		B6E6E99F2C1AAF086CAAA463 /* DirectURLService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectURLService.swift; sourceTree = "<group>"; };
 		B796696F664D0CD960FF4E07 /* SettingsKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsKit.swift; sourceTree = "<group>"; };
@@ -675,6 +681,8 @@
 				0891FE55B78DCC3DE872A952 /* LegalConfirmToggle.swift */,
 				D42E17E7EECCF171207407F4 /* SkeletonGrid.swift */,
 				B6307E16A16FB54315B4AF2C /* MediaCard.swift */,
+				388E42C977C02DB5900E8FA8 /* PlayerGestureOverlay.swift */,
+				25A6FE1CD77347DBF34513A7 /* PosterCollectionGrid.swift */,
 				B796696F664D0CD960FF4E07 /* SettingsKit.swift */,
 				8243FC1919BC503B71FAB073 /* MediaRow.swift */,
 				F8F5CA2AC22C7C68AC4ABCC7 /* ScreenHeader.swift */,
@@ -1230,6 +1238,8 @@
 				840624CE7FAEF93F7FD964A0 /* KeyboardDismiss.swift in Sources */,
 				75BCFAFCE61FF1926E8C5DBE /* LegalConfirmToggle.swift in Sources */,
 				9C8610B008346C795486B9B4 /* MediaCard.swift in Sources */,
+				2949EFFBE12588BF52E92744 /* PlayerGestureOverlay.swift in Sources */,
+				B8C4B0D81C7E0372D33F1DDF /* PosterCollectionGrid.swift in Sources */,
 				1D772089BF9EDDD238F1FBCA /* SettingsKit.swift in Sources */,
 				A5B701AFE260C5A6D18C3904 /* MediaRow.swift in Sources */,
 				0388EDC7D93E2042B4BD9DB2 /* ScreenHeader.swift in Sources */,
@@ -1410,6 +1420,8 @@
 				7A07FDDDE21E891E5A8D931B /* KeyboardDismiss.swift in Sources */,
 				1BF506E25F219FE0F4DB9887 /* LegalConfirmToggle.swift in Sources */,
 				D0A3A638B8D080EB733B42A9 /* MediaCard.swift in Sources */,
+				9308F29862D975D400524372 /* PlayerGestureOverlay.swift in Sources */,
+				58EC84E87A1AA2E605507D95 /* PosterCollectionGrid.swift in Sources */,
 				9B0D1102F7842D041D1F275D /* SettingsKit.swift in Sources */,
 				BDAA2FA9B72220A480137965 /* MediaRow.swift in Sources */,
 				73BE6730CFDE4C6E69470986 /* ScreenHeader.swift in Sources */,
@@ -1646,7 +1658,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-tvOS.plist";
@@ -1674,7 +1686,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-tvOS.plist";
@@ -1706,7 +1718,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CODE_SIGN_ENTITLEMENTS = NovaWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NovaWidgets/Info.plist;
@@ -1750,7 +1762,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CODE_SIGN_ENTITLEMENTS = NovaWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NovaWidgets/Info.plist;
@@ -1788,7 +1800,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-iOS.plist";
@@ -1816,7 +1828,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-iOS.plist";
