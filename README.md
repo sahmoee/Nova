@@ -12,10 +12,15 @@ the sources they connect and for having permission to access their media.
 - Native SwiftUI app for iOS, iPadOS, and tvOS
 - Personal library, favorites, watch history, and continue watching
 - SMB folders, Live TV playlists, direct media URLs, and user-installed add-ons
+- **Nova Tracker** — first-party cross-device watch tracking (history, watchlist statuses,
+  ratings) that syncs via your iCloud identity; a built-in Trakt/SIMKL replacement
 - Optional Trakt, SIMKL, TMDB account, OMDb, OpenSubtitles, and Real-Debrid integrations
+- One-time import of your watchlist, watched history, and ratings from Trakt / SIMKL
 - Optional AI discovery via a user-controlled Cloudflare Worker
 - Private iCloud configuration backup and export (.nova snapshots)
 - Apple and VLCKit playback engines
+- Dedicated Anime catalog tab and an Airing Calendar of upcoming episodes for tracked shows
+- Notifications when a new episode of a tracked show is actually available to stream
 - Full accessibility: Dynamic Type, VoiceOver, adaptive layouts, tvOS focus
 
 ## Requirements

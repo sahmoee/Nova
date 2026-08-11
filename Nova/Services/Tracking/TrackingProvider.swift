@@ -208,7 +208,12 @@ actor NovaTrackingProvider {
     }
 
     private func linkICloud() async -> Bool {
-        #if canImport(CloudKit)
+        // NOTE: CKContainer.default() TRAPS (not a catchable error) unless the app's
+        // entitlements include the CloudKit service. Nova has iCloud backup but not the
+        // CloudKit capability, so this is gated behind a build flag. To enable true
+        // cross-device identity: add the iCloud ▸ CloudKit capability in Signing &
+        // Capabilities, then add NOVA_CLOUDKIT_IDENTITY to Active Compilation Conditions.
+        #if NOVA_CLOUDKIT_IDENTITY && canImport(CloudKit)
         guard let base else { return false }
         let recordName = try? await CKContainer.default().userRecordID().recordName
         guard let external = recordName, !external.isEmpty else { return false }

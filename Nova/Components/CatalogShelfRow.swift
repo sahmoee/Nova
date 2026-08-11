@@ -138,6 +138,20 @@ struct CatalogShelfRow: View {
         } label: {
             Label("Add to Queue", systemImage: "text.badge.plus")
         }
+        #if os(iOS)
+        if item.contentID.type == .movie {
+            Button {
+                ToastCenter.shared.show("Finding a stream to download…", systemImage: "arrow.down.circle")
+                Task {
+                    let ok = await env.downloadToDevice(item)
+                    ToastCenter.shared.show(ok ? "Download started" : "No downloadable stream found",
+                                            systemImage: ok ? "arrow.down.circle.fill" : "exclamationmark.triangle")
+                }
+            } label: {
+                Label("Download", systemImage: "arrow.down.circle")
+            }
+        }
+        #endif
     }
 
         private var loadingRow: some View {

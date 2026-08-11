@@ -101,8 +101,9 @@ final class AppConfig: @unchecked Sendable {
         case .simklClientID:         return nonEmpty(fileConfig.simklClientId)
         case .openSubtitlesAPIKey:   return nonEmpty(fileConfig.openSubtitlesApiKey)
         case .omdbAPIKey:            return nonEmpty(fileConfig.omdbApiKey)
+        case .novaTrackerBaseURL:    return nonEmpty(fileConfig.novaTrackerBaseUrl)
         case .traktAccessToken, .traktRefreshToken, .workerToken,
-             .simklAccessToken, .tmdbSessionID, .tmdbAccountID:
+             .simklAccessToken, .tmdbSessionID, .tmdbAccountID, .novaTrackerToken:
             return nil   // tokens are runtime-only, never from the static file
         }
     }

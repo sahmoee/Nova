@@ -47,6 +47,22 @@ final class AppEnvironment: ObservableObject {
     let shelfLoader: ShelfLoader
     let aiSearch: AISearchService
 
+    /// Resolve the best playable stream for a catalog item and enqueue it for offline
+    /// download. Movies pass episode = nil; series pass the chosen EpisodeInfo. Returns
+    /// whether a download was started.
+    @MainActor @discardableResult
+    func downloadToDevice(_ item: CatalogItem, episode: EpisodeInfo? = nil) async -> Bool {
+        let epRef = episode.map { EpisodeRef(season: $0.season, number: $0.number, episodeTitle: $0.title) }
+        let streams = await catalog.streams(for: item.contentID, episode: epRef, preferredQuality: nil)
+        for stream in streams.prefix(6) {
+            guard var media = try? await catalog.makePlayable(stream: stream, catalog: item, episode: episode)
+            else { continue }
+            media.legalAccessConfirmed = true
+            if downloads.enqueue(media) != nil { return true }
+        }
+        return false
+    }
+
     init() {
         let lib = LibraryStore()
         self.library = lib
@@ -76,7 +92,6 @@ final class AppEnvironment: ObservableObject {
         self.trackers = TrackingHub([novaTrackerClient, traktClient, simklClient, tmdbAccount])
         // Pull the first-party tracker's data into the on-device cache at launch.
         Task { await novaTrackerClient.sync() }
-        self.episodeNotifier = EpisodeAvailabilityNotifier(library: lib, tmdb: tmdbClient, catalog: self.catalog)
         let os = OpenSubtitlesClient()
         self.openSubtitles = os
         let addonCli = StremioAddonClient()
@@ -95,6 +110,7 @@ final class AppEnvironment: ObservableObject {
             skipProvider: skip,
             hasDebridToken: { KeychainStore.shared.realDebridToken != nil }
         )
+        self.episodeNotifier = EpisodeAvailabilityNotifier(library: lib, tmdb: tmdbClient, catalog: self.catalog)
 
         self.shelfLoader = ShelfLoader(
             tmdb: tmdbClient,

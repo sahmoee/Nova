@@ -25,6 +25,7 @@ struct MediaCard: View {
     @FocusState private var focused: Bool
     @Environment(\.dynamicAccent) private var accent
     @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var env: AppEnvironment
 
     private var width: CGFloat { widthOverride ?? (wide ? Theme.CardSize.wideWidth : Theme.CardSize.posterWidth) }
     private var height: CGFloat { heightOverride ?? (wide ? Theme.CardSize.wideHeight : Theme.CardSize.posterHeight) }
@@ -137,6 +138,24 @@ struct MediaCard: View {
             Label(item.isWatched ? "Mark Unwatched" : "Mark Watched",
                   systemImage: item.isWatched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
         }
+        #if os(iOS)
+        Button {
+            if env.downloads.enqueue(item) != nil {
+                ToastCenter.shared.show("Download started", systemImage: "arrow.down.circle.fill")
+            } else if let cid = item.contentID, cid.type == .movie {
+                ToastCenter.shared.show("Finding a stream to download…", systemImage: "arrow.down.circle")
+                Task {
+                    let ok = await env.downloadToDevice(CatalogItem(contentID: cid, title: item.displayTitle))
+                    ToastCenter.shared.show(ok ? "Download started" : "No downloadable stream found",
+                                            systemImage: ok ? "arrow.down.circle.fill" : "exclamationmark.triangle")
+                }
+            } else {
+                ToastCenter.shared.show("Open this title to download an episode", systemImage: "exclamationmark.triangle")
+            }
+        } label: {
+            Label("Download", systemImage: "arrow.down.circle")
+        }
+        #endif
         Button(role: .destructive) {
             library.toggleHidden(item)
             ToastCenter.shared.show("Hidden from your rows")
