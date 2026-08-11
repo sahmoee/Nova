@@ -33,6 +33,8 @@ final class AppEnvironment: ObservableObject {
     let trakt: TraktClient
     let simkl: SimklClient
     let tmdbTracker: TMDBAccountClient
+    let novaTracker: NovaTrackingProvider
+    let episodeNotifier: EpisodeAvailabilityNotifier
     /// Aggregates every optional tracker (Trakt, SIMKL, TMDB). Writes fan out to all
     /// connected trackers; reads merge across them. Use this instead of a single
     /// service for watchlist/trending/scrobble.
@@ -69,7 +71,12 @@ final class AppEnvironment: ObservableObject {
         self.simkl = simklClient
         let tmdbAccount = TMDBAccountClient()
         self.tmdbTracker = tmdbAccount
-        self.trackers = TrackingHub([traktClient, simklClient, tmdbAccount])
+        let novaTrackerClient = NovaTrackingProvider()
+        self.novaTracker = novaTrackerClient
+        self.trackers = TrackingHub([novaTrackerClient, traktClient, simklClient, tmdbAccount])
+        // Pull the first-party tracker's data into the on-device cache at launch.
+        Task { await novaTrackerClient.sync() }
+        self.episodeNotifier = EpisodeAvailabilityNotifier(library: lib, tmdb: tmdbClient, catalog: self.catalog)
         let os = OpenSubtitlesClient()
         self.openSubtitles = os
         let addonCli = StremioAddonClient()

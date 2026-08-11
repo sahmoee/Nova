@@ -23,6 +23,8 @@ enum CredentialKey: String, CaseIterable {
     case simklAccessToken = "simkl.accessToken"
     case tmdbSessionID = "tmdb.sessionId"
     case tmdbAccountID = "tmdb.accountId"
+    case novaTrackerToken = "novaTracker.token"
+    case novaTrackerBaseURL = "novaTracker.baseUrl"
     case openSubtitlesAPIKey = "opensubtitles.apiKey"
     case omdbAPIKey = "omdb.apiKey"
     case workerToken = "worker.token"
@@ -34,6 +36,7 @@ struct NovaConfigFile: Codable {
     var traktClientId: String?
     var traktClientSecret: String?
     var simklClientId: String?
+    var novaTrackerBaseUrl: String?
     var openSubtitlesApiKey: String?
     var omdbApiKey: String?
     /// Optional list of addon manifest URLs to preinstall on first run.
@@ -129,6 +132,8 @@ final class AppConfig: @unchecked Sendable {
     var traktClientID: String? { value(for: .traktClientID) }
     var traktClientSecret: String? { value(for: .traktClientSecret) }
     var simklClientID: String? { value(for: .simklClientID) }
+    /// Defaults to the deployed Nova Tracker service; override via config/Keychain.
+    var novaTrackerBaseURL: String? { value(for: .novaTrackerBaseURL) ?? "https://api.sowensstudios.com/tracker" }
     var openSubtitlesKey: String? { value(for: .openSubtitlesAPIKey) }
     var omdbKey: String? { value(for: .omdbAPIKey) }
 

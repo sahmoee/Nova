@@ -29,6 +29,10 @@ struct ContentDetailView: View {
     @State private var cast: [CastMember] = []
     @State private var related: [CatalogItem] = []
     @State private var extrasLoading = false
+    // Nova Tracker (first-party) state for this title.
+    @State private var novaStatus: String? = nil
+    @State private var novaRating: Int? = nil
+    @State private var novaTrackLoaded = false
 
     init(item: CatalogItem) {
         self.initialItem = item
@@ -60,6 +64,9 @@ struct ContentDetailView: View {
                         compactHeroDetails
                             .frame(width: proxy.size.width, alignment: .leading)
                     }
+
+                    novaTrackingPanel
+                        .frame(width: proxy.size.width, alignment: .leading)
 
                     if item.isSeries {
                         seriesBody
@@ -207,6 +214,85 @@ struct ContentDetailView: View {
         }
     }
 
+    // MARK: - Nova Tracker panel (status + rating)
+
+    private static let novaStatuses: [(String, String)] = [
+        ("plantowatch", "Plan to Watch"),
+        ("watching", "Watching"),
+        ("completed", "Completed"),
+        ("hold", "On Hold"),
+        ("dropped", "Dropped"),
+    ]
+
+    private var novaTrackingPanel: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text("Tracking")
+                .font(.appFont(18, weight: .bold))
+                .foregroundStyle(Theme.Colors.textSecondary)
+            HStack(spacing: Theme.Spacing.sm) {
+                Menu {
+                    ForEach(Self.novaStatuses, id: \.0) { value, label in
+                        Button(label) { setNovaStatus(value) }
+                    }
+                    if novaStatus != nil {
+                        Divider()
+                        Button("Remove from list", role: .destructive) { setNovaStatus("none") }
+                    }
+                } label: {
+                    novaChip(icon: "list.bullet",
+                             text: Self.novaStatuses.first(where: { $0.0 == novaStatus })?.1 ?? "Add to list",
+                             active: novaStatus != nil)
+                }
+                Menu {
+                    ForEach(Array((1...10).reversed()), id: \.self) { r in
+                        Button("\(r)/10") { rateNova(r) }
+                    }
+                    if novaRating != nil {
+                        Divider()
+                        Button("Clear rating", role: .destructive) { rateNova(0) }
+                    }
+                } label: {
+                    novaChip(icon: "star.fill",
+                             text: novaRating.map { "\($0)/10" } ?? "Rate",
+                             active: novaRating != nil)
+                }
+            }
+        }
+        .padding(.horizontal, Theme.Spacing.edge)
+        .task { await loadNovaState() }
+    }
+
+    private func novaChip(icon: String, text: String, active: Bool) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon).font(.appFont(13, weight: .semibold))
+            Text(text).font(.appFont(15, weight: .semibold)).lineLimit(1)
+        }
+        .foregroundStyle(active ? Theme.Colors.background : Theme.Colors.textPrimary)
+        .padding(.horizontal, Theme.Spacing.md)
+        .frame(minHeight: Theme.minTouchTarget)
+        .background(active ? Theme.Colors.accent : Color.white.opacity(0.10), in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+    }
+
+    private func loadNovaState() async {
+        guard !novaTrackLoaded else { return }
+        novaTrackLoaded = true
+        if let state = await env.novaTracker.itemState(item.contentID) {
+            novaStatus = state.status
+            novaRating = state.rating
+        }
+    }
+    private func setNovaStatus(_ value: String) {
+        novaStatus = (value == "none") ? nil : value
+        Haptics.selection()
+        Task { await env.novaTracker.setStatus(value, for: item) }
+    }
+    private func rateNova(_ r: Int) {
+        novaRating = r > 0 ? r : nil
+        Haptics.selection()
+        Task { await env.novaTracker.rate(r, contentID: item.contentID) }
+    }
+
     private var heroPrimaryActions: some View {
         HStack(spacing: Theme.Spacing.sm) {
             Button {
@@ -219,6 +305,7 @@ struct ContentDetailView: View {
                     .padding(.horizontal, Theme.Spacing.lg)
                     .frame(minHeight: Theme.minTouchTarget)
                     .background(Theme.Colors.accent, in: Capsule())
+                    .glassEffect(.regular, in: Capsule())   // Liquid Glass chrome
             }
             .buttonStyle(NovaChipButtonStyle())
 
@@ -229,6 +316,7 @@ struct ContentDetailView: View {
                     .frame(width: Theme.minTouchTarget, height: Theme.minTouchTarget)
                     .background(isWatched ? Theme.Colors.accent : Color.white.opacity(0.12), in: Circle())
                     .overlay(Circle().strokeBorder(Color.white.opacity(0.18), lineWidth: 1))
+                    .glassEffect(.regular, in: Circle())   // Liquid Glass chrome
             }
             .buttonStyle(NovaChipButtonStyle())
             .accessibilityLabel(isWatched ? "Mark as unwatched" : "Mark as watched")
@@ -459,6 +547,7 @@ struct ContentDetailView: View {
                 RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                     .strokeBorder(active ? accent.opacity(0.6) : Color.white.opacity(0.07), lineWidth: 1)
             )
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
         .buttonStyle(NovaListRowStyle())

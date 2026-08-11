@@ -480,3 +480,27 @@ extension TMDBClient {
         try await discoverAnime(isMovie: false, genres: [16, genre], sort: "popularity.desc")
     }
 }
+
+
+// MARK: - Airing calendar (next episode to air)
+struct TMDBNextEpisode: Codable, Sendable {
+    let air_date: String?
+    let season_number: Int?
+    let episode_number: Int?
+    let name: String?
+}
+private struct TMDBTVNextDetail: Codable { let next_episode_to_air: TMDBNextEpisode? }
+private struct TMDBTVLastDetail: Codable { let last_episode_to_air: TMDBNextEpisode? }
+
+extension TMDBClient {
+    /// The next scheduled episode for a series, or nil if none is announced.
+    func nextEpisodeToAir(tmdbID: Int) async throws -> TMDBNextEpisode? {
+        let detail: TMDBTVNextDetail = try await get("tv/\(tmdbID)")
+        return detail.next_episode_to_air
+    }
+    /// The most recently aired episode for a series (used for "new episode available").
+    func lastEpisodeToAir(tmdbID: Int) async throws -> TMDBNextEpisode? {
+        let detail: TMDBTVLastDetail = try await get("tv/\(tmdbID)")
+        return detail.last_episode_to_air
+    }
+}

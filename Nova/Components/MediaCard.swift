@@ -236,9 +236,9 @@ struct MediaCard: View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Rectangle()
-                    .fill(.black.opacity(0.5))
+                    .fill(Theme.Colors.progressTrack)
                 Rectangle()
-                    .fill(Theme.Colors.accent)
+                    .fill(Theme.Colors.progressFill)
                     .frame(width: geo.size.width * clampedProgress)
             }
         }

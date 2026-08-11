@@ -10,6 +10,7 @@ import SwiftUI
 @main
 struct NovaApp: App {
     @StateObject private var environment = AppEnvironment()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -19,6 +20,12 @@ struct NovaApp: App {
                 .environmentObject(environment.progress)
                 .environmentObject(environment.settings)
                 .preferredColorScheme(.dark)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                environment.episodeNotifier.requestAuthorization()
+                Task { await environment.episodeNotifier.checkForNewStreamableEpisodes() }
+            }
         }
     }
 }

@@ -136,6 +136,10 @@ struct RootView: View {
                 .tabItem { Label(AppTab.anime.title, systemImage: AppTab.anime.systemImage) }
                 .tag(AppTab.anime)
 
+            AiringCalendarView(path: $nav.calendarPath)
+                .tabItem { Label(AppTab.calendar.title, systemImage: AppTab.calendar.systemImage) }
+                .tag(AppTab.calendar)
+
             AIView(path: $nav.aiPath)
                 .tabItem { Label(AppTab.ai.title, systemImage: AppTab.ai.systemImage) }
                 .tag(AppTab.ai)
@@ -197,6 +201,7 @@ struct RootView: View {
             case .home:     HomeView(path: $nav.homePath)
             case .discover: DiscoverView(path: $nav.discoverPath)
             case .anime:    AnimeView(path: $nav.animePath)
+            case .calendar: AiringCalendarView(path: $nav.calendarPath)
             case .ai:       AIView(path: $nav.aiPath)
             case .library:  LibraryView(path: $nav.libraryPath)
             case .settings: SettingsView(path: $nav.settingsPath)
@@ -437,5 +442,122 @@ struct AnimeView: View {
             AnimeShelf(title: "Fantasy & Sci-Fi", items: (try? await fantasy) ?? [])
         ]
         loaded = true
+    }
+}
+
+
+// MARK: - Airing calendar (tracked shows)
+// An auto-updating calendar of the next episode for every series the user is tracking
+// (library series, Continue Watching, favorites). Pulls next-episode-to-air from TMDB and
+// groups by date. Refreshes on open and on pull-to-refresh.
+struct AiringCalendarView: View {
+    @Binding var path: NavigationPath
+    @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var library: LibraryStore
+
+    private struct Entry: Identifiable {
+        let id = UUID(); let title: String; let poster: URL?
+        let date: Date; let label: String; let catalog: CatalogItem
+    }
+    @State private var entries: [Entry] = []
+    @State private var loading = false
+    @State private var loaded = false
+
+    private static let ymd: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.locale = Locale(identifier: "en_US_POSIX"); return f
+    }()
+    private static let dayHeader: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "EEEE, MMM d"; return f
+    }()
+
+    private var grouped: [(Date, [Entry])] {
+        let g = Dictionary(grouping: entries) { Calendar.current.startOfDay(for: $0.date) }
+        return g.keys.sorted().map { ($0, g[$0]!.sorted { $0.title < $1.title }) }
+    }
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            Group {
+                if loading && entries.isEmpty {
+                    ProgressView().tint(Theme.Colors.accent).frame(maxWidth: .infinity).padding(.top, 80)
+                } else if entries.isEmpty {
+                    VStack(spacing: Theme.Spacing.sm) {
+                        Image(systemName: "calendar").font(.appFont(44)).foregroundStyle(Theme.Colors.textTertiary)
+                        Text("No upcoming episodes")
+                            .font(.appFont(20, weight: .semibold)).foregroundStyle(Theme.Colors.textPrimary)
+                        Text("Add series to your library or watchlist and their next air dates show up here.")
+                            .font(.appFont(15)).foregroundStyle(Theme.Colors.textSecondary)
+                            .multilineTextAlignment(.center).padding(.horizontal, Theme.Spacing.xl)
+                    }
+                    .frame(maxWidth: .infinity).padding(.top, 80)
+                } else {
+                    ScrollView(showsIndicators: false) {
+                        LazyVStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                            ForEach(grouped, id: \.0) { day, items in
+                                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                                    Text(Self.dayHeader.string(from: day))
+                                        .font(Theme.Font.sectionTitle())
+                                        .foregroundStyle(Theme.Colors.textPrimary)
+                                        .padding(.leading, Theme.Spacing.edge)
+                                    ForEach(items) { e in
+                                        NavigationLink(value: e.catalog) { row(e) }
+                                            .buttonStyle(NovaListRowStyle())
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.vertical, Theme.Spacing.md)
+                    }
+                }
+            }
+            .background(Theme.Colors.appBackground.ignoresSafeArea())
+            .navigationTitle("Calendar")
+            .navigationDestination(for: CatalogItem.self) { ContentDetailView(item: $0) }
+            .task { await load() }
+            .refreshable { loaded = false; await load() }
+        }
+    }
+
+    private func row(_ e: Entry) -> some View {
+        HStack(spacing: Theme.Spacing.md) {
+            PosterImage(url: e.poster, width: 58, height: 87, title: e.title)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(e.title).font(.appFont(17, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary).lineLimit(1)
+                Text(e.label).font(.appFont(14))
+                    .foregroundStyle(Theme.Colors.textSecondary).lineLimit(1)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, Theme.Spacing.edge)
+        .contentShape(Rectangle())
+    }
+
+    private func trackedSeries() -> [MediaItem] {
+        var seen = Set<Int>(); var out: [MediaItem] = []
+        for m in (library.continueWatching + library.favorites + library.items) where m.isSeries {
+            if let t = m.contentID?.tmdb, seen.insert(t).inserted { out.append(m) }
+        }
+        return out
+    }
+
+    private func load() async {
+        guard !loaded else { return }
+        loading = true
+        let series = trackedSeries()
+        let today = Calendar.current.startOfDay(for: Date())
+        var built: [Entry] = []
+        for m in series {
+            guard let tmdb = m.contentID?.tmdb,
+                  let next = try? await env.tmdb.nextEpisodeToAir(tmdbID: tmdb),
+                  let ds = next.air_date, let d = Self.ymd.date(from: ds), d >= today else { continue }
+            var label = String(format: "S%02dE%02d", next.season_number ?? 0, next.episode_number ?? 0)
+            if let name = next.name, !name.isEmpty { label += " · \(name)" }
+            let cid = m.contentID ?? ContentID(imdb: nil, tmdb: tmdb, trakt: nil, type: .series)
+            let catalog = CatalogItem(contentID: cid, title: m.displayTitle, posterURL: m.posterURL)
+            built.append(Entry(title: m.displayTitle, poster: m.posterURL, date: d, label: label, catalog: catalog))
+        }
+        entries = built.sorted { $0.date < $1.date }
+        loaded = true; loading = false
     }
 }

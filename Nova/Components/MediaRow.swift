@@ -31,7 +31,9 @@ struct MediaRow: View {
                     }
                     .padding(.horizontal, Theme.Spacing.edge)
                     .padding(.vertical, Theme.Spacing.md) // room for focus scale
+                    .scrollTargetLayout()
                 }
+                .scrollTargetBehavior(.viewAligned)
             }
         }
     }

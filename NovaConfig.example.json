@@ -6,6 +6,7 @@
   "traktClientSecret": "your-trakt-client-secret",
   "openSubtitlesApiKey": "your-opensubtitles-api-key",
   "aiWorkerUrl": "https://nova-ai-worker.your-subdomain.workers.dev",
+  "novaTrackerBaseUrl": "https://nova-tracker.stocked.workers.dev",
 
   "addonManifestURLs": [
     "https://your-configured-addon.example/manifest.json"

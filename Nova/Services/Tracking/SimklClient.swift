@@ -204,6 +204,14 @@ actor SimklClient {
 
     func syncNow() async { _ = try? await watchlist() }
 
+    /// Completed (watched) movies + shows for import into Nova.
+    func watchedItems() async -> [CatalogItem] {
+        guard isAuthenticated else { return [] }
+        let m = (try? await allItems(type: "movies", status: "completed")) ?? []
+        let s = (try? await allItems(type: "shows", status: "completed")) ?? []
+        return m + s
+    }
+
     // MARK: - Writes (scrobble)
 
     /// SIMKL has no real-time scrobble. Map playback to its model: set a "watching"

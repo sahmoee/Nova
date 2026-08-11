@@ -227,6 +227,28 @@ actor TraktClient {
         return items.compactMap { catalogItem(from: $0) }
     }
 
+    /// Watched/completed movies + shows (for import into Nova).
+    func watchedItems() async -> [CatalogItem] {
+        let movies: [TraktListItem] = (try? await authedGet("users/me/watched/movies", extended: true)) ?? []
+        let shows: [TraktListItem] = (try? await authedGet("users/me/watched/shows", extended: true)) ?? []
+        return (movies + shows).compactMap { catalogItem(from: $0) }
+    }
+
+    /// Rated movies + shows (item, 1...10) for import into Nova.
+    func ratedItems() async -> [(CatalogItem, Int)] {
+        let movies: [TraktRatedRow] = (try? await authedGet("users/me/ratings/movies", extended: true)) ?? []
+        let shows: [TraktRatedRow] = (try? await authedGet("users/me/ratings/shows", extended: true)) ?? []
+        return (movies + shows).compactMap { row in
+            guard let media = row.movie ?? row.show, let rating = row.rating else { return nil }
+            let type: ContentType = (row.movie != nil) ? .movie : .series
+            let ids = media.ids
+            let item = CatalogItem(
+                contentID: ContentID(imdb: ids?.imdb, tmdb: ids?.tmdb, trakt: ids?.trakt, type: type),
+                title: media.title ?? "Untitled", year: media.year)
+            return (item, rating)
+        }
+    }
+
     private func catalogItem(from item: TraktListItem) -> CatalogItem? {
         guard let media = item.media else { return nil }
         let ids = media.ids
@@ -375,6 +397,8 @@ actor TraktClient {
         catch { throw TraktError.decoding(error) }
     }
 }
+
+struct TraktRatedRow: Codable { let rating: Int?; let movie: TraktMedia?; let show: TraktMedia? }
 
 enum ScrobbleAction: String {
     case start

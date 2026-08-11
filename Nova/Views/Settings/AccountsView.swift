@@ -10,12 +10,14 @@
 import SwiftUI
 
 struct AccountsView: View {
+    @EnvironmentObject private var env: AppEnvironment
     @Environment(\.openURL) private var openURL
 
     @State private var tmdbKey = ""
     @State private var openSubtitlesKey = ""
     @State private var omdbKey = ""
     @State private var savedFlash = false
+    @State private var importingNova = false
 
     private let config = AppConfig.shared
 
@@ -73,6 +75,30 @@ struct AccountsView: View {
                     )
                 }
                 .buttonStyle(.plain)
+            ),
+            AnyView(
+                Button {
+                    guard !importingNova else { return }
+                    importingNova = true
+                    let others = env.trackers.providers.filter { $0.trackerID != .nova }
+                    Task {
+                        let n = await env.novaTracker.importEverything(from: others)
+                        await MainActor.run {
+                            importingNova = false
+                            ToastCenter.shared.show("Imported \(n) into Nova Tracker", systemImage: "square.and.arrow.down")
+                        }
+                    }
+                } label: {
+                    SettingsRow(
+                        icon: importingNova ? "hourglass" : "square.and.arrow.down",
+                        color: Theme.Colors.iconRed,
+                        title: importingNova ? "Importing…" : "Import to Nova Tracker",
+                        detail: "Import watchlist, watched history and ratings into Nova",
+                        showsChevron: false
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(importingNova)
             ),
             AnyView(
                 NavigationLink { RealDebridView() } label: {

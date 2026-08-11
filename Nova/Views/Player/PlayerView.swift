@@ -43,6 +43,10 @@ struct PlayerView: View {
     // One-tap recovery: when set, forces a specific engine for this session,
     // overriding the automatic/preference routing (used by "Try other player").
     @State private var engineOverride: PlaybackEngine?
+    // #4 External-player return prompt: external apps don't report progress back, so on
+    // return we ask the viewer how far they got and update progress/watched accordingly.
+    @State private var didOpenExternal = false
+    @State private var showExternalReturnPrompt = false
 
     init(item: MediaItem, series: CatalogItem? = nil,
          onStreamExpired: (() -> Void)? = nil, autoResume: Bool = false) {
@@ -257,6 +261,8 @@ struct PlayerView: View {
                         message: "Install it, or turn off external playback in Settings to play in Nova.",
                         onBack: { dismiss() }
                     )
+                } else if showExternalReturnPrompt {
+                    externalReturnPrompt
                 } else {
                     ProgressView().tint(.white)
                     Text("Opening in \(settings.preferredExternalPlayer.title)…")
@@ -265,14 +271,51 @@ struct PlayerView: View {
             }
         }
         .onAppear {
+            guard !didOpenExternal else { return }
+            didOpenExternal = true
             let ok = settings.preferredExternalPlayer.open(item.playbackURL)
             if ok {
-                // Mark progress as played and leave the player screen.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { dismiss() }
+                // The external app doesn't report progress; keep this screen and ask on
+                // return how far they got (Finished / Partial / Close).
+                showExternalReturnPrompt = true
             } else {
                 handoffFailed = true
             }
         }
+    }
+
+    /// Shown after handing off to an external player, since those apps don't report
+    /// playback progress back to Nova.
+    private var externalReturnPrompt: some View {
+        VStack(spacing: Theme.Spacing.md) {
+            Text("How did playback go?")
+                .font(.appFont(26, weight: .bold)).foregroundStyle(.white)
+            Text("\(settings.preferredExternalPlayer.title) doesn't report progress back to Nova. Tell it how far you got so Continue Watching and sync stay accurate.")
+                .font(.appFont(16)).foregroundStyle(.white.opacity(0.7))
+                .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, Theme.Spacing.lg)
+            FocusableButton(title: "Finished watching", systemImage: "checkmark.circle.fill", prominent: true) {
+                markExternal(percent: 100)
+            }.frame(maxWidth: 420)
+            FocusableButton(title: "Partially watched (50%)", systemImage: "circle.lefthalf.filled") {
+                markExternal(percent: 50)
+            }.frame(maxWidth: 420)
+            FocusableButton(title: "Just close", systemImage: "xmark") { dismiss() }
+                .frame(maxWidth: 420)
+        }
+        .padding(28).frame(maxWidth: 480)
+    }
+
+    /// Record external playback outcome to local progress and any connected trackers.
+    private func markExternal(percent: Double) {
+        if let duration = item.duration, duration > 0 {
+            progress.save(position: duration * (percent / 100), duration: duration, for: item)
+        }
+        if let cid = item.contentID {
+            let ep = item.episode
+            Task { await env.trackers.scrobble(action: .stop, contentID: cid, episode: ep, progress: percent) }
+        }
+        dismiss()
     }
     #endif
 
