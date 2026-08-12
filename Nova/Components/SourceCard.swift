@@ -47,13 +47,31 @@ struct SourceCard: View {
     let systemImage: String
     let status: SourceStatus
     var lastSynced: Date? = nil
+    var isInteractive = true
     let action: () -> Void
 
     @FocusState private var focused: Bool
 
     var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+        Group {
+            if isInteractive {
+                Button(action: action) { cardContent }
+                    .buttonStyle(.pressable)
+                    .focused($focused)
+            } else {
+                cardContent
+            }
+        }
+        // Accessibility: speak the card as one element — name plus connection status.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title), \(statusLine)")
+        .accessibilityAddTraits(.isButton)
+        .scaleEffect(focused ? Theme.CardSize.focusScale : 1.0)
+        .animation(.easeOut(duration: 0.16), value: focused)
+    }
+
+    private var cardContent: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 HStack {
                     Image(systemName: systemImage)
                         .font(.appFont(34, weight: .semibold))
@@ -81,25 +99,16 @@ struct SourceCard: View {
                         .foregroundStyle(Theme.Colors.textSecondary)
                         .lineLimit(1)
                 }
-            }
-            .padding(Theme.Spacing.lg)
-            .frame(maxWidth: .infinity, minHeight: Theme.CardSize.sourceHeight,
-                   alignment: .topLeading)
-            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous)
-                    .stroke(focused ? Theme.Colors.accent : Theme.Colors.separator,
-                            lineWidth: focused ? 4 : 1)
-            )
         }
-        .buttonStyle(.pressable)
-        .focused($focused)
-        // Accessibility: speak the card as one element — name plus connection status.
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(title), \(statusLine)")
-        .accessibilityAddTraits(.isButton)
-        .scaleEffect(focused ? Theme.CardSize.focusScale : 1.0)
-        .animation(.easeOut(duration: 0.16), value: focused)
+        .padding(Theme.Spacing.lg)
+        .frame(maxWidth: .infinity, minHeight: Theme.CardSize.sourceHeight,
+               alignment: .topLeading)
+        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous)
+                .stroke(focused ? Theme.Colors.accent : Theme.Colors.separator,
+                        lineWidth: focused ? 4 : 1)
+        )
     }
 
     private var statusLine: String {

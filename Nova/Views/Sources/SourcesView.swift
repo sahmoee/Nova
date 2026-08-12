@@ -46,8 +46,7 @@ struct SourcesView: View {
                                 SourceCard(title: "Real-Debrid",
                                            systemImage: SourceType.realDebrid.systemImage,
                                            status: liveStatus("realdebrid", fallback: SourceHealth.realDebrid().status),
-                                           lastSynced: lastChecked("realdebrid")) {}
-                                    .allowsHitTesting(false)
+                                           lastSynced: lastChecked("realdebrid"), isInteractive: false) {}
                             }.buttonStyle(.plain)
                         }
 
@@ -56,8 +55,7 @@ struct SourcesView: View {
                                 SourceCard(title: "Addons",
                                            systemImage: SourceType.addon.systemImage,
                                            status: liveStatus("addons", fallback: SourceHealth.addons(env.addonStore).status),
-                                           lastSynced: lastChecked("addons")) {}
-                                    .allowsHitTesting(false)
+                                           lastSynced: lastChecked("addons"), isInteractive: false) {}
                             }.buttonStyle(.plain)
                         }
 
@@ -65,48 +63,42 @@ struct SourcesView: View {
                             SourceCard(title: "SMB Shares",
                                        systemImage: SourceType.smb.systemImage,
                                        status: liveStatus("smb", fallback: SourceHealth.smb(shareCount: smbModel.shares.count).status),
-                                       lastSynced: lastChecked("smb")) {}
-                                .allowsHitTesting(false)
+                                       lastSynced: lastChecked("smb"), isInteractive: false) {}
                         }.buttonStyle(.plain)
 
                         NavigationLink { TraktConnectView() } label: {
                             SourceCard(title: "Trakt",
                                        systemImage: SourceType.trakt.systemImage,
                                        status: liveStatus("trakt", fallback: SourceHealth.trakt().status),
-                                       lastSynced: lastChecked("trakt")) {}
-                                .allowsHitTesting(false)
+                                       lastSynced: lastChecked("trakt"), isInteractive: false) {}
                         }.buttonStyle(.plain)
 
                         NavigationLink { SimklConnectView() } label: {
                             SourceCard(title: "SIMKL",
                                        systemImage: "checkmark.seal",
                                        status: trackerStatus(clientID: AppConfig.shared.simklClientID,
-                                                             token: .simklAccessToken)) {}
-                                .allowsHitTesting(false)
+                                                             token: .simklAccessToken), isInteractive: false) {}
                         }.buttonStyle(.plain)
 
                         NavigationLink { TMDBAccountConnectView() } label: {
                             SourceCard(title: "TMDB Account",
                                        systemImage: "person.crop.circle",
                                        status: trackerStatus(clientID: AppConfig.shared.tmdbKey,
-                                                             token: .tmdbSessionID)) {}
-                                .allowsHitTesting(false)
+                                                             token: .tmdbSessionID), isInteractive: false) {}
                         }.buttonStyle(.plain)
 
                         NavigationLink { DirectURLView() } label: {
                             SourceCard(title: "Direct URL",
                                        systemImage: SourceType.directURL.systemImage,
                                        status: .connected,
-                                       lastSynced: Date()) {}
-                                .allowsHitTesting(false)
+                                       lastSynced: Date(), isInteractive: false) {}
                         }.buttonStyle(.plain)
 
                         if !settings.reviewSafeMode {
                         NavigationLink { MagnetView() } label: {
                             SourceCard(title: "Magnet Link",
                                        systemImage: "scope",
-                                       status: SourceHealth.realDebrid().status) {}
-                                .allowsHitTesting(false)
+                                       status: SourceHealth.realDebrid().status, isInteractive: false) {}
                         }.buttonStyle(.plain)
                         }
                     }
