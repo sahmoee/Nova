@@ -6,6 +6,7 @@ Newest at the top. Keep it plain ASCII (see .gitmessage.txt for the commit rules
 ## [Unreleased]
 
 ### QA and documentation
+- Rebuilt Nova QA as an opt-in, app-specific test suite with global press-and-hold reporting, pre-composer screenshots, playback/source/library/SMB/download/network context, memory and hitch monitoring, sync state and retry, ticket history, fix notes, verification, and refiling.
 - Added long-press movie and episode downloads, a Downloads entry in My Nova, duplicate-transfer protection, and a persistent pause/resume/retry/cleanup manager.
 - Collapsed every library-derived surface to one card per series represented by its most recently watched episode, and constrained calendars/notifications to one newest release per show.
 - Expanded documentation across library/discovery, sources, playback, iOS/tvOS architecture, provider configuration, local storage, backup, testing, release operations, troubleshooting, privacy, and content responsibility.

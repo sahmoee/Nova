@@ -22,7 +22,8 @@ struct NovaApp: App {
                     HStack {
                         Spacer()
                         if qaEnabled {
-                            UnifiedQAReporter(app: "Nova", source: "nova-app", prefix: "NVA")
+                            UnifiedQAReporter(app: "Nova", source: "nova-app", prefix: "NVA",
+                                              diagnostics: { environment.qaDiagnostics() })
                                 .padding(.trailing, 16)
                                 .padding(.bottom, 82)
                         }

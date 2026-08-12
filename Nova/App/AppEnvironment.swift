@@ -47,6 +47,23 @@ final class AppEnvironment: ObservableObject {
     let shelfLoader: ShelfLoader
     let aiSearch: AISearchService
 
+    func qaDiagnostics() -> NovaQADiagnostics {
+        let network = NetworkConditionMonitor.shared
+        let flags = [network.isCellular ? "cellular" : nil,
+                     network.isExpensive ? "metered" : nil,
+                     network.isConstrained ? "low-data" : nil].compactMap { $0 }
+        return NovaQADiagnostics(
+            libraryItems: library.items.count,
+            offlineDownloads: downloads.downloads.count,
+            activeDownloads: downloads.downloads.filter { $0.state == .queued || $0.state == .downloading }.count,
+            failedDownloads: downloads.downloads.filter { $0.state == .failed }.count,
+            smbFolders: libraryFolders.folders.count,
+            installedAddons: addonStore.addons.count,
+            network: network.isOnline ? "online" : "offline",
+            networkFlags: flags.isEmpty ? "none" : flags.joined(separator: ", ")
+        )
+    }
+
     /// Resolve the best playable stream for a catalog item and enqueue it for offline
     /// download. Movies pass episode = nil; series pass the chosen EpisodeInfo. Returns
     /// whether a download was started.
