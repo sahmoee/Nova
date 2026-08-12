@@ -222,6 +222,8 @@
 		9316092C2180428BB12CEB68 /* SMBURLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33236A6077A5F4CA49B5B9E7 /* SMBURLParser.swift */; };
 		93A19CECE9815A7A27D56B36 /* RecommendationFeedbackStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BD943F44F89A49EAC1736DD /* RecommendationFeedbackStore.swift */; };
 		9414BDDC6455718454781E02 /* BackupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 402D3F833A9056E61BE51691 /* BackupManager.swift */; };
+		A11CE0010000000000000001 /* UnifiedQAReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000001 /* UnifiedQAReporter.swift */; };
+		A11CE0020000000000000001 /* UnifiedQAReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000001 /* UnifiedQAReporter.swift */; };
 		96238FA47EB311C5ACE348B8 /* SourceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B88A11CF177FBA4F22DEB5B4 /* SourceCard.swift */; };
 		9624D3CFD7743615282BF2BE /* LiveTVView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23F2B55ABB6C8A1F656E4736 /* LiveTVView.swift */; };
 		9637FCD9FAF9A7D269ABAEF5 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19FB6BBA950B7E603D7F9C2E /* SettingsStore.swift */; };
@@ -479,6 +481,7 @@
 		3E5848E2DC6DECC9AE065EDE /* EPGService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPGService.swift; sourceTree = "<group>"; };
 		3FB7043F452A4FB38A84C394 /* DownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadManager.swift; sourceTree = "<group>"; };
 		402D3F833A9056E61BE51691 /* BackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupManager.swift; sourceTree = "<group>"; };
+		A11CE0000000000000000001 /* UnifiedQAReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedQAReporter.swift; sourceTree = "<group>"; };
 		410A6B98F5D25814A0E10886 /* SMBBrowseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMBBrowseView.swift; sourceTree = "<group>"; };
 		4331807226B18AC817555954 /* SpotlightIndexer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightIndexer.swift; sourceTree = "<group>"; };
 		43C936856E3D4228C0C70A72 /* StreamModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamModels.swift; sourceTree = "<group>"; };
@@ -868,6 +871,7 @@
 				1FC301D6F2541CF2DFF3E673 /* AppConfig.swift */,
 				26D445A6AA8D3FF6F146B03E /* AppNetworking.swift */,
 				402D3F833A9056E61BE51691 /* BackupManager.swift */,
+				A11CE0000000000000000001 /* UnifiedQAReporter.swift */,
 				C4B6B11C8B202C03CABA9905 /* CatalogCache.swift */,
 				A9A7C4E1AFA66F74900ABB30 /* CatalogService.swift */,
 				9E57411D31532633B500CBFA /* CloudSync.swift */,
@@ -1285,6 +1289,7 @@
 				907B0104A1AA205608EBD729 /* AppConfig.swift in Sources */,
 				228164E4A020C88E6B9A909F /* AppNetworking.swift in Sources */,
 				CB71E7E09F69AD07DBC2CDF2 /* BackupManager.swift in Sources */,
+				A11CE0010000000000000001 /* UnifiedQAReporter.swift in Sources */,
 				91CE871B06CA54B23B2B4705 /* CatalogCache.swift in Sources */,
 				D5ACD8FFC813541D11D054C6 /* CatalogService.swift in Sources */,
 				F171FE5F14D976CAFF3558BD /* CloudSync.swift in Sources */,
@@ -1472,6 +1477,7 @@
 				86147A25A4557FA1DE897CD6 /* AppConfig.swift in Sources */,
 				D27EAFF8318A869EC751579E /* AppNetworking.swift in Sources */,
 				9414BDDC6455718454781E02 /* BackupManager.swift in Sources */,
+				A11CE0020000000000000001 /* UnifiedQAReporter.swift in Sources */,
 				A1B07703B593FB08A766950C /* CatalogCache.swift in Sources */,
 				BA04B98BD13A865FB18ADA56 /* CatalogService.swift in Sources */,
 				188C776565F6BA1480F6DE19 /* CloudSync.swift in Sources */,
