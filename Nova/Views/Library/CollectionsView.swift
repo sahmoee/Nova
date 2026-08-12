@@ -416,7 +416,7 @@ struct CollectionDetailView: View {
     private var items: [MediaItem] {
         // Re-read from the store so removals reflect immediately.
         let current = library.collections.first(where: { $0.id == collection.id }) ?? collection
-        return library.items(in: current)
+        return library.collapseToShow(library.items(in: current))
     }
 
     var body: some View {
@@ -470,7 +470,7 @@ struct SmartCollectionDetailView: View {
             emptySymbol: smart.systemImage,
             emptyTitle: "Nothing here right now",
             emptyMessage: "This updates automatically as your library changes.",
-            items: smart.items(from: library.items),
+            items: library.collapseToShow(smart.items(from: library.items)),
             onPlay: onPlay
         )
     }

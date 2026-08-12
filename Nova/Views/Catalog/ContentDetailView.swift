@@ -867,6 +867,9 @@ struct ContentDetailView: View {
             .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
         .buttonStyle(NovaListRowStyle())
+        .contextMenu {
+            episodeActions(ep, watched: watched)
+        }
     }
 
     private func episodeRow(_ ep: EpisodeInfo) -> some View {
@@ -923,18 +926,36 @@ struct ContentDetailView: View {
         }
         .novaRowStyle()
         .contextMenu {
-            // Long-press an episode to flip its watched state. Episodes that have
-            // never been played aren't in the library yet and can't be marked.
-            Button {
-                _ = env.library.setEpisodeWatched(!watched,
-                                                  imdb: item.contentID.imdb,
-                                                  tmdb: item.contentID.tmdb,
-                                                  season: ep.season, number: ep.number)
-                favoriteRefresh.toggle()
-            } label: {
-                Label(watched ? "Mark as Unwatched" : "Mark as Watched",
-                      systemImage: watched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
+            episodeActions(ep, watched: watched)
+        }
+    }
+
+    @ViewBuilder
+    private func episodeActions(_ ep: EpisodeInfo, watched: Bool) -> some View {
+        #if os(iOS)
+        Button {
+            ToastCenter.shared.show("Finding a stream to download…", systemImage: "arrow.down.circle")
+            Task {
+                let ok = await env.downloadToDevice(item, episode: ep)
+                ToastCenter.shared.show(ok ? "Download started" : "No downloadable stream found",
+                                        systemImage: ok ? "arrow.down.circle.fill" : "exclamationmark.triangle")
             }
+        } label: {
+            Label("Download Episode", systemImage: "arrow.down.circle")
+        }
+        #endif
+
+        // Episodes that have never been played may not have a library record yet;
+        // setEpisodeWatched safely leaves those unchanged.
+        Button {
+            _ = env.library.setEpisodeWatched(!watched,
+                                              imdb: item.contentID.imdb,
+                                              tmdb: item.contentID.tmdb,
+                                              season: ep.season, number: ep.number)
+            favoriteRefresh.toggle()
+        } label: {
+            Label(watched ? "Mark as Unwatched" : "Mark as Watched",
+                  systemImage: watched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
         }
     }
 

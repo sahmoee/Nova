@@ -535,7 +535,7 @@ final class LibraryStore: ObservableObject {
 
     /// The queued items in order, skipping any that were removed from the library.
     var queuedItems: [MediaItem] {
-        queueIDs.compactMap { id in items.first(where: { $0.id == id }) }
+        collapseToShow(queueIDs.compactMap { id in items.first(where: { $0.id == id }) })
     }
 
     /// The next thing to watch tonight: the first queued item, preferring one that is
@@ -547,9 +547,11 @@ final class LibraryStore: ObservableObject {
     /// Items that have been watched or partially played, most recent first — powers a
     /// "Recently Watched" rail.
     var recentlyWatched: [MediaItem] {
-        items
-            .filter { $0.lastPlayedDate != nil }
-            .sorted { ($0.lastPlayedDate ?? .distantPast) > ($1.lastPlayedDate ?? .distantPast) }
+        collapseToShow(
+            items
+                .filter { $0.lastPlayedDate != nil }
+                .sorted { ($0.lastPlayedDate ?? .distantPast) > ($1.lastPlayedDate ?? .distantPast) }
+        )
     }
 
 }
@@ -686,14 +688,21 @@ extension LibraryStore {
     /// represents the whole show), while movies and non-episodic items stay
     /// individual. Used by Home rows so a show isn't listed once per episode.
     func collapseToShow(_ input: [MediaItem]) -> [MediaItem] {
-        var seenShows = Set<String>()
+        var showSlots: [String: Int] = [:]
         var result: [MediaItem] = []
         for item in input {
             if item.isSeries {
                 let showKey = item.seriesTitle?.lowercased()
                     ?? item.contentID?.stableKey
                     ?? item.title.lowercased()
-                if seenShows.insert(showKey).inserted { result.append(item) }
+                if let slot = showSlots[showKey] {
+                    if prefersAsSeriesRepresentative(item, over: result[slot]) {
+                        result[slot] = item
+                    }
+                } else {
+                    showSlots[showKey] = result.count
+                    result.append(item)
+                }
             } else {
                 result.append(item)
             }
@@ -701,12 +710,28 @@ extension LibraryStore {
         return result
     }
 
+    /// A series is represented by the episode the user watched most recently. When
+    /// neither episode has playback history, keep the newest added/highest numbered
+    /// episode as a stable fallback. This rule is shared by every library-derived row.
+    private func prefersAsSeriesRepresentative(_ candidate: MediaItem, over current: MediaItem) -> Bool {
+        let candidatePlayed = candidate.lastPlayedDate ?? .distantPast
+        let currentPlayed = current.lastPlayedDate ?? .distantPast
+        if candidatePlayed != currentPlayed { return candidatePlayed > currentPlayed }
+        if candidate.addedDate != current.addedDate { return candidate.addedDate > current.addedDate }
+        let cSeason = candidate.episode?.season ?? 0
+        let oSeason = current.episode?.season ?? 0
+        if cSeason != oSeason { return cSeason > oSeason }
+        return (candidate.episode?.number ?? 0) > (current.episode?.number ?? 0)
+    }
+
     /// The library grid's entries: standalone movies as-is, but episodes collapsed so
     /// each series shows a single entry (represented by its most recently added
     /// episode) instead of one card per episode or per season. The individual episodes
     /// live under the show on its detail screen. Sorted by most recently added.
     var libraryEntries: [MediaItem] {
-        let sorted = items.sorted { $0.addedDate > $1.addedDate }
+        let sorted = items.sorted {
+            ($0.lastPlayedDate ?? $0.addedDate) > ($1.lastPlayedDate ?? $1.addedDate)
+        }
         var seenShowKeys = Set<String>()
         var movieSlots: [String: Int] = [:]
         var result: [MediaItem] = []

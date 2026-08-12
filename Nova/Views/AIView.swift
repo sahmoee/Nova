@@ -457,9 +457,9 @@ struct AIView: View {
         state = .working
         Task {
             if capability.searchesLibrary {
-                let items = await env.aiSearch.searchLibrary(q, in: library.items)
-                libraryResults = items
-                state = items.isEmpty ? .empty : .results
+                let items = await env.aiSearch.searchLibrary(q, in: library.collapseToShow(library.items))
+                libraryResults = library.collapseToShow(items)
+                state = libraryResults.isEmpty ? .empty : .results
             } else {
                 do {
                     let items = try await env.aiSearch.run(capability, userText: q, limit: 24)

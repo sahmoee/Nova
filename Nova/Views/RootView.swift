@@ -434,9 +434,9 @@ struct AnimeView: View {
 
 
 // MARK: - Airing calendar (tracked shows)
-// An auto-updating calendar of the next episode for every series the user is tracking
-// (library series, Continue Watching, favorites). Pulls next-episode-to-air from TMDB and
-// groups by date. Refreshes on open and on pull-to-refresh.
+// An auto-updating calendar with exactly one entry per tracked series: only its newest
+// announced release (TMDB's next_episode_to_air). Older and individual library episodes
+// never become separate calendar rows.
 struct AiringCalendarView: View {
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var library: LibraryStore
@@ -541,7 +541,12 @@ struct AiringCalendarView: View {
             let catalog = CatalogItem(contentID: cid, title: m.displayTitle, posterURL: m.posterURL)
             built.append(Entry(title: m.displayTitle, poster: m.posterURL, date: d, label: label, catalog: catalog))
         }
-        entries = built.sorted { $0.date < $1.date }
+        // Defensive de-duplication: trackedSeries already emits one item per TMDB show,
+        // but preserve that invariant if another tracking source is added later.
+        var seenShows = Set<String>()
+        entries = built
+            .sorted { $0.date < $1.date }
+            .filter { seenShows.insert($0.catalog.contentID.stableKey).inserted }
         loaded = true; loading = false
     }
 }

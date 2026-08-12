@@ -73,7 +73,12 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
     @discardableResult
     func enqueue(_ item: MediaItem) -> UUID? {
         guard isEligible(item) else { return nil }
-        if let existing = downloads.first(where: { $0.mediaID == item.id && $0.state == .complete }) {
+        // Resolved catalog streams receive a fresh MediaItem UUID each time. Treat the
+        // same source URL as the same download too, otherwise repeatedly long-pressing
+        // one movie or episode creates duplicate transfers.
+        if let existing = downloads.first(where: {
+            ($0.mediaID == item.id || $0.sourceURL == item.playbackURL) && $0.state != .failed
+        }) {
             return existing.id
         }
         let id = UUID()

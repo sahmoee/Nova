@@ -490,7 +490,9 @@ final class EpisodeAvailabilityNotifier {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
     }
 
-    /// Checks tracked series for newly-streamable episodes and notifies once each.
+    /// Checks each tracked series' single latest released episode and notifies once.
+    /// It intentionally never walks season lists, so an initial check cannot emit a
+    /// notification for every historical episode.
     func checkForNewStreamableEpisodes() async {
         guard Date().timeIntervalSince(lastRun) > 1800 else { return }   // at most every 30 min
         lastRun = Date()

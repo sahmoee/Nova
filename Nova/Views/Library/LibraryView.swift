@@ -117,6 +117,25 @@ struct LibraryView: View {
                     }
                     .buttonStyle(.plain)
 
+                    #if os(iOS)
+                    NavigationLink {
+                        OfflineDownloadsView()
+                    } label: {
+                        HStack {
+                            Label("Downloads", systemImage: "arrow.down.circle.fill")
+                            Spacer()
+                            if !env.downloads.downloads.isEmpty {
+                                Text("\(env.downloads.downloads.count)")
+                                    .foregroundStyle(Theme.Colors.textTertiary)
+                            }
+                        }
+                        .font(.appFont(16, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.accent)
+                        .padding(.horizontal, Theme.Spacing.edge)
+                    }
+                    .buttonStyle(.plain)
+                    #endif
+
                     if isTraktTab {
                         ScrollView { traktGrid }
                     } else if displayedItems.isEmpty {
@@ -622,7 +641,10 @@ struct LibraryView: View {
         if let tag = activeTag {
             result = result.filter { $0.tags.contains { $0.caseInsensitiveCompare(tag) == .orderedSame } }
         }
-        return sortItems(result)
+        // Collections, favorites, source filters, and the main library all use the
+        // same one-card-per-series rule. The chosen card is the latest watched
+        // episode, never a separate card for every episode.
+        return sortItems(library.collapseToShow(result))
     }
 
     /// Applies the active sort order.

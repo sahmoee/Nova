@@ -6,6 +6,8 @@ Newest at the top. Keep it plain ASCII (see .gitmessage.txt for the commit rules
 ## [Unreleased]
 
 ### QA and documentation
+- Added long-press movie and episode downloads, a Downloads entry in My Nova, duplicate-transfer protection, and a persistent pause/resume/retry/cleanup manager.
+- Collapsed every library-derived surface to one card per series represented by its most recently watched episode, and constrained calendars/notifications to one newest release per show.
 - Expanded documentation across library/discovery, sources, playback, iOS/tvOS architecture, provider configuration, local storage, backup, testing, release operations, troubleshooting, privacy, and content responsibility.
 - Added the iOS Unified QA ticket queue with automatic screenshots, device/build context, offline persistence, upload retry, required fix resolutions, tester verification, and history-preserving refiles.
 - Added professional setup, build, configuration, security, contribution, and issue-reporting documentation.

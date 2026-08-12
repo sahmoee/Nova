@@ -243,11 +243,12 @@ enum PersonalizedHomeEngine {
     /// title to the viewer and must occupy a single card. Keying on the content id
     /// let those copies slip past the cross-rail de-dupe, which is why a small
     /// library showed the same two posters under Top Picks, Binge Next, Favorites,
-    /// and Rediscover at once. Episodes stay distinct by season/number.
+    /// and Rediscover at once. Every episode shares its series identity so only the
+    /// most recent representative can appear anywhere in the Home feed.
     private static func displayIdentity(_ item: MediaItem) -> String {
-        if let episode = item.episode {
+        if item.isSeries {
             let show = (item.seriesTitle ?? item.title).normalizedIdentity
-            return "episode:\(show)|s\(episode.season)e\(episode.number)"
+            return "series:\(show)"
         }
         let year = item.metadata.year.map(String.init) ?? ""
         return "title:\(item.title.normalizedIdentity)|\(year)"
