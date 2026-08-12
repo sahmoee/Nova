@@ -160,6 +160,7 @@ struct UnifiedQATicket: Codable, Identifiable {
     var resolution: String?
     var verifiedAt: Date?
     var refileCount: Int?
+    var requiresManualReview: Bool?
     var syncState: String?
     var lastSyncError: String?
     var history: [String]?
@@ -186,7 +187,7 @@ final class UnifiedQAStore: ObservableObject {
 
     func save(app: String, source: String, prefix: String, ticket: UnifiedQATicket?, title: String,
               details: String, severity: String, screen: String, category: String, status: String,
-              resolution: String, screenshot: UIImage?, diagnosticContext: String) {
+              resolution: String, requiresManualReview: Bool, screenshot: UIImage?, diagnosticContext: String) {
         let shot = screenshot ?? (ticket == nil ? Self.capture() : nil)
         var value = ticket ?? UnifiedQATicket(number: nextNumber(prefix: prefix), title: title,
             body: details, severity: severity, screen: screen, hasScreenshot: shot != nil,
@@ -197,6 +198,7 @@ final class UnifiedQAStore: ObservableObject {
         value.severity = severity
         value.screen = screen
         value.status = status
+        value.requiresManualReview = requiresManualReview
         value.environment["novaCategory"] = category
         if !diagnosticContext.isEmpty { value.environment["novaDiagnostics"] = diagnosticContext }
         value.resolution = resolution.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : resolution
@@ -259,7 +261,8 @@ final class UnifiedQAStore: ObservableObject {
         let fixed = ticket.resolution.map { "\n## What was fixed\n\n\($0)\n" } ?? ""
         let diagnostics = ticket.environment["novaDiagnostics"].map { "\n## Nova diagnostics\n\n\($0)\n" } ?? ""
         let history = (ticket.history ?? []).map { "- \($0)" }.joined(separator: "\n")
-        let report = "# \(ticket.number) — \(ticket.title)\n\n**\(ticket.severity)** · \(ticket.status) · \(ticket.environment["novaCategory"] ?? "General")\n\n## Report\n\n\(ticket.body)\n\(fixed)\(diagnostics)\n## Context\n\n- Screen: \(ticket.screen)\n- Nova: \(ticket.environment["appVersion"] ?? "?") build \(ticket.environment["build"] ?? "?")\n- Device: \(ticket.environment["device"] ?? "?") · \(ticket.environment["os"] ?? "?")\n\n## History\n\n\(history)\n"
+        let review = ticket.requiresManualReview == true ? "\n> **REQUIRES MANUAL REVIEW:** Ask the tester for specific expected behavior or design intent before changing code.\n" : ""
+        let report = "# \(ticket.number) — \(ticket.title)\n\n**\(ticket.severity)** · \(ticket.status) · \(ticket.environment["novaCategory"] ?? "General")\n\(review)\n## Report\n\n\(ticket.body)\n\(fixed)\(diagnostics)\n## Context\n\n- Screen: \(ticket.screen)\n- Nova: \(ticket.environment["appVersion"] ?? "?") build \(ticket.environment["build"] ?? "?")\n- Device: \(ticket.environment["device"] ?? "?") · \(ticket.environment["os"] ?? "?")\n\n## History\n\n\(history)\n"
         try? Data(report.utf8).write(to: folder.appendingPathComponent("report.md"), options: .atomic)
         if let data = screenshot?.jpegData(compressionQuality: 0.72) { try? data.write(to: folder.appendingPathComponent("screenshot.jpg"), options: .atomic) }
         saveIndex()
@@ -471,6 +474,7 @@ private struct NovaQAHub: View {
                                 HStack { Text(ticket.number).font(.caption.monospaced()); Spacer(); Image(systemName: ticket.syncState == "synced" ? "checkmark.icloud" : "icloud.slash") }
                                 Text(ticket.title).font(.headline)
                                 Text("\(ticket.status.capitalized) · \(ticket.severity.capitalized) · \(ticket.environment["novaCategory"] ?? "General")").font(.caption).foregroundStyle(.secondary)
+                                if ticket.requiresManualReview == true { Label("Requires manual review", systemImage: "person.crop.circle.badge.questionmark").font(.caption).foregroundStyle(.orange) }
                                 if let resolution = ticket.resolution { Text("Fixed: \(resolution)").font(.caption).foregroundStyle(.green).lineLimit(3) }
                             }
                         }
@@ -496,6 +500,7 @@ private struct NovaQATicketEditor: View {
     @Environment(\.dismiss) var dismiss
     @State private var title: String; @State private var details: String; @State private var severity: String
     @State private var screen: String; @State private var category: String; @State private var status: String; @State private var resolution: String
+    @State private var requiresManualReview: Bool
     private let categories = ["Playback", "Streams & Sources", "SMB", "Library & Metadata", "Downloads", "Calendar & Episodes", "Notifications", "Tracking & Accounts", "Search & Browse", "Subtitles", "UI & Accessibility", "Performance", "Other"]
 
     init(app: String, source: String, prefix: String, ticket: UnifiedQATicket?, draft: NovaQAReportDraft?) {
@@ -503,18 +508,19 @@ private struct NovaQATicketEditor: View {
         _title=State(initialValue: ticket?.title ?? ""); _details=State(initialValue: ticket?.body ?? "")
         _severity=State(initialValue: ticket?.severity ?? "major"); _screen=State(initialValue: ticket?.screen ?? draft?.screen ?? "Current screen")
         _category=State(initialValue: ticket?.environment["novaCategory"] ?? "Other"); _status=State(initialValue: ticket?.status ?? "open"); _resolution=State(initialValue: ticket?.resolution ?? "")
+        _requiresManualReview=State(initialValue: ticket?.requiresManualReview ?? false)
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("What went wrong?") { TextField("Short title", text: $title); TextField("Expected behavior and what happened", text: $details, axis: .vertical).lineLimit(4...10) }
-                Section("Nova context") { Picker("Area", selection: $category) { ForEach(categories, id: \.self) { Text($0) } }; Picker("Severity", selection: $severity) { Text("Blocker").tag("blocker"); Text("Major").tag("major"); Text("Minor").tag("minor") }; TextField("Screen", text: $screen); if draft?.screenshot != nil || ticket?.hasScreenshot == true { Label("Screenshot attached", systemImage: "camera.fill").foregroundStyle(.green) } }
+                Section("Nova context") { Picker("Area", selection: $category) { ForEach(categories, id: \.self) { Text($0) } }; Picker("Severity", selection: $severity) { Text("Blocker").tag("blocker"); Text("Major").tag("major"); Text("Minor").tag("minor") }; Toggle("Requires manual review", isOn: $requiresManualReview); Text("Turn this on when your wording or design intent needs human interpretation. AI will ask for specifics instead of guessing.").font(.caption).foregroundStyle(.secondary); TextField("Screen", text: $screen); if draft?.screenshot != nil || ticket?.hasScreenshot == true { Label("Screenshot attached", systemImage: "camera.fill").foregroundStyle(.green) } }
                 if ticket != nil { Section("Fix lifecycle") { Picker("Status", selection: $status) { Text("Open").tag("open"); Text("Investigating").tag("investigating"); Text("Fixed — needs verification").tag("fixed"); Text("Verified").tag("verified") }; TextField("What was fixed", text: $resolution, axis: .vertical).lineLimit(3...8); if let ticket, ticket.status == "fixed" { Button("Verify Fix") { store.verify(ticket, source: source); dismiss() }; Button("Refile — still broken", role: .destructive) { store.refile(ticket, source: source); dismiss() } }; if let history = ticket?.history { ForEach(history, id: \.self) { Text($0).font(.caption).foregroundStyle(.secondary) } } } }
                 Section { Text("Saving writes JSON, Markdown, and screenshot evidence locally, then syncs automatically. Failed uploads remain pending and retry when Nova QA opens.").font(.caption).foregroundStyle(.secondary) }
             }
             .navigationTitle(ticket == nil ? "New Nova Ticket" : ticket!.number)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { store.save(app: app, source: source, prefix: prefix, ticket: ticket, title: title, details: details, severity: severity, screen: screen, category: category, status: status, resolution: resolution, screenshot: draft?.screenshot, diagnosticContext: draft?.context ?? ticket?.environment["novaDiagnostics"] ?? ""); dismiss() }.disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || (status == "fixed" && resolution.trimmingCharacters(in: .whitespaces).isEmpty)) } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { store.save(app: app, source: source, prefix: prefix, ticket: ticket, title: title, details: details, severity: severity, screen: screen, category: category, status: status, resolution: resolution, requiresManualReview: requiresManualReview, screenshot: draft?.screenshot, diagnosticContext: draft?.context ?? ticket?.environment["novaDiagnostics"] ?? ""); dismiss() }.disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || (status == "fixed" && resolution.trimmingCharacters(in: .whitespaces).isEmpty)) } }
         }
     }
 }
