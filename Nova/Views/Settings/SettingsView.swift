@@ -262,9 +262,20 @@ struct SettingsView: View {
                      detail: "\(env.downloads.downloads.count) items") {
                 AnyView(OfflineDownloadsView())
             },
+            Category(id: "library-folders", icon: "externaldrive.connected.to.line.below", color: Theme.Colors.iconSilver,
+                     title: "SMB Library Folders", detail: "\(env.libraryFolders.folders.count) configured") {
+                AnyView(LibraryFoldersView())
+            },
             Category(id: "experience", icon: "appletv.fill", color: Theme.Colors.iconGraphite, title: "Home & Profiles") {
                 AnyView(SettingsScreen(title: "Home & Profiles") { ExperienceSettingsContent() })
             },
+        ]))
+
+        groups.append(CategoryGroup(header: "Testing", items: [
+            Category(id: "qa", icon: "checkmark.seal.fill", color: Theme.Colors.iconGraphite,
+                     title: "Quality Assurance", detail: "Off by default") {
+                AnyView(UnifiedQASettingsView())
+            }
         ]))
 
         // Sync & system.

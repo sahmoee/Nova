@@ -50,8 +50,13 @@ private struct LibraryFoldersContent: View {
         }
         .sheet(isPresented: $showPicker) {
             SMBFolderPickerView { shareID, name, path in
-                _ = store.addFolder(shareID: shareID, displayName: name, path: path)
+                let folder = store.addFolder(shareID: shareID, displayName: name, path: path)
                 showPicker = false
+                Task {
+                    let count = await store.rescan(folder, using: env)
+                    let noun = count == 1 ? "item" : "items"
+                    lastResult = "Added \(count) \(noun) from \(name) to My Nova / Library."
+                }
             }
             .environmentObject(env)
         }

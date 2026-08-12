@@ -2,6 +2,24 @@ import SwiftUI
 import UIKit
 import Combine
 
+enum UnifiedQASettings {
+    static let enabledKey = "nova.qa.enabled"
+}
+
+struct UnifiedQASettingsView: View {
+    @AppStorage(UnifiedQASettings.enabledKey) private var enabled = false
+    var body: some View {
+        Form {
+            Section("Nova QA") {
+                Toggle("Enable QA tools", isOn: $enabled)
+                Text("Shows Nova's ticket reporter with screenshots, playback and source context, fix verification, and automatic report syncing.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("Quality Assurance")
+    }
+}
+
 struct UnifiedQATicket: Codable, Identifiable {
     var id = UUID()
     var number: String

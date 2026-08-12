@@ -11,6 +11,7 @@ import SwiftUI
 struct NovaApp: App {
     @StateObject private var environment = AppEnvironment()
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage(UnifiedQASettings.enabledKey) private var qaEnabled = false
 
     var body: some Scene {
         WindowGroup {
@@ -20,9 +21,11 @@ struct NovaApp: App {
                     Spacer()
                     HStack {
                         Spacer()
-                        UnifiedQAReporter(app: "Nova", source: "nova-app", prefix: "NVA")
-                            .padding(.trailing, 16)
-                            .padding(.bottom, 82)
+                        if qaEnabled {
+                            UnifiedQAReporter(app: "Nova", source: "nova-app", prefix: "NVA")
+                                .padding(.trailing, 16)
+                                .padding(.bottom, 82)
+                        }
                     }
                 }
             }
