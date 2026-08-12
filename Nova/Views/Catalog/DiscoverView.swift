@@ -76,6 +76,26 @@ struct DiscoverView: View {
             }
             .novaRowStyle()
 
+            NavigationLink(value: DiscoverRoute.anime) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Image(systemName: "film.stack")
+                        .font(.appFont(22, weight: .semibold))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Anime")
+                            .font(.appFont(20, weight: .semibold))
+                        Text("Popular series, movies, genres, and top-rated picks")
+                            .font(.appFont(14))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.appFont(16))
+                }
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .padding(.vertical, Theme.Spacing.xs)
+                .contentShape(Rectangle())
+            }
+            .novaRowStyle()
+
             if shelfStore.enabledShelves.isEmpty {
                 hint
             } else {
@@ -90,7 +110,7 @@ struct DiscoverView: View {
         }
     }
 
-    enum DiscoverRoute: Hashable { case liveTV }
+    enum DiscoverRoute: Hashable { case liveTV, anime }
 
     private var recentSearches: [String] {
         recentSearchesRaw.split(separator: "\n").map(String.init)
@@ -159,6 +179,7 @@ struct DiscoverView: View {
             .navigationDestination(for: DiscoverRoute.self) { route in
                 switch route {
                 case .liveTV: LiveTVView()
+                case .anime: AnimeView()
                 }
             }
             .alert("AI Search", isPresented: .constant(aiError != nil)) {

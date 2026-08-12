@@ -256,6 +256,8 @@ final class BackupManager: ObservableObject {
     @Published private(set) var lastBackupDate: Date?
     @Published private(set) var lastBackupOrigin: BackupOrigin?
     private let lastAutoSyncKey = "backup.lastAutoSyncedSnapshot"
+    private let ubiquityContainerIdentifier = "iCloud.com.nova.ios"
+    private let ubiquityBackupName = "Nova Setup.nova"
 
     private let keychain = KeychainStore.shared
 
@@ -352,6 +354,9 @@ final class BackupManager: ObservableObject {
 
         // Persist to iCloud.
         if let data = try? JSONEncoder().encode(snap) {
+            // Keep a full-size durable copy in the user's private iCloud Documents
+            // container. KVS remains the fast cross-device signal/fallback.
+            writeUbiquityBackup(data)
             // Write the stable production key plus a tiny marker recording the writer.
             CloudSync.shared.setData(data, forKey: BackupCompatibility.currentCloudKey)
             CloudSync.shared.setString(BackupOrigin.nova.rawValue,
@@ -446,8 +451,23 @@ final class BackupManager: ObservableObject {
         loadSnapshotRecordFromCloud()?.snapshot
     }
 
-    /// Reads the stable production key and records the writer marker if absent.
+    /// Reads both the iCloud Documents mirror and the KVS fallback, preferring the
+    /// newest valid snapshot. The document copy is not constrained by KVS's 1 MB cap.
     private func loadSnapshotRecordFromCloud() -> DecodedBackupSnapshot? {
+        let document = readUbiquityBackup().flatMap {
+            try? BackupCompatibility.decode($0, defaultOrigin: .nova)
+        }
+        let kvs = loadKVSSnapshotRecord()
+        switch (document, kvs) {
+        case let (document?, kvs?):
+            return document.snapshot.createdAt >= kvs.snapshot.createdAt ? document : kvs
+        case let (document?, nil): return document
+        case let (nil, kvs?): return kvs
+        case (nil, nil): return nil
+        }
+    }
+
+    private func loadKVSSnapshotRecord() -> DecodedBackupSnapshot? {
         let cloud = CloudSync.shared
         if let data = cloud.data(forKey: BackupCompatibility.currentCloudKey) {
             let recordedOrigin = cloud.string(forKey: BackupCompatibility.writerCloudKey)
@@ -470,6 +490,35 @@ final class BackupManager: ObservableObject {
             }
         }
         return nil
+    }
+
+    private func ubiquityBackupURL() -> URL? {
+        guard let root = FileManager.default.url(
+            forUbiquityContainerIdentifier: ubiquityContainerIdentifier
+        ) else { return nil }
+        let documents = root.appendingPathComponent("Documents", isDirectory: true)
+        try? FileManager.default.createDirectory(at: documents, withIntermediateDirectories: true)
+        return documents.appendingPathComponent(ubiquityBackupName)
+    }
+
+    private func writeUbiquityBackup(_ data: Data) {
+        guard let url = ubiquityBackupURL() else {
+            NovaLog.sync.warning("iCloud Documents container is unavailable; using KVS backup")
+            return
+        }
+        do {
+            try data.write(to: url, options: [.atomic])
+            NovaLog.sync.info("Updated iCloud Documents setup backup")
+        } catch {
+            NovaLog.sync.error("Could not write iCloud Documents backup: \(error.localizedDescription)")
+        }
+    }
+
+    private func readUbiquityBackup() -> Data? {
+        guard let url = ubiquityBackupURL(), FileManager.default.fileExists(atPath: url.path) else {
+            return nil
+        }
+        return try? Data(contentsOf: url)
     }
 
     private func smbShareIDs(from json: Data?) -> [UUID] {

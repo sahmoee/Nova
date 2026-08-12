@@ -106,6 +106,17 @@ struct LibraryView: View {
                     case .classic: classicHeader
                     }
 
+                    NavigationLink {
+                        AiringCalendarView()
+                    } label: {
+                        Label("Upcoming Episodes", systemImage: "calendar")
+                            .font(.appFont(16, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.accent)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, Theme.Spacing.edge)
+                    }
+                    .buttonStyle(.plain)
+
                     if isTraktTab {
                         ScrollView { traktGrid }
                     } else if displayedItems.isEmpty {

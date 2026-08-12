@@ -9,7 +9,6 @@
 import SwiftUI
 
 struct SourcesView: View {
-    @Binding var path: NavigationPath
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var library: LibraryStore

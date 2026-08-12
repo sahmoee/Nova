@@ -377,7 +377,7 @@ struct HomeView: View {
         case .liveTV:
             LiveTVView()
         case .sources:
-            SourcesView(path: $path)
+            SourcesView()
         case .collections:
             CollectionsView()
         case .history:

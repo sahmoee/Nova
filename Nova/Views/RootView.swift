@@ -132,21 +132,13 @@ struct RootView: View {
                 .tabItem { Label(AppTab.discover.title, systemImage: AppTab.discover.systemImage) }
                 .tag(AppTab.discover)
 
-            AnimeView(path: $nav.animePath)
-                .tabItem { Label(AppTab.anime.title, systemImage: AppTab.anime.systemImage) }
-                .tag(AppTab.anime)
-
-            AiringCalendarView(path: $nav.calendarPath)
-                .tabItem { Label(AppTab.calendar.title, systemImage: AppTab.calendar.systemImage) }
-                .tag(AppTab.calendar)
+            LibraryView(path: $nav.libraryPath)
+                .tabItem { Label(AppTab.library.title, systemImage: AppTab.library.systemImage) }
+                .tag(AppTab.library)
 
             AIView(path: $nav.aiPath)
                 .tabItem { Label(AppTab.ai.title, systemImage: AppTab.ai.systemImage) }
                 .tag(AppTab.ai)
-
-            LibraryView(path: $nav.libraryPath)
-                .tabItem { Label(AppTab.library.title, systemImage: AppTab.library.systemImage) }
-                .tag(AppTab.library)
 
             SettingsView(path: $nav.settingsPath)
                 .tabItem { Label(AppTab.settings.title, systemImage: AppTab.settings.systemImage) }
@@ -200,10 +192,8 @@ struct RootView: View {
             switch nav.selection {
             case .home:     HomeView(path: $nav.homePath)
             case .discover: DiscoverView(path: $nav.discoverPath)
-            case .anime:    AnimeView(path: $nav.animePath)
-            case .calendar: AiringCalendarView(path: $nav.calendarPath)
-            case .ai:       AIView(path: $nav.aiPath)
             case .library:  LibraryView(path: $nav.libraryPath)
+            case .ai:       AIView(path: $nav.aiPath)
             case .settings: SettingsView(path: $nav.settingsPath)
             }
         }
@@ -361,7 +351,6 @@ struct RootView: View {
 // each poster routing into the shared ContentDetailView. Uses the app's boxd-themed
 // tokens so it matches the rest of Nova.
 struct AnimeView: View {
-    @Binding var path: NavigationPath
     @EnvironmentObject private var env: AppEnvironment
 
     private struct AnimeShelf: Identifiable {
@@ -371,8 +360,7 @@ struct AnimeView: View {
     @State private var loaded = false
 
     var body: some View {
-        NavigationStack(path: $path) {
-            ScrollView(showsIndicators: false) {
+        ScrollView(showsIndicators: false) {
                 LazyVStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
                     if !loaded && shelves.isEmpty {
                         ProgressView().tint(Theme.Colors.accent)
@@ -383,12 +371,11 @@ struct AnimeView: View {
                     }
                 }
                 .padding(.vertical, Theme.Spacing.md)
-            }
-            .background(Theme.Colors.appBackground.ignoresSafeArea())
-            .navigationTitle("Anime")
-            .navigationDestination(for: CatalogItem.self) { ContentDetailView(item: $0) }
-            .task { await load() }
         }
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
+        .navigationTitle("Anime")
+        .navigationDestination(for: CatalogItem.self) { ContentDetailView(item: $0) }
+        .task { await load() }
     }
 
     private func row(_ shelf: AnimeShelf) -> some View {
@@ -451,7 +438,6 @@ struct AnimeView: View {
 // (library series, Continue Watching, favorites). Pulls next-episode-to-air from TMDB and
 // groups by date. Refreshes on open and on pull-to-refresh.
 struct AiringCalendarView: View {
-    @Binding var path: NavigationPath
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var library: LibraryStore
 
@@ -476,8 +462,7 @@ struct AiringCalendarView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
-            Group {
+        Group {
                 if loading && entries.isEmpty {
                     ProgressView().tint(Theme.Colors.accent).frame(maxWidth: .infinity).padding(.top, 80)
                 } else if entries.isEmpty {
@@ -509,13 +494,12 @@ struct AiringCalendarView: View {
                         .padding(.vertical, Theme.Spacing.md)
                     }
                 }
-            }
-            .background(Theme.Colors.appBackground.ignoresSafeArea())
-            .navigationTitle("Calendar")
-            .navigationDestination(for: CatalogItem.self) { ContentDetailView(item: $0) }
-            .task { await load() }
-            .refreshable { loaded = false; await load() }
         }
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
+        .navigationTitle("Calendar")
+        .navigationDestination(for: CatalogItem.self) { ContentDetailView(item: $0) }
+        .task { await load() }
+        .refreshable { loaded = false; await load() }
     }
 
     private func row(_ e: Entry) -> some View {

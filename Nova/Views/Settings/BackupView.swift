@@ -56,12 +56,12 @@ struct BackupView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                Text("iCloud Backup & Restore")
+                Text("iCloud Sync & Backup")
                     .font(Theme.Font.screenTitle())
                     .screenTitleStyle()
                     .foregroundStyle(Theme.Colors.textPrimary)
 
-                Text("Save a snapshot of everything — your preferences, sources, addons, and all logins and API keys — to your private iCloud. Then restore it on another device signed in to the same Apple ID.")
+                Text("Keep profiles, preferences, sources, add-ons, logins, and API keys in your private iCloud container. Nova also uses iCloud Keychain for supported credentials and restores the newest setup on your other devices.")
                     .font(.appFont(19))
                     .foregroundStyle(Theme.Colors.textSecondary)
 
@@ -114,7 +114,7 @@ struct BackupView: View {
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
 
-                Text("Your snapshot stays inside your personal iCloud and is never sent anywhere else. Restoring replaces this device's settings, sources, and logins with the snapshot.")
+                Text("Nova keeps a full setup document in iCloud Documents and a compact key-value fallback. Restoring replaces this device's selected settings, sources, add-ons, and logins with the snapshot.")
                     .font(.appFont(15))
                     .foregroundStyle(Theme.Colors.textTertiary)
                     .padding(.top, Theme.Spacing.sm)

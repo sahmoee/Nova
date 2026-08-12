@@ -5,6 +5,10 @@ Newest at the top. Keep it plain ASCII (see .gitmessage.txt for the commit rules
 
 ## [Unreleased]
 
+### QA and documentation
+- Added the iOS Unified QA ticket queue with automatic screenshots, device/build context, offline persistence, upload retry, required fix resolutions, tester verification, and history-preserving refiles.
+- Added professional setup, build, configuration, security, contribution, and issue-reporting documentation.
+
 ### Added
 - **Nova Tracker**: first-party cross-device watch tracking (history/scrobble, watchlist
   statuses, ratings) with an iCloud-shared identity, offline cache + delta sync, and a
@@ -26,4 +30,3 @@ Newest at the top. Keep it plain ASCII (see .gitmessage.txt for the commit rules
 ### Notes
 - True cross-device identity requires the iCloud ▸ CloudKit capability and the
   `NOVA_CLOUDKIT_IDENTITY` compilation condition on BOTH the iOS and tvOS targets.
-

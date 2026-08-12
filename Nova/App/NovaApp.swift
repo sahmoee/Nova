@@ -14,7 +14,18 @@ struct NovaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            ZStack {
+                RootView()
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        UnifiedQAReporter(app: "Nova", source: "nova-app", prefix: "NVA")
+                            .padding(.trailing, 16)
+                            .padding(.bottom, 82)
+                    }
+                }
+            }
                 .environmentObject(environment)
                 .environmentObject(environment.library)
                 .environmentObject(environment.progress)

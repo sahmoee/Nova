@@ -17,7 +17,6 @@ struct SettingsView: View {
     @EnvironmentObject private var settings: SettingsStore
 
     @State private var settingsSearch = ""
-    @State private var sourcesPath = NavigationPath()
     #if os(tvOS)
     @State private var selectedCategory: String = "playback"
     #endif
@@ -124,7 +123,10 @@ struct SettingsView: View {
         let query = settingsSearch.trimmingCharacters(in: .whitespaces)
         guard !query.isEmpty else { return directoryGroups }
         return directoryGroups.compactMap { group in
-            let items = group.items.filter { $0.title.localizedCaseInsensitiveContains(query) }
+            let items = group.items.filter {
+                [$0.title, $0.detail ?? "", $0.id]
+                    .contains { $0.localizedCaseInsensitiveContains(query) }
+            }
             return items.isEmpty ? nil : CategoryGroup(header: group.header, items: items)
         }
     }
@@ -216,14 +218,14 @@ struct SettingsView: View {
         core.append(Category(id: "accessibility", icon: "accessibility", color: Theme.Colors.iconGraphite, title: "Accessibility") {
             AnyView(SettingsScreen(title: "Accessibility") { AccessibilitySettingsContent() })
         })
-        groups.append(CategoryGroup(items: core))
+        groups.append(CategoryGroup(header: "Playback & Display", items: core))
 
         // Sources & accounts (hidden in guest mode).
         if !settings.guestMode {
             var accounts: [Category] = [
                 Category(id: "sources", icon: "point.3.connected.trianglepath.dotted", color: Theme.Colors.iconSilver,
                          title: "Sources & Health", detail: sourcesHealthDetail, status: sourcesHealthStatusColor) {
-                             AnyView(SourcesView(path: self.$sourcesPath))
+                             AnyView(SourcesView())
                          },
             ]
             accounts.append(Category(id: "accounts", icon: "person.crop.circle.badge.checkmark", color: Theme.Colors.iconGraphite,
@@ -247,11 +249,11 @@ struct SettingsView: View {
             accounts.append(Category(id: "setup", icon: "checklist", color: Theme.Colors.iconSilver, title: "Setup Checklist") {
                 AnyView(SetupChecklistView())
             })
-            groups.append(CategoryGroup(header: "Sources & Accounts", items: accounts))
+            groups.append(CategoryGroup(header: "Connections", items: accounts))
         }
 
         // Library & home.
-        groups.append(CategoryGroup(header: "Content", items: [
+        groups.append(CategoryGroup(header: "My Nova", items: [
             Category(id: "library", icon: "books.vertical.fill", color: Theme.Colors.iconRed, title: "Library") {
                 AnyView(SettingsScreen(title: "Library") { LibrarySettingsContent() })
             },
@@ -269,7 +271,7 @@ struct SettingsView: View {
         var system: [Category] = []
         if !settings.guestMode {
             system.append(Category(id: "backup", icon: "icloud.fill", color: Theme.Colors.iconGraphite,
-                                   title: "iCloud Backup & Restore", detail: backupDetail) {
+                                   title: "iCloud Sync & Backup", detail: backupDetail) {
                 AnyView(BackupView())
             })
         }
@@ -279,7 +281,7 @@ struct SettingsView: View {
         system.append(Category(id: "privacy", icon: "hand.raised.fill", color: Theme.Colors.iconGraphite, title: "Privacy & Legal") {
             AnyView(SettingsScreen(title: "Privacy & Legal") { PrivacyLegalSettingsContent() })
         })
-        groups.append(CategoryGroup(header: "System", items: system))
+        groups.append(CategoryGroup(header: "Data & Support", items: system))
 
         return groups
     }
@@ -320,6 +322,6 @@ struct SettingsView: View {
         if let date = BackupManager.shared.lastBackupDate {
             return "Last: \(date.mediumDateTimeText)"
         }
-        return "Not backed up"
+        return "Settings, profiles, keys & add-ons"
     }
 }
