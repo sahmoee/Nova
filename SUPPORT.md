@@ -1,6 +1,6 @@
 # Nova Support
 
-For help with Nova, email [sowensstudios@yahoo.com](mailto:sowensstudios@yahoo.com). Include the Nova version, device model, iOS/tvOS version, and a short description of what happened. Do not send passwords, API keys, access tokens, private media URLs, or backup files containing credentials.
+For help with Nova, email [support@sowensstudios.com](mailto:support@sowensstudios.com). Include the Nova version, device model, iOS/tvOS version, and a short description of what happened. Do not send passwords, API keys, access tokens, private media URLs, or backup files containing credentials.
 
 ## Quick checks
 

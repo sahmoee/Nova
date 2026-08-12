@@ -16,4 +16,4 @@ This repository includes or links to third-party components governed by their ow
 
 THE ORIGINAL NOVA MATERIALS ARE PROVIDED "AS IS," WITHOUT WARRANTIES OF ANY KIND, TO THE MAXIMUM EXTENT PERMITTED BY LAW. THE APP STORE EULA CONTROLS THE LICENSE, WARRANTY, AND LIABILITY TERMS FOR COPIES OBTAINED THROUGH THE APP STORE.
 
-For licensing questions, contact [sowensstudios@yahoo.com](mailto:sowensstudios@yahoo.com).
+For licensing questions, contact [support@sowensstudios.com](mailto:support@sowensstudios.com).

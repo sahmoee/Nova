@@ -18,8 +18,3 @@ commit.sh
 COMMIT_MSG.txt
 ._*
 *.bak.*
-
-# Local operating guide — not part of the shipped repo
-README-FIRST.md
-
-AGENT-HANDOFF.md

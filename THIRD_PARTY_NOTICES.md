@@ -23,7 +23,7 @@ VLCKit and libVLC provide Nova's alternate media playback engine. Copyright belo
 
 ## License text and source requests
 
-The full LGPL 2.1 text is available at <https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html>. Source is available from the project links above. For a written offer, exact corresponding-source information for a shipped Nova version, or relinking information, contact [sowensstudios@yahoo.com](mailto:sowensstudios@yahoo.com) and identify the Nova version and platform.
+The full LGPL 2.1 text is available at <https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html>. Source is available from the project links above. For a written offer, exact corresponding-source information for a shipped Nova version, or relinking information, contact [support@sowensstudios.com](mailto:support@sowensstudios.com) and identify the Nova version and platform.
 
 ## Service acknowledgements
 

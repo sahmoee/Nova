@@ -141,7 +141,7 @@ When adding a Swift file, ensure it is registered in every intended target. Shar
 
 Nova iOS includes an internal QA queue. Reports save locally before network work, then synchronize through the Unified Worker with device/build context and optional screenshots. Fixed tickets require a “What was fixed” explanation; testers use **Verify Fix** or **Refile — still broken**.
 
-Shared intake is under `~/Documents/Reports/Nova`. Read [`AGENTS.md`](AGENTS.md) before planning or building. In-app diagnostics and support surfaces include [`Nova/Views/Settings/DebugReportView.swift`](Nova/Views/Settings/DebugReportView.swift), safe mode, source health, network status, library health, and backup tools.
+Report synchronization is an internal development operation and is intentionally not documented in the public repository. In-app diagnostics and support surfaces include [`Nova/Views/Settings/DebugReportView.swift`](Nova/Views/Settings/DebugReportView.swift), safe mode, source health, network status, library health, and backup tools.
 
 ## Release checklist
 
@@ -169,7 +169,6 @@ See [`SECURITY.md`](SECURITY.md), [`PRIVACY.md`](PRIVACY.md), [`SUPPORT.md`](SUP
 ## Contributing
 
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution process
-- [`AGENTS.md`](AGENTS.md) / [`CLAUDE.md`](CLAUDE.md) — mandatory agent/report workflow
 - [`docs/NOVA_RENAME_COMPATIBILITY.md`](docs/NOVA_RENAME_COMPATIBILITY.md) — naming and compatibility constraints
 
 Preserve persisted-data and backup compatibility, keep shared iOS/tvOS behavior deliberate, add regression tests, avoid unsafe provider assumptions, and update all clients when a shared Worker contract changes.

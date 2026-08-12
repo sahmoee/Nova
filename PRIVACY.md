@@ -75,6 +75,6 @@ This policy may change as Nova evolves. The effective date will be updated when 
 
 ## Contact
 
-For privacy questions or requests, email [sowensstudios@yahoo.com](mailto:sowensstudios@yahoo.com).
+For privacy questions or requests, email [support@sowensstudios.com](mailto:support@sowensstudios.com).
 
 Public policy URL: <https://sahmoee.github.io/Nova/privacy.html>
