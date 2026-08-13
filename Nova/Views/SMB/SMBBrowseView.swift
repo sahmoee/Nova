@@ -259,14 +259,23 @@ struct SMBBrowseView: View {
 
     private func makeItem(for file: RemoteFileItem) async throws -> MediaItem {
         let url = try await environment.smb.streamURL(for: file)
-        let meta = MetadataParser.parse(filename: file.name, fileSize: file.size)
-        return MediaItem(
-            title: MetadataParser.cleanTitle(from: file.name),
+        var meta = MetadataParser.parse(filename: file.name, fileSize: file.size)
+        meta.smbShareID = share.id
+        meta.smbPath = file.path
+        let title = MetadataParser.cleanTitle(from: file.name)
+        var item = MediaItem(
+            title: title,
             sourceType: .smb,
             playbackURL: url,
             legalAccessConfirmed: true, // user owns their own network files
             metadata: meta
         )
+        if let match = (try? await environment.tmdb.search(item.seriesTitle ?? title))?.first {
+            item.posterURL = match.posterURL
+            item.backdropURL = match.backdropURL ?? match.posterURL
+            item.contentID = match.contentID
+        }
+        return item
     }
 
     private func playFile(_ file: RemoteFileItem) async {

@@ -47,6 +47,8 @@ struct LibraryView: View {
         MediaCard(item: item, seasonGrouped: true) {
             if bulkEditing {
                 toggleSelection(item.id)
+            } else if item.isDirectPlay {
+                openDirect(item)
             } else {
                 detailItem = item
             }
@@ -93,6 +95,46 @@ struct LibraryView: View {
                 Label("Remove from Library", systemImage: "trash")
             }
         }
+    }
+
+    /// SMB playback URLs are localhost bridge URLs and do not survive an app or
+    /// network restart. Reconnect to the saved share/path before every play.
+    private func openDirect(_ item: MediaItem) {
+        guard item.sourceType == .smb else {
+            selectedItem = item
+            return
+        }
+        Task {
+            guard let shareID = item.metadata.smbShareID,
+                  let path = item.metadata.smbPath,
+                  let share = loadSMBShares().first(where: { $0.id == shareID }) else {
+                // Older entries lack stable SMB identity. Keep the existing URL
+                // usable for the current session and let a rescan upgrade them.
+                selectedItem = item
+                return
+            }
+            do {
+                try await env.smb.connect(to: share)
+                let remote = RemoteFileItem(name: URL(fileURLWithPath: path).lastPathComponent,
+                                            path: path, isDirectory: false,
+                                            size: item.metadata.fileSize, modifiedDate: nil)
+                var refreshed = item
+                refreshed.playbackURL = try await env.smb.streamURL(for: remote)
+                library.update(refreshed)
+                selectedItem = refreshed
+                NovaQARuntime.shared.record("flow", "My Nova > SMB source refreshed > \(path)")
+            } catch {
+                ToastCenter.shared.show("Couldn't reconnect to \(share.displayName): \(error.localizedDescription)")
+                NovaQARuntime.shared.record("error", "My Nova > SMB reconnect failed > \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func loadSMBShares() -> [SMBShare] {
+        guard let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first,
+              let data = try? Data(contentsOf: support.appendingPathComponent("smb_shares.json")),
+              let shares = try? JSONDecoder().decode([SMBShare].self, from: data) else { return [] }
+        return shares
     }
 
     var body: some View {

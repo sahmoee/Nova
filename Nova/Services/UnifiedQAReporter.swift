@@ -7,6 +7,7 @@ enum UnifiedQASettings {
     static let enabledKey = "nova.qa.enabled"
     static let longPressKey = "nova.qa.longPress.enabled"
     static let autoMonitorKey = "nova.qa.monitor.enabled"
+    static let touchTrackingKey = "nova.qa.touches.enabled"
 }
 
 struct NovaQADiagnostics: Codable, Sendable {
@@ -43,12 +44,14 @@ final class NovaQARuntime: ObservableObject {
     @Published private(set) var currentMemoryMB: Double = 0
     @Published private(set) var thermalState = "Nominal"
     @Published private(set) var freeDiskMB: Double = 0
+    @Published private(set) var accessibilityFindings: [String] = []
     @Published private(set) var isRunning = false
 
     private var displayLink: CADisplayLink?
     private var linkTarget: NovaQADisplayLinkTarget?
     private var lastFrame: CFTimeInterval = 0
     private var sampleTask: Task<Void, Never>?
+    private var observers: [NSObjectProtocol] = []
 
     private init() {}
 
@@ -62,6 +65,18 @@ final class NovaQARuntime: ObservableObject {
         displayLink = link
         linkTarget = target
         sample()
+        let center = NotificationCenter.default
+        observers = [
+            center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.record("lifecycle", "App became active") }
+            },
+            center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.record("lifecycle", "App entered background") }
+            },
+            center.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.record("memory", "System memory warning") }
+            }
+        ]
         sampleTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(5))
@@ -79,6 +94,8 @@ final class NovaQARuntime: ObservableObject {
         linkTarget = nil
         sampleTask?.cancel()
         sampleTask = nil
+        observers.forEach(NotificationCenter.default.removeObserver)
+        observers = []
         lastFrame = 0
     }
 
@@ -91,6 +108,18 @@ final class NovaQARuntime: ObservableObject {
         events = []
         hitches = []
         peakMemoryMB = currentMemoryMB
+    }
+
+    func runAccessibilityAudit() {
+        guard let window = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene })
+            .flatMap(\.windows).first(where: \.isKeyWindow) else {
+            accessibilityFindings = ["No active window was available."]
+            return
+        }
+        var findings: [String] = []
+        inspectAccessibility(window, path: "Window", findings: &findings)
+        accessibilityFindings = Array(findings.prefix(100))
+        record("accessibility", findings.isEmpty ? "Accessibility sweep passed" : "Accessibility sweep found \(findings.count) issue(s)")
     }
 
     func contextText(diagnostics: NovaQADiagnostics) -> String {
@@ -121,6 +150,20 @@ final class NovaQARuntime: ObservableObject {
            let bytes = values.volumeAvailableCapacityForImportantUsage {
             freeDiskMB = Double(bytes) / 1_048_576
         }
+    }
+
+    private func inspectAccessibility(_ view: UIView, path: String, findings: inout [String]) {
+        guard !view.isHidden, view.alpha > 0.01 else { return }
+        let next = path + "/" + String(describing: type(of: view))
+        if view.isAccessibilityElement {
+            let label = view.accessibilityLabel?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if label.isEmpty { findings.append("\(next): accessible element has no label") }
+            if (view is UIControl || view.gestureRecognizers?.isEmpty == false),
+               (view.bounds.width < 44 || view.bounds.height < 44) {
+                findings.append("\(next): touch target is smaller than 44 points")
+            }
+        }
+        view.subviews.forEach { inspectAccessibility($0, path: next, findings: &findings) }
     }
 
     private static func memoryMB() -> Double {
@@ -285,7 +328,8 @@ final class UnifiedQAStore: ObservableObject {
 
     private func applyShippedResolutions() {
         let resolutions = [
-            "NVA-23-0001": "Removed nested disabled buttons from every Sources card. Each card is now a non-interactive NavigationLink label, so Real-Debrid, Addons, SMB, Trakt, SIMKL, TMDB, Direct URL, and Magnet Link all receive taps and open their destination."
+            "NVA-23-0001": "Removed nested disabled buttons from every Sources card. Each card is now a non-interactive NavigationLink label, so Real-Debrid, Addons, SMB, Trakt, SIMKL, TMDB, Direct URL, and Magnet Link all receive taps and open their destination.",
+            "NVA-23-0002": "SMB imports now retain their share and path identity, enrich missing poster and backdrop art from TMDB, refresh metadata during rescans, reconnect to the share before playback, rebuild expired temporary stream URLs, and open the player directly instead of incorrectly asking catalog addons for sources."
         ]
         var changed = false
         for index in tickets.indices where tickets[index].status == "open" {
@@ -368,6 +412,8 @@ struct UnifiedQAReporter: View {
                 }
                 .frame(width: 0, height: 0)
             }
+            NovaQATapCatcher()
+                .frame(width: 0, height: 0)
             Button { presented = true } label: {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: "ladybug.fill").padding(12).background(.ultraThinMaterial).clipShape(Circle())
@@ -387,6 +433,34 @@ struct UnifiedQAReporter: View {
         var current = root
         while let next = current?.presentedViewController { current = next }
         return current?.navigationItem.title ?? String(describing: type(of: current ?? UIViewController()))
+    }
+}
+
+private struct NovaQATapCatcher: UIViewRepresentable {
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeUIView(context: Context) -> UIView { let view = ObserverView(); view.coordinator = context.coordinator; view.isUserInteractionEnabled = false; return view }
+    func updateUIView(_ view: UIView, context: Context) {}
+    static func dismantleUIView(_ view: UIView, coordinator: Coordinator) { coordinator.detach() }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        weak var window: UIWindow?; var recognizer: UITapGestureRecognizer?
+        func attach(_ window: UIWindow) {
+            guard self.window !== window else { return }; detach()
+            let tap = UITapGestureRecognizer(target: self, action: #selector(tapped(_:)))
+            tap.cancelsTouchesInView = false; tap.delegate = self
+            window.addGestureRecognizer(tap); self.window = window; recognizer = tap
+        }
+        func detach() { if let recognizer { window?.removeGestureRecognizer(recognizer) }; recognizer = nil; window = nil }
+        @objc func tapped(_ gesture: UITapGestureRecognizer) {
+            guard UserDefaults.standard.object(forKey: UnifiedQASettings.touchTrackingKey) as? Bool ?? true else { return }
+            let point = gesture.location(in: window)
+            Task { @MainActor in NovaQARuntime.shared.record("touch", "Tap at \(Int(point.x)), \(Int(point.y)) on \(UnifiedQAReporter.currentScreen())") }
+        }
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool { true }
+    }
+    final class ObserverView: UIView {
+        weak var coordinator: Coordinator?
+        override func didMoveToWindow() { super.didMoveToWindow(); if let window { coordinator?.attach(window) } else { coordinator?.detach() } }
     }
 }
 
@@ -421,12 +495,14 @@ struct UnifiedQASettingsView: View {
     @AppStorage(UnifiedQASettings.enabledKey) private var enabled = false
     @AppStorage(UnifiedQASettings.longPressKey) private var longPress = true
     @AppStorage(UnifiedQASettings.autoMonitorKey) private var monitor = true
+    @AppStorage(UnifiedQASettings.touchTrackingKey) private var touches = true
     var body: some View {
         Form {
             Section("Nova QA") {
                 Toggle("Enable QA tools", isOn: $enabled)
                 Toggle("Press and hold to report", isOn: $longPress).disabled(!enabled)
                 Toggle("Monitor performance and resources", isOn: $monitor).disabled(!enabled)
+                Toggle("Record taps and navigation path", isOn: $touches).disabled(!enabled)
             }
             Section { Text("Nova QA captures playback/source state, library and download counts, SMB configuration, network conditions, memory, thermal state, frame hitches, recent QA activity, and a screenshot. Tickets sync automatically and retain edit, fix, verification, and refile history.").font(.caption).foregroundStyle(.secondary) }
         }.navigationTitle("Quality Assurance")
@@ -462,6 +538,12 @@ private struct NovaQAHub: View {
                     }
                     Text("App-specific checklists, autonomous findings, tracked processes, run history, recurring-ticket detection, search, and full diagnostics.")
                         .font(.caption).foregroundStyle(.secondary)
+                    Button("Run accessibility sweep") { runtime.runAccessibilityAudit() }
+                    if runtime.accessibilityFindings.isEmpty {
+                        Text("No accessibility sweep findings in this session.").font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        ForEach(runtime.accessibilityFindings.prefix(10), id: \.self) { Text($0).font(.caption) }
+                    }
                 }
                 Section("Tickets") {
                     HStack { Label("\(store.openCount) open", systemImage: "exclamationmark.bubble"); Spacer(); Label("\(store.unsyncedCount) pending", systemImage: "arrow.triangle.2.circlepath") }

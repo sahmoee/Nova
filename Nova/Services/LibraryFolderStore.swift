@@ -79,9 +79,21 @@ final class LibraryFolderStore: ObservableObject {
         var added = 0
         for (index, file) in videos.enumerated() {
             scanStatus = "Adding \(index + 1) of \(videos.count)…"
-            if let item = try? await makeItem(for: file, env: env) {
+            if let item = try? await makeItem(for: file, shareID: folder.shareID, env: env) {
                 let key = item.contentKey
-                if !env.library.items.contains(where: { $0.contentKey == key }) {
+                if let existing = env.library.items.first(where: {
+                    $0.contentKey == key ||
+                    ($0.sourceType == .smb && $0.metadata.filename == item.metadata.filename)
+                }) {
+                    var refreshed = existing
+                    refreshed.playbackURL = item.playbackURL
+                    refreshed.metadata.smbShareID = item.metadata.smbShareID
+                    refreshed.metadata.smbPath = item.metadata.smbPath
+                    if refreshed.posterURL == nil { refreshed.posterURL = item.posterURL }
+                    if refreshed.backdropURL == nil { refreshed.backdropURL = item.backdropURL }
+                    if refreshed.contentID == nil { refreshed.contentID = item.contentID }
+                    env.library.update(refreshed)
+                } else {
                     env.library.add(item); added += 1
                 }
             }
@@ -112,10 +124,19 @@ final class LibraryFolderStore: ObservableObject {
         }
     }
 
-    private func makeItem(for file: RemoteFileItem, env: AppEnvironment) async throws -> MediaItem {
+    private func makeItem(for file: RemoteFileItem, shareID: UUID, env: AppEnvironment) async throws -> MediaItem {
         let url = try await env.smb.streamURL(for: file)
-        let meta = MetadataParser.parse(filename: file.name, fileSize: file.size)
-        return MediaItem(title: MetadataParser.cleanTitle(from: file.name), sourceType: .smb,
-                         playbackURL: url, legalAccessConfirmed: true, metadata: meta)
+        var meta = MetadataParser.parse(filename: file.name, fileSize: file.size)
+        meta.smbShareID = shareID
+        meta.smbPath = file.path
+        let title = MetadataParser.cleanTitle(from: file.name)
+        var item = MediaItem(title: title, sourceType: .smb,
+                             playbackURL: url, legalAccessConfirmed: true, metadata: meta)
+        if let match = (try? await env.tmdb.search(item.seriesTitle ?? title))?.first {
+            item.posterURL = match.posterURL
+            item.backdropURL = match.backdropURL ?? match.posterURL
+            item.contentID = match.contentID
+        }
+        return item
     }
 }

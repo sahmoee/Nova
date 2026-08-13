@@ -246,6 +246,10 @@ struct MediaMetadata: Codable, Hashable {
     var season: Int?
     var episode: Int?
     var year: Int?
+    /// Stable SMB identity used to rebuild the temporary localhost playback URL
+    /// whenever the app or network connection changes.
+    var smbShareID: UUID?
+    var smbPath: String?
 
     init(
         filename: String? = nil,
@@ -254,7 +258,9 @@ struct MediaMetadata: Codable, Hashable {
         resolution: String? = nil,
         season: Int? = nil,
         episode: Int? = nil,
-        year: Int? = nil
+        year: Int? = nil,
+        smbShareID: UUID? = nil,
+        smbPath: String? = nil
     ) {
         self.filename = filename
         self.fileSize = fileSize
@@ -263,5 +269,7 @@ struct MediaMetadata: Codable, Hashable {
         self.season = season
         self.episode = episode
         self.year = year
+        self.smbShareID = smbShareID
+        self.smbPath = smbPath
     }
 }

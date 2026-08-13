@@ -6,6 +6,8 @@ Newest at the top. Keep it plain ASCII (see .gitmessage.txt for the commit rules
 ## [Unreleased]
 
 ### QA and documentation
+- Fixed My Nova SMB items so folder imports retain stable share/path identity, automatically enrich missing poster/backdrop art, reconnect and rebuild temporary stream URLs, and play directly instead of incorrectly querying addons for sources.
+- Expanded Nova QA with opt-in tap/navigation breadcrumbs, lifecycle and memory-warning capture, an on-device accessibility sweep, and shipped fix records for NVA-23-0001 and NVA-23-0002 pending tester verification.
 - Rebuilt Nova QA as an opt-in, app-specific test suite with global press-and-hold reporting, pre-composer screenshots, playback/source/library/SMB/download/network context, memory and hitch monitoring, sync state and retry, ticket history, fix notes, verification, and refiling.
 - Added long-press movie and episode downloads, a Downloads entry in My Nova, duplicate-transfer protection, and a persistent pause/resume/retry/cleanup manager.
 - Collapsed every library-derived surface to one card per series represented by its most recently watched episode, and constrained calendars/notifications to one newest release per show.
