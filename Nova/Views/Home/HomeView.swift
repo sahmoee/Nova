@@ -15,6 +15,7 @@ struct HomeView: View {
     @EnvironmentObject private var nav: NavigationCoordinator
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var settings: SettingsStore
+    @Environment(\.dynamicAccent) private var dynamicAccent
 
     @StateObject private var shelfStore = HomeShelfStore.shared
     @StateObject private var profiles = ViewingProfileStore.shared
@@ -42,6 +43,19 @@ struct HomeView: View {
         NavigationStack(path: $path) {
             ZStack {
                 Theme.Colors.appBackground.ignoresSafeArea()
+
+                #if os(tvOS)
+                // Let the selected artwork tint the full living-room canvas, matching
+                // the reference's immersive red/blue/green scene treatment.
+                RadialGradient(
+                    colors: [dynamicAccent.opacity(0.34), .clear],
+                    center: .topLeading,
+                    startRadius: 20,
+                    endRadius: 1250
+                )
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+                #endif
 
                 if library.items.isEmpty && shelfStore.enabledShelves.isEmpty {
                     welcomeState
@@ -77,7 +91,9 @@ struct HomeView: View {
     private var watchNowContent: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
+                #if !os(tvOS)
                 topBar
+                #endif
 
                 if !env.tmdb.hasKey {
                     setupBanner
@@ -135,6 +151,7 @@ struct HomeView: View {
         #if os(tvOS)
         .ignoresSafeArea(edges: .top)
         .focusScope(heroFocusNS)
+        .scrollClipDisabled()
         #endif
     }
 

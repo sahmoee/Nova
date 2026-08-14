@@ -161,11 +161,11 @@ struct CatalogShelfRow: View {
                     VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                         RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                             .fill(Theme.Colors.card)
-                            .frame(width: Theme.CardSize.posterWidth * 0.8,
-                                   height: Theme.CardSize.posterWidth * 0.8 * 1.5)
+                            .frame(width: loadingCardWidth,
+                                   height: loadingCardHeight)
                         RoundedRectangle(cornerRadius: 4)
                             .fill(Theme.Colors.card)
-                            .frame(width: Theme.CardSize.posterWidth * 0.55, height: 14)
+                            .frame(width: loadingCardWidth * 0.68, height: 14)
                     }
                     .shimmering()
                 }
@@ -175,6 +175,61 @@ struct CatalogShelfRow: View {
     }
 
     private func posterCard(_ item: CatalogItem) -> some View {
+        #if os(tvOS)
+        CatalogLandscapeCard(item: item)
+        #else
         CatalogPosterCard(item: item, scale: 0.8)
+        #endif
+    }
+
+    private var loadingCardWidth: CGFloat {
+        #if os(tvOS)
+        return Theme.CardSize.wideWidth
+        #else
+        return Theme.CardSize.posterWidth * 0.8
+        #endif
+    }
+
+    private var loadingCardHeight: CGFloat {
+        #if os(tvOS)
+        return Theme.CardSize.wideHeight
+        #else
+        return Theme.CardSize.posterWidth * 0.8 * 1.5
+        #endif
     }
 }
+
+#if os(tvOS)
+/// Landscape editorial card used by every tvOS shelf. It mirrors the supplied
+/// reference's large 16:9 artwork, title below, and uncluttered focus treatment.
+private struct CatalogLandscapeCard: View {
+    let item: CatalogItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CachedAsyncImage(url: item.backdropURL ?? item.posterURL, maxPixel: 900) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                GeneratedPoster(title: item.title, year: item.year).shimmering()
+            }
+            .frame(width: Theme.CardSize.wideWidth, height: Theme.CardSize.wideHeight)
+            .clipped()
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            Text(item.title)
+                .font(.appFont(22, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .lineLimit(1)
+                .frame(width: Theme.CardSize.wideWidth, alignment: .leading)
+
+            if let year = item.year {
+                Text(String(year))
+                    .font(.appFont(16))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+        }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
+}
+#endif

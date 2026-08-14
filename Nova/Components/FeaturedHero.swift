@@ -24,6 +24,9 @@ struct FeaturedHero: View {
 
     @Environment(\.dynamicAccent) private var accent
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var library: LibraryStore
+    @State private var details: CatalogItem?
 
     var body: some View {
         GeometryReader { geo in
@@ -32,6 +35,9 @@ struct FeaturedHero: View {
         // A tall, cinematic height that scales with the platform so the artwork fills
         // the top of the screen instead of leaving blank space beneath it.
         .frame(height: heroHeight)
+        .task(id: item.contentKey) {
+            details = await env.catalog.hydrate(item.asCatalogItem())
+        }
     }
 
     /// Hero height tuned per platform, unless the caller passed an explicit height.
@@ -58,20 +64,21 @@ struct FeaturedHero: View {
             .frame(width: width, height: heroHeight)
             .clipped()
 
-            // Scrims + accent wash.
+            // Scrims + artwork-driven ambient wash. The reference lets the selected
+            // artwork color the entire header rather than placing it on a neutral card.
             Theme.Colors.heroGradient
             LinearGradient(
-                colors: [Theme.Colors.background.opacity(0.85), .clear],
+                colors: [Theme.Colors.background.opacity(0.92), Theme.Colors.background.opacity(0.08), .clear],
                 startPoint: .leading, endPoint: .trailing
             )
             LinearGradient(
-                colors: [accent.opacity(0.32), .clear],
-                startPoint: .bottomLeading, endPoint: .topTrailing
+                colors: [accent.opacity(0.58), accent.opacity(0.18), .clear],
+                startPoint: .leading, endPoint: .trailing
             )
             .blendMode(.plusLighter)
 
             // Foreground content.
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 if let badge {
                     Text(badge.uppercased())
                         .font(.appFont(13, weight: .bold))
@@ -81,19 +88,29 @@ struct FeaturedHero: View {
                         .shadow(color: .black.opacity(0.4), radius: 4)
                 }
                 Text(item.displayTitle)
-                    .font(.appFont(44, weight: .heavy))
+                    .font(.appFont(PlatformCapabilities.platform == .appleTV ? 58 : 44, weight: .heavy))
                     .foregroundStyle(.white)
                     .lineLimit(2)
                     .minimumScaleFactor(0.72)
                     .shadow(color: .black.opacity(0.5), radius: 8, y: 2)
 
-                if !item.subtitleLine.isEmpty {
-                    Text(item.subtitleLine)
+                if !heroMetadata.isEmpty {
+                    Text(heroMetadata)
                         .font(.appFont(18, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.85))
+                        .foregroundStyle(.white.opacity(0.92))
                         .lineLimit(1)
                         .minimumScaleFactor(0.82)
                 }
+
+                #if os(tvOS)
+                if let overview = details?.overview, !overview.isEmpty {
+                    Text(overview)
+                        .font(.appFont(20, weight: .regular))
+                        .foregroundStyle(.white.opacity(0.88))
+                        .lineLimit(3)
+                        .frame(maxWidth: min(width * 0.42, 760), alignment: .leading)
+                }
+                #endif
 
                 ViewThatFits(in: .horizontal) {
                     heroActions
@@ -102,7 +119,7 @@ struct FeaturedHero: View {
                 .padding(.top, 2)
             }
             .padding(.horizontal, Theme.Spacing.edge)
-            .padding(.bottom, Theme.Spacing.md)
+            .padding(.bottom, PlatformCapabilities.platform == .appleTV ? 72 : Theme.Spacing.md)
             // On tvOS the hero image bleeds into the overscan region; pad the text and
             // Play button by the safe area so they stay fully on-screen and focusable.
             #if os(tvOS)
@@ -115,11 +132,42 @@ struct FeaturedHero: View {
         .onAppear { AccentManager.shared.deriveAccent(from: item.posterURL ?? item.backdropURL) }
     }
 
+    private var heroMetadata: String {
+        var values = details?.genres.prefix(3).map { $0 } ?? []
+        if values.isEmpty, !item.subtitleLine.isEmpty {
+            values = [item.subtitleLine]
+        }
+        return values.joined(separator: " · ")
+    }
+
     private var heroActions: some View {
         HStack(spacing: Theme.Spacing.sm) {
             playButton
+            #if os(tvOS)
+            Button {
+                if library.isQueued(item) {
+                    library.removeFromQueue(item)
+                    ToastCenter.shared.show("Removed from Up Next")
+                } else {
+                    library.add(item)
+                    library.addToQueue(item)
+                    ToastCenter.shared.show("Added to Up Next")
+                }
+            } label: {
+                Image(systemName: library.isQueued(item) ? "checkmark" : "plus")
+                    .font(.appFont(26, weight: .semibold))
+                    .frame(width: 58, height: 48)
+            }
+            .buttonStyle(HeroIconButtonStyle())
+            .accessibilityLabel(library.isQueued(item) ? "Remove from Up Next" : "Add to Up Next")
+            #endif
             if let onMoreInfo {
                 Button { onMoreInfo(item) } label: {
+                    #if os(tvOS)
+                    Image(systemName: "info.circle")
+                        .font(.appFont(26, weight: .semibold))
+                        .frame(width: 58, height: 48)
+                    #else
                             HStack(spacing: Theme.Spacing.xs) {
                                 Image(systemName: "info.circle")
                                 Text("More Info").fontWeight(.semibold)
@@ -127,10 +175,26 @@ struct FeaturedHero: View {
                             .font(.appFont(18))
                             .padding(.horizontal, Theme.Spacing.md)
                             .padding(.vertical, Theme.Spacing.xs)
+                    #endif
                 }
+                #if os(tvOS)
+                .buttonStyle(HeroIconButtonStyle())
+                #else
                 .buttonStyle(HeroInfoButtonStyle())
+                #endif
                 .accessibilityLabel("More info about \(item.title)")
             }
+            #if os(tvOS)
+            if let onMoreInfo {
+                Button { onMoreInfo(item) } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.appFont(27, weight: .semibold))
+                        .frame(width: 58, height: 48)
+                }
+                .buttonStyle(HeroIconButtonStyle())
+                .accessibilityLabel("Open \(item.title)")
+            }
+            #endif
         }
     }
 
@@ -161,6 +225,26 @@ struct FeaturedHero: View {
         #else
         button
         #endif
+    }
+}
+
+private struct HeroIconButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HeroIconButtonBody(configuration: configuration)
+    }
+
+    private struct HeroIconButtonBody: View {
+        let configuration: ButtonStyleConfiguration
+        @Environment(\.isFocused) private var isFocused
+
+        var body: some View {
+            configuration.label
+                .foregroundStyle(isFocused ? Theme.Colors.background : .white)
+                .background(isFocused ? Color.white : Color.white.opacity(0.12), in: Circle())
+                .scaleEffect(isFocused && !Theme.isReduceMotion ? 1.12 : 1)
+                .shadow(color: .black.opacity(isFocused ? 0.45 : 0), radius: 18, y: 8)
+                .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.16), value: isFocused)
+        }
     }
 }
 

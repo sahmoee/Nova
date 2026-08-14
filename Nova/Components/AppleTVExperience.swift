@@ -58,7 +58,7 @@ struct AppleTVSmartRailView: View {
                 LazyHStack(alignment: .top, spacing: Theme.Spacing.md) {
                     ForEach(rail.items) { item in
                         MediaCard(item: item,
-                                  wide: rail.kind == .finishTonight || rail.kind == .recentlyWatched,
+                                  wide: usesLandscapeCards(for: rail.kind),
                                   widthOverride: cardWidth(for: rail.kind),
                                   heightOverride: cardHeight(for: rail.kind),
                                   quickActions: true) {
@@ -74,22 +74,38 @@ struct AppleTVSmartRailView: View {
 
     private func cardWidth(for kind: SmartHomeRailKind) -> CGFloat {
         let scale = PlatformCapabilities.railPosterScale
+        #if os(tvOS)
+        return Theme.CardSize.wideWidth * scale
+        #else
         switch kind {
         case .finishTonight, .recentlyWatched:
             return Theme.CardSize.wideWidth * max(scale, 0.72)
         default:
             return Theme.CardSize.posterWidth * scale
         }
+        #endif
     }
 
     private func cardHeight(for kind: SmartHomeRailKind) -> CGFloat {
         let scale = PlatformCapabilities.railPosterScale
+        #if os(tvOS)
+        return Theme.CardSize.wideHeight * scale
+        #else
         switch kind {
         case .finishTonight, .recentlyWatched:
             return Theme.CardSize.wideHeight * max(scale, 0.72)
         default:
             return Theme.CardSize.posterHeight * scale
         }
+        #endif
+    }
+
+    private func usesLandscapeCards(for kind: SmartHomeRailKind) -> Bool {
+        #if os(tvOS)
+        return true
+        #else
+        return kind == .finishTonight || kind == .recentlyWatched
+        #endif
     }
 }
 
@@ -103,9 +119,9 @@ struct AppleTVUpNextRail: View {
     var body: some View {
         if !items.isEmpty {
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                AppleTVSectionHeader(title: "Up Next",
-                                     subtitle: "Continue watching and items in your queue",
-                                     systemImage: "play.square.stack.fill",
+                AppleTVSectionHeader(title: PlatformCapabilities.platform == .appleTV ? "Continue Watching" : "Up Next",
+                                     subtitle: PlatformCapabilities.platform == .appleTV ? nil : "Continue watching and items in your queue",
+                                     systemImage: PlatformCapabilities.platform == .appleTV ? nil : "play.square.stack.fill",
                                      actionTitle: "Manage",
                                      action: onManage)
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -562,4 +578,3 @@ struct WatchHistoryTimelineView: View {
         }
     }
 }
-

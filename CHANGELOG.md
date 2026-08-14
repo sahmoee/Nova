@@ -5,6 +5,11 @@ Newest at the top. Keep it plain ASCII (see .gitmessage.txt for the commit rules
 
 ## [Unreleased]
 
+### Build 26 cinematic tvOS home
+- Rebuilt the Apple TV home around an edge-to-edge, artwork-driven featured backdrop with left-aligned title, genres, synopsis, Play, Up Next, info, and detail actions.
+- Made the selected artwork color wash through the full home canvas and converted tvOS home/editorial shelves to large landscape cards with titles below, matching the supplied living-room reference.
+- Retained the adaptive iPhone/iPad presentation and marketing version 1.7.
+
 ### Build 25 tvOS compilation repair
 - Restored Nova-tvOS compilation by keeping iOS-only episode notification content and authorization behind the iOS platform boundary while preserving shared latest-episode availability tracking.
 - Made the Unified QA suite tvOS-compatible for disk capacity, long-press feedback, checklist disclosure, and diagnostic-copy controls; corrected Trakt actor logout and the deprecated iOS poster-grid group API.
