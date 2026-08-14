@@ -5,6 +5,11 @@ Newest at the top. Keep it plain ASCII (see .gitmessage.txt for the commit rules
 
 ## [Unreleased]
 
+### Build 28 pastel Nova identity
+- Replaced the prior red and black Nova artwork with the approved dark indigo crystalline N on a pastel peach, blush, and lavender field.
+- Regenerated every iPhone and iPad app-icon size plus the layered Apple TV app, App Store, and top-shelf artwork from one preserved brand master.
+- Kept marketing version 1.7 and aligned build 28 across Nova app variants and the widget.
+
 ### Build 27 tracker, release calendar, and SMB playback
 - Made Nova Tracker zero-setup for every install and cross-device through an opaque iCloud key-value identity, with server-side merging that preserves activity created before devices converge.
 - Changed Calendar to show exactly one latest released episode per watched or library series, falling back to its next announced episode only when nothing has aired.

@@ -6,6 +6,17 @@ Current app version: **1.7**. The project targets **iOS/iPadOS 26** and **tvOS 2
 
 Nova does not provide media or access to third-party content. Users are responsible for the sources they configure and for having permission to access and play them.
 
+## Brand assets
+
+The approved Nova icon source is `Nova/Resources/Brand/Nova-AppIcon-Pastel-Master.png`. Regenerate every iOS and tvOS icon and Top Shelf variant together with:
+
+```sh
+python3 -m pip install -r requirements-brand-assets.txt
+python3 generate_brand_assets.py Nova/Resources/Brand/Nova-AppIcon-Pastel-Master.png
+```
+
+The compatibility command `swift generate_brand_assets.swift <source.png>` invokes the same generator.
+
 ## Product capabilities
 
 ### Library and discovery
