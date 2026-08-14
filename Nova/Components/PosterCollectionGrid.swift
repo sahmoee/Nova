@@ -115,7 +115,7 @@ struct PosterCollectionGrid<Item: Identifiable, Cell: View>: UIViewRepresentable
             let groupSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0),
                                                    heightDimension: .estimated(minItemWidth * 1.7))
             let group = NSCollectionLayoutGroup.horizontal(layoutSize: groupSize,
-                                                           subitem: item,
+                                                           repeatingSubitem: item,
                                                            count: columns)
             group.interItemSpacing = .fixed(spacing)
 

@@ -487,17 +487,20 @@ final class EpisodeAvailabilityNotifier {
     }
 
     func requestAuthorization() {
+        #if os(iOS)
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+        #endif
     }
 
     /// Checks each tracked series' single latest released episode and notifies once.
     /// It intentionally never walks season lists, so an initial check cannot emit a
     /// notification for every historical episode.
     func checkForNewStreamableEpisodes() async {
+        #if os(iOS)
         guard Date().timeIntervalSince(lastRun) > 1800 else { return }   // at most every 30 min
         lastRun = Date()
         let center = UNUserNotificationCenter.current()
-        let granted = (try? await center.notificationSettings())?.authorizationStatus == .authorized
+        let granted = await center.notificationSettings().authorizationStatus == .authorized
         guard granted else { return }
 
         let ymd = DateFormatter(); ymd.dateFormat = "yyyy-MM-dd"; ymd.locale = Locale(identifier: "en_US_POSIX")
@@ -520,9 +523,11 @@ final class EpisodeAvailabilityNotifier {
             sent.insert(key)
             UserDefaults.standard.set(Array(sent), forKey: sentKey)
         }
+        #endif
     }
 
     private func postNotification(show: String, season: Int, episode: Int, source: String, count: Int) {
+        #if os(iOS)
         let content = UNMutableNotificationContent()
         content.title = "New episode available"
         let code = String(format: "S%02dE%02d", season, episode)
@@ -531,6 +536,7 @@ final class EpisodeAvailabilityNotifier {
         content.sound = .default
         let req = UNNotificationRequest(identifier: "novaEp-\(show)-\(code)", content: content, trigger: nil)
         UNUserNotificationCenter.current().add(req)
+        #endif
     }
 
     private func trackedSeries() -> [MediaItem] {

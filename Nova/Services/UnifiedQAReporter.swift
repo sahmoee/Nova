@@ -146,9 +146,10 @@ final class NovaQARuntime: ObservableObject {
         peakMemoryMB = max(peakMemoryMB, currentMemoryMB)
         thermalState = Self.thermalName(ProcessInfo.processInfo.thermalState)
         let home = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
-        if let values = try? home?.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]),
-           let bytes = values.volumeAvailableCapacityForImportantUsage {
-            freeDiskMB = Double(bytes) / 1_048_576
+        if let path = home?.path,
+           let attributes = try? FileManager.default.attributesOfFileSystem(forPath: path),
+           let bytes = attributes[.systemFreeSize] as? NSNumber {
+            freeDiskMB = bytes.doubleValue / 1_048_576
         }
     }
 
@@ -481,7 +482,13 @@ private struct NovaQALongPressCatcher: UIViewRepresentable {
             window.addGestureRecognizer(press); self.window = window; recognizer = press
         }
         func detach() { if let recognizer { window?.removeGestureRecognizer(recognizer) }; recognizer = nil; window = nil }
-        @objc func fired(_ gesture: UILongPressGestureRecognizer) { if gesture.state == .began { UIImpactFeedbackGenerator(style: .medium).impactOccurred(); onFire() } }
+        @objc func fired(_ gesture: UILongPressGestureRecognizer) {
+            guard gesture.state == .began else { return }
+            #if os(iOS)
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            #endif
+            onFire()
+        }
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool { true }
     }
 
@@ -897,6 +904,15 @@ struct UnifiedQADeepView: View {
             Section("App-specific checklist") {
                 TextField("Search checks and evidence", text: $search)
                 ForEach(Dictionary(grouping: filteredChecks, by: \.area).keys.sorted(), id: \.self) { area in
+                    #if os(tvOS)
+                    Text(area).font(.headline)
+                    ForEach(filteredChecks.filter { $0.area == area }) { check in
+                        NavigationLink { checkDetail(check) } label: {
+                            Label(check.title, systemImage: store.state(for: check).verdict.symbol)
+                                .foregroundStyle(store.state(for: check).verdict.color)
+                        }
+                    }
+                    #else
                     DisclosureGroup(area) {
                         ForEach(filteredChecks.filter { $0.area == area }) { check in
                             NavigationLink { checkDetail(check) } label: {
@@ -905,6 +921,7 @@ struct UnifiedQADeepView: View {
                             }
                         }
                     }
+                    #endif
                 }
                 Button("Reset checklist", role: .destructive) { store.resetChecklist() }
             }
@@ -944,7 +961,9 @@ struct UnifiedQADeepView: View {
                 LabeledContent("Pending ticket sync", value: "\(unsyncedCount)")
                 LabeledContent("Low Power Mode", value: ProcessInfo.processInfo.isLowPowerModeEnabled ? "On" : "Off")
                 LabeledContent("Thermal", value: String(describing: ProcessInfo.processInfo.thermalState))
+                #if os(iOS)
                 Button("Copy diagnostics") { UIPasteboard.general.string = diagnosticsText }
+                #endif
             }
         }
         .navigationTitle("\(app) QA Lab")

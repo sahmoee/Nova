@@ -5,6 +5,11 @@ Newest at the top. Keep it plain ASCII (see .gitmessage.txt for the commit rules
 
 ## [Unreleased]
 
+### Build 25 tvOS compilation repair
+- Restored Nova-tvOS compilation by keeping iOS-only episode notification content and authorization behind the iOS platform boundary while preserving shared latest-episode availability tracking.
+- Made the Unified QA suite tvOS-compatible for disk capacity, long-press feedback, checklist disclosure, and diagnostic-copy controls; corrected Trakt actor logout and the deprecated iOS poster-grid group API.
+- Marketing version remains 1.7.
+
 ### QA and documentation
 - Fixed My Nova SMB items so folder imports retain stable share/path identity, automatically enrich missing poster/backdrop art, reconnect and rebuild temporary stream URLs, and play directly instead of incorrectly querying addons for sources.
 - Expanded Nova QA with opt-in tap/navigation breadcrumbs, lifecycle and memory-warning capture, an on-device accessibility sweep, and shipped fix records for NVA-23-0001 and NVA-23-0002 pending tester verification.

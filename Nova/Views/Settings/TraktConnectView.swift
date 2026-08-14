@@ -69,11 +69,13 @@ struct TraktConnectView: View {
         .onDisappear { pollTask?.cancel() }
         .alert("Log Out of Trakt?", isPresented: $confirmingDisconnect) {
             Button("Log Out", role: .destructive) {
-                env.trakt.signOut()
-                username = nil
-                errorMessage = nil
-                phase = .notConfigured
-                ToastCenter.shared.show("Logged out of Trakt", systemImage: "rectangle.portrait.and.arrow.right")
+                Task {
+                    await env.trakt.signOut()
+                    username = nil
+                    errorMessage = nil
+                    phase = .notConfigured
+                    ToastCenter.shared.show("Logged out of Trakt", systemImage: "rectangle.portrait.and.arrow.right")
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
