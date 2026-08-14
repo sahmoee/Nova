@@ -43,6 +43,7 @@ struct PlayerView: View {
     // One-tap recovery: when set, forces a specific engine for this session,
     // overriding the automatic/preference routing (used by "Try other player").
     @State private var engineOverride: PlaybackEngine?
+    @State private var didAutoFallbackSMB = false
     // #4 External-player return prompt: external apps don't report progress back, so on
     // return we ask the viewer how far they got and update progress/watched accordingly.
     @State private var didOpenExternal = false
@@ -348,6 +349,14 @@ struct PlayerView: View {
                 #endif
             case .failed(let message):
                 playbackRecovery(message: message)
+                    .task(id: message) {
+                        guard item.sourceType == .smb,
+                              engineOverride == nil,
+                              !didAutoFallbackSMB else { return }
+                        didAutoFallbackSMB = true
+                        await Task.yield()
+                        engineOverride = .vlc
+                    }
             }
         }
         .onAppear {

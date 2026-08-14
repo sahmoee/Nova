@@ -5,6 +5,13 @@ Newest at the top. Keep it plain ASCII (see .gitmessage.txt for the commit rules
 
 ## [Unreleased]
 
+### Build 27 tracker, release calendar, and SMB playback
+- Made Nova Tracker zero-setup for every install and cross-device through an opaque iCloud key-value identity, with server-side merging that preserves activity created before devices converge.
+- Changed Calendar to show exactly one latest released episode per watched or library series, falling back to its next announced episode only when nothing has aired.
+- Added iOS background refresh scheduling for newly released, streamable-episode notifications while retaining one notification per newest episode.
+- Corrected SMB HTTP metadata, HEAD and byte-range handling for native AVPlayer, then transparently falls back to embedded VLC when a file or codec still cannot play natively.
+- Marketing version remains 1.7.
+
 ### Build 26 cinematic tvOS home
 - Rebuilt the Apple TV home around an edge-to-edge, artwork-driven featured backdrop with left-aligned title, genres, synopsis, Play, Up Next, info, and detail actions.
 - Made the selected artwork color wash through the full home canvas and converted tvOS home/editorial shelves to large landscape cards with titles below, matching the supplied living-room reference.
@@ -44,5 +51,4 @@ Newest at the top. Keep it plain ASCII (see .gitmessage.txt for the commit rules
 - ContentDetailView hero layout on compact iPhone widths.
 
 ### Notes
-- True cross-device identity requires the iCloud ▸ CloudKit capability and the
-  `NOVA_CLOUDKIT_IDENTITY` compilation condition on BOTH the iOS and tvOS targets.
+- Cross-device identity now uses the existing iCloud key-value entitlement and requires no CloudKit compilation flag.

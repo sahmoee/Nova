@@ -12,6 +12,7 @@
 import Foundation
 import Network
 import AMSMB2
+import UniformTypeIdentifiers
 
 actor SMBStreamServer {
     static let shared = SMBStreamServer()
@@ -24,6 +25,7 @@ actor SMBStreamServer {
     private var smbPath: String = ""
     private var fileName: String = ""
     private var fileSize: Int64 = 0
+    private var contentType: String = "application/octet-stream"
 
     /// Begins serving the given SMB file and returns a local URL for AVPlayer.
     func serve(client: SMB2Manager, smbPath: String, fileName: String, shareID: UUID) async throws -> URL {
@@ -40,11 +42,17 @@ actor SMBStreamServer {
         self.smbPath = smbPath
         self.fileName = fileName
         self.fileSize = size
+        self.contentType = URL(fileURLWithPath: fileName).pathExtension.isEmpty
+            ? "application/octet-stream"
+            : (UTType(filenameExtension: URL(fileURLWithPath: fileName).pathExtension)?.preferredMIMEType
+               ?? "application/octet-stream")
 
         try startListenerIfNeeded()
 
         // Percent-encode the filename so AVPlayer/HTTP handles spaces etc.
-        let encoded = fileName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? "video"
+        var pathAllowed = CharacterSet.urlPathAllowed
+        pathAllowed.remove(charactersIn: "/?#%")
+        let encoded = fileName.addingPercentEncoding(withAllowedCharacters: pathAllowed) ?? "video"
         guard let url = URL(string: "http://127.0.0.1:\(port)/\(encoded)") else {
             throw SMBError.streamingUnavailable
         }
@@ -80,12 +88,18 @@ actor SMBStreamServer {
     private func handle(_ conn: NWConnection) async {
         // Read the HTTP request headers.
         guard let request = await readRequest(conn) else { conn.cancel(); return }
+        let method = request.split(separator: " ", maxSplits: 1).first.map(String.init)?.uppercased() ?? "GET"
+        guard method == "GET" || method == "HEAD" else {
+            await sendHeader(conn, "HTTP/1.1 405 Method Not Allowed\r\nAllow: GET, HEAD\r\nConnection: close\r\n\r\n")
+            conn.cancel(); return
+        }
 
         // Parse a Range header if present.
         let (start, end, hasRange) = parseRange(request, fileSize: fileSize)
         let length = end - start + 1
 
-        await sendResponse(conn, start: start, end: end, length: length, isPartial: hasRange)
+        await sendResponse(conn, start: start, end: end, length: length,
+                           isPartial: hasRange, headersOnly: method == "HEAD")
     }
 
     private func readRequest(_ conn: NWConnection) async -> String? {
@@ -133,7 +147,8 @@ actor SMBStreamServer {
         return (start, end, hasRange)
     }
 
-    private func sendResponse(_ conn: NWConnection, start: Int64, end: Int64, length: Int64, isPartial: Bool) async {
+    private func sendResponse(_ conn: NWConnection, start: Int64, end: Int64, length: Int64,
+                              isPartial: Bool, headersOnly: Bool) async {
         guard let client else { conn.cancel(); return }
 
         // FIX: only answer 206 (with a Content-Range) for actual Range requests; a
@@ -142,13 +157,14 @@ actor SMBStreamServer {
         let statusLine = isPartial ? "HTTP/1.1 206 Partial Content" : "HTTP/1.1 200 OK"
         let rangeHeader = isPartial ? "Content-Range: bytes \(start)-\(end)/\(fileSize)\r\n" : ""
         let header = "\(statusLine)\r\n"
-            + "Content-Type: video/mp4\r\n"
+            + "Content-Type: \(contentType)\r\n"
             + "Accept-Ranges: bytes\r\n"
             + "Content-Length: \(length)\r\n"
             + rangeHeader
             + "Connection: close\r\n"
             + "\r\n"
-        conn.send(content: header.data(using: .utf8), completion: .contentProcessed { _ in })
+        await sendHeader(conn, header)
+        if headersOnly { conn.cancel(); return }
 
         // Stream the requested byte range from SMB. AMSMB2 returns an async stream
         // of Data chunks; forward each chunk to the HTTP connection as it arrives.
@@ -169,5 +185,10 @@ actor SMBStreamServer {
         await withCheckedContinuation { cont in
             conn.send(content: data, completion: .contentProcessed { _ in cont.resume() })
         }
+    }
+
+    private func sendHeader(_ conn: NWConnection, _ header: String) async {
+        guard let data = header.data(using: .utf8) else { return }
+        await sendData(conn, data)
     }
 }

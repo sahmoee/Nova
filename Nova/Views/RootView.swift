@@ -434,9 +434,9 @@ struct AnimeView: View {
 
 
 // MARK: - Airing calendar (tracked shows)
-// An auto-updating calendar with exactly one entry per tracked series: only its newest
-// announced release (TMDB's next_episode_to_air). Older and individual library episodes
-// never become separate calendar rows.
+// An auto-updating calendar with exactly one entry per tracked series. It shows the
+// latest released episode, or the next announced episode when a series has not aired
+// yet. Older and individual library episodes never become separate calendar rows.
 struct AiringCalendarView: View {
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var library: LibraryStore
@@ -468,9 +468,9 @@ struct AiringCalendarView: View {
                 } else if entries.isEmpty {
                     VStack(spacing: Theme.Spacing.sm) {
                         Image(systemName: "calendar").font(.appFont(44)).foregroundStyle(Theme.Colors.textTertiary)
-                        Text("No upcoming episodes")
+                        Text("No tracked episodes")
                             .font(.appFont(20, weight: .semibold)).foregroundStyle(Theme.Colors.textPrimary)
-                        Text("Add series to your library or watchlist and their next air dates show up here.")
+                        Text("Watch a series or add it to your library to track its latest release here.")
                             .font(.appFont(15)).foregroundStyle(Theme.Colors.textSecondary)
                             .multilineTextAlignment(.center).padding(.horizontal, Theme.Spacing.xl)
                     }
@@ -529,14 +529,16 @@ struct AiringCalendarView: View {
         guard !loaded else { return }
         loading = true
         let series = trackedSeries()
-        let today = Calendar.current.startOfDay(for: Date())
         var built: [Entry] = []
         for m in series {
-            guard let tmdb = m.contentID?.tmdb,
-                  let next = try? await env.tmdb.nextEpisodeToAir(tmdbID: tmdb),
-                  let ds = next.air_date, let d = Self.ymd.date(from: ds), d >= today else { continue }
-            var label = String(format: "S%02dE%02d", next.season_number ?? 0, next.episode_number ?? 0)
-            if let name = next.name, !name.isEmpty { label += " · \(name)" }
+            guard let tmdb = m.contentID?.tmdb else { continue }
+            let latest = try? await env.tmdb.lastEpisodeToAir(tmdbID: tmdb)
+            let upcoming = latest == nil ? (try? await env.tmdb.nextEpisodeToAir(tmdbID: tmdb)) : nil
+            guard let episode = latest ?? upcoming,
+                  let ds = episode.air_date, let d = Self.ymd.date(from: ds) else { continue }
+            var label = String(format: "S%02dE%02d", episode.season_number ?? 0, episode.episode_number ?? 0)
+            if let name = episode.name, !name.isEmpty { label += " · \(name)" }
+            label += latest != nil ? " · Latest release" : " · Upcoming"
             let cid = m.contentID ?? ContentID(imdb: nil, tmdb: tmdb, trakt: nil, type: .series)
             let catalog = CatalogItem(contentID: cid, title: m.displayTitle, posterURL: m.posterURL)
             built.append(Entry(title: m.displayTitle, poster: m.posterURL, date: d, label: label, catalog: catalog))

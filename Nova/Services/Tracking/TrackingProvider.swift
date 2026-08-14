@@ -15,9 +15,6 @@
 
 import Foundation
 import UserNotifications
-#if canImport(CloudKit)
-import CloudKit
-#endif
 
 /// Stable identifier for each supported tracker.
 enum TrackerID: String, CaseIterable, Codable, Sendable {
@@ -198,37 +195,43 @@ actor NovaTrackingProvider {
 
     @discardableResult
     private func ensureAccount() async -> Bool {
-        if isAuthenticated { return true }
         guard isConfigured else { return false }
-        // Prefer a shared account keyed to the user's iCloud identity, so the same Apple ID
-        // syncs tracking across all their devices (like Trakt/SIMKL). Fall back to an
-        // anonymous device account if iCloud is unavailable.
-        if await linkICloud() { return true }
-        return await registerAnonymous()
+        // Every installation gets a functional account immediately. Once the user's
+        // iCloud KVS identity arrives, link/merge it in place so iPhone, iPad, and
+        // Apple TV converge without requiring a CloudKit capability or build flag.
+        if !isAuthenticated, !(await registerAnonymous()) { return false }
+        await linkCloudIdentityIfNeeded()
+        return isAuthenticated
     }
 
-    private func linkICloud() async -> Bool {
-        // NOTE: CKContainer.default() TRAPS (not a catchable error) unless the app's
-        // entitlements include the CloudKit service. Nova has iCloud backup but not the
-        // CloudKit capability, so this is gated behind a build flag. To enable true
-        // cross-device identity: add the iCloud ▸ CloudKit capability in Signing &
-        // Capabilities, then add NOVA_CLOUDKIT_IDENTITY to Active Compilation Conditions.
-        #if NOVA_CLOUDKIT_IDENTITY && canImport(CloudKit)
-        guard let base else { return false }
-        let recordName = try? await CKContainer.default().userRecordID().recordName
-        guard let external = recordName, !external.isEmpty else { return false }
+    private func linkCloudIdentityIfNeeded() async {
+        guard let base, let token else { return }
+        let external = await MainActor.run { () -> String in
+            let key = "novaTracker.cloudIdentity.v1"
+            CloudSync.shared.pull()
+            if let existing = CloudSync.shared.string(forKey: key), !existing.isEmpty {
+                return existing
+            }
+            // 256 bits of opaque entropy. It identifies only this iCloud KVS account;
+            // it contains no email, Apple ID, device name, or other personal detail.
+            let generated = UUID().uuidString.replacingOccurrences(of: "-", with: "")
+                + UUID().uuidString.replacingOccurrences(of: "-", with: "")
+            CloudSync.shared.setString(generated, forKey: key)
+            CloudSync.shared.flush()
+            return generated
+        }
+        let linkedKey = "novaTracker.linkedCloudIdentity.v1"
+        if UserDefaults.standard.string(forKey: linkedKey) == external { return }
         var req = URLRequest(url: base.appendingPathComponent("v1/account/link"))
         req.httpMethod = "POST"; req.timeoutInterval = 20
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try? JSONSerialization.data(withJSONObject: ["provider": "icloud", "externalId": external])
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["provider": "icloud-kvs-v1", "externalId": external])
         guard let (data, resp) = try? await session.data(for: req),
               (resp as? HTTPURLResponse).map({ (200...299).contains($0.statusCode) }) == true,
-              let acct = try? decoder.decode(NovaAccountResponse.self, from: data) else { return false }
+              let acct = try? decoder.decode(NovaAccountResponse.self, from: data) else { return }
         config.set(acct.token, for: .novaTrackerToken)
-        return true
-        #else
-        return false
-        #endif
+        UserDefaults.standard.set(external, forKey: linkedKey)
     }
 
     private func registerAnonymous() async -> Bool {
@@ -313,7 +316,7 @@ actor NovaTrackingProvider {
     }
 
     func trendingShows() async throws -> [CatalogItem] { [] }
-    func syncNow() async { _ = await ensureAccount() }
+    func syncNow() async { await sync() }
 
     // MARK: - Writes: scrobble (Trakt-style real-time)
 
@@ -473,7 +476,7 @@ extension NovaTrackingProvider: TrackingProvider {
 // For each tracked series, checks the most recently aired episode and — only if the
 // user's own addons actually return a playable stream — posts a local notification
 // ("New episode of X available to stream from Y"). Runs opportunistically when the app
-// becomes active. (True background delivery would add a BGTask + Info.plist keys later.)
+// becomes active and from Nova's registered background refresh task.
 @MainActor
 final class EpisodeAvailabilityNotifier {
     private let library: LibraryStore
@@ -488,6 +491,8 @@ final class EpisodeAvailabilityNotifier {
 
     func requestAuthorization() {
         #if os(iOS)
+        guard !UserDefaults.standard.bool(forKey: "novaEpisodeNotify.authorizationRequested") else { return }
+        UserDefaults.standard.set(true, forKey: "novaEpisodeNotify.authorizationRequested")
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
         #endif
     }
