@@ -22,10 +22,10 @@ struct AIView: View {
     @EnvironmentObject private var library: LibraryStore
 
     @State private var capability: AISearchService.Capability = .discover
-    @State private var browsing = true
     @State private var prompt = ""
     @State private var catalogResults: [CatalogItem] = []
     @State private var libraryResults: [MediaItem] = []
+    @State private var collectionSuggestions: [AISearchService.CollectionSuggestion] = []
     @State private var state: ViewState = .idle
     @State private var lastPrompt = ""
     @State private var playerItem: MediaItem?
@@ -34,11 +34,6 @@ struct AIView: View {
     enum ViewState: Equatable { case idle, working, results, empty, error(String) }
 
     private var columns: [GridItem] { Theme.posterGridColumns }
-
-    private var featureColumns: [GridItem] {
-        [GridItem(.adaptive(minimum: Theme.isCompact ? 160 : 240),
-                  spacing: Theme.Spacing.md)]
-    }
 
     private var suggestions: [String] {
         switch capability {
@@ -99,18 +94,14 @@ struct AIView: View {
                 Theme.Colors.appBackground.ignoresSafeArea()
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                        if browsing {
-                            header
-                            if !AISearchService.isConfigured {
-                                setupBanner
-                            }
-                            featureMenu
-                        } else {
-                            activeFeatureHeader
-                            promptField
-                            suggestionChips
-                            resultsSection
+                        header
+                        if !AISearchService.isConfigured {
+                            setupBanner
                         }
+                        capabilityPicker
+                        promptField
+                        suggestionChips
+                        resultsSection
                     }
                     .padding(Theme.Spacing.edge)
                     .frame(maxWidth: Theme.contentMaxWidth(1500), alignment: .leading)
@@ -127,6 +118,45 @@ struct AIView: View {
         }
     }
 
+    /// One compact chooser replaces the long feature-card directory. The prompt
+    /// remains visible, so changing what AI should do never interrupts the chat.
+    private var capabilityPicker: some View {
+        Menu {
+            Picker("AI task", selection: $capability) {
+                ForEach(AISearchService.Capability.Category.allCases) { category in
+                    Section(category.rawValue) {
+                        ForEach(AISearchService.Capability.allCases.filter { $0.category == category }) { cap in
+                            Label(cap.rawValue, systemImage: cap.systemImage).tag(cap)
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: capability.systemImage)
+                    .foregroundStyle(Theme.Colors.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(capability.rawValue)
+                        .font(.appFont(18, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    Text(capability.blurb)
+                        .font(.appFont(14))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .lineLimit(2)
+                }
+                Spacer()
+                Image(systemName: "chevron.up.chevron.down")
+                    .foregroundStyle(Theme.Colors.textTertiary)
+            }
+            .padding(Theme.Spacing.md)
+            .background(Theme.Colors.card,
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        }
+        .buttonStyle(NovaChipButtonStyle())
+        .accessibilityLabel("AI task, \(capability.rawValue)")
+        .onChange(of: capability) { _, _ in resetResults() }
+    }
+
     // MARK: - Headers
 
     private var header: some View {
@@ -141,124 +171,16 @@ struct AIView: View {
         }
     }
 
-    /// Shown once a feature is chosen: the feature's name plus a way back to the menu.
-    private var activeFeatureHeader: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Button {
-                browsing = true
-                resetResults()
-            } label: {
-                Label("All AI Features", systemImage: "chevron.left")
-                    .font(.appFont(16, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.accent)
-            }
-            .buttonStyle(NovaChipButtonStyle())
-
-            HStack(spacing: Theme.Spacing.sm) {
-                Image(systemName: capability.systemImage)
-                    .font(.appFont(30, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.accent)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(capability.rawValue)
-                        .font(Theme.Font.sectionTitle())
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                    Text(capability.blurb)
-                        .font(.appFont(16))
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                }
-            }
-        }
-    }
-
-    // MARK: - Feature menu
-
-    /// The browsable directory of every AI capability, grouped so features read as a
-    /// well-organized list instead of an endless row of chips.
-    private var featureMenu: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-            // Jump back into the last-used feature without hunting through groups.
-            if let raw = UserDefaults.standard.string(forKey: PrefKey.aiLastFeature),
-               let recent = AISearchService.Capability(rawValue: raw) {
-                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                    Label("Jump Back In", systemImage: "clock.arrow.circlepath")
-                        .font(.appFont(21, weight: .semibold))
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                    LazyVGrid(columns: featureColumns, spacing: Theme.Spacing.md) {
-                        Button {
-                            select(recent)
-                        } label: {
-                            featureCard(recent)
-                        }
-                        .buttonStyle(NovaChipButtonStyle())
-                    }
-                }
-            }
-            ForEach(AISearchService.Capability.Category.allCases) { category in
-                let caps = AISearchService.Capability.allCases.filter { $0.category == category }
-                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                    Label(category.rawValue, systemImage: category.systemImage)
-                        .font(.appFont(21, weight: .semibold))
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                    LazyVGrid(columns: featureColumns, spacing: Theme.Spacing.md) {
-                        ForEach(caps) { cap in
-                            Button {
-                                select(cap)
-                            } label: {
-                                featureCard(cap)
-                            }
-                            .buttonStyle(NovaChipButtonStyle())
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func featureCard(_ cap: AISearchService.Capability) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Image(systemName: cap.systemImage)
-                .font(.appFont(26, weight: .semibold))
-                .foregroundStyle(Theme.Colors.accent)
-                .frame(height: 32)
-            Text(cap.rawValue)
-                .font(.appFont(18, weight: .semibold))
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            Text(cap.blurb)
-                .font(.appFont(14))
-                .foregroundStyle(Theme.Colors.textSecondary)
-                .lineLimit(2, reservesSpace: true)
-                .multilineTextAlignment(.leading)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Theme.Spacing.md)
-        .background(Theme.Colors.card,
-                    in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-    }
-
-    private func select(_ cap: AISearchService.Capability) {
-        capability = cap
-        UserDefaults.standard.set(cap.rawValue, forKey: PrefKey.aiLastFeature)
-        resetResults()
-        browsing = false
-        // Surprise Me needs no prompt at all — run it immediately.
-        if cap == .surpriseMe {
-            run()
-        } else {
-            promptFocused = true
-        }
-    }
-
     // MARK: - Prompt input
 
     private var promptField: some View {
         HStack(spacing: Theme.Spacing.sm) {
             Image(systemName: "sparkle.magnifyingglass")
                 .foregroundStyle(Theme.Colors.accent)
-            TextField(promptPlaceholder, text: $prompt)
+            TextField(promptPlaceholder, text: $prompt, axis: .vertical)
                 .focused($promptFocused)
                 .font(.appFont(20))
+                .lineLimit(2...5)
                 .submitLabel(.search)
                 .onSubmit { run() }
                 .foregroundStyle(Theme.Colors.textPrimary)
@@ -329,7 +251,9 @@ struct AIView: View {
                         .font(.appFont(20, weight: .semibold))
                         .foregroundStyle(Theme.Colors.textPrimary)
                 }
-                if !capability.searchesLibrary {
+                if !collectionSuggestions.isEmpty {
+                    collectionProposalSection
+                } else if !capability.searchesLibrary {
                     saveActions
                     LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
                         ForEach(catalogResults) { item in
@@ -444,7 +368,8 @@ struct AIView: View {
     // MARK: - Actions
 
     private func resetResults() {
-        catalogResults = []; libraryResults = []; state = .idle; lastPrompt = ""
+        catalogResults = []; libraryResults = []; collectionSuggestions = []
+        state = .idle; lastPrompt = ""
         prompt = ""
     }
 
@@ -462,9 +387,21 @@ struct AIView: View {
                 state = libraryResults.isEmpty ? .empty : .results
             } else {
                 do {
-                    let items = try await env.aiSearch.run(capability, userText: q, limit: 24)
-                    catalogResults = items
-                    state = items.isEmpty ? .empty : .results
+                    let requestedCollections = AISearchService.requestedCollectionCount(in: q)
+                    if capability == .buildCollection, requestedCollections > 1 {
+                        let suggestions = try await env.aiSearch.buildCollections(
+                            for: q,
+                            count: requestedCollections
+                        )
+                        collectionSuggestions = suggestions
+                        catalogResults = []
+                        state = suggestions.isEmpty ? .empty : .results
+                    } else {
+                        let items = try await env.aiSearch.run(capability, userText: q, limit: 24)
+                        catalogResults = items
+                        collectionSuggestions = []
+                        state = items.isEmpty ? .empty : .results
+                    }
                 } catch {
                     let msg = (error as? LocalizedError)?.errorDescription
                         ?? "AI isn't set up. Add your Cloudflare Worker URL in Settings."
@@ -472,6 +409,73 @@ struct AIView: View {
                 }
             }
         }
+    }
+
+    private var collectionProposalSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            Text("\(collectionSuggestions.count) collection previews")
+                .font(.appFont(18, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textSecondary)
+            ForEach(collectionSuggestions) { suggestion in
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(suggestion.name)
+                                .font(.appFont(20, weight: .semibold))
+                                .foregroundStyle(Theme.Colors.textPrimary)
+                            Text("\(suggestion.items.count) titles")
+                                .font(.appFont(14))
+                                .foregroundStyle(Theme.Colors.textSecondary)
+                        }
+                        Spacer()
+                        Button("Dismiss") { dismissCollectionSuggestion(suggestion.id) }
+                            .buttonStyle(NovaChipButtonStyle())
+                        Button("Save") { saveCollectionSuggestion(suggestion) }
+                            .buttonStyle(NovaChipButtonStyle())
+                    }
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: Theme.Spacing.sm) {
+                            ForEach(suggestion.items.prefix(6)) { item in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    CachedAsyncImage(url: item.posterURL, maxPixel: 360) { image in
+                                        image.resizable().aspectRatio(contentMode: .fill)
+                                    } placeholder: {
+                                        RoundedRectangle(cornerRadius: Theme.Radius.card)
+                                            .fill(Theme.Colors.backgroundElevated)
+                                    }
+                                    .frame(width: 84, height: 126)
+                                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
+                                    Text(item.title)
+                                        .font(.appFont(12, weight: .medium))
+                                        .foregroundStyle(Theme.Colors.textSecondary)
+                                        .lineLimit(1)
+                                        .frame(width: 84, alignment: .leading)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(Theme.Spacing.md)
+                .background(Theme.Colors.card,
+                            in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            }
+        }
+    }
+
+    private func saveCollectionSuggestion(_ suggestion: AISearchService.CollectionSuggestion) {
+        let collection = library.createCollection(name: suggestion.name, systemImage: capability.systemImage)
+        for item in suggestion.items {
+            let libraryItem = item.asLibraryItem()
+            library.add(libraryItem)
+            library.addToCollection(collection.id, item: libraryItem)
+        }
+        collectionSuggestions.removeAll { $0.id == suggestion.id }
+        ToastCenter.shared.show("Saved \(suggestion.items.count) to “\(suggestion.name)”")
+    }
+
+    private func dismissCollectionSuggestion(_ id: UUID) {
+        collectionSuggestions.removeAll { $0.id == id }
+        if collectionSuggestions.isEmpty { state = .idle }
     }
 
     // MARK: - Save actions (build / add)

@@ -25,6 +25,7 @@ The compatibility command `swift generate_brand_assets.swift <source.png>` invok
 - Personal library, collections, favorites, history, watchlist, continue watching, duplicates, quality checks, and metadata correction
 - Catalog browsing through user-installed add-ons, people/title detail, recommendations, airing information, and personalized shelves
 - Search cleanup/correction, title rules, metadata parsing, library enrichment, and optional AI-assisted search/filtering
+- Compact AI task picker with multiline prompts and previewable multi-collection generation
 
 ### Sources and playback
 

@@ -108,7 +108,10 @@ struct PosterCollectionGrid<Item: Identifiable, Cell: View>: UIViewRepresentable
                 - insets.leading - insets.trailing
             let columns = max(1, Int((available + spacing) / (minItemWidth + spacing)))
 
-            let itemSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0),
+            // Each repeated item owns one fraction of the row. A 1.0 fraction made
+            // every cell request the whole group even when the group had 2–3 columns.
+            let itemFraction = 1.0 / CGFloat(columns)
+            let itemSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(itemFraction),
                                                   heightDimension: .estimated(minItemWidth * 1.7))
             let item = NSCollectionLayoutItem(layoutSize: itemSize)
 

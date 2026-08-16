@@ -330,7 +330,10 @@ final class UnifiedQAStore: ObservableObject {
     private func applyShippedResolutions() {
         let resolutions = [
             "NVA-23-0001": "Removed nested disabled buttons from every Sources card. Each card is now a non-interactive NavigationLink label, so Real-Debrid, Addons, SMB, Trakt, SIMKL, TMDB, Direct URL, and Magnet Link all receive taps and open their destination.",
-            "NVA-23-0002": "SMB imports now retain their share and path identity, enrich missing poster and backdrop art from TMDB, refresh metadata during rescans, reconnect to the share before playback, rebuild expired temporary stream URLs, and open the player directly instead of incorrectly asking catalog addons for sources."
+            "NVA-23-0002": "SMB imports now retain their share and path identity, enrich missing poster and backdrop art from TMDB, refresh metadata during rescans, reconnect to the share before playback, rebuild expired temporary stream URLs, and open the player directly instead of incorrectly asking catalog addons for sources.",
+            "NVA-25-0001": "Build Collection now recognizes multi-collection requests, returns up to eight named previews in one Worker request, and lets each proposal be saved or dismissed independently.",
+            "NVA-27-0002": "Corrected the UIKit compositional poster grid so each item occupies one fraction of its multi-column row instead of requesting the full row width.",
+            "NVA-27-0003": "Replaced the long AI feature-card directory with one compact feature picker and a normal multiline conversation field; the keyboard appears only after the field is tapped."
         ]
         var changed = false
         for index in tickets.indices where tickets[index].status == "open" {

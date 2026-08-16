@@ -12,6 +12,9 @@
 //    Body:    { "query": "<the user's natural language request>" }
 //    Returns: { "titles": ["The Matrix", "Inception", ...] }   // plain title strings
 //
+//  Multi-collection requests add mode/count and receive an additive `collections`
+//  field while retaining the flattened `titles` array for released clients.
+//
 //  The app then resolves those titles to real catalog items via TMDB, so nothing
 //  about the user's library or keys is exposed to the model.
 //
@@ -34,6 +37,12 @@ enum AISearchError: LocalizedError {
 
 @MainActor
 final class AISearchService: ObservableObject {
+
+    struct CollectionSuggestion: Identifiable {
+        let id = UUID()
+        let name: String
+        let items: [CatalogItem]
+    }
 
     /// The user-configured Worker endpoint. Stored as a plain URL (not a secret) and
     /// synced across devices via iCloud key-value storage.
@@ -88,7 +97,11 @@ final class AISearchService: ObservableObject {
         let url = NovaWorkerConfiguration.endpoint(base: base, path: NovaIdentifiers.WorkerPath.titles)
         let decoded: AIWorkerResponse
         do {
-            decoded = try await AppNetworking.postJSON(url, body: ["query": query], headers: Self.authHeaders)
+            decoded = try await AppNetworking.postJSON(
+                url,
+                body: AIWorkerRequest(query: query, mode: nil, count: nil),
+                headers: Self.authHeaders
+            )
         } catch {
             NovaLog.network.error("AI Worker request failed: \(error.localizedDescription, privacy: .public)")
             throw AISearchError.requestFailed
@@ -139,6 +152,46 @@ final class AISearchService: ObservableObject {
     func resolveTitles(for prompt: String, limit: Int = 20) async throws -> [CatalogItem] {
         let titles = try await fetchTitles(prompt)
         return await resolve(titles, limit: limit)
+    }
+
+    /// Builds several named collection previews in one request. The Worker keeps
+    /// the legacy flattened `titles` field, making the contract additive.
+    func buildCollections(for prompt: String, count: Int) async throws -> [CollectionSuggestion] {
+        guard let base = Self.workerURL else { throw AISearchError.notConfigured }
+        let url = NovaWorkerConfiguration.endpoint(base: base, path: NovaIdentifiers.WorkerPath.titles)
+        let requested = min(max(count, 2), 8)
+        let decoded: AIWorkerResponse
+        do {
+            decoded = try await AppNetworking.postJSON(
+                url,
+                body: AIWorkerRequest(query: prompt, mode: "collections", count: requested),
+                headers: Self.authHeaders
+            )
+        } catch {
+            NovaLog.network.error("AI collection request failed: \(error.localizedDescription, privacy: .public)")
+            throw AISearchError.requestFailed
+        }
+        guard let groups = decoded.collections, !groups.isEmpty else {
+            throw AISearchError.emptyResponse
+        }
+        var suggestions: [CollectionSuggestion] = []
+        for group in groups.prefix(requested) {
+            let items = await resolve(group.titles, limit: 20)
+            if !items.isEmpty {
+                suggestions.append(CollectionSuggestion(name: group.name, items: items))
+            }
+        }
+        guard !suggestions.isEmpty else { throw AISearchError.emptyResponse }
+        return suggestions
+    }
+
+    static func requestedCollectionCount(in prompt: String) -> Int {
+        let pattern = #"(?i)\b(?:build|create|make)?\s*(\d{1,2})\s+collections?\b"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: prompt, range: NSRange(prompt.startIndex..., in: prompt)),
+              let range = Range(match.range(at: 1), in: prompt),
+              let count = Int(prompt[range]) else { return 1 }
+        return min(max(count, 1), 8)
     }
 
     /// Natural-language search over the user's own library. Asks the Worker to turn the
@@ -425,7 +478,18 @@ final class AISearchService: ObservableObject {
     }
 }
 
+private struct AIWorkerRequest: Codable {
+    let query: String
+    let mode: String?
+    let count: Int?
+}
+
+private struct AIWorkerCollectionResponse: Codable {
+    let name: String
+    let titles: [String]
+}
+
 private struct AIWorkerResponse: Codable {
     let titles: [String]
-
+    let collections: [AIWorkerCollectionResponse]?
 }
