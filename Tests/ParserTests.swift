@@ -77,9 +77,15 @@ final class SubtitleConverterTests: XCTestCase {
 
 final class SMBURLParserTests: XCTestCase {
 
-    func testPlainHostReturnsNil() {
-        XCTAssertNil(SMBURLParser.parse("sowens.local"))
-        XCTAssertNil(SMBURLParser.parse("192.168.1.10"))
+    func testPlainHostIsAccepted() {
+        XCTAssertEqual(
+            SMBURLParser.parse("sowens.local"),
+            SMBURLParser.Parsed(host: "sowens.local", share: nil, path: nil)
+        )
+        XCTAssertEqual(
+            SMBURLParser.parse("192.168.1.10"),
+            SMBURLParser.Parsed(host: "192.168.1.10", share: nil, path: nil)
+        )
     }
 
     func testSchemeStrippedHostOnly() {
