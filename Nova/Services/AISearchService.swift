@@ -47,6 +47,16 @@ final class AISearchService: ObservableObject {
     /// The user-configured Worker endpoint. Stored as a plain URL (not a secret) and
     /// synced across devices via iCloud key-value storage.
     static let workerURLKey = PrefKey.aiWorkerURL
+    static let modelKey = "ai.model"
+
+    static var model: String {
+        get { UserDefaults.standard.string(forKey: modelKey) ?? "" }
+        set {
+            let safe = String(newValue.trimmingCharacters(in: .whitespacesAndNewlines).prefix(100))
+                .filter { $0.isLetter || $0.isNumber || "-_.:/".contains($0) }
+            UserDefaults.standard.set(safe, forKey: modelKey)
+        }
+    }
 
     static var workerURLString: String {
         get {
@@ -77,8 +87,12 @@ final class AISearchService: ObservableObject {
     /// Bearer auth header for Worker calls, if a Worker token is configured. The
     /// Worker enforces it only when its NOVA_SHARED_TOKEN secret is set.
     static var authHeaders: [String: String] {
-        guard let token = AppConfig.shared.workerToken, !token.isEmpty else { return [:] }
-        return ["Authorization": "Bearer \(token)"]
+        var headers: [String: String] = ["X-AI-Agent": workerURLString == NovaWorkerConfiguration.defaultBaseURL ? "managed" : "custom-worker"]
+        if let token = AppConfig.shared.workerToken, !token.isEmpty {
+            headers["Authorization"] = "Bearer \(token)"
+        }
+        if !model.isEmpty { headers["X-AI-Model"] = model }
+        return headers
     }
 
     private let tmdb: TMDBClient

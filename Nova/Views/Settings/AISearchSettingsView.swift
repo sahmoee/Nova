@@ -15,6 +15,7 @@ import UIKit
 struct AISearchSettingsView: View {
     @State private var workerURL = AISearchService.workerURLString
     @State private var workerToken = AppConfig.shared.workerToken ?? ""
+    @State private var model = AISearchService.model
     @State private var showWorkerSetup = false
     @State private var didCopySetup = false
 
@@ -72,6 +73,23 @@ struct AISearchSettingsView: View {
                         AppConfig.shared.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), for: .workerToken)
                     }
                 Text("Stored securely in your Keychain and sent as a Bearer token to your Worker. Leave blank if your Worker doesn't require one.")
+                    .font(.appFont(14))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+
+                Text("Model")
+                    .font(.appFont(17, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                TextField("Worker default", text: $model)
+                    .textFieldStyle(.plain)
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled(true)
+                    #endif
+                    .padding(Theme.Spacing.md)
+                    .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .onChange(of: model) { _, value in AISearchService.model = value }
+                Text("Leave blank to retain Nova's current automatic model. Your private Worker may honor this model ID or enforce its own allowlist.")
                     .font(.appFont(14))
                     .foregroundStyle(Theme.Colors.textTertiary)
 
@@ -136,7 +154,7 @@ struct AISearchSettingsView: View {
             }
             .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
 
-            Text("Your key lives only in your Worker's secrets and is never sent to or stored by Nova.")
+            Text("Your provider key lives only in your Worker's secrets and is never sent to or stored by Nova. This keeps Nova's existing setup while letting every installation use a separate provider account and model.")
                 .font(.appFont(14))
                 .foregroundStyle(Theme.Colors.textTertiary)
         }
