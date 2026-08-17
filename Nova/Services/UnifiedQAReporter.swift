@@ -10,6 +10,31 @@ enum UnifiedQASettings {
     static let touchTrackingKey = "nova.qa.touches.enabled"
 }
 
+enum UnifiedQAPasscode {
+    static let unlockedUntilKey = "unified.qa.unlockedUntil"
+    static let window: TimeInterval = 10 * 60
+    static var isUnlocked: Bool { UserDefaults.standard.double(forKey: unlockedUntilKey) > Date().timeIntervalSinceReferenceDate }
+    @discardableResult static func unlock(_ value: String) -> Bool {
+        guard value.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare("Joo") == .orderedSame else { return false }
+        UserDefaults.standard.set(Date().addingTimeInterval(window).timeIntervalSinceReferenceDate, forKey: unlockedUntilKey); return true
+    }
+}
+
+struct UnifiedQAPasscodeGate<Content: View>: View {
+    @AppStorage(UnifiedQAPasscode.unlockedUntilKey) private var unlockedUntil = 0.0
+    @State private var code = ""; @State private var wrong = false
+    @ViewBuilder let content: () -> Content
+    private var unlocked: Bool { unlockedUntil > Date().timeIntervalSinceReferenceDate }
+    var body: some View { Group {
+        if unlocked { content() } else { NavigationStack { VStack(spacing: 16) {
+            Image(systemName: "lock.shield.fill").font(.largeTitle); Text("QA Access").font(.title2.bold())
+            SecureField("Passcode", text: $code).textFieldStyle(.roundedBorder).frame(maxWidth: 240)
+            if wrong { Text("Incorrect passcode").foregroundStyle(.red).font(.caption) }
+            Button("Unlock") { wrong = !UnifiedQAPasscode.unlock(code); code = ""; unlockedUntil = UserDefaults.standard.double(forKey: UnifiedQAPasscode.unlockedUntilKey) }.buttonStyle(.borderedProminent)
+        }.padding(24).navigationTitle("Quality Assurance") } }
+    } }
+}
+
 struct NovaQADiagnostics: Codable, Sendable {
     var libraryItems = 0
     var offlineDownloads = 0
@@ -260,8 +285,31 @@ final class UnifiedQAStore: ObservableObject {
         Task {
             isSyncing = true
             defer { isSyncing = false }
+            await pull(source: source)
             for ticket in tickets where ticket.syncState != "synced" { await sync(ticket.id, source: source) }
         }
+    }
+
+    private func pull(source: String) async {
+        guard UnifiedQAPasscode.isUnlocked else { return }
+        do {
+            var components = URLComponents(url: base.appendingPathComponent("tickets/sync"), resolvingAgainstBaseURL: false)!
+            components.queryItems = [URLQueryItem(name: "source", value: source), URLQueryItem(name: "limit", value: "1000")]
+            var request = URLRequest(url: components.url!); request.httpMethod = "POST"; request.setValue("Joo", forHTTPHeaderField: "X-QA-Passcode")
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.userAuthenticationRequired) }
+            let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            let values = try JSONSerialization.data(withJSONObject: object?["tickets"] as? [[String: Any]] ?? [])
+            let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
+            let remote = try decoder.decode([UnifiedQATicket].self, from: values)
+            var byNumber = Dictionary(uniqueKeysWithValues: tickets.map { ($0.number, $0) })
+            for var ticket in remote where ticket.updatedAt >= (byNumber[ticket.number]?.updatedAt ?? .distantPast) {
+                ticket.syncState = "synced"; byNumber[ticket.number] = ticket
+            }
+            tickets = byNumber.values.sorted { $0.updatedAt > $1.updatedAt }
+            for ticket in remote { persist(ticket: ticket, screenshot: nil) }
+            saveIndex(); syncMessage = "Loaded \(remote.count) cross-device ticket(s)"
+        } catch { syncMessage = "Saved locally · device sync will retry" }
     }
 
     func verify(_ ticket: UnifiedQATicket, source: String) {
@@ -426,8 +474,8 @@ struct UnifiedQAReporter: View {
             }
             .accessibilityLabel("Open Nova QA")
         }
-        .sheet(isPresented: $presented) { NovaQAHub(app: app, source: source, prefix: prefix, diagnostics: diagnostics).environmentObject(store).environmentObject(runtime) }
-        .sheet(item: $draft) { draft in NovaQATicketEditor(app: app, source: source, prefix: prefix, ticket: nil, draft: draft).environmentObject(store) }
+        .sheet(isPresented: $presented) { UnifiedQAPasscodeGate { NovaQAHub(app: app, source: source, prefix: prefix, diagnostics: diagnostics).environmentObject(store).environmentObject(runtime) } }
+        .sheet(item: $draft) { draft in UnifiedQAPasscodeGate { NovaQATicketEditor(app: app, source: source, prefix: prefix, ticket: nil, draft: draft).environmentObject(store) } }
         .onAppear { if monitorEnabled { runtime.start() }; store.retryAll(source: source) }
         .onChange(of: monitorEnabled) { _, enabled in enabled ? runtime.start() : runtime.stop() }
     }
@@ -506,16 +554,24 @@ struct UnifiedQASettingsView: View {
     @AppStorage(UnifiedQASettings.longPressKey) private var longPress = true
     @AppStorage(UnifiedQASettings.autoMonitorKey) private var monitor = true
     @AppStorage(UnifiedQASettings.touchTrackingKey) private var touches = true
+    @AppStorage(UnifiedQAPasscode.unlockedUntilKey) private var unlockedUntil = 0.0
+    @State private var code = ""; @State private var wrongCode = false
+    private var unlocked: Bool { unlockedUntil > Date().timeIntervalSinceReferenceDate }
     var body: some View {
         Form {
             Section("Nova QA") {
-                Toggle("Enable QA tools", isOn: $enabled)
+                if unlocked { Toggle("Enable QA tools", isOn: $enabled) }
+                else {
+                    SecureField("QA passcode", text: $code)
+                    if wrongCode { Text("Incorrect passcode").foregroundStyle(.red) }
+                    Button("Unlock QA") { wrongCode = !UnifiedQAPasscode.unlock(code); code = ""; unlockedUntil = UserDefaults.standard.double(forKey: UnifiedQAPasscode.unlockedUntilKey) }
+                }
                 Toggle("Press and hold to report", isOn: $longPress).disabled(!enabled)
                 Toggle("Monitor performance and resources", isOn: $monitor).disabled(!enabled)
                 Toggle("Record taps and navigation path", isOn: $touches).disabled(!enabled)
             }
             Section { Text("Nova QA captures playback/source state, library and download counts, SMB configuration, network conditions, memory, thermal state, frame hitches, recent QA activity, and a screenshot. Tickets sync automatically and retain edit, fix, verification, and refile history.").font(.caption).foregroundStyle(.secondary) }
-        }.navigationTitle("Quality Assurance")
+        }.navigationTitle("Quality Assurance").onAppear { if !unlocked { enabled = false } }
     }
 }
 
