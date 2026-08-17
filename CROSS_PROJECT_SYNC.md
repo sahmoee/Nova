@@ -1,5 +1,7 @@
 # Cross-project sync
 
+Also apply the ten additive cross-project safeguards in `PROJECT_GUIDE_ADDITIONS.md`; existing ownership and compatibility rules remain authoritative.
+
 - `UnifiedWorker`: Nova AI, encrypted share storage, QA, rate limits, and legacy shim.
 - `site-repo`: public Nova pages, policies, support, and release links.
 - User-configured media/tracking providers remain client integrations, not shared repo state.
