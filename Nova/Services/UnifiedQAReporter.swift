@@ -453,6 +453,7 @@ struct UnifiedQAReporter: View {
     @AppStorage(UnifiedQASettings.autoMonitorKey) private var monitorEnabled = true
     @State private var presented = false
     @State private var draft: NovaQAReportDraft?
+    @AppStorage(UnifiedQASettings.enabledKey) private var enabled = false
 
     var body: some View {
         ZStack {
@@ -476,7 +477,10 @@ struct UnifiedQAReporter: View {
         }
         .sheet(isPresented: $presented) { UnifiedQAPasscodeGate { NovaQAHub(app: app, source: source, prefix: prefix, diagnostics: diagnostics).environmentObject(store).environmentObject(runtime) } }
         .sheet(item: $draft) { draft in UnifiedQAPasscodeGate { NovaQATicketEditor(app: app, source: source, prefix: prefix, ticket: nil, draft: draft).environmentObject(store) } }
-        .onAppear { if monitorEnabled { runtime.start() }; store.retryAll(source: source) }
+        .onAppear {
+            guard UnifiedQAPasscode.isUnlocked else { enabled = false; runtime.stop(); return }
+            if monitorEnabled { runtime.start() }; store.retryAll(source: source)
+        }
         .onChange(of: monitorEnabled) { _, enabled in enabled ? runtime.start() : runtime.stop() }
     }
 
