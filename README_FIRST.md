@@ -6,4 +6,4 @@ Nova is a local-first iOS/iPadOS/tvOS personal-media app. User libraries and pro
 
 Production AI/share calls use `https://api.sowensstudios.com/nova`. Verify both platform impact and the narrowest applicable tests/build.
 
-Nova's existing managed AI service remains the default. AI Search may use a separate private Worker, Keychain-stored access token, and model ID; provider API keys belong only in that Worker's encrypted secrets. Never reuse another app's token or silently replace a saved Nova configuration.
+AI is Apple-first for supported local work. Included cloud AI is only unlocked on Jessie's production/test devices with the local `Joo` gate; public installs use Apple Intelligence or a private UnifiedWorker. Private Workers may select Claude or OpenAI model IDs and keep provider keys in Worker secrets, never in the app.
