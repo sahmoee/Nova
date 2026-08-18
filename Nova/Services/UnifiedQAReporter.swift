@@ -28,7 +28,11 @@ struct UnifiedQAPasscodeGate<Content: View>: View {
     var body: some View { Group {
         if unlocked { content() } else { NavigationStack { VStack(spacing: 16) {
             Image(systemName: "lock.shield.fill").font(.largeTitle); Text("QA Access").font(.title2.bold())
+            #if os(tvOS)
+            SecureField("Passcode", text: $code).frame(maxWidth: 480)
+            #else
             SecureField("Passcode", text: $code).textFieldStyle(.roundedBorder).frame(maxWidth: 240)
+            #endif
             if wrong { Text("Incorrect passcode").foregroundStyle(.red).font(.caption) }
             Button("Unlock") { wrong = !UnifiedQAPasscode.unlock(code); code = ""; unlockedUntil = UserDefaults.standard.double(forKey: UnifiedQAPasscode.unlockedUntilKey) }.buttonStyle(.borderedProminent)
         }.padding(24).navigationTitle("Quality Assurance") } }

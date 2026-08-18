@@ -5,6 +5,11 @@ Newest at the top. Keep it plain ASCII (see .gitmessage.txt for the commit rules
 
 ## [Unreleased]
 
+### Offline download reliability and adaptive manager
+- Rebuilt downloads as an atomic, file-backed, resumable queue with bounded concurrency, reconnect recovery, legacy migration, and reduced persistence churn.
+- Added queue-wide pause, resume, retry, and cleanup actions plus search, status filters, sorting, storage totals, transfer speed, ETA, retry history, and accessible progress.
+- Reworked the downloads screen for Nova theming, Dynamic Type, 44-point controls, responsive iPhone/iPad widths, offline state, context actions, and safer destructive confirmations.
+
 ### Build 28 pastel Nova identity
 - Replaced the prior red and black Nova artwork with the approved dark indigo crystalline N on a pastel peach, blush, and lavender field.
 - Regenerated every iPhone and iPad app-icon size plus the layered Apple TV app, App Store, and top-shelf artwork from one preserved brand master.
