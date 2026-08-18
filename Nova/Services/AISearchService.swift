@@ -21,20 +21,6 @@
 
 import Foundation
 
-nonisolated enum NovaAIBackend: String, CaseIterable, Identifiable {
-    case automatic = "Automatic — Apple on-device first"
-    case managed = "Nova managed service"
-    case custom = "My private Worker"
-    var id: String { rawValue }
-}
-
-nonisolated enum NovaAIProvider: String, CaseIterable, Identifiable {
-    case anthropic = "Anthropic — Claude"
-    case openAI = "OpenAI — ChatGPT models"
-    var id: String { rawValue }
-    var headerValue: String { self == .openAI ? "openai" : "anthropic" }
-}
-
 enum AISearchError: LocalizedError {
     case notConfigured
     case requestFailed
@@ -42,7 +28,7 @@ enum AISearchError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notConfigured: return "AI setup is needed. Open Settings → AI Search. Apple Intelligence handles supported actions on capable devices. For cloud search: choose My Private Worker, deploy UnifiedWorker, add your own Claude or OpenAI API key, paste the HTTPS URL, then choose a model. Your own key gives you more usage and higher-model options."
+        case .notConfigured: return "AI search isn't set up yet. Add your Cloudflare Worker URL in Settings ▸ AI Search."
         case .requestFailed: return "The AI search request failed. Check your Worker URL and that it's deployed."
         case .emptyResponse: return "The AI didn't return any suggestions for that."
         }
@@ -61,32 +47,6 @@ final class AISearchService: ObservableObject {
     /// The user-configured Worker endpoint. Stored as a plain URL (not a secret) and
     /// synced across devices via iCloud key-value storage.
     static let workerURLKey = PrefKey.aiWorkerURL
-    static let modelKey = "ai.model"
-    static let backendKey = "ai.backend"
-    static let providerKey = "ai.provider"
-    static let managedUnlockKey = "ai.managedSettingsUnlocked"
-
-    static var backend: NovaAIBackend {
-        get { NovaAIBackend(rawValue: UserDefaults.standard.string(forKey: backendKey) ?? "") ?? .automatic }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: backendKey) }
-    }
-    static var provider: NovaAIProvider {
-        get { NovaAIProvider(rawValue: UserDefaults.standard.string(forKey: providerKey) ?? "") ?? .anthropic }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: providerKey) }
-    }
-    static var managedSettingsUnlocked: Bool {
-        get { UserDefaults.standard.bool(forKey: managedUnlockKey) }
-        set { UserDefaults.standard.set(newValue, forKey: managedUnlockKey) }
-    }
-
-    static var model: String {
-        get { UserDefaults.standard.string(forKey: modelKey) ?? "" }
-        set {
-            let safe = String(newValue.trimmingCharacters(in: .whitespacesAndNewlines).prefix(100))
-                .filter { $0.isLetter || $0.isNumber || "-_.:/".contains($0) }
-            UserDefaults.standard.set(safe, forKey: modelKey)
-        }
-    }
 
     static var workerURLString: String {
         get {
@@ -107,8 +67,6 @@ final class AISearchService: ObservableObject {
     }
 
     static var workerURL: URL? {
-        if backend != .custom && !managedSettingsUnlocked { return nil }
-        if backend != .custom { return URL(string: NovaWorkerConfiguration.defaultBaseURL) }
         let trimmed = workerURLString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return URL(string: NovaWorkerConfiguration.defaultBaseURL) }
         return URL(string: trimmed)
@@ -119,13 +77,8 @@ final class AISearchService: ObservableObject {
     /// Bearer auth header for Worker calls, if a Worker token is configured. The
     /// Worker enforces it only when its NOVA_SHARED_TOKEN secret is set.
     static var authHeaders: [String: String] {
-        var headers: [String: String] = ["X-AI-Agent": backend == .custom ? "custom-worker" : "managed",
-                                         "X-AI-Provider": provider.headerValue]
-        if let token = AppConfig.shared.workerToken, !token.isEmpty {
-            headers["Authorization"] = "Bearer \(token)"
-        }
-        if !model.isEmpty { headers["X-AI-Model"] = model }
-        return headers
+        guard let token = AppConfig.shared.workerToken, !token.isEmpty else { return [:] }
+        return ["Authorization": "Bearer \(token)"]
     }
 
     private let tmdb: TMDBClient

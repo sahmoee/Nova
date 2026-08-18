@@ -15,11 +15,6 @@ import UIKit
 struct AISearchSettingsView: View {
     @State private var workerURL = AISearchService.workerURLString
     @State private var workerToken = AppConfig.shared.workerToken ?? ""
-    @State private var model = AISearchService.model
-    @State private var backend = AISearchService.backend
-    @State private var provider = AISearchService.provider
-    @State private var unlockCode = ""
-    @State private var managedUnlocked = AISearchService.managedSettingsUnlocked
     @State private var showWorkerSetup = false
     @State private var didCopySetup = false
 
@@ -31,21 +26,10 @@ struct AISearchSettingsView: View {
                     .screenTitleStyle()
                     .foregroundStyle(Theme.Colors.textPrimary)
 
-                Text("Nova prefers Apple Intelligence on-device for supported smart actions. Included hosted AI is reserved for registered production/test devices; everyone else can connect a private Claude or OpenAI Worker.")
+                Text("Search for movies and shows using natural language, powered by Claude. Nova uses its secure unified service by default; advanced users can still enter a self-hosted Worker URL.")
                     .font(.appFont(19))
                     .foregroundStyle(Theme.Colors.textSecondary)
 
-                Picker("AI service", selection: $backend) {
-                    ForEach(NovaAIBackend.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .onChange(of: backend) { _, value in AISearchService.backend = value }
-
-                if backend == .automatic {
-                    Label(NovaOnDeviceAI.isAvailable ? "Apple Intelligence is ready" : (NovaOnDeviceAI.unavailableReason ?? "Apple Intelligence unavailable"), systemImage: NovaOnDeviceAI.isAvailable ? "apple.intelligence" : "icloud")
-                        .font(.appFont(14)).foregroundStyle(Theme.Colors.textSecondary)
-                }
-
-                if backend == .custom {
                 Text("Worker URL")
                     .font(.appFont(17, weight: .semibold))
                     .foregroundStyle(Theme.Colors.textPrimary)
@@ -90,40 +74,6 @@ struct AISearchSettingsView: View {
                 Text("Stored securely in your Keychain and sent as a Bearer token to your Worker. Leave blank if your Worker doesn't require one.")
                     .font(.appFont(14))
                     .foregroundStyle(Theme.Colors.textTertiary)
-                Picker("Provider", selection: $provider) {
-                    ForEach(NovaAIProvider.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .onChange(of: provider) { _, value in AISearchService.provider = value }
-                }
-
-                Text("Model")
-                    .font(.appFont(17, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                TextField("Worker default", text: $model)
-                    .textFieldStyle(.plain)
-                    #if os(iOS)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled(true)
-                    #endif
-                    .padding(Theme.Spacing.md)
-                    .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .onChange(of: model) { _, value in AISearchService.model = value }
-                    .disabled(backend != .custom && !managedUnlocked)
-                if backend != .custom && !managedUnlocked {
-                    SecureField("Production/test device passcode", text: $unlockCode)
-                        .padding(Theme.Spacing.md)
-                        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button))
-                    Button("Unlock included AI") {
-                        guard unlockCode == "Joo" else { return }
-                        managedUnlocked = true
-                        AISearchService.managedSettingsUnlocked = true
-                        unlockCode = ""
-                    }
-                }
-                Text(backend == .custom ? "Enter a model ID supported by your provider account." : "Included AI keeps its existing credentials and standard model. For more usage or higher models, use your own private Worker and provider credentials.")
-                    .font(.appFont(14))
-                    .foregroundStyle(Theme.Colors.textTertiary)
 
                 Label(AISearchService.isConfigured ? "AI search is ready" : "Not configured yet",
                       systemImage: AISearchService.isConfigured ? "checkmark.circle.fill" : "exclamationmark.circle")
@@ -153,7 +103,7 @@ struct AISearchSettingsView: View {
     private var workerInstructions: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             instruction(1, "Clone the UnifiedWorker repository and run npm ci.")
-            instruction(2, "Pick Claude or OpenAI, then set ANTHROPIC_API_KEY or OPENAI_API_KEY with Wrangler. Optionally set NOVA_SHARED_TOKEN and enter the same token above.")
+            instruction(2, "Set ANTHROPIC_API_KEY with Wrangler. Optionally set NOVA_SHARED_TOKEN and enter the same token above.")
             instruction(3, "Run npm run check, then deploy your own Worker and paste its /nova endpoint above.")
 
             HStack {
@@ -186,7 +136,7 @@ struct AISearchSettingsView: View {
             }
             .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
 
-            Text("Your provider key lives only in your Worker's secrets and is never sent to or stored by Nova. This keeps Nova's existing setup while letting every installation use a separate provider account and model.")
+            Text("Your key lives only in your Worker's secrets and is never sent to or stored by Nova.")
                 .font(.appFont(14))
                 .foregroundStyle(Theme.Colors.textTertiary)
         }
@@ -211,8 +161,6 @@ struct AISearchSettingsView: View {
         cd UnifiedWorker
         npm ci
         npx wrangler secret put ANTHROPIC_API_KEY
-        # Or, for OpenAI / ChatGPT models:
-        npx wrangler secret put OPENAI_API_KEY
         # Optional but recommended for private access:
         npx wrangler secret put NOVA_SHARED_TOKEN
         npm run check

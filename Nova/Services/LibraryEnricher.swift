@@ -27,12 +27,6 @@ final class LibraryEnricher: ObservableObject {
         defer { isRunning = false; progress = nil }
 
         let items = env.library.items
-        let localTitles: [String: String]
-        if options.cleanTitles, options.useAI, AISearchService.backend == .automatic {
-            localTitles = await NovaOnDeviceAI.cleanTitles(items.map { $0.metadata.filename ?? $0.title })
-        } else {
-            localTitles = [:]
-        }
         var titlesFixed = 0
         var imagesAdded = 0
 
@@ -45,12 +39,8 @@ final class LibraryEnricher: ObservableObject {
             if options.cleanTitles {
                 let source = item.metadata.filename ?? item.title
                 var cleaned = MetadataParser.cleanTitle(from: source)
-                if options.useAI {
-                    if let local = localTitles[source] {
-                        cleaned = local
-                    } else if let remote = await aiCleanTitle(source) {
-                        cleaned = remote
-                    }
+                if options.useAI, let aiTitle = await aiCleanTitle(source) {
+                    cleaned = aiTitle
                 }
                 if !cleaned.isEmpty, cleaned != item.title {
                     item.title = cleaned
