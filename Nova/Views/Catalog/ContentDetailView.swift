@@ -33,6 +33,7 @@ struct ContentDetailView: View {
     @State private var novaStatus: String? = nil
     @State private var novaRating: Int? = nil
     @State private var novaTrackLoaded = false
+    @State private var novaCustomLists: [NovaTrackerList] = []
 
     init(item: CatalogItem) {
         self.initialItem = item
@@ -244,6 +245,17 @@ struct ContentDetailView: View {
                              active: novaStatus != nil)
                 }
                 Menu {
+                    if novaCustomLists.isEmpty {
+                        Text("Create a custom list in Settings")
+                    } else {
+                        ForEach(novaCustomLists) { list in
+                            Button(list.name) { addToNovaList(list) }
+                        }
+                    }
+                } label: {
+                    novaChip(icon: "text.badge.plus", text: "Custom list", active: false)
+                }
+                Menu {
                     ForEach(Array((1...10).reversed()), id: \.self) { r in
                         Button("\(r)/10") { rateNova(r) }
                     }
@@ -281,6 +293,7 @@ struct ContentDetailView: View {
             novaStatus = state.status
             novaRating = state.rating
         }
+        novaCustomLists = await env.novaTracker.customLists()
     }
     private func setNovaStatus(_ value: String) {
         novaStatus = (value == "none") ? nil : value
@@ -291,6 +304,14 @@ struct ContentDetailView: View {
         novaRating = r > 0 ? r : nil
         Haptics.selection()
         Task { await env.novaTracker.rate(r, contentID: item.contentID) }
+    }
+    private func addToNovaList(_ list: NovaTrackerList) {
+        Haptics.selection()
+        Task {
+            if await env.novaTracker.add(item, toCustomList: list.id) {
+                ToastCenter.shared.show("Added to \(list.name)", systemImage: "checkmark.circle")
+            }
+        }
     }
 
     private var heroPrimaryActions: some View {

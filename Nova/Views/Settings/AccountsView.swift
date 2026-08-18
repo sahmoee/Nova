@@ -8,6 +8,9 @@
 //
 
 import SwiftUI
+#if os(iOS)
+import UniformTypeIdentifiers
+#endif
 
 struct AccountsView: View {
     @EnvironmentObject private var env: AppEnvironment
@@ -71,6 +74,18 @@ struct AccountsView: View {
                         color: Theme.Colors.iconRed,
                         title: "TMDB Account",
                         detail: "Watchlist tracker",
+                        showsChevron: true
+                    )
+                }
+                .buttonStyle(.plain)
+            ),
+            AnyView(
+                NavigationLink { NovaTrackerDashboardView() } label: {
+                    SettingsRow(
+                        icon: "sparkles.tv.fill",
+                        color: Theme.Colors.iconRed,
+                        title: "Nova Tracker",
+                        detail: "Stats, activity, lists and backup",
                         showsChevron: true
                     )
                 }
@@ -272,3 +287,145 @@ struct AccountsView: View {
         }
     }
 }
+
+private struct NovaTrackerDashboardView: View {
+    @EnvironmentObject private var env: AppEnvironment
+    @State private var stats: NovaTrackerStats?
+    @State private var activity: [NovaTrackerActivity] = []
+    @State private var lists: [NovaTrackerList] = []
+    @State private var newListName = ""
+    @State private var loading = true
+    #if os(iOS)
+    @State private var exportDocument: NovaTrackerBackupDocument?
+    @State private var exporting = false
+    #endif
+
+    var body: some View {
+        SettingsScreen(title: "Nova Tracker") {
+            SettingsGroup(header: "Overview", footer: "Synced privately across your Nova devices.", rows: [AnyView(overview)])
+            SettingsGroup(header: "Custom Lists", footer: "Make focused queues without changing watch status.", rows: listRows)
+            SettingsGroup(header: "Recent Activity", footer: "The latest status, rating and playback changes.", rows: activityRows)
+            SettingsGroup(header: "Portable Backup", footer: "Export a private JSON copy you control.", rows: [AnyView(backupButton)])
+        }
+        .task { await reload() }
+        .refreshable { await reload() }
+        #if os(iOS)
+        .fileExporter(isPresented: $exporting,
+                      document: exportDocument,
+                      contentType: .json,
+                      defaultFilename: "Nova-Tracker-Backup") { result in
+            if case .failure = result { ToastCenter.shared.show("Backup could not be saved", systemImage: "exclamationmark.triangle") }
+        }
+        #endif
+    }
+
+    private var overview: some View {
+        Group {
+            if let stats {
+                HStack(spacing: 12) {
+                    trackerMetric("Watching", stats.watching)
+                    trackerMetric("Watchlist", stats.watchlist)
+                    trackerMetric("Completed", stats.completed)
+                    trackerMetric("Rated", stats.rated)
+                }
+                .padding(.vertical, 8)
+            } else {
+                HStack { ProgressView(); Text(loading ? "Connecting…" : "Tracker unavailable") }
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+        }
+        .padding(.horizontal, SettingsMetrics.rowSpacing)
+    }
+
+    private func trackerMetric(_ title: String, _ value: Int) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("\(value)").font(.appFont(24, weight: .bold)).foregroundStyle(Theme.Colors.accent)
+            Text(title).font(.appFont(SettingsMetrics.header)).foregroundStyle(Theme.Colors.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var listRows: [AnyView] {
+        var rows = lists.map { list in
+            AnyView(SettingsRow(icon: "list.bullet", color: Theme.Colors.iconSilver,
+                                title: list.name, detail: "\(list.itemCount) titles", showsChevron: false))
+        }
+        rows.append(AnyView(HStack {
+            TextField("New list name", text: $newListName)
+                .textFieldStyle(.plain)
+            Button("Create") { Task { await createList() } }
+                .buttonStyle(.borderedProminent)
+                .disabled(newListName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }.padding(.horizontal, SettingsMetrics.rowSpacing).padding(.vertical, 8)))
+        return rows
+    }
+
+    private var activityRows: [AnyView] {
+        if activity.isEmpty {
+            return [AnyView(SettingsRow(icon: "clock", color: Theme.Colors.iconSilver,
+                                       title: "No activity yet", detail: "Play, rate or track a title to begin", showsChevron: false))]
+        }
+        return activity.prefix(20).map { item in
+            AnyView(SettingsRow(icon: activityIcon(item.kind), color: Theme.Colors.iconSilver,
+                                title: item.title ?? "Tracked title",
+                                detail: item.kind.replacingOccurrences(of: "_", with: " ").capitalized,
+                                showsChevron: false))
+        }
+    }
+
+    private var backupButton: some View {
+        Button {
+            Task {
+                guard let data = await env.novaTracker.portableBackup() else {
+                    ToastCenter.shared.show("Backup unavailable", systemImage: "exclamationmark.triangle")
+                    return
+                }
+                #if os(iOS)
+                exportDocument = NovaTrackerBackupDocument(data: data)
+                exporting = true
+                #else
+                ToastCenter.shared.show("Backup ready on iPhone or iPad", systemImage: "checkmark.circle")
+                #endif
+            }
+        } label: {
+            SettingsRow(icon: "square.and.arrow.up", color: Theme.Colors.iconRed,
+                        title: "Export Tracker Backup", detail: "Statuses, ratings, playback and lists", showsChevron: false)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func reload() async {
+        loading = true
+        async let loadedStats = env.novaTracker.trackerStats()
+        async let loadedActivity = env.novaTracker.recentActivity()
+        async let loadedLists = env.novaTracker.customLists()
+        let result = await (loadedStats, loadedActivity, loadedLists)
+        stats = result.0; activity = result.1; lists = result.2; loading = false
+    }
+
+    private func createList() async {
+        let name = newListName
+        guard await env.novaTracker.createCustomList(named: name) else {
+            ToastCenter.shared.show("List could not be created", systemImage: "exclamationmark.triangle")
+            return
+        }
+        newListName = ""
+        lists = await env.novaTracker.customLists()
+    }
+
+    private func activityIcon(_ kind: String) -> String {
+        if kind == "rating" { return "star.fill" }
+        if kind.hasPrefix("scrobble") { return "play.circle.fill" }
+        return "checkmark.circle.fill"
+    }
+}
+
+#if os(iOS)
+private struct NovaTrackerBackupDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+    let data: Data
+    init(data: Data) { self.data = data }
+    init(configuration: ReadConfiguration) throws { data = configuration.file.regularFileContents ?? Data() }
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
+}
+#endif

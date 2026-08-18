@@ -221,6 +221,19 @@ final class LibraryStore: ObservableObject {
         }
     }
 
+    /// Bulk counterpart used by list imports. It preserves collection order while
+    /// collapsing duplicates, and persists once regardless of list size.
+    func addToCollection(_ collectionID: UUID, items newItems: [MediaItem]) {
+        guard let idx = collections.firstIndex(where: { $0.id == collectionID }) else { return }
+        var seen = Set(collections[idx].contentKeys)
+        var changed = false
+        for item in newItems where seen.insert(item.contentKey).inserted {
+            collections[idx].contentKeys.append(item.contentKey)
+            changed = true
+        }
+        if changed { persistCollections() }
+    }
+
     func removeFromCollection(_ collectionID: UUID, contentKey: String) {
         guard let idx = collections.firstIndex(where: { $0.id == collectionID }) else { return }
         collections[idx].contentKeys.removeAll { $0 == contentKey }
@@ -298,6 +311,19 @@ final class LibraryStore: ObservableObject {
     // MARK: - CRUD
 
     func add(_ item: MediaItem) {
+        merge(item)
+        persist()
+    }
+
+    /// Imports a list with one local/iCloud publication instead of rewriting the
+    /// library for every title. `merge` retains the same durable watch state as add().
+    func add(contentsOf newItems: [MediaItem]) {
+        guard !newItems.isEmpty else { return }
+        for item in newItems { merge(item) }
+        persist()
+    }
+
+    private func merge(_ item: MediaItem) {
         // Dedupe by stable content identity, not the per-playback random id, so
         // replaying the same episode updates its entry instead of adding a copy.
         if let idx = items.firstIndex(where: { $0.contentKey == item.contentKey }) {
@@ -320,7 +346,6 @@ final class LibraryStore: ObservableObject {
         } else {
             items.insert(item, at: 0)
         }
-        persist()
     }
 
     func update(_ item: MediaItem) {

@@ -30,6 +30,14 @@ struct TraktConnectView: View {
     @State private var username: String?
     @State private var pollTask: Task<Void, Never>?
     @State private var errorMessage: String?
+    @State private var listInput = ""
+    @State private var collectionName = ""
+    @State private var importToNovaTracker = true
+    @State private var importToTraktWatchlist = false
+    @State private var importToLibrary = true
+    @State private var importToCollection = true
+    @State private var importingList = false
+    @State private var importProgress = ""
 
     enum Phase: Equatable {
         case checking
@@ -244,11 +252,126 @@ struct TraktConnectView: View {
 
             scrobbleControlPanel
 
+            traktListImportPanel
+
             FocusableButton(title: "Log Out", systemImage: "rectangle.portrait.and.arrow.right") {
                 confirmingDisconnect = true
             }
             .frame(maxWidth: Theme.isCompact ? .infinity : 320)
             .padding(.top, Theme.Spacing.sm)
+        }
+    }
+
+    private var traktListImportPanel: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            Label("Import a Trakt List", systemImage: "square.and.arrow.down.on.square")
+                .font(.appFont(20, weight: .bold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+            Text("Paste a public Trakt list URL, or enter one of your list slugs.")
+                .font(.appFont(16))
+                .foregroundStyle(Theme.Colors.textSecondary)
+
+            TextField("https://trakt.tv/users/name/lists/list-name", text: $listInput)
+                .textFieldStyle(.plain)
+                .padding(Theme.Spacing.md)
+                .background(Theme.Colors.cardElevated)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card)
+                    .stroke(Theme.Colors.textTertiary.opacity(0.45), lineWidth: 1))
+                #if os(iOS)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled(true)
+                #endif
+
+            Toggle("Nova Tracker watchlist", isOn: $importToNovaTracker)
+            Toggle("Connected Trakt watchlist", isOn: $importToTraktWatchlist)
+            Toggle("Nova Library", isOn: $importToLibrary)
+            Toggle("Nova Collection", isOn: $importToCollection)
+
+            if importToCollection {
+                TextField("Collection name (defaults to list name)", text: $collectionName)
+                    .textFieldStyle(.plain)
+                    .padding(Theme.Spacing.md)
+                    .background(Theme.Colors.cardElevated)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card)
+                        .stroke(Theme.Colors.textTertiary.opacity(0.45), lineWidth: 1))
+            }
+
+            if !importProgress.isEmpty {
+                Text(importProgress)
+                    .font(.appFont(15))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+
+            FocusableButton(title: importingList ? "Importing…" : "Import List",
+                            systemImage: importingList ? "hourglass" : "square.and.arrow.down",
+                            prominent: true) {
+                Task { await importTraktList() }
+            }
+            .disabled(!canImportList)
+            .frame(maxWidth: Theme.isCompact ? .infinity : 320)
+        }
+        .padding(Theme.Spacing.lg)
+        .refinedCardBackground()
+        .tint(Theme.Colors.accent)
+    }
+
+    private var canImportList: Bool {
+        !importingList && !listInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        (importToNovaTracker || importToTraktWatchlist || importToLibrary || importToCollection)
+    }
+
+    @MainActor
+    private func importTraktList() async {
+        guard canImportList else { return }
+        importingList = true
+        importProgress = "Reading Trakt list…"
+        defer { importingList = false }
+        do {
+            let imported = try await env.trakt.importableList(listInput)
+            var unique: [CatalogItem] = []
+            var seen = Set<String>()
+            for item in imported.items where seen.insert(item.contentID.stableKey).inserted { unique.append(item) }
+            importProgress = "Found \(unique.count) titles · loading artwork…"
+            let enriched = await env.tmdb.enrichArtwork(unique)
+
+            var novaCount = 0
+            if importToNovaTracker {
+                importProgress = "Updating Nova Tracker…"
+                for item in enriched {
+                    if await env.novaTracker.setStatus("plantowatch", for: item) { novaCount += 1 }
+                }
+            }
+            var traktCount = 0
+            if importToTraktWatchlist {
+                importProgress = "Updating Trakt watchlist…"
+                traktCount = try await env.trakt.addToWatchlist(enriched)
+            }
+
+            let shouldStoreLocally = importToLibrary || importToCollection
+            var localItems: [MediaItem] = []
+            if shouldStoreLocally {
+                importProgress = "Updating Nova Library…"
+                localItems = enriched.map { $0.asLibraryItem() }
+                env.library.add(contentsOf: localItems)
+            }
+            var collectionCount = 0
+            if importToCollection {
+                let requested = collectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let name = requested.isEmpty ? imported.name : requested
+                let collection = env.library.collections.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }
+                    ?? env.library.createCollection(name: name, systemImage: "list.and.film")
+                env.library.addToCollection(collection.id, items: localItems)
+                collectionCount = localItems.count
+            }
+
+            let libraryCount = shouldStoreLocally ? localItems.count : 0
+            importProgress = "Imported \(unique.count) unique titles · Library \(libraryCount) · Collection \(collectionCount) · Nova Tracker \(novaCount) · Trakt \(traktCount)"
+            ToastCenter.shared.show("Imported \(unique.count) Trakt titles", systemImage: "checkmark.circle.fill")
+        } catch {
+            importProgress = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            ToastCenter.shared.show("Trakt list import failed", systemImage: "exclamationmark.triangle.fill")
         }
     }
 

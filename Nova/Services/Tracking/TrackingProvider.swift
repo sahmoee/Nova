@@ -408,6 +408,39 @@ private struct NovaItemResponse: Codable {
     let status: String?; let rating: Int?; let watched: Bool?; let position: Double?; let duration: Double?
 }
 
+struct NovaTrackerStats: Codable, Sendable {
+    let watchlist: Int
+    let completed: Int
+    let rated: Int
+    let averageRating: Double
+    let watching: Int
+}
+
+struct NovaTrackerActivity: Codable, Identifiable, Sendable {
+    var id: String { "\(createdAt)-\(kind)-\(title ?? "title")" }
+    let kind: String
+    let detail: String?
+    let createdAt: Double
+    let title: String?
+    let year: Int?
+    let mediaType: String?
+
+    enum CodingKeys: String, CodingKey {
+        case kind, detail, title, year
+        case createdAt = "created_at"
+        case mediaType = "media_type"
+    }
+}
+
+struct NovaTrackerList: Codable, Identifiable, Sendable {
+    let id: String
+    let name: String
+    let itemCount: Int
+}
+
+private struct NovaTrackerActivityResponse: Codable { let items: [NovaTrackerActivity] }
+private struct NovaTrackerListsResponse: Codable { let items: [NovaTrackerList] }
+
 extension NovaTrackingProvider {
     /// Current status + rating + playback + watched for a title.
     func itemState(_ contentID: ContentID) async -> NovaItemState? {
@@ -435,6 +468,53 @@ extension NovaTrackingProvider {
         writeCachedStatus(key, r.status); writeCachedRating(key, r.rating)
         return NovaItemState(status: r.status, rating: r.rating, watched: r.watched ?? false,
                              position: r.position, duration: r.duration)
+    }
+}
+
+extension NovaTrackingProvider {
+    /// Feature dashboard data. Each request is independent so one unavailable panel
+    /// never prevents the other Tracker tools from loading.
+    func trackerStats() async -> NovaTrackerStats? {
+        guard await ensureAccount(), let (data, response) = try? await get("v1/stats"),
+              (200...299).contains(response.statusCode) else { return nil }
+        return try? decoder.decode(NovaTrackerStats.self, from: data)
+    }
+
+    func recentActivity() async -> [NovaTrackerActivity] {
+        guard await ensureAccount(), let (data, response) = try? await get("v1/activity"),
+              (200...299).contains(response.statusCode) else { return [] }
+        return (try? decoder.decode(NovaTrackerActivityResponse.self, from: data).items) ?? []
+    }
+
+    func customLists() async -> [NovaTrackerList] {
+        guard await ensureAccount(), let (data, response) = try? await get("v1/lists"),
+              (200...299).contains(response.statusCode) else { return [] }
+        return (try? decoder.decode(NovaTrackerListsResponse.self, from: data).items) ?? []
+    }
+
+    @discardableResult
+    func createCustomList(named name: String) async -> Bool {
+        let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard await ensureAccount(), !cleaned.isEmpty else { return false }
+        return await post("v1/lists", body: ["name": cleaned])
+    }
+
+    @discardableResult
+    func add(_ item: CatalogItem, toCustomList listID: String) async -> Bool {
+        guard await ensureAccount() else { return false }
+        return await post("v1/lists/items", body: [
+            "listId": listID,
+            "ids": ids(item.contentID),
+            "type": mediaType(item.contentID),
+            "title": item.title,
+            "year": item.year as Any
+        ])
+    }
+
+    func portableBackup() async -> Data? {
+        guard await ensureAccount(), let (data, response) = try? await get("v1/export"),
+              (200...299).contains(response.statusCode) else { return nil }
+        return data
     }
 }
 

@@ -221,6 +221,67 @@ actor TraktClient {
         return items.compactMap { catalogItem(from: $0) }
     }
 
+    /// Resolves either a full trakt.tv list URL or a slug from the signed-in user's
+    /// account. Public list URLs do not require the list owner to be the current user.
+    /// Keeping URL interpretation here gives every Nova surface one canonical importer.
+    func importableList(_ input: String) async throws -> TraktImportableList {
+        let reference = try TraktListReference(input: input)
+        let path: String
+        let requiresAuthentication: Bool
+        switch reference.location {
+        case .owned(let slug):
+            path = "users/me/lists/\(slug)/items"
+            requiresAuthentication = true
+        case .user(let user, let slug):
+            path = "users/\(user)/lists/\(slug)/items"
+            requiresAuthentication = false
+        case .global(let id):
+            path = "lists/\(id)/items"
+            requiresAuthentication = false
+        }
+
+        let rows: [TraktListItem]
+        if requiresAuthentication {
+            rows = try await authedGet(path, extended: true)
+        } else {
+            rows = try await get(path, authed: isAuthenticated, extended: true)
+        }
+        return TraktImportableList(name: reference.displayName,
+                                   source: reference.canonicalSource,
+                                   items: rows.compactMap { catalogItem(from: $0) })
+    }
+
+    /// Adds titles to the connected Trakt watchlist in bounded batches. Trakt's sync
+    /// endpoint is idempotent, so retrying an interrupted import does not create copies.
+    @discardableResult
+    func addToWatchlist(_ items: [CatalogItem]) async throws -> Int {
+        guard isAuthenticated else { throw TraktError.notAuthenticated }
+        var accepted = 0
+        for start in stride(from: 0, to: items.count, by: 100) {
+            let batch = Array(items[start..<min(items.count, start + 100)])
+            var movies: [[String: Any]] = []
+            var shows: [[String: Any]] = []
+            for item in batch {
+                var row: [String: Any] = ["title": item.title, "ids": idsDict(for: item.contentID)["ids"] ?? [:]]
+                if let year = item.year { row["year"] = year }
+                if item.contentID.type == .movie { movies.append(row) } else { shows.append(row) }
+            }
+            var body: [String: Any] = [:]
+            if !movies.isEmpty { body["movies"] = movies }
+            if !shows.isEmpty { body["shows"] = shows }
+            guard !body.isEmpty else { continue }
+            let data = try JSONSerialization.data(withJSONObject: body)
+            let url = Self.base.appendingPathComponent("sync/watchlist")
+            var result = try await rawPost(url, rawBody: data, headers: baseHeaders(authed: true))
+            if result.1.statusCode == 401, await refreshTokenIfPossible() {
+                result = try await rawPost(url, rawBody: data, headers: baseHeaders(authed: true))
+            }
+            guard (200...299).contains(result.1.statusCode) else { throw TraktError.http(result.1.statusCode) }
+            accepted += batch.count
+        }
+        return accepted
+    }
+
     /// Trending shows (works without auth; useful for a discovery row).
     func trendingShows() async throws -> [CatalogItem] {
         let items: [TraktListItem] = try await get("shows/trending", authed: false, extended: true)
@@ -399,6 +460,56 @@ actor TraktClient {
 }
 
 struct TraktRatedRow: Codable { let rating: Int?; let movie: TraktMedia?; let show: TraktMedia? }
+
+struct TraktImportableList: Sendable {
+    let name: String
+    let source: String
+    let items: [CatalogItem]
+}
+
+private struct TraktListReference {
+    enum Location { case owned(String), user(String, String), global(String) }
+    let location: Location
+    let displayName: String
+    let canonicalSource: String
+
+    init(input: String) throws {
+        let raw = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else { throw TraktError.decoding(NSError(domain: "trakt-list", code: 1)) }
+        let suppliedURL = URL(string: raw.contains("://") ? raw : "")
+        if let url = suppliedURL, url.host?.lowercased().contains("trakt.tv") == true {
+            let parts = url.pathComponents.filter { $0 != "/" && $0 != "items" }
+            if parts.count >= 4, parts[0] == "users", parts[2] == "lists" {
+                let user = parts[1], slug = parts[3]
+                location = .user(user, slug)
+                displayName = Self.title(slug)
+                canonicalSource = "https://trakt.tv/users/\(user)/lists/\(slug)"
+                return
+            }
+            if parts.count >= 2, parts[0] == "lists" {
+                let id = parts[1]
+                location = .global(id)
+                displayName = "Trakt List \(id)"
+                canonicalSource = "https://trakt.tv/lists/\(id)"
+                return
+            }
+            throw TraktError.decoding(NSError(domain: "trakt-list", code: 2))
+        }
+        let slug = raw.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard !slug.isEmpty, !slug.contains(" ") else {
+            throw TraktError.decoding(NSError(domain: "trakt-list", code: 3))
+        }
+        location = .owned(slug)
+        displayName = Self.title(slug)
+        canonicalSource = "trakt://users/me/lists/\(slug)"
+    }
+
+    private static func title(_ slug: String) -> String {
+        slug.replacingOccurrences(of: "-", with: " ")
+            .replacingOccurrences(of: "_", with: " ")
+            .split(separator: " ").map { $0.capitalized }.joined(separator: " ")
+    }
+}
 
 enum ScrobbleAction: String {
     case start
