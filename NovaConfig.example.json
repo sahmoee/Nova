@@ -7,6 +7,7 @@
   "openSubtitlesApiKey": "your-opensubtitles-api-key",
   "aiWorkerUrl": "https://nova-ai-worker.your-subdomain.workers.dev",
   "novaTrackerBaseUrl": "https://nova-tracker.stocked.workers.dev",
+  "preferredSMBServer": "server-name.your-tailnet.ts.net",
 
   "addonManifestURLs": [
     "https://your-configured-addon.example/manifest.json"

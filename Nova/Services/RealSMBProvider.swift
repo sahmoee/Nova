@@ -21,7 +21,8 @@ actor RealSMBProvider: SMBProviding {
     // MARK: - Connect
 
     func connect(to share: SMBShare) async throws {
-        let host = share.host.trimmingCharacters(in: .whitespaces)
+        let enteredHost = share.host.trimmingCharacters(in: .whitespaces)
+        let host = await SMBHostResolver.preferredHost(for: enteredHost)
         guard !host.isEmpty else { throw SMBError.hostUnreachable }
         // 127.0.0.1 / localhost on the device points at the device itself, not the
         // user's computer — a common mistake. Catch it with a helpful message.
@@ -64,7 +65,7 @@ actor RealSMBProvider: SMBProviding {
     /// Connects to the server (no specific share) and lists its shares so the user
     /// can pick one — mirrors how the Files app shows shares under a server.
     func listShares(host: String, username: String, keychainAccount: String) async throws -> [String] {
-        let trimmed = host.trimmingCharacters(in: .whitespaces)
+        let trimmed = await SMBHostResolver.preferredHost(for: host)
         guard !trimmed.isEmpty else { throw SMBError.hostUnreachable }
         let lowerHost = trimmed.lowercased()
         if lowerHost == "127.0.0.1" || lowerHost == "localhost" || lowerHost == "::1" {

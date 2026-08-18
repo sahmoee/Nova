@@ -143,7 +143,8 @@ struct SMBAddView: View {
     // Single server field like the Files app, e.g. "smb://yourmac.local" or
     // "smb://yourmac.local/Media". Parsed once on save, never while typing, so
     // characters like "//" aren't eaten by live normalization.
-    @State private var server = "smb://"
+    @State private var server: String
+    @State private var connectionRoute = ConnectionRoute.tailscale
     @State private var connectAsGuest = false
     @State private var username = ""
     @State private var password = ""
@@ -153,6 +154,20 @@ struct SMBAddView: View {
     /// only the small text region being tappable.
     private enum Field: Hashable { case server, username, password, displayName }
     @FocusState private var focusedField: Field?
+
+    private enum ConnectionRoute: String, CaseIterable, Identifiable {
+        case tailscale = "Tailscale"
+        case direct = "Local network / IP"
+        var id: Self { self }
+    }
+
+    init(onSave: @escaping (SMBShare, String) -> Void) {
+        self.onSave = onSave
+        let configured = AppConfig.shared.preferredSMBServer
+        _server = State(initialValue: configured.map {
+            $0.lowercased().hasPrefix("smb://") ? $0 : "smb://\($0)"
+        } ?? "smb://")
+    }
 
     var body: some View {
         ZStack {
@@ -166,6 +181,13 @@ struct SMBAddView: View {
 
                     // Server field.
                     VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                        Picker("Connection", selection: $connectionRoute) {
+                            ForEach(ConnectionRoute.allCases) { route in
+                                Text(route.rawValue).tag(route)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .accessibilityHint("Tailscale is preferred and continues working when the server changes networks")
                         Text("Server").font(.appFont(20, weight: .semibold))
                             .foregroundStyle(Theme.Colors.textSecondary)
                         TextField("smb://yourcomputer.local", text: $server)
@@ -183,7 +205,9 @@ struct SMBAddView: View {
                             .foregroundStyle(Theme.Colors.textPrimary)
                             .contentShape(Rectangle())
                             .onTapGesture { focusedField = .server }
-                        Text("Enter your computer's name or IP, e.g. smb://yourcomputer.local. You'll see its shared folders next. You can also go straight to one: smb://yourcomputer.local/Media.")
+                        Text(connectionRoute == .tailscale
+                             ? "Enter the Tailscale device name, preferably its full MagicDNS name ending in .ts.net. Nova will also upgrade a Tailscale IP to its name when DNS provides one."
+                             : "Enter a local network name or IP. Nova retains this as a fallback when no Tailscale name can be resolved.")
                             .font(.appFont(15))
                             .foregroundStyle(Theme.Colors.textTertiary)
                     }
@@ -335,6 +359,7 @@ final class SMBSharesModel: ObservableObject {
         encoder.outputFormatting = [.prettyPrinted]
         load()
         mergeFromCloud()
+        Task { [weak self] in await self?.preferTailscaleNames() }
 
         CloudSync.shared.externalChange
             .receive(on: RunLoop.main)
@@ -366,6 +391,20 @@ final class SMBSharesModel: ObservableObject {
                 try? encoded.write(to: fileURL, options: [.atomic])
             }
         }
+    }
+
+    /// Retroactively replaces Tailscale IPs with stable MagicDNS names. Share IDs
+    /// stay unchanged, so their Keychain passwords remain attached.
+    private func preferTailscaleNames() async {
+        var changed = false
+        for index in shares.indices {
+            let resolved = await SMBHostResolver.preferredHost(for: shares[index].host)
+            if SMBHostResolver.isTailscaleName(resolved), resolved != shares[index].host {
+                shares[index].host = resolved
+                changed = true
+            }
+        }
+        if changed { persist() }
     }
 
     func add(_ share: SMBShare, password: String) {

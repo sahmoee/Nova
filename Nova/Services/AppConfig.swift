@@ -43,6 +43,8 @@ struct NovaConfigFile: Codable {
     var addonManifestURLs: [String]?
     /// Optional Cloudflare Worker URL for Claude-powered AI search.
     var aiWorkerUrl: String?
+    /// Optional Tailscale/MagicDNS SMB endpoint used to prefill Add Share.
+    var preferredSMBServer: String?
 }
 
 final class AppConfig: @unchecked Sendable {
@@ -152,5 +154,10 @@ final class AppConfig: @unchecked Sendable {
     var aiWorkerURL: String? {
         let v = fileConfig?.aiWorkerUrl?.trimmingCharacters(in: .whitespacesAndNewlines)
         return (v?.isEmpty == false) ? v : nil
+    }
+
+    var preferredSMBServer: String? {
+        let value = fileConfig?.preferredSMBServer?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value?.isEmpty == false ? value : nil
     }
 }

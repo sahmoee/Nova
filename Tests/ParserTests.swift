@@ -106,4 +106,11 @@ final class SMBURLParserTests: XCTestCase {
     func testEmptyReturnsNil() {
         XCTAssertNil(SMBURLParser.parse("   "))
     }
+
+    func testTailscaleMagicDNSNameIsAccepted() {
+        XCTAssertEqual(SMBURLParser.parse("smb://server-mac.example-tailnet.ts.net/Media"),
+                       SMBURLParser.Parsed(host: "server-mac.example-tailnet.ts.net", share: "Media", path: nil))
+        XCTAssertTrue(SMBHostResolver.isTailscaleName("server-mac.example-tailnet.ts.net"))
+        XCTAssertFalse(SMBHostResolver.isTailscaleName("192.168.1.10"))
+    }
 }

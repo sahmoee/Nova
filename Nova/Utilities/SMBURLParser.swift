@@ -8,6 +8,7 @@
 //
 
 import Foundation
+import Darwin
 
 enum SMBURLParser {
 
@@ -47,5 +48,63 @@ enum SMBURLParser {
         let share = parts.count >= 2 ? parts[1] : nil
         let path = parts.count >= 3 ? "/" + parts[2...].joined(separator: "/") : nil
         return Parsed(host: server, share: share, path: path)
+    }
+}
+
+/// Prefers a Tailscale MagicDNS identity while retaining the entered host as a
+/// reconnect-safe fallback. Reverse DNS never runs on the UI thread.
+enum SMBHostResolver {
+    static func preferredHost(for host: String) async -> String {
+        let trimmed = host.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isIPAddress(trimmed) else { return trimmed.lowercased() }
+        return await Task.detached(priority: .utility) {
+            reverseTailscaleName(for: trimmed) ?? trimmed
+        }.value
+    }
+
+    static func isTailscaleName(_ host: String) -> Bool {
+        host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".")).hasSuffix(".ts.net")
+    }
+
+    private static func isIPAddress(_ host: String) -> Bool {
+        var ipv4 = in_addr()
+        var ipv6 = in6_addr()
+        return host.withCString { inet_pton(AF_INET, $0, &ipv4) == 1 || inet_pton(AF_INET6, $0, &ipv6) == 1 }
+    }
+
+    private static func reverseTailscaleName(for host: String) -> String? {
+        var storage = sockaddr_storage()
+        var length: socklen_t = 0
+        if host.withCString({ pointer in
+            withUnsafeMutablePointer(to: &storage) { rawStorage in
+                rawStorage.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { address in
+                    address.pointee.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+                    address.pointee.sin_family = sa_family_t(AF_INET)
+                    length = socklen_t(MemoryLayout<sockaddr_in>.size)
+                    return inet_pton(AF_INET, pointer, &address.pointee.sin_addr)
+                }
+            }
+        }) != 1 {
+            guard host.withCString({ pointer in
+                withUnsafeMutablePointer(to: &storage) { rawStorage in
+                    rawStorage.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) { address in
+                        address.pointee.sin6_len = UInt8(MemoryLayout<sockaddr_in6>.size)
+                        address.pointee.sin6_family = sa_family_t(AF_INET6)
+                        length = socklen_t(MemoryLayout<sockaddr_in6>.size)
+                        return inet_pton(AF_INET6, pointer, &address.pointee.sin6_addr)
+                    }
+                }
+            }) == 1 else { return nil }
+        }
+
+        var name = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+        let result = withUnsafePointer(to: &storage) { rawStorage in
+            rawStorage.withMemoryRebound(to: sockaddr.self, capacity: 1) { address in
+                getnameinfo(address, length, &name, socklen_t(name.count), nil, 0, NI_NAMEREQD)
+            }
+        }
+        guard result == 0 else { return nil }
+        let resolved = String(cString: name).trimmingCharacters(in: CharacterSet(charactersIn: ".")).lowercased()
+        return isTailscaleName(resolved) ? resolved : nil
     }
 }
