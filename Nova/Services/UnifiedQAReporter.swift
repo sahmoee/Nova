@@ -385,7 +385,11 @@ final class UnifiedQAStore: ObservableObject {
             "NVA-23-0002": "SMB imports now retain their share and path identity, enrich missing poster and backdrop art from TMDB, refresh metadata during rescans, reconnect to the share before playback, rebuild expired temporary stream URLs, and open the player directly instead of incorrectly asking catalog addons for sources.",
             "NVA-25-0001": "Build Collection now recognizes multi-collection requests, returns up to eight named previews in one Worker request, and lets each proposal be saved or dismissed independently.",
             "NVA-27-0002": "Corrected the UIKit compositional poster grid so each item occupies one fraction of its multi-column row instead of requesting the full row width.",
-            "NVA-27-0003": "Replaced the long AI feature-card directory with one compact feature picker and a normal multiline conversation field; the keyboard appears only after the field is tapped."
+            "NVA-27-0003": "Replaced the long AI feature-card directory with one compact feature picker and a normal multiline conversation field; the keyboard appears only after the field is tapped.",
+            "NVA-33-0001": "Extended the My Nova artwork header into the status-bar region and increased its compact height while preserving the source artwork's aspect ratio.",
+            "NVA-33-0002": "Reworked reactive artwork headers to layer a complete aspect-fit image over a soft full-bleed copy, preventing wide or portrait artwork from being clipped, stretched, or left short.",
+            "NVA-34-0001": "Centered the reactive My Nova artwork header explicitly across compact and regular layouts so its subject remains centered on both iPhone and iPad without stretching.",
+            "NVA-34-0002": "Added an editable Library Categories manager that supports renaming, hiding, reordering, deleting, restoring, and importing categories while retaining a safe fallback category."
         ]
         var changed = false
         for index in tickets.indices where tickets[index].status == "open" {
@@ -577,6 +581,7 @@ struct UnifiedQASettingsView: View {
                 Toggle("Press and hold to report", isOn: $longPress).disabled(!enabled)
                 Toggle("Monitor performance and resources", isOn: $monitor).disabled(!enabled)
                 Toggle("Record taps and navigation path", isOn: $touches).disabled(!enabled)
+                if unlocked && enabled { QAAIOverrideView(app: "nova") }
             }
             Section { Text("Nova QA captures playback/source state, library and download counts, SMB configuration, network conditions, memory, thermal state, frame hitches, recent QA activity, and a screenshot. Tickets sync automatically and retain edit, fix, verification, and refile history.").font(.caption).foregroundStyle(.secondary) }
         }.navigationTitle("Quality Assurance").onAppear { if !unlocked { enabled = false } }

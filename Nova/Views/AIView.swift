@@ -116,6 +116,11 @@ struct AIView: View {
                 NavigationStack { PlayerView(item: item) }
             }
         }
+        .onAppear {
+            if let first = library.recentlyAdded.first ?? library.items.first {
+                ArtworkHeaderCoordinator.shared.select(first, in: .ai)
+            }
+        }
     }
 
     /// One compact chooser replaces the long feature-card directory. The prompt
@@ -160,15 +165,12 @@ struct AIView: View {
     // MARK: - Headers
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label("AI", systemImage: "sparkles")
-                .font(Theme.Font.screenTitle())
-                .screenTitleStyle()
-                .foregroundStyle(Theme.Colors.textPrimary)
-            Text("Everything AI can do, in one place. Pick a feature to start — most need just one tap.")
-                .font(.appFont(18))
-                .foregroundStyle(Theme.Colors.textSecondary)
-        }
+        ReactiveArtworkPageHeader(title: "AI",
+                                  scope: .ai,
+                                  subtitle: "Discover, organize, and build your next watch",
+                                  systemImage: "sparkles")
+            .padding(.horizontal, -Theme.Spacing.edge)
+            .padding(.top, -Theme.Spacing.edge)
     }
 
     // MARK: - Prompt input
@@ -269,7 +271,7 @@ struct AIView: View {
                 } else {
                     LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
                         ForEach(libraryResults) { item in
-                            MediaCard(item: item) { playerItem = item }
+                            MediaCard(item: item, artworkScope: .ai) { playerItem = item }
                         }
                     }
                 }

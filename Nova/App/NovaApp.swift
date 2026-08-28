@@ -18,7 +18,12 @@ private final class NovaAppDelegate: NSObject, UIApplicationDelegate {
 
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: episodeRefreshTaskID, using: nil) { task in
+        // NovaAppDelegate is main-actor isolated. Supplying no queue lets
+        // BGTaskScheduler invoke this closure on a worker queue, which violates
+        // that isolation and traps in Swift 6 before the refresh can begin.
+        // The refresh itself is still asynchronous inside `handle`.
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: episodeRefreshTaskID,
+                                        using: .main) { task in
             guard let refresh = task as? BGAppRefreshTask else { task.setTaskCompleted(success: false); return }
             Self.handle(refresh)
         }

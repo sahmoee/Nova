@@ -21,6 +21,7 @@ private struct OfflineDownloadsContent: View {
     @State private var sort: Sort = .newest
     @State private var pendingRemoval: OfflineDownload?
     @State private var showRemoveCompleted = false
+    @State private var playbackItem: MediaItem?
 
     private var visibleDownloads: [OfflineDownload] {
         manager.downloads
@@ -86,6 +87,9 @@ private struct OfflineDownloadsContent: View {
                             titleVisibility: .visible) {
             Button("Remove Completed", role: .destructive) { manager.removeCompleted() }
             Button("Cancel", role: .cancel) {}
+        }
+        .fullScreenCover(item: $playbackItem) { item in
+            NavigationStack { PlayerView(item: item) }
         }
         .onAppear { manager.reconcileFiles() }
     }
@@ -179,6 +183,9 @@ private struct OfflineDownloadsContent: View {
         .padding(Theme.Spacing.sm)
         .softCard()
         .contextMenu {
+            if let item = manager.playbackItem(for: download) {
+                Button("Play Download", systemImage: "play.fill") { playbackItem = item }
+            }
             if download.state == .downloading { Button("Pause", systemImage: "pause.fill") { manager.pause(download.id) } }
             if download.state == .paused { Button("Resume", systemImage: "play.fill") { manager.resume(download.id) } }
             if download.state == .failed { Button("Retry", systemImage: "arrow.clockwise") { manager.retry(download.id) } }
@@ -189,7 +196,9 @@ private struct OfflineDownloadsContent: View {
 
     @ViewBuilder private func actionButtons(_ download: OfflineDownload) -> some View {
         HStack(spacing: Theme.Spacing.sm) {
-            if download.state == .downloading { compactButton("Pause", "pause.fill") { manager.pause(download.id) } }
+            if let item = manager.playbackItem(for: download) {
+                compactButton("Play", "play.fill") { playbackItem = item }
+            } else if download.state == .downloading { compactButton("Pause", "pause.fill") { manager.pause(download.id) } }
             else if download.state == .paused { compactButton("Resume", "play.fill") { manager.resume(download.id) } }
             else if download.state == .failed { compactButton("Retry", "arrow.clockwise") { manager.retry(download.id) } }
             Button { pendingRemoval = download } label: {

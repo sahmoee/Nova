@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct LibraryView: View {
     @Binding var path: NavigationPath
@@ -15,6 +16,7 @@ struct LibraryView: View {
     @EnvironmentObject private var nav: NavigationCoordinator
     @EnvironmentObject private var settings: SettingsStore
     @StateObject private var profiles = ViewingProfileStore.shared
+    @StateObject private var categoryStore = LibraryCategoryStore.shared
     @State private var filter: LibraryFilter = .recentlyAdded
     @State private var traktCatalog: [CatalogItem] = []
     @State private var traktLoading = false
@@ -30,10 +32,11 @@ struct LibraryView: View {
     @State private var bulkEditing = false
     @State private var selectedIDs: Set<UUID> = []
     @State private var showTagPrompt = false
-    @State private var newTagText = ""
     @State private var confirmClearContinueWatching = false
     @State private var confirmBulkRemove = false
     @State private var pendingRemovalItem: MediaItem?
+    @State private var authenticatedSMBShareIDs: Set<UUID> = []
+    @State private var checkingSMBAvailability = false
 
     private var columns: [GridItem] { Theme.posterGridColumns }
 
@@ -44,7 +47,11 @@ struct LibraryView: View {
     /// LazyVGrid so both paths render identically.
     @ViewBuilder
     private func libraryGridCard(_ item: MediaItem) -> some View {
-        MediaCard(item: item, seasonGrouped: true) {
+        MediaCard(item: item,
+                  seasonGrouped: true,
+                  widthOverride: Theme.isCompact ? 148 : nil,
+                  heightOverride: Theme.isCompact ? 178 : nil,
+                  artworkScope: .library) {
             if bulkEditing {
                 toggleSelection(item.id)
             } else if item.isDirectPlay {
@@ -108,9 +115,7 @@ struct LibraryView: View {
             guard let shareID = item.metadata.smbShareID,
                   let path = item.metadata.smbPath,
                   let share = loadSMBShares().first(where: { $0.id == shareID }) else {
-                // Older entries lack stable SMB identity. Keep the existing URL
-                // usable for the current session and let a rescan upgrade them.
-                selectedItem = item
+                ToastCenter.shared.show("This SMB item needs a connected library folder. Rescan the folder in Settings.")
                 return
             }
             do {
@@ -124,6 +129,7 @@ struct LibraryView: View {
                 selectedItem = refreshed
                 NovaQARuntime.shared.record("flow", "My Nova > SMB source refreshed > \(path)")
             } catch {
+                authenticatedSMBShareIDs.remove(share.id)
                 ToastCenter.shared.show("Couldn't reconnect to \(share.displayName): \(error.localizedDescription)")
                 NovaQARuntime.shared.record("error", "My Nova > SMB reconnect failed > \(error.localizedDescription)")
             }
@@ -141,42 +147,26 @@ struct LibraryView: View {
         NavigationStack(path: $path) {
             ZStack {
                 Theme.Colors.appBackground.ignoresSafeArea()
+                if Theme.isCompact {
+                    RadialGradient(colors: [
+                        Color(red: 0.035, green: 0.16, blue: 0.24).opacity(0.34),
+                        Color(red: 0.01, green: 0.035, blue: 0.06).opacity(0.16),
+                        .clear
+                    ], center: .top, startRadius: 20, endRadius: 620)
+                    .ignoresSafeArea()
+                }
 
-                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                    switch settings.libraryStyle {
-                    case .clean:   cleanHeader
-                    case .classic: classicHeader
-                    }
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                    // My Nova now has one canonical presentation.  Do not allow an
+                    // older synced `classic` preference to silently restore the
+                    // superseded layout on another device.
+                    cleanHeader
 
-                    NavigationLink {
-                        AiringCalendarView()
-                    } label: {
-                        Label("Upcoming Episodes", systemImage: "calendar")
-                            .font(.appFont(16, weight: .semibold))
-                            .foregroundStyle(Theme.Colors.accent)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, Theme.Spacing.edge)
-                    }
-                    .buttonStyle(.plain)
+                    libraryQuickActions
 
-                    #if os(iOS)
-                    NavigationLink {
-                        OfflineDownloadsView()
-                    } label: {
-                        HStack {
-                            Label("Downloads", systemImage: "arrow.down.circle.fill")
-                            Spacer()
-                            if !env.downloads.downloads.isEmpty {
-                                Text("\(env.downloads.downloads.count)")
-                                    .foregroundStyle(Theme.Colors.textTertiary)
-                            }
-                        }
-                        .font(.appFont(16, weight: .semibold))
-                        .foregroundStyle(Theme.Colors.accent)
-                        .padding(.horizontal, Theme.Spacing.edge)
+                    if !displayedItems.isEmpty {
+                        librarySectionHeader
                     }
-                    .buttonStyle(.plain)
-                    #endif
 
                     if isTraktTab {
                         ScrollView { traktGrid }
@@ -199,12 +189,12 @@ struct LibraryView: View {
                         // builder when bulk-edit state changes without the item set.
                         PosterCollectionGrid(
                             items: displayedItems,
-                            minItemWidth: Theme.CardSize.posterWidth * (Theme.isPad ? 0.85 : 1.0),
-                            spacing: Theme.Spacing.lg,
-                            sectionInsets: EdgeInsets(top: Theme.Spacing.md,
-                                                      leading: Theme.Spacing.edge,
+                            minItemWidth: Theme.isCompact ? 148 : Theme.CardSize.posterWidth * 0.90,
+                            spacing: Theme.isCompact ? 22 : Theme.Spacing.lg,
+                            sectionInsets: EdgeInsets(top: Theme.isCompact ? 4 : Theme.Spacing.md,
+                                                      leading: Theme.isCompact ? 35 : Theme.Spacing.edge,
                                                       bottom: Theme.Spacing.md,
-                                                      trailing: Theme.Spacing.edge),
+                                                      trailing: Theme.isCompact ? 35 : Theme.Spacing.edge),
                             reloadToken: AnyHashable("\(bulkEditing)|\(selectedIDs.hashValue)"),
                             prefetchURL: { $0.posterURL }
                         ) { item in
@@ -247,7 +237,24 @@ struct LibraryView: View {
         .onChange(of: nav.pendingContentKey) { _, key in
             openPendingContent(key)
         }
-        .onAppear { openPendingContent(nav.pendingContentKey); loadLibraryPrefs() }
+        .onAppear {
+            openPendingContent(nav.pendingContentKey)
+            loadLibraryPrefs()
+            if isTraktTab { filter = .recentlyAdded }
+            if let first = displayedItems.first {
+                ArtworkHeaderCoordinator.shared.select(first, in: .library)
+            }
+        }
+        .task {
+            await refreshSMBAvailability()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NetworkConditionMonitor.networkRestored)) { _ in
+            Task { await refreshSMBAvailability() }
+        }
+        .onReceive(CloudSync.shared.externalChange) { changedKeys in
+            guard changedKeys.contains("cloud.smbShares") || changedKeys.contains("cloud.libraryFolders") else { return }
+            Task { await refreshSMBAvailability() }
+        }
         .onChange(of: profiles.activeProfileID) { _, _ in loadLibraryPrefs() }
         .onChange(of: filter) { _, _ in saveLibraryPrefs() }
         .onChange(of: sortOrder) { _, _ in saveLibraryPrefs() }
@@ -255,11 +262,13 @@ struct LibraryView: View {
         .onChange(of: hideWatched) { _, _ in saveLibraryPrefs() }
         .onChange(of: displayedItems) { _, items in
             ImageLoader.shared.prefetch(items.compactMap(\.posterURL), maxPixel: 700)
+            if let first = items.first {
+                ArtworkHeaderCoordinator.shared.select(first, in: .library)
+            }
         }
         .onChange(of: settings.showSMBSeparately) { _, on in
             if !on && filter == .smb { filter = .recentlyAdded }
         }
-        .task(id: filter) { await loadTraktIfNeeded() }
         .sheet(isPresented: $showCollectionPicker) { CollectionPickerSheet() }
         .alert("Clear Continue Watching?", isPresented: $confirmClearContinueWatching) {
             Button("Clear", role: .destructive) {
@@ -373,32 +382,41 @@ struct LibraryView: View {
         .accessibilityElement(children: .contain)
     }
 
-    /// The new default header: a large title, a single options button (sort,
-    /// collections, edit, hidden), and a prominent All/Movies/Shows segmented control.
+    /// Mockup 1's canonical composition with one consolidated options menu. Filters,
+    /// sorting, collections, and editing no longer consume two persistent rows.
     @ViewBuilder
     private var cleanHeader: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("My Nova")
-                .font(Theme.Font.screenTitle())
-                .screenTitleStyle()
-                .foregroundStyle(Theme.Colors.textPrimary)
-            Spacer()
-            optionsMenu
-        }
-        .padding(.horizontal, Theme.Spacing.edge)
-        .padding(.top, Theme.Spacing.lg)
+        ZStack(alignment: .top) {
+            ReactiveArtworkBackdrop(scope: .library, fallbackAsset: "MyNovaHero")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .clipped()
 
-        // Segmented All / Movies / Shows control.
-        Picker("Type", selection: $typeFilter) {
-            ForEach(LibraryTypeFilter.allCases) { t in
-                Text(t.title).tag(t)
+            LinearGradient(colors: [
+                Theme.Colors.background.opacity(0.12),
+                .clear,
+                Theme.Colors.background.opacity(0.28),
+                Theme.Colors.background
+            ], startPoint: .top, endPoint: .bottom)
+
+            HStack(spacing: 9) {
+                Text("My Nova")
+                .font(.appFont(Theme.isCompact ? 32 : 54, weight: .heavy))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+
+                Spacer(minLength: 8)
+
+                optionsMenu
             }
+            .padding(.horizontal, Theme.Spacing.edge)
+            .padding(.top, Theme.isCompact ? 68 : 30)
         }
-        .pickerStyle(.segmented)
-        .padding(.horizontal, Theme.Spacing.edge)
-        .padding(.top, Theme.Spacing.xs)
-
-        libraryStatusRow
+        // Reach behind the status bar and retain enough vertical room to show the
+        // complete selected artwork. The backdrop itself uses aspect-fit over a
+        // blurred full-bleed copy, so this never widens or distorts a poster.
+        .frame(height: Theme.isCompact ? 320 : 380)
+        .padding(.top, Theme.isCompact ? -60 : 0)
 
         if !library.allTags.isEmpty {
             tagFilterRow
@@ -422,6 +440,11 @@ struct LibraryView: View {
                     Label(filterTitle(f), systemImage: filterIcon(f)).tag(f)
                 }
             }
+            Picker("Media Type", selection: $typeFilter) {
+                ForEach(LibraryTypeFilter.allCases) { target in
+                    Text(target.title).tag(target)
+                }
+            }
             Picker("Sort", selection: $sortOrder) {
                 ForEach(LibrarySortOrder.allCases) { Label($0.title, systemImage: $0.systemImage).tag($0) }
             }
@@ -431,11 +454,11 @@ struct LibraryView: View {
             Toggle(isOn: $settings.showSMBSeparately) {
                 Label("Show SMB Separately", systemImage: "externaldrive.connected.to.line.below")
             }
-            Toggle(isOn: $settings.showTraktInLibrary) {
-                Label("Trakt Tabs", systemImage: "text.badge.star")
-            }
             NavigationLink { LibraryEnrichView() } label: {
                 Label("Clean Up Library (AI)", systemImage: "wand.and.stars")
+            }
+            NavigationLink { LibraryCategoryManagerView() } label: {
+                Label("Edit Library Categories", systemImage: "rectangle.3.group")
             }
             Divider()
             Button {
@@ -459,10 +482,11 @@ struct LibraryView: View {
             }
         } label: {
             Image(systemName: "slider.horizontal.3")
-                .font(.appFont(22, weight: .semibold))
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .padding(Theme.Spacing.sm)
-                .background(Theme.Colors.card, in: Circle())
+                .font(.appFont(16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 36, height: 36)
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.75))
         }
         .novaIconStyle()
         .accessibilityLabel("Library options")
@@ -493,9 +517,109 @@ struct LibraryView: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// Keeps secondary destinations discoverable without stacking several full-width
+    /// rows above the library. The horizontal layout remains calm on iPhone and grows
+    /// naturally on iPad/tvOS.
+    @ViewBuilder
+    private var libraryQuickActions: some View {
+        if Theme.isCompact {
+            HStack(spacing: Theme.Spacing.sm) {
+                NavigationLink { CollectionsView() } label: {
+                    libraryQuickAction(title: "Collections",
+                                       detail: "\(library.collections.count)",
+                                       systemImage: "rectangle.stack")
+                }
+                NavigationLink { AiringCalendarView() } label: {
+                    libraryQuickAction(title: "Upcoming",
+                                       detail: "Episodes",
+                                       systemImage: "calendar")
+                }
+                #if os(iOS)
+                NavigationLink { OfflineDownloadsView() } label: {
+                    libraryQuickAction(title: "Downloads",
+                                       detail: "\(env.downloads.downloads.count)",
+                                       systemImage: "arrow.down.circle")
+                }
+                #endif
+            }
+            .padding(.horizontal, Theme.Spacing.edge)
+            .padding(.top, 2)
+            .padding(.bottom, 4)
+            .buttonStyle(.plain)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    NavigationLink { CollectionsView() } label: {
+                        libraryQuickAction(title: "Collections", detail: "\(library.collections.count)", systemImage: "rectangle.stack")
+                    }
+                    NavigationLink { AiringCalendarView() } label: {
+                        libraryQuickAction(title: "Upcoming", detail: "Episodes", systemImage: "calendar")
+                    }
+                    #if os(iOS)
+                    NavigationLink { OfflineDownloadsView() } label: {
+                        libraryQuickAction(title: "Downloads", detail: "\(env.downloads.downloads.count)", systemImage: "arrow.down.circle")
+                    }
+                    #endif
+                    Button { showStats = true } label: {
+                        libraryQuickAction(title: "Watch Stats", detail: "Progress", systemImage: "chart.bar.xaxis")
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.edge)
+                .padding(.vertical, 2)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func libraryQuickAction(title: String, detail: String, systemImage: String) -> some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.appFont(15, weight: .semibold))
+                .foregroundStyle(Theme.Colors.accent)
+                .frame(width: 30, height: 30)
+                .background(Theme.Colors.accent.opacity(0.12), in: Circle())
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.appFont(Theme.isCompact ? 12 : 14, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                Text(detail)
+                    .font(.appFont(Theme.isCompact ? 11 : 12))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+            }
+        }
+        .frame(minWidth: Theme.isCompact ? 0 : 132,
+               maxWidth: Theme.isCompact ? .infinity : nil,
+               minHeight: Theme.isCompact ? 42 : Theme.minTouchTarget,
+               alignment: .leading)
+        .padding(.horizontal, Theme.isCompact ? 7 : Theme.Spacing.sm)
+        .cinematicGlass(radius: Theme.isCompact ? 11 : 14)
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var librarySectionHeader: some View {
+        HStack {
+            Text(filterTitle(filter))
+                .font(.appFont(19, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+            Spacer()
+            if !Theme.isCompact {
+                Text("\(displayedItems.count) items")
+                    .font(.appFont(13, weight: .medium))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+        }
+        .padding(.horizontal, Theme.isCompact ? 20 : Theme.Spacing.edge)
+        .padding(.top, Theme.isCompact ? 8 : 6)
+    }
+
     private var librarySummaryText: String {
         let count = displayedItems.count
         let itemWord = count == 1 ? "item" : "items"
+        if checkingSMBAvailability && filter == .smb {
+            return "Checking connected SMB folders…"
+        }
         if isTraktTab {
             return traktLoading ? "Loading \(filterTitle(filter))" : "\(traktCatalog.count) Trakt \(traktCatalog.count == 1 ? "item" : "items")"
         }
@@ -556,9 +680,8 @@ struct LibraryView: View {
     // MARK: - Data
 
     private var activeFilters: [LibraryFilter] {
-        var f = LibraryFilter.allCases
-        if settings.showSMBSeparately { f.append(.smb) }
-        if settings.showTraktInLibrary { f.append(.traktWatchlist); f.append(.traktTrending) }
+        var f = categoryStore.visibleFilters
+        if settings.showSMBSeparately && !authenticatedSMBShareIDs.isEmpty { f.append(.smb) }
         for idString in settings.pinnedCollections {
             if let id = UUID(uuidString: idString),
                library.collections.contains(where: { $0.id == id }) {
@@ -571,7 +694,7 @@ struct LibraryView: View {
     private func filterTitle(_ f: LibraryFilter) -> String {
         if case .collection(let id) = f,
            let c = library.collections.first(where: { $0.id == id }) { return c.name }
-        return f.title
+        return categoryStore.title(for: f)
     }
 
     private var isTraktTab: Bool { filter == .traktWatchlist || filter == .traktTrending }
@@ -664,6 +787,15 @@ struct LibraryView: View {
                 base = library.items(in: c)
             } else { base = [] }
         }
+        // SMB records remain safely stored, but are only surfaced while their saved
+        // share has just connected/authenticated and its configured folder exists.
+        // This prevents stale network entries from cluttering My Nova after a share
+        // is removed, signed out, or goes offline.
+        base = base.filter { item in
+            guard item.sourceType == .smb else { return true }
+            guard let shareID = item.metadata.smbShareID else { return false }
+            return authenticatedSMBShareIDs.contains(shareID)
+        }
         if settings.showSMBSeparately && filter != .smb {
             base = base.filter { $0.sourceType != .smb }
         }
@@ -687,6 +819,46 @@ struct LibraryView: View {
         // same one-card-per-series rule. The chosen card is the latest watched
         // episode, never a separate card for every episode.
         return sortItems(library.collapseToShow(result))
+    }
+
+    /// Revalidates each configured SMB source using the same authenticated connect
+    /// path as playback. When library folders are configured, at least one folder on
+    /// the share must also be listable before its items become visible.
+    private func refreshSMBAvailability() async {
+        guard !checkingSMBAvailability else { return }
+        checkingSMBAvailability = true
+        defer { checkingSMBAvailability = false }
+
+        let shares = loadSMBShares()
+        let folders = env.libraryFolders.folders
+        var verified: Set<UUID> = []
+
+        for share in shares {
+            guard !Task.isCancelled else { return }
+            do {
+                try await env.smb.connect(to: share)
+                let configuredFolders = folders.filter { $0.shareID == share.id }
+                if configuredFolders.isEmpty {
+                    verified.insert(share.id)
+                } else {
+                    var foundReachableFolder = false
+                    for folder in configuredFolders where !foundReachableFolder {
+                        let path = folder.path.isEmpty ? "/" : folder.path
+                        if (try? await env.smb.listDirectory(path)) != nil {
+                            foundReachableFolder = true
+                        }
+                    }
+                    if foundReachableFolder { verified.insert(share.id) }
+                }
+            } catch {
+                NovaLog.network.notice("Hiding unavailable SMB share \(share.displayName, privacy: .public) from My Nova")
+            }
+        }
+
+        authenticatedSMBShareIDs = verified
+        if filter == .smb && verified.isEmpty {
+            filter = .recentlyAdded
+        }
     }
 
     /// Applies the active sort order.
@@ -761,15 +933,14 @@ struct LibraryView: View {
         }
         .padding(.horizontal, Theme.Spacing.edge)
         .padding(.vertical, Theme.Spacing.sm)
-        .alert("Add Tag", isPresented: $showTagPrompt) {
-            TextField("Tag name", text: $newTagText)
-            Button("Cancel", role: .cancel) { newTagText = "" }
-            Button("Add") {
-                library.addTag(newTagText, to: selectedIDs)
-                newTagText = ""; endBulk()
+        .sheet(isPresented: $showTagPrompt) {
+            TextPromptSheet(title: "Add Tag",
+                             message: "Tag \(selectedIDs.count) selected items.",
+                             placeholder: "Tag name",
+                             confirmTitle: "Add") { entered in
+                library.addTag(entered, to: selectedIDs)
+                endBulk()
             }
-        } message: {
-            Text("Tag \(selectedIDs.count) selected items.")
         }
         .background(.thinMaterial)
     }
@@ -933,6 +1104,130 @@ enum LibraryTypeFilter: Hashable, Identifiable, CaseIterable {
     }
 }
 
+private struct LibraryCategoryPreference: Codable, Identifiable, Hashable {
+    var id: String
+    var title: String
+    var isEnabled: Bool
+}
+
+@MainActor
+private final class LibraryCategoryStore: ObservableObject {
+    static let shared = LibraryCategoryStore()
+    @Published var categories: [LibraryCategoryPreference] { didSet { persist() } }
+    private let key = "nova.library.categories.v1"
+
+    private static let defaults = [
+        LibraryCategoryPreference(id: "recent", title: "Recently Added", isEnabled: true),
+        LibraryCategoryPreference(id: "fav", title: "Favorites", isEnabled: true),
+        LibraryCategoryPreference(id: "continue", title: "Continue Watching", isEnabled: true),
+    ]
+
+    private init() {
+        if let data = UserDefaults.standard.data(forKey: key),
+           let saved = try? JSONDecoder().decode([LibraryCategoryPreference].self, from: data),
+           !saved.isEmpty {
+            categories = saved
+        } else {
+            categories = Self.defaults
+        }
+    }
+
+    var visibleFilters: [LibraryFilter] {
+        let filters = categories.filter(\.isEnabled).compactMap { LibraryFilter(stableID: $0.id) }
+        return filters.isEmpty ? [.recentlyAdded] : filters
+    }
+
+    func title(for filter: LibraryFilter) -> String {
+        categories.first(where: { $0.id == filter.id })?.title ?? filter.title
+    }
+
+    func remove(at offsets: IndexSet) {
+        categories.remove(atOffsets: offsets)
+        if categories.isEmpty { categories = Self.defaults }
+    }
+
+    func move(from offsets: IndexSet, to destination: Int) {
+        categories.move(fromOffsets: offsets, toOffset: destination)
+    }
+
+    func restoreDefaults() { categories = Self.defaults }
+
+    func importJSON(from url: URL) throws {
+        let granted = url.startAccessingSecurityScopedResource()
+        defer { if granted { url.stopAccessingSecurityScopedResource() } }
+        let decoded = try JSONDecoder().decode([LibraryCategoryPreference].self, from: Data(contentsOf: url))
+        let allowed = Set(Self.defaults.map(\.id))
+        let sanitized = decoded
+            .filter { allowed.contains($0.id) }
+            .reduce(into: [LibraryCategoryPreference]()) { result, entry in
+                guard !result.contains(where: { $0.id == entry.id }) else { return }
+                var clean = entry
+                clean.title = String(entry.title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))
+                if clean.title.isEmpty { clean.title = LibraryFilter(stableID: entry.id)?.title ?? "Category" }
+                result.append(clean)
+            }
+        guard !sanitized.isEmpty else { throw CocoaError(.fileReadCorruptFile) }
+        categories = sanitized
+    }
+
+    private func persist() {
+        guard let data = try? JSONEncoder().encode(categories) else { return }
+        UserDefaults.standard.set(data, forKey: key)
+    }
+}
+
+private struct LibraryCategoryManagerView: View {
+    @StateObject private var store = LibraryCategoryStore.shared
+    @State private var importing = false
+    @State private var importError: String?
+
+    @ViewBuilder
+    var body: some View {
+        #if os(tvOS)
+        categoryList
+        #else
+        categoryList
+            .toolbar { EditButton() }
+            .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
+                do { try store.importJSON(from: result.get()) }
+                catch { importError = error.localizedDescription }
+            }
+        #endif
+    }
+
+    private var categoryList: some View {
+        List {
+            Section {
+                ForEach($store.categories) { $category in
+                    HStack(spacing: 12) {
+                        Toggle("", isOn: $category.isEnabled).labelsHidden()
+                        TextField("Category name", text: $category.title)
+                    }
+                }
+                .onDelete(perform: store.remove)
+                .onMove(perform: store.move)
+            } header: {
+                Text("Library categories")
+            } footer: {
+                Text("Rename, hide, reorder, or remove the default My Nova categories. At least one usable category is always retained.")
+            }
+
+            Section {
+                #if !os(tvOS)
+                Button { importing = true } label: {
+                    Label("Import Categories JSON", systemImage: "square.and.arrow.down")
+                }
+                #endif
+                Button("Restore Defaults", role: .destructive) { store.restoreDefaults() }
+            }
+        }
+        .navigationTitle("Library Categories")
+        .alert("Couldn't Import Categories", isPresented: Binding(
+            get: { importError != nil }, set: { if !$0 { importError = nil } }
+        )) { Button("OK", role: .cancel) {} } message: { Text(importError ?? "Unknown error") }
+    }
+}
+
 enum LibraryFilter: Hashable, Identifiable, CaseIterable {
     case recentlyAdded
     case favorites
@@ -955,6 +1250,16 @@ enum LibraryFilter: Hashable, Identifiable, CaseIterable {
         case .traktWatchlist:     return "trakt-watchlist"
         case .traktTrending:      return "trakt-trending"
         case .collection(let id): return "collection-\(id.uuidString)"
+        }
+    }
+
+    init?(stableID: String) {
+        switch stableID {
+        case "recent": self = .recentlyAdded
+        case "fav": self = .favorites
+        case "continue": self = .continueWatching
+        case "smb": self = .smb
+        default: return nil
         }
     }
 

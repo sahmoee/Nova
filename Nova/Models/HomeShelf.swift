@@ -141,7 +141,6 @@ final class HomeShelfStore: ObservableObject {
 
     static var defaults: [ShelfConfig] {
         [
-            ShelfConfig(kind: .traktWatchlist),
             ShelfConfig(kind: .tmdbTrending),
             ShelfConfig(kind: .tmdbTrendingShows),
             ShelfConfig(kind: .tmdbNowPlaying),
@@ -150,7 +149,15 @@ final class HomeShelfStore: ObservableObject {
         ]
     }
 
-    var enabledShelves: [ShelfConfig] { shelves.filter(\.isEnabled) }
+    var enabledShelves: [ShelfConfig] {
+        shelves.filter { shelf in
+            guard shelf.isEnabled else { return false }
+            switch shelf.kind {
+            case .traktWatchlist, .traktTrendingShows: return false
+            default: return true
+            }
+        }
+    }
 
     func move(from: IndexSet, to: Int) { shelves.move(fromOffsets: from, toOffset: to) }
 

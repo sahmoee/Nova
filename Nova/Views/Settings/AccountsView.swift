@@ -10,6 +10,7 @@
 import SwiftUI
 #if os(iOS)
 import UniformTypeIdentifiers
+import ZIPFoundation
 #endif
 
 struct AccountsView: View {
@@ -43,18 +44,6 @@ struct AccountsView: View {
 
     private var serviceRows: [AnyView] {
         [
-            AnyView(
-                NavigationLink { TraktConnectView() } label: {
-                    SettingsRow(
-                        icon: "checkmark.seal.fill",
-                        color: Theme.Colors.iconRed,
-                        title: "Trakt",
-                        detail: traktDetail,
-                        status: traktStatusColor
-                    )
-                }
-                .buttonStyle(.plain)
-            ),
             AnyView(
                 NavigationLink { SimklConnectView() } label: {
                     SettingsRow(
@@ -169,16 +158,6 @@ struct AccountsView: View {
 
         rows.append(AnyView(saveRow))
         return rows
-    }
-
-    private var traktDetail: String {
-        if AppConfig.shared.value(for: .traktAccessToken)?.isEmpty == false { return "Connected · Log out" }
-        if config.traktClientID?.isEmpty == false && config.traktClientSecret?.isEmpty == false { return "Log in" }
-        return "Set up login"
-    }
-
-    private var traktStatusColor: Color {
-        traktDetail.hasPrefix("Connected") ? Theme.Colors.success : Theme.Colors.textTertiary
     }
 
     private var realDebridDetail: String {
@@ -298,6 +277,9 @@ private struct NovaTrackerDashboardView: View {
     #if os(iOS)
     @State private var exportDocument: NovaTrackerBackupDocument?
     @State private var exporting = false
+    @State private var choosingTraktArchive = false
+    @State private var traktPreview: TraktArchivePreview?
+    @State private var importingTraktArchive = false
     #endif
 
     var body: some View {
@@ -305,16 +287,33 @@ private struct NovaTrackerDashboardView: View {
             SettingsGroup(header: "Overview", footer: "Synced privately across your Nova devices.", rows: [AnyView(overview)])
             SettingsGroup(header: "Custom Lists", footer: "Make focused queues without changing watch status.", rows: listRows)
             SettingsGroup(header: "Recent Activity", footer: "The latest status, rating and playback changes.", rows: activityRows)
+            #if os(iOS)
+            SettingsGroup(header: "Import", footer: "One-way, local migration. Nova does not connect to Trakt or retain Trakt credentials.", rows: [AnyView(traktArchiveButton)])
+            #endif
             SettingsGroup(header: "Portable Backup", footer: "Export a private JSON copy you control.", rows: [AnyView(backupButton)])
         }
         .task { await reload() }
+        #if os(iOS)
+        // Pull-to-refresh needs a drag gesture the Siri Remote doesn't have.
         .refreshable { await reload() }
+        #endif
         #if os(iOS)
         .fileExporter(isPresented: $exporting,
                       document: exportDocument,
                       contentType: .json,
                       defaultFilename: "Nova-Tracker-Backup") { result in
             if case .failure = result { ToastCenter.shared.show("Backup could not be saved", systemImage: "exclamationmark.triangle") }
+        }
+        .fileImporter(isPresented: $choosingTraktArchive,
+                      allowedContentTypes: [.zip], allowsMultipleSelection: false) { result in
+            guard case .success(let urls) = result, let url = urls.first else { return }
+            Task { await prepareTraktArchive(url) }
+        }
+        .sheet(item: $traktPreview) { preview in
+            TraktArchivePreviewView(preview: preview,
+                                    importing: importingTraktArchive,
+                                    cancel: { traktPreview = nil },
+                                    importAction: { Task { await importTraktArchive(preview) } })
         }
         #endif
     }
@@ -394,6 +393,51 @@ private struct NovaTrackerDashboardView: View {
         .buttonStyle(.plain)
     }
 
+    #if os(iOS)
+    private var traktArchiveButton: some View {
+        Button {
+            choosingTraktArchive = true
+        } label: {
+            SettingsRow(icon: "archivebox.fill", color: Theme.Colors.iconRed,
+                        title: "Import Trakt Data ZIP",
+                        detail: "Preview and merge history, watchlist, collection and ratings",
+                        showsChevron: false)
+        }
+        .buttonStyle(.plain)
+        .disabled(importingTraktArchive)
+    }
+
+    private func prepareTraktArchive(_ url: URL) async {
+        let hasAccess = url.startAccessingSecurityScopedResource()
+        defer { if hasAccess { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let preview = try await Task.detached(priority: .userInitiated) {
+                try TraktArchiveParser.parse(url: url)
+            }.value
+            guard !preview.items.isEmpty else {
+                ToastCenter.shared.show("No supported Trakt records found", systemImage: "exclamationmark.triangle")
+                return
+            }
+            traktPreview = preview
+        } catch {
+            ToastCenter.shared.show("Archive could not be read", systemImage: "exclamationmark.triangle")
+        }
+    }
+
+    private func importTraktArchive(_ preview: TraktArchivePreview) async {
+        guard !importingTraktArchive else { return }
+        importingTraktArchive = true
+        let result = await env.novaTracker.importArchive(preview.items)
+        importingTraktArchive = false
+        traktPreview = nil
+        await reload()
+        let message = result.failed == 0
+            ? "Imported \(result.imported) into Nova Tracker"
+            : "Imported \(result.imported); \(result.failed) could not be saved"
+        ToastCenter.shared.show(message, systemImage: result.failed == 0 ? "checkmark.circle.fill" : "exclamationmark.triangle")
+    }
+    #endif
+
     private func reload() async {
         loading = true
         async let loadedStats = env.novaTracker.trackerStats()
@@ -427,5 +471,195 @@ private struct NovaTrackerBackupDocument: FileDocument {
     init(data: Data) { self.data = data }
     init(configuration: ReadConfiguration) throws { data = configuration.file.regularFileContents ?? Data() }
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
+}
+
+private struct TraktArchivePreview: Identifiable, Sendable {
+    let id = UUID()
+    let items: [NovaTrackerArchiveItem]
+    let filesRead: Int
+    var completed: Int { items.filter { $0.status == "completed" }.count }
+    var watchlist: Int { items.filter { $0.status == "plantowatch" }.count }
+    var rated: Int { items.filter { $0.rating != nil }.count }
+}
+
+private struct TraktArchivePreviewView: View {
+    let preview: TraktArchivePreview
+    let importing: Bool
+    let cancel: () -> Void
+    let importAction: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Archive Summary") {
+                    LabeledContent("Supported titles", value: "\(preview.items.count)")
+                    LabeledContent("Completed/history", value: "\(preview.completed)")
+                    LabeledContent("Watchlist/collection", value: "\(preview.watchlist)")
+                    LabeledContent("Ratings", value: "\(preview.rated)")
+                    LabeledContent("Data files read", value: "\(preview.filesRead)")
+                }
+                Section {
+                    Text("Duplicates are merged by IMDb or TMDB ID. Existing Nova Tracker records are updated, not duplicated. The ZIP stays on your device and is not uploaded.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("Import Trakt Archive")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: cancel).disabled(importing)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(importing ? "Importing…" : "Import", action: importAction)
+                        .disabled(importing)
+                }
+            }
+            .overlay { if importing { ProgressView().controlSize(.large) } }
+        }
+    }
+}
+
+private enum TraktArchiveParser {
+    enum ParseError: Error { case invalidArchive }
+
+    static func parse(url: URL) throws -> TraktArchivePreview {
+        let archive = try Archive(url: url, accessMode: .read)
+        var merged: [String: NovaTrackerArchiveItem] = [:]
+        var filesRead = 0
+        for entry in archive {
+            let lower = entry.path.lowercased()
+            guard lower.hasSuffix(".json") || lower.hasSuffix(".csv"),
+                  entry.uncompressedSize <= 50_000_000 else { continue }
+            var data = Data()
+            _ = try archive.extract(entry) { data.append($0) }
+            let rows = lower.hasSuffix(".json")
+                ? parseJSON(data, path: lower)
+                : parseCSV(data, path: lower)
+            for row in rows { merge(row, into: &merged) }
+            filesRead += 1
+        }
+        return TraktArchivePreview(items: merged.values.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending },
+                                   filesRead: filesRead)
+    }
+
+    private static func parseJSON(_ data: Data, path: String) -> [NovaTrackerArchiveItem] {
+        guard let root = try? JSONSerialization.jsonObject(with: data) else { return [] }
+        var rows: [NovaTrackerArchiveItem] = []
+        walk(root, path: path, rows: &rows)
+        return rows
+    }
+
+    private static func walk(_ value: Any, path: String, rows: inout [NovaTrackerArchiveItem]) {
+        if let array = value as? [Any] {
+            for child in array { walk(child, path: path, rows: &rows) }
+            return
+        }
+        guard let object = value as? [String: Any] else { return }
+        if let item = item(from: object, path: path) { rows.append(item) }
+        for (key, child) in object where child is [Any] {
+            walk(child, path: path + "/" + key.lowercased(), rows: &rows)
+        }
+    }
+
+    private static func item(from wrapper: [String: Any], path: String) -> NovaTrackerArchiveItem? {
+        let entity: [String: Any]
+        let type: ContentType
+        if let movie = wrapper["movie"] as? [String: Any] { entity = movie; type = .movie }
+        else if let show = wrapper["show"] as? [String: Any] { entity = show; type = .series }
+        else if let episode = wrapper["episode"] as? [String: Any] { entity = episode; type = .series }
+        else {
+            entity = wrapper
+            let raw = string(wrapper["type"] ?? wrapper["media_type"])?.lowercased() ?? ""
+            type = raw.contains("movie") ? .movie : .series
+        }
+        guard let title = string(entity["title"] ?? wrapper["title"]), !title.isEmpty else { return nil }
+        let ids = (entity["ids"] as? [String: Any]) ?? (wrapper["ids"] as? [String: Any]) ?? [:]
+        let imdb = string(ids["imdb"] ?? entity["imdb"] ?? wrapper["imdb"])
+        let tmdb = integer(ids["tmdb"] ?? entity["tmdb"] ?? wrapper["tmdb"])
+        guard imdb != nil || tmdb != nil else { return nil }
+        let lower = path.lowercased()
+        let watched = lower.contains("history") || lower.contains("watched") || wrapper["watched_at"] != nil
+        let planned = lower.contains("watchlist") || lower.contains("collection") || wrapper["listed_at"] != nil
+        let rating = integer(wrapper["rating"] ?? entity["rating"]).map { min(max($0, 1), 10) }
+        return NovaTrackerArchiveItem(title: title,
+                                      year: integer(entity["year"] ?? wrapper["year"]),
+                                      type: type, imdb: imdb, tmdb: tmdb,
+                                      status: watched ? "completed" : (planned ? "plantowatch" : nil),
+                                      rating: rating)
+    }
+
+    private static func parseCSV(_ data: Data, path: String) -> [NovaTrackerArchiveItem] {
+        guard let text = String(data: data, encoding: .utf8) else { return [] }
+        let records = csvRecords(text)
+        guard let headers = records.first?.map({ $0.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) }) else { return [] }
+        return records.dropFirst().compactMap { values in
+            var row: [String: String] = [:]
+            for (index, header) in headers.enumerated() where index < values.count { row[header] = values[index] }
+            guard let title = row["title"], !title.isEmpty else { return nil }
+            let imdb = nonempty(row["imdb"] ?? row["imdb_id"])
+            let tmdb = Int(row["tmdb"] ?? row["tmdb_id"] ?? "")
+            guard imdb != nil || tmdb != nil else { return nil }
+            let rawType = (row["type"] ?? row["media_type"] ?? "").lowercased()
+            let lower = path.lowercased()
+            let status = (lower.contains("history") || lower.contains("watched")) ? "completed"
+                : ((lower.contains("watchlist") || lower.contains("collection")) ? "plantowatch" : nil)
+            return NovaTrackerArchiveItem(title: title, year: Int(row["year"] ?? ""),
+                                          type: rawType.contains("movie") ? .movie : .series,
+                                          imdb: imdb, tmdb: tmdb, status: status,
+                                          rating: Int(row["rating"] ?? "").map { min(max($0, 1), 10) })
+        }
+    }
+
+    private static func csvRecords(_ text: String) -> [[String]] {
+        var records: [[String]] = [], record: [String] = [], field = "", quoted = false
+        var index = text.startIndex
+        while index < text.endIndex {
+            let c = text[index]
+            if c == "\"" {
+                let next = text.index(after: index)
+                if quoted, next < text.endIndex, text[next] == "\"" { field.append("\""); index = next }
+                else { quoted.toggle() }
+            } else if c == ",", !quoted { record.append(field); field = "" }
+            else if (c == "\n" || c == "\r"), !quoted {
+                if c == "\r" {
+                    let next = text.index(after: index)
+                    if next < text.endIndex, text[next] == "\n" { index = next }
+                }
+                record.append(field); field = ""
+                if record.contains(where: { !$0.isEmpty }) { records.append(record) }
+                record = []
+            } else { field.append(c) }
+            index = text.index(after: index)
+        }
+        record.append(field)
+        if record.contains(where: { !$0.isEmpty }) { records.append(record) }
+        return records
+    }
+
+    private static func merge(_ item: NovaTrackerArchiveItem,
+                              into merged: inout [String: NovaTrackerArchiveItem]) {
+        let key = item.imdb.map { "imdb:\($0.lowercased())" }
+            ?? item.tmdb.map { "tmdb:\($0):\(item.type == .movie ? "movie" : "show")" }
+        guard let key else { return }
+        if var old = merged[key] {
+            if item.status == "completed" || old.status == nil { old.status = item.status }
+            if let rating = item.rating { old.rating = rating }
+            merged[key] = old
+        } else { merged[key] = item }
+    }
+
+    private static func string(_ value: Any?) -> String? {
+        if let string = value as? String { return nonempty(string) }
+        if let number = value as? NSNumber { return number.stringValue }
+        return nil
+    }
+    private static func integer(_ value: Any?) -> Int? {
+        if let number = value as? NSNumber { return number.intValue }
+        if let string = value as? String { return Int(string) }
+        return nil
+    }
+    private static func nonempty(_ value: String?) -> String? {
+        let cleaned = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleaned?.isEmpty == false ? cleaned : nil
+    }
 }
 #endif

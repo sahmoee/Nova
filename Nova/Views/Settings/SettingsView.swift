@@ -55,10 +55,9 @@ struct SettingsView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                    Text("Settings")
-                        .font(Theme.Font.screenTitle())
-                        .screenTitleStyle()
-                        .foregroundStyle(Theme.Colors.textPrimary)
+                    CinematicPageHeader(title: "Settings",
+                                        subtitle: "Playback, sources, accounts, and Nova",
+                                        systemImage: "gearshape.fill")
                         .padding(.top, Theme.Spacing.md)
 
                     searchField
@@ -104,8 +103,7 @@ struct SettingsView: View {
         }
         .padding(.horizontal, SettingsMetrics.rowSpacing + 2)
         .padding(.vertical, SettingsMetrics.rowVPad)
-        .background(SettingsStyle.groupBackground,
-                    in: RoundedRectangle(cornerRadius: SettingsMetrics.groupRadius, style: .continuous))
+        .cinematicGlass(radius: SettingsMetrics.groupRadius)
     }
 
     private func rowLink(for cat: Category) -> AnyView {

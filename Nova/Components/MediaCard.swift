@@ -20,6 +20,8 @@ struct MediaCard: View {
     /// opening the detail screen. Off by default so rows that attach their own
     /// context menus (Continue Watching, collections) are unaffected.
     var quickActions: Bool = false
+    /// Limits reactive header updates to the page that owns this card.
+    var artworkScope: ArtworkHeaderScope? = nil
     let action: () -> Void
 
     @FocusState private var focused: Bool
@@ -79,7 +81,12 @@ struct MediaCard: View {
     }
 
     private var core: some View {
-        Button(action: action) {
+        Button {
+            if let artworkScope {
+                ArtworkHeaderCoordinator.shared.select(item, in: artworkScope)
+            }
+            action()
+        } label: {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 artwork
                 titleBlock
@@ -102,7 +109,12 @@ struct MediaCard: View {
         .zIndex(focused ? 1 : 0)
         .onChange(of: focused) { _, isFocused in
             // When a card gains focus, tint the UI with its artwork color.
-            if isFocused { AccentManager.shared.deriveAccent(from: item.posterURL) }
+            if isFocused {
+                AccentManager.shared.deriveAccent(from: item.posterURL)
+                if let artworkScope {
+                    ArtworkHeaderCoordinator.shared.select(item, in: artworkScope)
+                }
+            }
         }
     }
 

@@ -57,7 +57,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Nova uses the camera to scan a QR code that points to a snapshot you want to import.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Nova uses your local network to connect to SMB shares you configure and to stream your own video files.</string>
+	<string>Nova uses your local network to connect to SMB shares and UPnP/DLNA devices you configure, and to stream your own video files.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

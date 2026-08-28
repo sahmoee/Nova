@@ -36,7 +36,8 @@ The compatibility command `swift generate_brand_assets.swift <source.png>` invok
 
 ### Accounts, sync, and portability
 
-- Optional TMDB, TMDB account, OMDb, Trakt, Simkl, OpenSubtitles, Real-Debrid, and compatible add-on integrations
+- Optional TMDB, TMDB account, OMDb, Simkl, OpenSubtitles, Real-Debrid, and compatible add-on integrations
+- Local Trakt export ZIP import into Nova Tracker, without Trakt OAuth, credentials, or live API access
 - Keychain-backed secrets/tokens and provider-specific connection flows
 - Local Codable stores and caches, offline catalog cache, download manager, and cleanup tools
 - iCloud configuration backup plus portable `.nova` backup/restore snapshots
@@ -116,13 +117,14 @@ Most provider credentials are entered in-app under Settings and stored through K
 | Value | Purpose | Notes |
 | --- | --- | --- |
 | `tmdbApiKey` | TMDB metadata | Optional |
-| `traktClientId`, `traktClientSecret` | Trakt connection | Access tokens are never read from the file |
 | `openSubtitlesApiKey` | Subtitle lookup | Optional |
 | `aiWorkerUrl` | AI/search Worker override | Prefer the unified route |
 | `novaTrackerBaseUrl` | Tracker endpoint override | Optional |
 | `addonManifestURLs` | Initial user-configured add-ons | Only trusted HTTPS manifests |
 
 Additional integrations—including OMDb, Simkl, TMDB account, Real-Debrid, SMB credentials, and Live TV sources—are configured in-app. Do not commit credentials, account exports, share URLs, or personal server addresses.
+
+To migrate existing Trakt data without reconnecting Trakt, export it as a ZIP and open **Settings → Accounts → Nova Tracker → Import Trakt Data ZIP**. Nova reads supported JSON and CSV files on-device, shows a preview, skips rows without a portable IMDb/TMDB identity, merges duplicates, and sends only the confirmed normalized results to Nova Tracker. The original archive is never uploaded.
 
 The production unified route is `https://api.sowensstudios.com/nova`. Server-side AI keys and optional shared tokens belong in Cloudflare secrets; see the Worker’s [`SECRETS.md`](https://github.com/sahmoee/UnifiedWorker/blob/main/SECRETS.md).
 
@@ -144,6 +146,9 @@ When adding a Swift file, ensure it is registered in every intended target. Shar
 ## Provider and content responsibilities
 
 - Add-ons and source resolvers must be user-configured, transparent, removable, and failure-isolated.
+- Media interoperability is data-only: iOS may import portable NFO metadata and
+  M3U playlists, discover UPnP/DLNA devices, and use signed declarative providers.
+  Third-party modules and binaries must never be executed inside Nova.
 - Nova must not bundle unauthorized catalogs, credentials, decryption material, or copyrighted media.
 - Metadata providers may have attribution, image, caching, and rate-limit requirements; follow each provider’s current terms.
 - Real-Debrid and tracking providers are optional user accounts and must fail without breaking local playback/library features.
@@ -184,3 +189,10 @@ See [`SECURITY.md`](SECURITY.md), [`PRIVACY.md`](PRIVACY.md), [`SUPPORT.md`](SUP
 - [`docs/NOVA_RENAME_COMPATIBILITY.md`](docs/NOVA_RENAME_COMPATIBILITY.md) — naming and compatibility constraints
 
 Preserve persisted-data and backup compatibility, keep shared iOS/tvOS behavior deliberate, add regression tests, avoid unsafe provider assumptions, and update all clients when a shared Worker contract changes.
+
+### Portable media integrations
+
+On iPhone and iPad, open **Addons → Media Tools** for UPnP/DLNA discovery, NFO
+import/export, locally evaluated smart playlists, and signed/checksummed
+declarative providers. Provider traffic is limited to allow-listed HTTPS hosts;
+Nova does not execute repository code.

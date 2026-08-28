@@ -12,7 +12,6 @@ import Foundation
 @MainActor
 final class ShelfLoader {
     private let tmdb: TMDBClient
-    private let trakt: TraktClient
     private let addonClient: StremioAddonClient
     private let addonStore: AddonStore
     /// Resolves an AI shelf prompt into catalog items. Set by AppEnvironment after
@@ -22,10 +21,9 @@ final class ShelfLoader {
     // Short-lived cache so Home and Discover share results within a session.
     private let cache = TTLCache<String, [CatalogItem]>(ttl: 60 * 10)   // 10 min
 
-    init(tmdb: TMDBClient, trakt: TraktClient,
+    init(tmdb: TMDBClient,
          addonClient: StremioAddonClient, addonStore: AddonStore) {
         self.tmdb = tmdb
-        self.trakt = trakt
         self.addonClient = addonClient
         self.addonStore = addonStore
     }
@@ -110,12 +108,11 @@ final class ShelfLoader {
     private func load(_ kind: ShelfKind) async -> [CatalogItem] {
         switch kind {
         case .traktWatchlist:
-            // Trakt returns ids/titles but no images, so fill artwork from TMDB.
-            let items = (try? await trakt.watchlist()) ?? []
-            return await tmdb.enrichArtwork(items)
+            // Legacy persisted shelf. Direct Trakt access was removed; imported
+            // archive data is available through Nova Tracker instead.
+            return []
         case .traktTrendingShows:
-            let items = (try? await trakt.trendingShows()) ?? []
-            return await tmdb.enrichArtwork(items)
+            return []
         case .tmdbTrending:       return (try? await tmdb.trendingMovies()) ?? []
         case .tmdbTrendingShows:  return (try? await tmdb.trendingShows()) ?? []
         case .tmdbPopularMovies:  return (try? await tmdb.popularMovies()) ?? []

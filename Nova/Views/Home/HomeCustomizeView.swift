@@ -100,14 +100,13 @@ struct HomeCustomizeView: View {
     }
 }
 
-/// Picker for adding a new shelf: built-in TMDB/Trakt kinds plus any addon catalogs.
+/// Picker for adding a new shelf: built-in TMDB kinds plus any addon catalogs.
 struct AddShelfView: View {
     @EnvironmentObject private var env: AppEnvironment
     @StateObject private var store = HomeShelfStore.shared
     @Environment(\.dismiss) private var dismiss
 
     private let builtIns: [ShelfKind] = [
-        .traktWatchlist, .traktTrendingShows,
         .tmdbTrending, .tmdbTrendingShows, .tmdbPopularMovies,
         .tmdbNowPlaying, .tmdbTopRated, .tmdbPopularShows, .tmdbAiringToday
     ]

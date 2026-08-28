@@ -165,8 +165,8 @@ enum Theme {
         static let cardElevated = Color(red: 0.105, green: 0.112, blue: 0.138).opacity(0.92)
 
         // Accent is a calm pale blue used sparingly — never neon.
-        static let accent = Color(red: 0.78, green: 0.84, blue: 0.94)
-        static let accentSecondary = Color(red: 0.62, green: 0.68, blue: 0.82)
+        static let accent = Color(red: 0.20, green: 0.66, blue: 0.96)
+        static let accentSecondary = Color(red: 0.42, green: 0.76, blue: 0.98)
         static let iconRed = accent
         static let iconGraphite = Color(white: 0.26)
         static let iconSilver = Color(white: 0.58)

@@ -8,15 +8,18 @@ This is the single authoritative instruction contract for Codex, Claude, and any
 2. For UI work, read Product and UI rules; for data/API work, also read Cross-project ownership; for QA tickets, also read QA; for build/release work, also read Validation and publishing.
 3. Inspect repository status and preserve unrelated changes. Search for existing implementations and tests before adding another path.
 4. Load secrets only from ignored machine-local configuration or Keychain. Never copy values into source, prompts, logs, screenshots, fixtures, or documentation.
-5. When behavior, setup, compatibility, ownership, or validation changes, update the relevant section here and the concise project facts in `README_FIRST.md` in the same verified batch.
-6. Shared changes must name an owner, producers, consumers, rollout order, fallback, migration/repair behavior, and verification matrix before publication.
-7. Read narrowly to minimize tokens, but never skip a section selected by these routing rules.
+5. Default every metered AI request to the lowest-credit supported model and prefer on-device AI when it can satisfy the task. Preserve explicit user/operator model overrides; do not silently promote a default request to a costlier model.
+6. When behavior, setup, compatibility, ownership, or validation changes, update the relevant section here and the concise project facts in `README_FIRST.md` in the same verified batch.
+7. Shared changes must name an owner, producers, consumers, rollout order, fallback, migration/repair behavior, and verification matrix before publication.
+8. Read narrowly to minimize tokens, but never skip a section selected by these routing rules.
 
 ## Project and UI rules
 
 
 
 Every page, sheet, popover, and cover must fill its presentation with Nova's active theme, never a stock white host background. Layouts and controls must adapt to the available iPhone, iPad, tvOS, orientation, safe-area, multitasking, and Dynamic Type environment. Prefer flexible frames and adaptive composition; fixed dimensions are only for intentional poster, player, QR, or artwork geometry. Do not impose scroll behavior that clips accessible content or makes content scroll when it already fits.
+
+App-level headers and root tab bars have one shared implementation and one geometry source. Feature pages must not locally override brand placement, chrome height, safe-area spacing, icon slots, labels, or selected-tab geometry.
 
 ## Cross-project ownership and synchronization
 
@@ -28,7 +31,7 @@ Every page, sheet, popover, and cover must fill its presentation with Nova's act
 Update Nova and UnifiedWorker together for API changes, additively where released clients exist. Update site-repo when public behavior or links change.
 Nova's `/titles` response always retains the legacy flat `titles` array; multi-collection requests may also include additive named `collections` previews.
 
-Trakt list importing is client-owned and uses Trakt/TMDB directly. Only the optional Nova Tracker destination crosses into `UnifiedWorker`; it reuses the existing additive `v1/status` contract and requires no Worker schema change.
+Trakt has no live client integration. Offline Trakt ZIP parsing is client-owned and local-only; only confirmed portable IMDb/TMDB watch state and ratings cross into `UnifiedWorker` through the existing additive Nova Tracker contracts. Never add Trakt OAuth, API credentials, live requests, or a Trakt destination to this flow.
 
 Nova QA is available only during a ten-minute `Joo` passcode window. Unlocked iOS/iPadOS devices merge app-scoped tickets from every Nova device through `POST /_unified/qa/tickets/sync` before retrying local writes. Mac targets do not expose in-app QA.
 ## Nova Tracker contract

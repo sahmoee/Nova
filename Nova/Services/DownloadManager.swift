@@ -78,6 +78,23 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
         return pending.isEmpty ? (completedCount > 0 ? 1 : 0) : pending.map(\.progress).reduce(0, +) / Double(pending.count)
     }
 
+    /// Builds a direct-play item for a completed file without re-resolving its
+    /// original network source. A missing file is deliberately not playable:
+    /// `reconcileFiles()` will surface it as a recoverable failed download.
+    func playbackItem(for download: OfflineDownload) -> MediaItem? {
+        guard download.state == .complete,
+              let localURL = download.localURL,
+              FileManager.default.fileExists(atPath: localURL.path) else { return nil }
+
+        return MediaItem(
+            id: download.mediaID,
+            title: download.title,
+            sourceType: .directURL,
+            playbackURL: localURL,
+            legalAccessConfirmed: true
+        )
+    }
+
     func isEligible(_ item: MediaItem) -> Bool {
         guard item.legalAccessConfirmed, item.sourceType != .liveTV else { return false }
         return ["https", "http", "file"].contains(item.playbackURL.scheme?.lowercased() ?? "")

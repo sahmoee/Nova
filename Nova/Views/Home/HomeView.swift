@@ -91,10 +91,6 @@ struct HomeView: View {
     private var watchNowContent: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
-                #if !os(tvOS)
-                topBar
-                #endif
-
                 if !env.tmdb.hasKey {
                     setupBanner
                 }
@@ -110,7 +106,11 @@ struct HomeView: View {
                 )
 
                 if profiles.preferences.showQuickAccess {
+                    #if os(iOS)
+                    StreamingDiscoverGrid(items: Array(quickAccessItems.prefix(4)))
+                    #else
                     AppleTVQuickAccessRow(items: quickAccessItems)
+                    #endif
                 }
 
                 if profiles.preferences.showBecauseYouWatched,
@@ -146,9 +146,11 @@ struct HomeView: View {
             .padding(.bottom, Theme.Spacing.xl)
         }
         #if os(iOS)
+        // The artwork is the page header, so it reaches behind the status area.
+        // ImmersiveFeaturedHero keeps the complete foreground artwork aspect-fit.
+        .ignoresSafeArea(edges: .top)
         .refreshable { await refreshShelves() }
-        #endif
-        #if os(tvOS)
+        #else
         .ignoresSafeArea(edges: .top)
         .focusScope(heroFocusNS)
         .scrollClipDisabled()
@@ -157,10 +159,9 @@ struct HomeView: View {
 
     private var topBar: some View {
         HStack(alignment: .center, spacing: Theme.Spacing.sm) {
-            Text("NOVA")
-                .font(.appFont(PlatformCapabilities.platform == .appleTV ? 38 : 30, weight: .black))
-                .tracking(2.5)
-                .foregroundStyle(Theme.Colors.accent)
+            Text("Nova")
+                .font(.appFont(PlatformCapabilities.platform == .appleTV ? 38 : 30, weight: .heavy))
+                .foregroundStyle(Theme.Colors.textPrimary)
                 .accessibilityLabel("Nova Home")
             if !Theme.isCompact {
                 Text("WATCH NOW")
@@ -213,10 +214,9 @@ struct HomeView: View {
                 ZStack {
                     let safeIndex = min(heroIndex, items.count - 1)
                     let item = items[safeIndex]
-                    FeaturedHero(item: item,
-                                 height: PlatformCapabilities.homeHeroHeight,
-                                 badge: heroBadge(for: item),
-                                 onMoreInfo: openDetail) { play($0) }
+                    ImmersiveFeaturedHero(item: item,
+                                          height: PlatformCapabilities.homeHeroHeight,
+                                          onOpen: openDetail)
                         .overlay(alignment: .topTrailing) { customizeButton }
                         .id(item.id)
                         .transition(.opacity)
@@ -257,9 +257,9 @@ struct HomeView: View {
                 if items.count > 1 {
                     HStack(spacing: 6) {
                         ForEach(items.indices, id: \.self) { index in
-                            Capsule()
+                            Circle()
                                 .fill(index == heroIndex ? Color.white : Color.white.opacity(0.32))
-                                .frame(width: index == heroIndex ? 18 : 6, height: 6)
+                                .frame(width: 7, height: 7)
                         }
                     }
                     .animation(.easeOut(duration: 0.18), value: heroIndex)

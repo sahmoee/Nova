@@ -66,13 +66,6 @@ struct SourcesView: View {
                                        lastSynced: lastChecked("smb"), isInteractive: false) {}
                         }.buttonStyle(.plain)
 
-                        NavigationLink { TraktConnectView() } label: {
-                            SourceCard(title: "Trakt",
-                                       systemImage: SourceType.trakt.systemImage,
-                                       status: liveStatus("trakt", fallback: SourceHealth.trakt().status),
-                                       lastSynced: lastChecked("trakt"), isInteractive: false) {}
-                        }.buttonStyle(.plain)
-
                         NavigationLink { SimklConnectView() } label: {
                             SourceCard(title: "SIMKL",
                                        systemImage: "checkmark.seal",
@@ -117,12 +110,12 @@ struct SourcesView: View {
         }
     }
 
-    /// A compact banner summarizing the metadata-affecting sources (TMDB / Trakt /
+    /// A compact banner summarizing the metadata-affecting sources (TMDB /
     /// Real-Debrid / Addons), so missing keys are obvious at a glance.
     private var healthSummary: some View {
         let items = healthMonitor.items.isEmpty
             ? [SourceHealth.realDebrid(), SourceHealth.tmdb(),
-               SourceHealth.trakt(), SourceHealth.addons(env.addonStore)]
+               SourceHealth.addons(env.addonStore)]
             : healthMonitor.items
         return VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             HStack {
@@ -216,7 +209,6 @@ struct SourcesView: View {
         switch name {
         case "Real-Debrid": RealDebridView()
         case "Addons":      AddonsView()
-        case "Trakt":       TraktConnectView()
         default:            AccountsView()   // TMDB & metadata keys
         }
     }

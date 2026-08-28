@@ -34,7 +34,7 @@ struct PersonView: View {
                                    message: "We couldn't find a filmography for \(member.name).")
                         .frame(minHeight: 240)
                 } else {
-                    Text("Known For")
+                    Text("Movies, Shows & Credits")
                         .font(Theme.Font.sectionTitle())
                         .foregroundStyle(Theme.Colors.textPrimary)
                     LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {

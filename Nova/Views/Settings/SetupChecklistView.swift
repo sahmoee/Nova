@@ -120,7 +120,6 @@ struct SetupChecklistView: View {
     private var steps: [Step] {
         let tmdb = SourceHealth.tmdb()
         let rd = SourceHealth.realDebrid()
-        let trakt = SourceHealth.trakt()
         let addons = SourceHealth.addons(env.addonStore)
 
         return [
@@ -140,14 +139,6 @@ struct SetupChecklistView: View {
                  isDone: rd.status == .connected,
                  doneDetail: "Connected",
                  destination: AnyView(RealDebridView())),
-            Step(id: "trakt",
-                 title: "Connect Trakt",
-                 subtitle: "For your watchlist and trending lists",
-                 systemImage: "checkmark.seal",
-                 required: false,
-                 isDone: trakt.status == .connected,
-                 doneDetail: "Connected",
-                 destination: AnyView(TraktConnectView())),
             Step(id: "addons",
                  title: "Install Addons",
                  subtitle: "Add catalog and stream sources",

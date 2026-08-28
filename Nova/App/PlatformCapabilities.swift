@@ -117,8 +117,8 @@ enum PlatformCapabilities {
 
     static var homeHeroHeight: CGFloat {
         switch platform {
-        case .iPhone:  return 470
-        case .iPad:    return 560
+        case .iPhone:  return 620
+        case .iPad:    return 720
         case .appleTV: return 640
         }
     }

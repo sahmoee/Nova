@@ -67,3 +67,67 @@ extension ScreenHeader where Action == EmptyView {
         self.action = { EmptyView() }
     }
 }
+
+/// Compact, artwork-first title treatment shared by Nova's primary destinations.
+struct CinematicPageHeader<Trailing: View>: View {
+    let title: String
+    var subtitle: String? = nil
+    var systemImage: String? = nil
+    @ViewBuilder var trailing: () -> Trailing
+
+    var body: some View {
+        HStack(alignment: .center, spacing: Theme.Spacing.sm) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    if let systemImage {
+                        Image(systemName: systemImage)
+                            .font(.appFont(19, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.accent)
+                    }
+                    Text(title)
+                        .font(.appFont(Theme.isCompact ? 32 : 48, weight: .heavy))
+                        .screenTitleStyle()
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                }
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.appFont(14))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .lineLimit(2)
+                }
+            }
+            Spacer(minLength: Theme.Spacing.sm)
+            trailing()
+        }
+    }
+}
+
+extension CinematicPageHeader where Trailing == EmptyView {
+    init(title: String, subtitle: String? = nil, systemImage: String? = nil) {
+        self.title = title
+        self.subtitle = subtitle
+        self.systemImage = systemImage
+        self.trailing = { EmptyView() }
+    }
+}
+
+struct CinematicGlassSurface: ViewModifier {
+    var radius: CGFloat = 16
+
+    func body(content: Content) -> some View {
+        content
+            .background(.ultraThinMaterial,
+                        in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.75)
+            }
+            .shadow(color: .black.opacity(0.34), radius: 16, y: 8)
+    }
+}
+
+extension View {
+    func cinematicGlass(radius: CGFloat = 16) -> some View {
+        modifier(CinematicGlassSurface(radius: radius))
+    }
+}

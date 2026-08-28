@@ -311,7 +311,7 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
     }
 
     private func scrobbleProgressIfNeeded() {
-        // Trakt rate-limits scrobbles; only send on meaningful change.
+        // Avoid noisy tracker writes; only send on meaningful progress changes.
         let pct = progressPercent
         if abs(pct - lastScrobbleProgress) >= 5 {
             lastScrobbleProgress = pct
@@ -320,8 +320,7 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
     }
 
     private func scrobble(_ action: ScrobbleAction) {
-        guard settings?.traktScrobblingEnabled == true,
-              let trackers, let contentID = item.contentID else { return }
+        guard let trackers, let contentID = item.contentID else { return }
         if action == .start { hasScrobbledStart = true }
         let pct = progressPercent
         let ep = item.episode

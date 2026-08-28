@@ -30,11 +30,27 @@ struct ContinueWatchingCard: View {
         return text
     }
 
+    private var cardWidth: CGFloat {
+        #if os(tvOS)
+        return Theme.scaled(430, min: 300)
+        #else
+        return UIDevice.current.userInterfaceIdiom == .pad ? 320 : 224
+        #endif
+    }
+
+    private var cardHeight: CGFloat {
+        #if os(tvOS)
+        return Theme.scaled(300, min: 200)
+        #else
+        return UIDevice.current.userInterfaceIdiom == .pad ? 204 : 142
+        #endif
+    }
+
     var body: some View {
         MediaCard(item: item,
                   wide: true,
-                  widthOverride: Theme.scaled(430, min: 300),
-                  heightOverride: Theme.scaled(300, min: 200),
+                  widthOverride: cardWidth,
+                  heightOverride: cardHeight,
                   action: onPlay)
             .overlay(alignment: .topLeading) {
                 if let badge = progressBadge {

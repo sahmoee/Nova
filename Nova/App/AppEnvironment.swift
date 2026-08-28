@@ -26,16 +26,16 @@ final class AppEnvironment: ObservableObject {
     // Phase 3: catalog, addons, metadata, scrobbling.
     let addonStore: AddonStore
     let liveTVSources = LiveTVSourceStore()
+    let mediaIntegrations: MediaIntegrationStore
     let libraryFolders = LibraryFolderStore()
     let libraryEnricher = LibraryEnricher()
     let tmdb: TMDBClient
     let omdb: OMDbClient
-    let trakt: TraktClient
     let simkl: SimklClient
     let tmdbTracker: TMDBAccountClient
     let novaTracker: NovaTrackingProvider
     let episodeNotifier: EpisodeAvailabilityNotifier
-    /// Aggregates every optional tracker (Trakt, SIMKL, TMDB). Writes fan out to all
+    /// Aggregates Nova Tracker and the optional SIMKL/TMDB trackers. Writes fan out to all
     /// connected trackers; reads merge across them. Use this instead of a single
     /// service for watchlist/trending/scrobble.
     let trackers: TrackingHub
@@ -95,18 +95,18 @@ final class AppEnvironment: ObservableObject {
 
         let store = AddonStore()
         self.addonStore = store
+        let mediaIntegrationStore = MediaIntegrationStore()
+        self.mediaIntegrations = mediaIntegrationStore
         let tmdbClient = TMDBClient()
         self.tmdb = tmdbClient
         self.omdb = OMDbClient()
-        let traktClient = TraktClient()
-        self.trakt = traktClient
         let simklClient = SimklClient()
         self.simkl = simklClient
         let tmdbAccount = TMDBAccountClient()
         self.tmdbTracker = tmdbAccount
         let novaTrackerClient = NovaTrackingProvider()
         self.novaTracker = novaTrackerClient
-        self.trackers = TrackingHub([novaTrackerClient, traktClient, simklClient, tmdbAccount])
+        self.trackers = TrackingHub([novaTrackerClient, simklClient, tmdbAccount])
         // Pull the first-party tracker's data into the on-device cache at launch.
         Task { await novaTrackerClient.sync() }
         let os = OpenSubtitlesClient()
@@ -125,13 +125,13 @@ final class AppEnvironment: ObservableObject {
             resolver: streamResolver,
             openSubtitles: os,
             skipProvider: skip,
+            declarativeExtensions: { [weak mediaIntegrationStore] in mediaIntegrationStore?.extensions ?? [] },
             hasDebridToken: { KeychainStore.shared.realDebridToken != nil }
         )
         self.episodeNotifier = EpisodeAvailabilityNotifier(library: lib, tmdb: tmdbClient, catalog: self.catalog)
 
         self.shelfLoader = ShelfLoader(
             tmdb: tmdbClient,
-            trakt: self.trakt,
             addonClient: addonCli,
             addonStore: store
         )
@@ -149,11 +149,8 @@ final class AppEnvironment: ObservableObject {
         // Seed default addons (Cinemeta + any from config) in the background.
         Task { await store.seedDefaultsIfNeeded() }
 
-        // After a backup restore, the Trakt access/refresh tokens are written to the
-        // Keychain but the client never re-checks them. Refresh + validate so a
-        // restored login is actually usable (or clearly marked expired) rather than
-        // just appearing connected. Live TV, addons, and SMB reload via their own
-        // observers of the same notification.
+        // Refresh connected tracking providers after a backup restore. Live TV,
+        // addons, and SMB reload via their own observers of the same notification.
         NotificationCenter.default.addObserver(
             forName: .novaBackupRestored, object: nil, queue: nil
         ) { [trackers] _ in

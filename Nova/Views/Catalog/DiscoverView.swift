@@ -4,7 +4,7 @@
 //
 //  Search and discovery. The user searches by title (TMDB) and taps a result to
 //  open its detail screen. When a TMDB key isn't set, it explains how to add one.
-//  Optionally shows the user's Trakt watchlist as a starting row.
+//  Nova Tracker and local library state remain independent of discovery providers.
 //
 
 import SwiftUI
@@ -18,7 +18,6 @@ struct DiscoverView: View {
     @State private var results: [CatalogItem] = []
     /// Set when results came from an auto-corrected spelling, to show a note.
     @State private var correctedQuery: String?
-    @State private var watchlist: [CatalogItem] = []
     @State private var state: ViewState = .idle
     @State private var hasTMDBKey = false
     @State private var searchTask: Task<Void, Never>?
@@ -102,7 +101,8 @@ struct DiscoverView: View {
                 // Shelf rows manage their own horizontal insets, so offset them back
                 // out of this view's edge padding.
                 ForEach(shelfStore.enabledShelves) { shelf in
-                    CatalogShelfRow(shelf: shelf, showSourceLabel: true, variant: .discover)
+                    CatalogShelfRow(shelf: shelf, showSourceLabel: true, variant: .discover,
+                                    artworkScope: .discover)
                         .id("\(shelf.id)-\(discoverRefreshToken)")
                         .padding(.horizontal, -Theme.Spacing.edge)
                 }
@@ -133,10 +133,12 @@ struct DiscoverView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                    Text("Search")
-                        .font(Theme.Font.screenTitle())
-                        .screenTitleStyle()
-                        .foregroundStyle(Theme.Colors.textPrimary)
+                    ReactiveArtworkPageHeader(title: "Search",
+                                              scope: .discover,
+                                              subtitle: "Find something worth watching",
+                                              systemImage: "magnifyingglass")
+                        .padding(.horizontal, -Theme.Spacing.edge)
+                        .padding(.top, -Theme.Spacing.edge)
 
                     searchField
 
@@ -373,17 +375,6 @@ struct DiscoverView: View {
         .frame(height: 400)
     }
 
-    // MARK: - Watchlist
-
-    private var watchlistSection: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            Text("Your Trakt Watchlist")
-                .font(Theme.Font.sectionTitle())
-                .foregroundStyle(Theme.Colors.textPrimary)
-            grid(watchlist)
-        }
-    }
-
     // MARK: - Results layout
 
     /// Results honor the user's chosen layout: a poster grid, or Apple-TV-style
@@ -507,10 +498,6 @@ struct DiscoverView: View {
     private func onAppear() async {
         hasTMDBKey = env.tmdb.hasKey
         if state == .noKey && hasTMDBKey { state = .idle }
-        // Load watchlist if Trakt is connected.
-        if await env.trackers.anyConnected() {
-            watchlist = await env.trackers.watchlist()
-        }
     }
 
     private func debounceSearch() {

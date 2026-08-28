@@ -13,7 +13,6 @@ struct CollectionsView: View {
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var env: AppEnvironment
     @State private var showingNewCollection = false
-    @State private var newName = ""
     @State private var selectedItem: MediaItem?
     @State private var editing = false
     @State private var pendingDelete: MediaCollection?
@@ -31,9 +30,6 @@ struct CollectionsView: View {
 
                     // Smart Collections: auto-updating groups based on simple rules.
                     smartSection
-
-                    // Trakt lists rendered as read-only collections.
-                    traktSection
 
                     if library.collections.isEmpty {
                         emptyState
@@ -67,6 +63,12 @@ struct CollectionsView: View {
             }
         }
         .navigationTitle("Collections")
+        .onAppear {
+            let firstCollectionItem = library.collections.first.flatMap { library.items(in: $0).first }
+            if let first = firstCollectionItem ?? library.recentlyAdded.first ?? library.items.first {
+                ArtworkHeaderCoordinator.shared.select(first, in: .collections)
+            }
+        }
         .fullScreenCover(item: $selectedItem) { item in
             // Present the player as a full-screen cover so no tab bar, sidebar,
             // or mini-bar remains visible during playback on any platform.
@@ -80,6 +82,14 @@ struct CollectionsView: View {
             }
             Button { showingNewCollection = true } label: {
                 Image(systemName: "plus")
+            }
+        }
+        .sheet(isPresented: $showingNewCollection) {
+            TextPromptSheet(title: "New Collection",
+                             message: "Name your collection, like Halloween or Comfort Shows.",
+                             placeholder: "Name",
+                             confirmTitle: "Create") { entered in
+                library.createCollection(name: entered)
             }
         }
         .alert("Delete Collection?",
@@ -96,26 +106,13 @@ struct CollectionsView: View {
         } message: { collection in
             Text("“\(collection.name)” will be deleted. Its titles stay in your library.")
         }
-        .alert("New Collection", isPresented: $showingNewCollection) {
-            TextField("Name", text: $newName)
-            Button("Create") {
-                let trimmed = newName.trimmingCharacters(in: .whitespaces)
-                if !trimmed.isEmpty { library.createCollection(name: trimmed) }
-                newName = ""
-            }
-            Button("Cancel", role: .cancel) { newName = "" }
-        } message: {
-            Text("Name your collection, like Halloween or Comfort Shows.")
-        }
     }
 
     private var header: some View {
-        Text("Collections")
-            .font(Theme.Font.screenTitle())
-            .screenTitleStyle()
-            .foregroundStyle(Theme.Colors.textPrimary)
-            .padding(.horizontal, Theme.Spacing.edge)
-            .padding(.top, Theme.Spacing.lg)
+        ReactiveArtworkPageHeader(title: "Collections",
+                                  scope: .collections,
+                                  subtitle: "Your saved worlds, grouped your way",
+                                  systemImage: "rectangle.stack")
     }
 
     private var emptyState: some View {
@@ -339,10 +336,10 @@ struct MediaGridDetailView: View {
     @ViewBuilder
     private func gridCard(_ item: MediaItem) -> some View {
         if let itemMenu {
-            MediaCard(item: item) { onPlay(item) }
+            MediaCard(item: item, artworkScope: .collections) { onPlay(item) }
                 .contextMenu { itemMenu(item) }
         } else {
-            MediaCard(item: item) { onPlay(item) }
+            MediaCard(item: item, artworkScope: .collections) { onPlay(item) }
         }
     }
 

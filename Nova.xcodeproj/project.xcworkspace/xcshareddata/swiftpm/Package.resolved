@@ -1,23 +1,33 @@
 {
-  "pins": [
+  "originHash" : "558725025354f43ad4ff508014e9b5d6bb0be8e762d4c4763221eb6eb467952a",
+  "pins" : [
     {
-      "identity": "amsmb2",
-      "kind": "remoteSourceControl",
-      "location": "https://github.com/amosavian/AMSMB2",
-      "state": {
-        "revision": "f1ea3b0de86abcbc648a0b6223d6a36569716428",
-        "version": "3.4.0"
+      "identity" : "amsmb2",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/amosavian/AMSMB2",
+      "state" : {
+        "revision" : "f1ea3b0de86abcbc648a0b6223d6a36569716428",
+        "version" : "3.4.0"
       }
     },
     {
-      "identity": "vlckit-spm",
-      "kind": "remoteSourceControl",
-      "location": "https://github.com/tylerjonesio/vlckit-spm",
-      "state": {
-        "revision": "e932bbd488872fdb74f6654d28c2f291eae03daf",
-        "version": "3.6.0"
+      "identity" : "vlckit-spm",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tylerjonesio/vlckit-spm",
+      "state" : {
+        "revision" : "e932bbd488872fdb74f6654d28c2f291eae03daf",
+        "version" : "3.6.0"
+      }
+    },
+    {
+      "identity" : "zipfoundation",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/weichsel/ZIPFoundation.git",
+      "state" : {
+        "revision" : "22787ffb59de99e5dc1fbfe80b19c97a904ad48d",
+        "version" : "0.9.20"
       }
     }
   ],
-  "version": 3
+  "version" : 3
 }

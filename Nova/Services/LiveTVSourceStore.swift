@@ -190,6 +190,31 @@ final class LiveTVSourceStore: ObservableObject {
         Task { await refresh(source) }
     }
 
+    /// Saves a portable M3U found inside an imported Kodi package, then registers
+    /// it as an ordinary Nova Live TV source. The original ZIP is never executed.
+    @discardableResult
+    func importKodiPlaylist(data: Data, name: String) throws -> LiveTVSource {
+        guard data.count <= 25_000_000,
+              String(decoding: data.prefix(16), as: UTF8.self).contains("#EXTM3U") else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        let folder = FileManager.default.urls(for: .applicationSupportDirectory,
+                                               in: .userDomainMask).first!
+            .appendingPathComponent("KodiPlaylists", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let safeName = name.replacingOccurrences(of: "[^A-Za-z0-9._-]", with: "-",
+                                                  options: .regularExpression)
+        let fileURL = folder.appendingPathComponent(safeName.isEmpty ? UUID().uuidString : safeName)
+            .appendingPathExtension("m3u")
+        try data.write(to: fileURL, options: .atomic)
+        let source = LiveTVSource(name: name, url: fileURL.absoluteString, kind: .m3u,
+                                  isEnabled: true, isBuiltIn: false)
+        sources.append(source)
+        persist()
+        Task { await refresh(source) }
+        return source
+    }
+
     func remove(_ source: LiveTVSource) {
         guard !source.isBuiltIn else { return }
         sources.removeAll { $0.id == source.id }

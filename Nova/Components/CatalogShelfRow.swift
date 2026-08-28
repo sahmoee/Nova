@@ -14,6 +14,7 @@ struct CatalogShelfRow: View {
     var showSourceLabel: Bool = true
     /// Home shows the canonical order; Discover reshuffles on every appearance.
     var variant: ShelfLoader.Variant = .home
+    var artworkScope: ArtworkHeaderScope? = nil
 
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var nav: NavigationCoordinator
@@ -38,6 +39,11 @@ struct CatalogShelfRow: View {
                                             posterCard(item)
                                         }
                                         .buttonStyle(NovaListRowStyle())
+                                        .simultaneousGesture(TapGesture().onEnded {
+                                            if let artworkScope {
+                                                ArtworkHeaderCoordinator.shared.select(item, in: artworkScope)
+                                            }
+                                        })
                                         .contextMenu { quickActions(item) }
                                     }
                                 }
@@ -64,6 +70,9 @@ struct CatalogShelfRow: View {
             // Interested / Already Watched from recommendation rows.
             items = RecommendationFeedbackStore.shared.visible(loadedItems) { $0.contentID.stableKey }
             loaded = true
+            if let artworkScope, let first = items.first {
+                ArtworkHeaderCoordinator.shared.select(first, in: artworkScope)
+            }
             ImageLoader.shared.prefetch(Array(items.prefix(16)).compactMap(\.posterURL))
         }
     }

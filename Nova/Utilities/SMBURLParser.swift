@@ -104,7 +104,10 @@ enum SMBHostResolver {
             }
         }
         guard result == 0 else { return nil }
-        let resolved = String(cString: name).trimmingCharacters(in: CharacterSet(charactersIn: ".")).lowercased()
+        let bytes = name.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }
+        let resolved = String(decoding: bytes, as: UTF8.self)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "."))
+            .lowercased()
         return isTailscaleName(resolved) ? resolved : nil
     }
 }

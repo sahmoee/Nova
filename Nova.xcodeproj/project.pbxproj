@@ -22,6 +22,8 @@
 		099D4E40704095124E40AADF /* CatalogModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8F5C8D6D9A7FBACD7D3D9D6 /* CatalogModels.swift */; };
 		0A85978FC8FD1477CC198125 /* SubtitleMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC542829C9B9623A7B195ABD /* SubtitleMatcher.swift */; };
 		0B26C8646AB2404F88C358B5 /* LiveTVSourcesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36CDA0124FF84BFB849A499B /* LiveTVSourcesView.swift */; };
+		0B26C8646AB2404F88C358C0 /* KodiAdvancedServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36CDA0124FF84BFB849A49A0 /* KodiAdvancedServices.swift */; };
+		0B26C8646AB2404F88C358C1 /* KodiAdvancedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36CDA0124FF84BFB849A49A1 /* KodiAdvancedView.swift */; };
 		0C95B8FE408C8792E076EA15 /* SkipSegmentProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E8A1B16D0BE98A202EE1956 /* SkipSegmentProvider.swift */; };
 		0D358C9C68123D01561EC0A6 /* WhatsNew.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8075DEF1D961A6A114567B88 /* WhatsNew.swift */; };
 		0D3A48495063D523111F44AC /* WhatsNewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC5898173AC34F3D610F77E2 /* WhatsNewView.swift */; };
@@ -47,7 +49,6 @@
 		188C776565F6BA1480F6DE19 /* CloudSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E57411D31532633B500CBFA /* CloudSync.swift */; };
 		194E0E479EB3A48E90A0D298 /* NavigationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE1A2D3DDDC258F2EC64F99 /* NavigationCoordinator.swift */; };
 		1ADD94017E26D18652A8DED9 /* LegalAccessGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33C5EA3C89FCC7B7E2881DDB /* LegalAccessGate.swift */; };
-		1AE64675717A970B90592A33 /* TraktConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAAA886CA126FFC76F3A830C /* TraktConnectView.swift */; };
 		1B35441892594641AA48ADBC /* LibraryFoldersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B66E08CE02A4CE4B251691E /* LibraryFoldersView.swift */; };
 		1BF506E25F219FE0F4DB9887 /* LegalConfirmToggle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0891FE55B78DCC3DE872A952 /* LegalConfirmToggle.swift */; };
 		1D490260F7F692118165B400 /* SourceBadges.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FF35E57F4D926F55E210C5B /* SourceBadges.swift */; };
@@ -71,6 +72,8 @@
 		2949EFFBE12588BF52E92744 /* PlayerGestureOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 388E42C977C02DB5900E8FA8 /* PlayerGestureOverlay.swift */; };
 		2B20D0183B6445FBA89525BB /* ../Views/App/PersonalMediaDisclosureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9096BB0AB70541318ACCE62E /* ../Views/App/PersonalMediaDisclosureView.swift */; };
 		2C54E698554D464C8032273C /* LiveTVSourceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81593455C6754FA5A1512821 /* LiveTVSourceStore.swift */; };
+		2C54E698554D464C8032274C /* KodiAdvancedServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36CDA0124FF84BFB849A49A0 /* KodiAdvancedServices.swift */; };
+		2C54E698554D464C8032274D /* KodiAdvancedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36CDA0124FF84BFB849A49A1 /* KodiAdvancedView.swift */; };
 		2E0216E335184F03AABB1696 /* ../Views/Library/LibraryQualityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 360D8A22268241E9BC1980EA /* ../Views/Library/LibraryQualityView.swift */; };
 		2E35CEB120F9439EBF04E4BF /* PersonalizedHomeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9357A81F3F434BF1B6E4EA00 /* PersonalizedHomeEngine.swift */; };
 		2EC9E685A1DF4A94C6E9441E /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE3ABE58915541F160C540E1 /* QRScannerView.swift */; };
@@ -186,7 +189,6 @@
 		7CC2A2F90160E897B5B1E7B5 /* StateViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5519B507B9E49505F005D45A /* StateViews.swift */; };
 		7CFA98D16D47B054450C3323 /* NavigationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE1A2D3DDDC258F2EC64F99 /* NavigationCoordinator.swift */; };
 		7D6B4F6262C091675FFE9E31 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C23B60F65D2B45B9C58BB8 /* LibraryView.swift */; };
-		7D6FD4DDFF63100F62EE3E97 /* TraktConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAAA886CA126FFC76F3A830C /* TraktConnectView.swift */; };
 		7E436A9EF41C4EDC8C517025 /* DateFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B34BE02AA0D40549E674138 /* DateFormatting.swift */; };
 		7E4E9469F2FA447CB3B7FD61 /* NetworkConditionMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12CF2CBBF0D640129C7C3AFF /* NetworkConditionMonitor.swift */; };
 		7EF2C1B421BC895D8C00EC4B /* HomeShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44483A3741A3146721D8B9CC /* HomeShelf.swift */; };
@@ -241,6 +243,8 @@
 		9FFD2D733A17EC7C1F5F72A1 /* VLCPlayerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 623954A6B50ECFBB344C96F4 /* VLCPlayerModel.swift */; };
 		A11CE0010000000000000001 /* UnifiedQAReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000001 /* UnifiedQAReporter.swift */; };
 		A11CE0020000000000000001 /* UnifiedQAReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000001 /* UnifiedQAReporter.swift */; };
+		A11CE0110000000000000001 /* QAAIOverrideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0100000000000000001 /* QAAIOverrideView.swift */; };
+		A11CE0120000000000000001 /* QAAIOverrideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0100000000000000001 /* QAAIOverrideView.swift */; };
 		A1B07703B593FB08A766950C /* CatalogCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B6B11C8B202C03CABA9905 /* CatalogCache.swift */; };
 		A1DFF0EE8414442986B1D1E7 /* LiveTVSourceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81593455C6754FA5A1512821 /* LiveTVSourceStore.swift */; };
 		A21C42E7AFC9AAB3D316EFF2 /* AMSMB2 in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 0AA93A977A91C256389533FA /* AMSMB2 */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
@@ -284,6 +288,7 @@
 		BA600D04DF7FBF85EFB416BE /* WhatsNewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC5898173AC34F3D610F77E2 /* WhatsNewView.swift */; };
 		BACAEDA4117B8C2645BA102A /* PlaybackEngineRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0FA42F693AECB67486AF1B /* PlaybackEngineRouter.swift */; };
 		BBFB430D0FA140F5B917ACFD /* LibraryFoldersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B66E08CE02A4CE4B251691E /* LibraryFoldersView.swift */; };
+		BC142DF796683515E6168CFF /* TextPromptSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FE1CD994D810DCCBDB566C /* TextPromptSheet.swift */; };
 		BCBD54F98906B4F665E1CE85 /* AddonStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3113BC855DAFD76F714E502E /* AddonStore.swift */; };
 		BCE709EDB43F14A2D1AE18AB /* DiskJSONCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6874AC4F6CBD256D3FA35C3 /* DiskJSONCache.swift */; };
 		BD31DDD1D1667A14FCB4BF0D /* StreamRanker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FDC1C7E9F7D7C4CE9065ECD /* StreamRanker.swift */; };
@@ -328,6 +333,7 @@
 		DCCE4450B5B4C0E6637854B4 /* URLValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7875206D23EE5FCBE6D6A628 /* URLValidation.swift */; };
 		DF4E01B19535E44056C95650 /* PlaybackCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3EF3A6949DBE620FBC19616 /* PlaybackCoordinator.swift */; };
 		E05708A1F10187F58F19BBE5 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54DF98E49C2F8631D90C0346 /* RootView.swift */; };
+		E08AD7A59A7644CA077E16F8 /* TextPromptSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FE1CD994D810DCCBDB566C /* TextPromptSheet.swift */; };
 		E24087813C65F144E86DA1B7 /* SmartCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D8791D2C0BB4A9D0FE60D1F /* SmartCollection.swift */; };
 		E378B5A10E4A3A3DDD8A5298 /* DiscoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5661074A0B5D89CA5246FD0C /* DiscoverView.swift */; };
 		E40F56CB52A703C1DD0FB263 /* BingeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BBB612F68BCD7A16C4A24D3 /* BingeSettingsView.swift */; };
@@ -349,6 +355,7 @@
 		EE65EEBDAB625A2E5B5F25AD /* SMBBrowseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 410A6B98F5D25814A0E10886 /* SMBBrowseView.swift */; };
 		EF98227CD4783C9C064F65AB /* ContinueWatchingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B505409D19B9BAFC48A9DC7 /* ContinueWatchingCard.swift */; };
 		EFE68754176369F874128B61 /* DirectURLService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6E6E99F2C1AAF086CAAA463 /* DirectURLService.swift */; };
+		F00D90010000000000000001 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = F00D90030000000000000001 /* ZIPFoundation */; };
 		F0AD6BDBFF7040FE8C4869B8 /* AppleTVExperience.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BF803E67E684E889762C385 /* AppleTVExperience.swift */; };
 		F0BEA67237F2EA9FCF8C7658 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F203E983862F009E3CE49675 /* Theme.swift */; };
 		F171FE5F14D976CAFF3558BD /* CloudSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E57411D31532633B500CBFA /* CloudSync.swift */; };
@@ -473,6 +480,8 @@
 		3605D97A79B9AC12B001BD24 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		360D8A22268241E9BC1980EA /* ../Views/Library/LibraryQualityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../Views/Library/LibraryQualityView.swift; sourceTree = "<group>"; };
 		36CDA0124FF84BFB849A499B /* LiveTVSourcesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTVSourcesView.swift; sourceTree = "<group>"; };
+		36CDA0124FF84BFB849A49A0 /* KodiAdvancedServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KodiAdvancedServices.swift; sourceTree = "<group>"; };
+		36CDA0124FF84BFB849A49A1 /* KodiAdvancedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KodiAdvancedView.swift; sourceTree = "<group>"; };
 		388E42C977C02DB5900E8FA8 /* PlayerGestureOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerGestureOverlay.swift; sourceTree = "<group>"; };
 		38A55F7C58A22DE3D4D4422D /* Nova.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Nova.entitlements; sourceTree = "<group>"; };
 		3942CEEC0089118857658DE6 /* MenuOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuOverlay.swift; sourceTree = "<group>"; };
@@ -549,6 +558,7 @@
 		9E57411D31532633B500CBFA /* CloudSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSync.swift; sourceTree = "<group>"; };
 		9F142E8F22DC6AF0074871BC /* LanguageNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageNames.swift; sourceTree = "<group>"; };
 		A11CE0000000000000000001 /* UnifiedQAReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedQAReporter.swift; sourceTree = "<group>"; };
+		A11CE0100000000000000001 /* QAAIOverrideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QAAIOverrideView.swift; sourceTree = "<group>"; };
 		A57A00000000000000000002 /* NovaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NovaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A659D99C45AB4145BEBEC3FF /* PrivacyLegalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyLegalView.swift; sourceTree = "<group>"; };
 		A696F9E091F8F8DBFF1472AE /* LibraryCleanupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryCleanupView.swift; sourceTree = "<group>"; };
@@ -567,6 +577,7 @@
 		B6E6E99F2C1AAF086CAAA463 /* DirectURLService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectURLService.swift; sourceTree = "<group>"; };
 		B796696F664D0CD960FF4E07 /* SettingsKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsKit.swift; sourceTree = "<group>"; };
 		B88A11CF177FBA4F22DEB5B4 /* SourceCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceCard.swift; sourceTree = "<group>"; };
+		B8FE1CD994D810DCCBDB566C /* TextPromptSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextPromptSheet.swift; sourceTree = "<group>"; };
 		B947EBA6614E226BEED803F7 /* LibraryHealthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryHealthView.swift; sourceTree = "<group>"; };
 		B963B108E404576776FB5383 /* RealDebridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealDebridView.swift; sourceTree = "<group>"; };
 		BA1D9DD1BBA3B208010F23C0 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
@@ -581,7 +592,6 @@
 		C5414ACC0FB76135E40B8DCB /* RealSMBProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealSMBProvider.swift; sourceTree = "<group>"; };
 		C5648ECDF32142A4AB7A313C /* OfflineDownloadsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineDownloadsView.swift; sourceTree = "<group>"; };
 		C91B171DD6121F6DDC2FF67C /* AccountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountsView.swift; sourceTree = "<group>"; };
-		CAAA886CA126FFC76F3A830C /* TraktConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TraktConnectView.swift; sourceTree = "<group>"; };
 		CB06B9BFD55EBC9B683B9709 /* SetupChecklistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupChecklistView.swift; sourceTree = "<group>"; };
 		CB0FA42F693AECB67486AF1B /* PlaybackEngineRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackEngineRouter.swift; sourceTree = "<group>"; };
 		CB93FE6531785B3E58686B8D /* ContentDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentDetailView.swift; sourceTree = "<group>"; };
@@ -664,6 +674,7 @@
 			files = (
 				5016CB58642BF28FE8597B76 /* AMSMB2 in Frameworks */,
 				7A9FA299F782848AF8A6F005 /* VLCKitSPM in Frameworks */,
+				F00D90010000000000000001 /* ZIPFoundation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -692,6 +703,7 @@
 				F61EA3D5970E9100BB084B82 /* FeaturedHero.swift */,
 				6BF803E67E684E889762C385 /* AppleTVExperience.swift */,
 				5CADDA5C3797534329077911 /* FocusableButton.swift */,
+				B8FE1CD994D810DCCBDB566C /* TextPromptSheet.swift */,
 				AE25591FDF8E628DCF17FB05 /* ExpandableText.swift */,
 				0617E7F6BCC1DB992B3DA1C9 /* UniversalSearchView.swift */,
 				EBB22B0CB6ED38942A23EEF9 /* FocusableRowStyle.swift */,
@@ -851,6 +863,7 @@
 			isa = PBXGroup;
 			children = (
 				0F8B62C534634083DFCAA2ED /* AddonsView.swift */,
+				36CDA0124FF84BFB849A49A1 /* KodiAdvancedView.swift */,
 				15F6EAC4729A4C13833E2C5D /* AddonManagementComponents.swift */,
 				AD3F4A58FF2F46CBBF735BE5 /* AddonCatalogBrowserView.swift */,
 				CB93FE6531785B3E58686B8D /* ContentDetailView.swift */,
@@ -872,6 +885,7 @@
 				26D445A6AA8D3FF6F146B03E /* AppNetworking.swift */,
 				402D3F833A9056E61BE51691 /* BackupManager.swift */,
 				A11CE0000000000000000001 /* UnifiedQAReporter.swift */,
+				A11CE0100000000000000001 /* QAAIOverrideView.swift */,
 				C4B6B11C8B202C03CABA9905 /* CatalogCache.swift */,
 				A9A7C4E1AFA66F74900ABB30 /* CatalogService.swift */,
 				9E57411D31532633B500CBFA /* CloudSync.swift */,
@@ -886,6 +900,7 @@
 				6B80A7183C7C485E86CDDC66 /* TitleCleanupRules.swift */,
 				57A309E70BDB4310B7F8E81F /* LibraryFolderStore.swift */,
 				81593455C6754FA5A1512821 /* LiveTVSourceStore.swift */,
+				36CDA0124FF84BFB849A49A0 /* KodiAdvancedServices.swift */,
 				3E5848E2DC6DECC9AE065EDE /* EPGService.swift */,
 				F2E01039EC91A80EEB10B225 /* LibraryCleanup.swift */,
 				D51ED4505C44CB38C11CFFD5 /* WatchStats.swift */,
@@ -1038,7 +1053,6 @@
 				F57A74FE5A8C29D2E9025A06 /* PlayFromLinkView.swift */,
 				B947EBA6614E226BEED803F7 /* LibraryHealthView.swift */,
 				CB06B9BFD55EBC9B683B9709 /* SetupChecklistView.swift */,
-				CAAA886CA126FFC76F3A830C /* TraktConnectView.swift */,
 				FEEDFACE000000000000A101 /* SimklConnectView.swift */,
 				FEEDFACE000000000000A102 /* TMDBAccountConnectView.swift */,
 				FC5898173AC34F3D610F77E2 /* WhatsNewView.swift */,
@@ -1112,6 +1126,7 @@
 			packageProductDependencies = (
 				7BB5FCE66E92A3B157284758 /* AMSMB2 */,
 				11C97F22D1BF9C1030943397 /* VLCKitSPM */,
+				F00D90030000000000000001 /* ZIPFoundation */,
 			);
 			productName = Nova;
 			productReference = 47F79402BB28EE3F82626E35 /* Nova.app */;
@@ -1177,6 +1192,7 @@
 			packageReferences = (
 				633901F5205620047E8B9190 /* XCRemoteSwiftPackageReference "AMSMB2" */,
 				B37BEC0354D5AD989DA8F60C /* XCRemoteSwiftPackageReference "vlckit-spm" */,
+				F00D90020000000000000001 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 			);
 			productRefGroup = 91BC47345339F429878D36A4 /* Products */;
 			projectDirPath = "";
@@ -1256,6 +1272,7 @@
 				F229DB054B56D0A75241E865 /* FeaturedHero.swift in Sources */,
 				F0AD6BDBFF7040FE8C4869B8 /* AppleTVExperience.swift in Sources */,
 				5A405587EB51B96C18386C8E /* FocusableButton.swift in Sources */,
+				E08AD7A59A7644CA077E16F8 /* TextPromptSheet.swift in Sources */,
 				6E9790F49D70BDD5228DEE0F /* ExpandableText.swift in Sources */,
 				64C096E9A415042C71812DAA /* UniversalSearchView.swift in Sources */,
 				31EBF9B2E94AABA9F84CA4A0 /* FocusableRowStyle.swift in Sources */,
@@ -1290,6 +1307,7 @@
 				228164E4A020C88E6B9A909F /* AppNetworking.swift in Sources */,
 				CB71E7E09F69AD07DBC2CDF2 /* BackupManager.swift in Sources */,
 				A11CE0010000000000000001 /* UnifiedQAReporter.swift in Sources */,
+				A11CE0110000000000000001 /* QAAIOverrideView.swift in Sources */,
 				91CE871B06CA54B23B2B4705 /* CatalogCache.swift in Sources */,
 				D5ACD8FFC813541D11D054C6 /* CatalogService.swift in Sources */,
 				F171FE5F14D976CAFF3558BD /* CloudSync.swift in Sources */,
@@ -1307,6 +1325,8 @@
 				C5E8B70C82FF4EB086E156B5 /* LibraryEnrichView.swift in Sources */,
 				0B26C8646AB2404F88C358B5 /* LiveTVSourcesView.swift in Sources */,
 				A1DFF0EE8414442986B1D1E7 /* LiveTVSourceStore.swift in Sources */,
+				0B26C8646AB2404F88C358C0 /* KodiAdvancedServices.swift in Sources */,
+				0B26C8646AB2404F88C358C1 /* KodiAdvancedView.swift in Sources */,
 				E526BC820594B93766A05931 /* EPGService.swift in Sources */,
 				ADE3095B2500CFA1AD2B3538 /* MetadataParser.swift in Sources */,
 				37D0C5B4609F15FCDBB13270 /* NetworkRetry.swift in Sources */,
@@ -1422,7 +1442,6 @@
 				EE027B581B71CEB3D6D5AEBF /* SettingsCategoryViews.swift in Sources */,
 				36BCFD8924BAA6DC2A488DE5 /* PlayFromLinkView.swift in Sources */,
 				80556087F7D6F7D9ADF17A37 /* LibraryHealthView.swift in Sources */,
-				7D6FD4DDFF63100F62EE3E97 /* TraktConnectView.swift in Sources */,
 				FEEDFACE000000000000B101 /* SimklConnectView.swift in Sources */,
 				FEEDFACE000000000000B102 /* TMDBAccountConnectView.swift in Sources */,
 				0D3A48495063D523111F44AC /* WhatsNewView.swift in Sources */,
@@ -1444,6 +1463,7 @@
 				EB0BD8CEF6ECCF500BDEF8F3 /* FeaturedHero.swift in Sources */,
 				48263C1B794942AA85C2CE23 /* AppleTVExperience.swift in Sources */,
 				065713796C383D75AFDC0BC3 /* FocusableButton.swift in Sources */,
+				BC142DF796683515E6168CFF /* TextPromptSheet.swift in Sources */,
 				CD18E89666487B117818AF79 /* ExpandableText.swift in Sources */,
 				3B99775178EF07FFE072077A /* UniversalSearchView.swift in Sources */,
 				CB7360369427E2D206CF8732 /* FocusableRowStyle.swift in Sources */,
@@ -1478,6 +1498,7 @@
 				D27EAFF8318A869EC751579E /* AppNetworking.swift in Sources */,
 				9414BDDC6455718454781E02 /* BackupManager.swift in Sources */,
 				A11CE0020000000000000001 /* UnifiedQAReporter.swift in Sources */,
+				A11CE0120000000000000001 /* QAAIOverrideView.swift in Sources */,
 				A1B07703B593FB08A766950C /* CatalogCache.swift in Sources */,
 				BA04B98BD13A865FB18ADA56 /* CatalogService.swift in Sources */,
 				188C776565F6BA1480F6DE19 /* CloudSync.swift in Sources */,
@@ -1495,6 +1516,8 @@
 				3F2C38D8EE1E4357BD6F7567 /* LibraryEnrichView.swift in Sources */,
 				9AC428D103AC408394495E0B /* LiveTVSourcesView.swift in Sources */,
 				2C54E698554D464C8032273C /* LiveTVSourceStore.swift in Sources */,
+				2C54E698554D464C8032274C /* KodiAdvancedServices.swift in Sources */,
+				2C54E698554D464C8032274D /* KodiAdvancedView.swift in Sources */,
 				3D8A3818BF970B646140B560 /* EPGService.swift in Sources */,
 				C33ACC304EA53CC8D1769787 /* MetadataParser.swift in Sources */,
 				F97853D45251273A4560E351 /* NetworkRetry.swift in Sources */,
@@ -1610,7 +1633,6 @@
 				5B95A9FB7FCCA43665A54B6A /* SettingsCategoryViews.swift in Sources */,
 				424A4FB4933F5777FBF90C7A /* PlayFromLinkView.swift in Sources */,
 				0E003F02FA8C69EBD366EBF3 /* LibraryHealthView.swift in Sources */,
-				1AE64675717A970B90592A33 /* TraktConnectView.swift in Sources */,
 				FEEDFACE000000000000C101 /* SimklConnectView.swift in Sources */,
 				FEEDFACE000000000000C102 /* TMDBAccountConnectView.swift in Sources */,
 				BA600D04DF7FBF85EFB416BE /* WhatsNewView.swift in Sources */,
@@ -1691,10 +1713,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 34;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-tvOS.plist";
@@ -1719,10 +1742,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 34;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-tvOS.plist";
@@ -1754,7 +1778,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CODE_SIGN_ENTITLEMENTS = NovaWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 34;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NovaWidgets/Info.plist;
@@ -1798,7 +1822,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CODE_SIGN_ENTITLEMENTS = NovaWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 34;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NovaWidgets/Info.plist;
@@ -1836,7 +1860,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 34;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-iOS.plist";
@@ -1864,7 +1888,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 34;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-iOS.plist";
@@ -2063,6 +2087,14 @@
 				minimumVersion = 3.6.0;
 			};
 		};
+		F00D90020000000000000001 /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/weichsel/ZIPFoundation.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.19;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -2085,6 +2117,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = B37BEC0354D5AD989DA8F60C /* XCRemoteSwiftPackageReference "vlckit-spm" */;
 			productName = VLCKitSPM;
+		};
+		F00D90030000000000000001 /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F00D90020000000000000001 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

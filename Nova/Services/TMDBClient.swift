@@ -224,7 +224,10 @@ actor TMDBClient {
     func personCredits(personID: Int) async throws -> [CatalogItem] {
         let resp: TMDBPersonCreditsResponse = try await get("person/\(personID)/combined_credits")
         var seen = Set<Int>()
-        return resp.cast
+        // Combined credits contains both appearances and behind-the-camera work.
+        // Merge them before deduplication so a cast-member page also includes films
+        // and shows they directed, wrote, produced, or were otherwise credited on.
+        return (resp.cast + (resp.crew ?? []))
             .filter { $0.mediaType == "movie" || $0.mediaType == "tv" }
             .sorted { ($0.popularity ?? 0) > ($1.popularity ?? 0) }
             .compactMap { c -> CatalogItem? in

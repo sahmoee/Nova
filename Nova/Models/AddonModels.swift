@@ -9,6 +9,9 @@
 //
 
 import Foundation
+#if canImport(FoundationXML)
+import FoundationXML
+#endif
 
 // MARK: - Installed addon
 
@@ -213,6 +216,205 @@ struct AddonBehaviorHints: Codable, Hashable {
     let notWebReady: Bool?
     let filename: String?
     let videoSize: Int64?
+}
+
+// MARK: - Kodi repository compatibility
+
+/// Metadata Nova can safely read from Kodi's `addons.xml` / `addon.xml` format.
+/// Kodi executable code is intentionally never loaded: standard plug-ins depend on
+/// Kodi's embedded Python or binary ABI and cannot be sandboxed as native iOS code.
+struct KodiAddonPackage: Identifiable, Hashable {
+    enum Compatibility: Hashable {
+        case repository
+        case portablePlaylist
+        case kodiRuntimeRequired
+
+        var title: String {
+            switch self {
+            case .repository: return "Repository supported"
+            case .portablePlaylist: return "Portable playlist"
+            case .kodiRuntimeRequired: return "Kodi runtime required"
+            }
+        }
+    }
+
+    var id: String
+    var name: String
+    var version: String
+    var provider: String?
+    var summary: String?
+    var description: String?
+    var extensionPoints: [String]
+    var dependencies: [String]
+    var packageURL: URL?
+    var iconURL: URL?
+    var repositoryInfoURL: URL?
+    var repositoryDataURL: URL?
+
+    var compatibility: Compatibility {
+        if repositoryInfoURL != nil || extensionPoints.contains("xbmc.addon.repository") {
+            return .repository
+        }
+        if extensionPoints.contains(where: { $0.contains("playlist") || $0.contains("iptv") }) {
+            return .portablePlaylist
+        }
+        return .kodiRuntimeRequired
+    }
+}
+
+struct KodiRepositoryIndex: Hashable {
+    var sourceURL: URL
+    var packages: [KodiAddonPackage]
+}
+
+enum KodiRepositoryError: LocalizedError {
+    case invalidXML
+    case noAddons
+    case invalidResponse
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidXML: return "That file is not valid Kodi add-on XML."
+        case .noAddons: return "No Kodi add-ons were found in that file."
+        case .invalidResponse: return "The Kodi repository could not be downloaded."
+        }
+    }
+}
+
+/// Reads public Kodi repository metadata. It does not evaluate Python, shared
+/// libraries, settings, or arbitrary package contents.
+enum KodiRepositoryClient {
+    static func load(from sourceURL: URL) async throws -> KodiRepositoryIndex {
+        var request = URLRequest(url: sourceURL)
+        request.timeoutInterval = 25
+        let (data, response) = try await AppNetworking.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse,
+              (200..<300).contains(http.statusCode) else { throw KodiRepositoryError.invalidResponse }
+        var parsed = try KodiAddonXMLParser.parse(data: data, sourceURL: sourceURL)
+
+        // A repository add-on's own addon.xml points at the real addons.xml index.
+        if parsed.count == 1, let infoURL = parsed[0].repositoryInfoURL,
+           infoURL != sourceURL {
+            var indexRequest = URLRequest(url: infoURL)
+            indexRequest.timeoutInterval = 25
+            let (indexData, indexResponse) = try await AppNetworking.shared.data(for: indexRequest)
+            guard let indexHTTP = indexResponse as? HTTPURLResponse,
+                  (200..<300).contains(indexHTTP.statusCode) else {
+                throw KodiRepositoryError.invalidResponse
+            }
+            let dataBase = parsed[0].repositoryDataURL
+            parsed = try KodiAddonXMLParser.parse(data: indexData, sourceURL: infoURL,
+                                                   packageBaseURL: dataBase)
+        }
+        guard !parsed.isEmpty else { throw KodiRepositoryError.noAddons }
+        return KodiRepositoryIndex(sourceURL: sourceURL, packages: parsed)
+    }
+
+    static func parse(data: Data, sourceURL: URL) throws -> KodiRepositoryIndex {
+        let packages = try KodiAddonXMLParser.parse(data: data, sourceURL: sourceURL)
+        guard !packages.isEmpty else { throw KodiRepositoryError.noAddons }
+        return KodiRepositoryIndex(sourceURL: sourceURL, packages: packages)
+    }
+}
+
+private final class KodiAddonXMLParser: NSObject, XMLParserDelegate {
+    private struct Builder {
+        var id = ""
+        var name = ""
+        var version = ""
+        var provider: String?
+        var summary: String?
+        var description: String?
+        var extensions: [String] = []
+        var dependencies: [String] = []
+        var icon: String?
+        var repoInfo: String?
+        var repoData: String?
+    }
+
+    private let sourceURL: URL
+    private let packageBaseURL: URL?
+    private var builder: Builder?
+    private var values: [KodiAddonPackage] = []
+    private var text = ""
+    private var currentElement = ""
+    private var insideAssets = false
+
+    private init(sourceURL: URL, packageBaseURL: URL?) {
+        self.sourceURL = sourceURL
+        self.packageBaseURL = packageBaseURL
+    }
+
+    static func parse(data: Data, sourceURL: URL, packageBaseURL: URL? = nil) throws -> [KodiAddonPackage] {
+        let delegate = KodiAddonXMLParser(sourceURL: sourceURL, packageBaseURL: packageBaseURL)
+        let parser = XMLParser(data: data)
+        parser.delegate = delegate
+        guard parser.parse() else { throw KodiRepositoryError.invalidXML }
+        return delegate.values
+    }
+
+    func parser(_ parser: XMLParser, didStartElement elementName: String,
+                namespaceURI: String?, qualifiedName qName: String?,
+                attributes attributeDict: [String: String] = [:]) {
+        currentElement = elementName.lowercased()
+        text = ""
+        if currentElement == "addon" {
+            builder = Builder(id: attributeDict["id"] ?? "",
+                              name: attributeDict["name"] ?? "",
+                              version: attributeDict["version"] ?? "",
+                              provider: attributeDict["provider-name"])
+        } else if currentElement == "extension", let point = attributeDict["point"] {
+            builder?.extensions.append(point)
+        } else if currentElement == "import", let addon = attributeDict["addon"] {
+            builder?.dependencies.append(addon)
+        } else if currentElement == "assets" {
+            insideAssets = true
+        }
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) { text += string }
+
+    func parser(_ parser: XMLParser, didEndElement elementName: String,
+                namespaceURI: String?, qualifiedName qName: String?) {
+        let element = elementName.lowercased()
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch element {
+        case "summary": if builder?.summary == nil, !value.isEmpty { builder?.summary = value }
+        case "description": if builder?.description == nil, !value.isEmpty { builder?.description = value }
+        case "icon": if insideAssets, !value.isEmpty { builder?.icon = value }
+        case "info": if !value.isEmpty { builder?.repoInfo = value }
+        case "datadir": if !value.isEmpty { builder?.repoData = value }
+        case "assets": insideAssets = false
+        case "addon":
+            if let item = builder, !item.id.isEmpty {
+                let dataBase = resolve(item.repoData)
+                let packageBase = packageBaseURL ?? dataBase
+                let zip = packageBase.map {
+                    $0.appendingPathComponent(item.id, isDirectory: true)
+                        .appendingPathComponent("\(item.id)-\(item.version).zip")
+                }
+                values.append(KodiAddonPackage(
+                    id: item.id, name: item.name.isEmpty ? item.id : item.name,
+                    version: item.version, provider: item.provider,
+                    summary: item.summary, description: item.description,
+                    extensionPoints: Array(Set(item.extensions)).sorted(),
+                    dependencies: Array(Set(item.dependencies)).sorted(),
+                    packageURL: zip, iconURL: resolve(item.icon),
+                    repositoryInfoURL: resolve(item.repoInfo), repositoryDataURL: dataBase
+                ))
+            }
+            builder = nil
+        default: break
+        }
+        text = ""
+        currentElement = ""
+    }
+
+    private func resolve(_ string: String?) -> URL? {
+        guard let string, !string.isEmpty else { return nil }
+        if let absolute = URL(string: string), absolute.scheme != nil { return absolute }
+        return URL(string: string, relativeTo: sourceURL.deletingLastPathComponent())?.absoluteURL
+    }
 }
 
 // MARK: - Subtitle response

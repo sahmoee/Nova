@@ -53,14 +53,16 @@ struct NovaRowButtonStyle: ButtonStyle {
                 .padding(.vertical, Theme.Spacing.sm)
                 .background(
                     RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .fill(active ? AnyShapeStyle(Theme.Colors.accent.opacity(0.20))
+                        .fill(active ? AnyShapeStyle(LinearGradient(
+                            colors: [Theme.Colors.accent.opacity(0.72), Theme.Colors.accent.opacity(0.36)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing))
                                      : (refined ? AnyShapeStyle(Theme.Colors.cardGradient)
                                                 : AnyShapeStyle(Theme.Colors.card)))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .strokeBorder(active ? Theme.Colors.accent : Color.white.opacity(refined ? 0.10 : 0.07),
-                                      lineWidth: active ? 2.5 : 1)
+                        .strokeBorder(active ? Theme.Colors.accentSecondary : Color.white.opacity(refined ? 0.12 : 0.09),
+                                      lineWidth: active ? 1.5 : 0.8)
                 )
                 .shadow(color: active ? Theme.Colors.accent.opacity(0.28) : .clear,
                         radius: active ? 22 : 0, y: active ? 8 : 0)
@@ -104,9 +106,11 @@ struct NovaChipButtonStyle: ButtonStyle {
 
         var body: some View {
             configuration.label
-                .overlay(
-                    Capsule().strokeBorder(active ? Theme.Colors.accent : .clear, lineWidth: 3)
+                .background(
+                    Capsule().fill(active ? Theme.Colors.accent.opacity(0.42) : Color.white.opacity(0.045))
                 )
+                .overlay(Capsule().strokeBorder(active ? Theme.Colors.accentSecondary : Color.white.opacity(0.10),
+                                                lineWidth: active ? 1.5 : 0.75))
                 .shadow(color: active ? accent.opacity(0.45) : .clear,
                         radius: active ? 18 : 0, y: active ? 6 : 0)
                 .scaleEffect(active && !Theme.isReduceMotion ? 1.08 : 1.0)
@@ -171,10 +175,11 @@ struct NovaIconButtonStyle: ButtonStyle {
             configuration.label
                 .padding(Theme.Spacing.xs)
                 .background(
-                    Circle().fill(active ? accent.opacity(0.25) : .clear)
+                    Circle().fill(active ? accent.opacity(0.48) : Color.white.opacity(0.06))
                 )
                 .overlay(
-                    Circle().strokeBorder(active ? accent : .clear, lineWidth: 2)
+                    Circle().strokeBorder(active ? Theme.Colors.accentSecondary : Color.white.opacity(0.10),
+                                          lineWidth: active ? 1.5 : 0.75)
                 )
                 .scaleEffect(active && !Theme.isReduceMotion ? 1.12 : 1.0)
                 .opacity(isEnabled ? 1 : 0.45)
@@ -217,11 +222,12 @@ struct NovaListRowStyle: ButtonStyle {
             configuration.label
                 .background(
                     RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
-                        .fill(active ? accent.opacity(0.22) : .clear)
+                        .fill(active ? accent.opacity(0.42) : Color.white.opacity(0.035))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
-                        .strokeBorder(active ? accent : .clear, lineWidth: 2)
+                        .strokeBorder(active ? Theme.Colors.accentSecondary : Color.white.opacity(0.08),
+                                      lineWidth: active ? 1.5 : 0.75)
                 )
                 .scaleEffect(active && !Theme.isReduceMotion ? 1.01 : 1.0)
                 .opacity(isEnabled ? 1 : 0.45)

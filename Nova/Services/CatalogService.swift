@@ -29,6 +29,8 @@ final class CatalogService: ObservableObject {
     private let skipProvider: SkipSegmentProvider
     private let hasDebridToken: () -> Bool
     private let searchCache = TTLCache<String, [CatalogItem]>(ttl: 60 * 5, maxEntries: 80)
+    private let declarativeProviderClient = NovaDeclarativeProviderClient()
+    private let declarativeExtensions: () -> [NovaDeclarativeExtension]
 
     init(tmdb: TMDBClient,
          addonClient: StremioAddonClient,
@@ -36,6 +38,7 @@ final class CatalogService: ObservableObject {
          resolver: StreamResolver,
          openSubtitles: OpenSubtitlesClient,
          skipProvider: SkipSegmentProvider,
+         declarativeExtensions: @escaping () -> [NovaDeclarativeExtension] = { [] },
          hasDebridToken: @escaping () -> Bool) {
         self.tmdb = tmdb
         self.addonClient = addonClient
@@ -43,6 +46,7 @@ final class CatalogService: ObservableObject {
         self.resolver = resolver
         self.openSubtitles = openSubtitles
         self.skipProvider = skipProvider
+        self.declarativeExtensions = declarativeExtensions
         self.hasDebridToken = hasDebridToken
     }
 
@@ -219,6 +223,9 @@ final class CatalogService: ObservableObject {
                 tracks.append(contentsOf: osSubs)
             }
         }
+
+        let verified = declarativeExtensions().filter { $0.kind == .subtitle && $0.hasValidSignature() }
+        tracks.append(contentsOf: await declarativeProviderClient.subtitles(extensions: verified, content: content, episode: episode))
 
         return dedupeSubtitles(tracks)
     }

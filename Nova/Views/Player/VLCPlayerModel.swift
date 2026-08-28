@@ -459,11 +459,10 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         #endif
     }
 
-    // MARK: - Trakt
+    // MARK: - Watch tracking
 
     private func scrobble(_ action: ScrobbleAction) {
-        guard settings?.traktScrobblingEnabled == true,
-              let trackers, let contentID = item.contentID else { return }
+        guard let trackers, let contentID = item.contentID else { return }
         if action == .start { hasScrobbledStart = true }
         let pct = progressPercent
         let ep = item.episode

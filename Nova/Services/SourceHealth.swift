@@ -3,7 +3,7 @@
 //  Nova
 //
 //  Centralizes the connection/health status of each external source (Real-Debrid,
-//  TMDB, Trakt, addons, SMB) so the Sources screen, Settings, and Home can all show
+//  TMDB, addons, SMB) so the Sources screen, Settings, and Home can all show
 //  a consistent at-a-glance status. Status is derived from stored credentials and
 //  configuration; it does not perform network calls (use SMBChecker for a live test).
 //
@@ -62,18 +62,6 @@ final class SourceHealthMonitor: ObservableObject {
                                      detail: "Catalog check failed", lastChecked: Date()))
             }
         }
-
-        let traktStatus = await env.trakt.validateConnection()
-        let mappedTrakt: SourceStatus
-        switch traktStatus {
-        case .connected: mappedTrakt = .connected
-        case .notConfigured: mappedTrakt = .notConfigured
-        case .disconnected: mappedTrakt = .disconnected
-        case .expired: mappedTrakt = .error("Session expired")
-        case .error(let message): mappedTrakt = .error(message)
-        }
-        results.append(.init(id: "trakt", name: "Trakt", systemImage: "checkmark.seal",
-                             status: mappedTrakt, detail: "Account endpoint checked", lastChecked: Date()))
 
         if env.addonStore.enabled.isEmpty {
             results.append(SourceHealth.addons(env.addonStore))
@@ -136,17 +124,6 @@ enum SourceHealth {
         )
     }
 
-    /// Trakt: connected when an access token is present.
-    static func trakt() -> SourceHealthItem {
-        let authed = AppConfig.shared.value(for: .traktAccessToken)?.isEmpty == false
-        return SourceHealthItem(
-            id: "trakt",
-            name: "Trakt",
-            systemImage: "checkmark.seal",
-            status: authed ? .connected : .notConfigured
-        )
-    }
-
     /// Addons: connected when at least one stream addon is installed.
     static func addons(_ store: AddonStore) -> SourceHealthItem {
         let count = store.streamAddons.count
@@ -175,7 +152,6 @@ enum SourceHealth {
         [
             realDebrid(),
             tmdb(),
-            trakt(),
             addons(addonStore),
             smb(shareCount: smbShareCount)
         ]

@@ -499,7 +499,10 @@ struct AiringCalendarView: View {
         .navigationTitle("Calendar")
         .navigationDestination(for: CatalogItem.self) { ContentDetailView(item: $0) }
         .task { await load() }
+        #if os(iOS)
+        // Pull-to-refresh needs a drag gesture the Siri Remote doesn't have.
         .refreshable { loaded = false; await load() }
+        #endif
     }
 
     private func row(_ e: Entry) -> some View {

@@ -1162,8 +1162,11 @@ private extension ContentDetailView {
                             }
                         }
                         .frame(width: Theme.scaled(100, min: 84))
+                        .padding(.vertical, 8)
+                        .cinematicGlass(radius: 16)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(NovaListRowStyle())
+                        .accessibilityHint("Shows movies, television, and other credited work")
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.edge)

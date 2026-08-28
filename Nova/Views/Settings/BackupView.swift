@@ -49,7 +49,6 @@ struct BackupView: View {
     @State private var showShareCodeResult = false
     @State private var isCreatingCode = false
     @State private var showCodeEntry = false
-    @State private var codeText = ""
     @State private var isFetchingCode = false
     @State private var showCodeRestorePicker = false
 
@@ -138,7 +137,6 @@ struct BackupView: View {
 
                     FocusableButton(title: isFetchingCode ? "Looking up…" : "Restore from a Code",
                                     systemImage: "arrow.down.square") {
-                        codeText = ""
                         showCodeEntry = true
                     }
                     .frame(maxWidth: Theme.isCompact ? .infinity : 360)
@@ -244,19 +242,15 @@ struct BackupView: View {
         } message: {
             Text(shareCodeMessage)
         }
-        // Enter a code to restore from someone else.
-        .alert("Restore from a Code", isPresented: $showCodeEntry) {
-            TextField("Paste the share code", text: $codeText)
-                #if os(iOS)
-                .textInputAutocapitalization(.characters)
-                .autocorrectionDisabled()
-                #endif
-            Button("Look Up") {
-                Task { await fetchCode(codeText) }
+        // Enter a code to restore from someone else. A dedicated sheet rather than an
+        // alert-hosted TextField: tvOS does not support interactive text fields inside
+        // `.alert` (the Siri Remote can't focus/type into one — the row renders but is
+        // functionally inert), so this is the one code path that actually works on
+        // both iOS and tvOS. See ShareCodeEntryView below.
+        .sheet(isPresented: $showCodeEntry) {
+            ShareCodeEntryView { entered in
+                Task { await fetchCode(entered) }
             }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Enter the code shared with you. You'll choose what to restore, and be warned before applying any logins.")
         }
         #if os(iOS)
         // Export: pick what to include, then share.
@@ -406,6 +400,81 @@ struct BackupView: View {
 
     private func dateText(_ date: Date) -> String {
         date.mediumDateTimeText
+    }
+}
+
+/// A dedicated full-screen entry form for pasting/typing a share code, used by
+/// "Restore from a Code" instead of an alert-hosted TextField.
+///
+/// tvOS does not support interactive text entry inside `.alert` — a TextField
+/// listed among an alert's actions compiles and renders, but the Siri Remote has no
+/// way to focus or type into it, so a code restore built that way silently cannot be
+/// used on Apple TV even though the button that opens it is right there. A TextField
+/// in an ordinary (non-alert) view is the platform's actual supported path: focusing
+/// it brings up tvOS's own full-screen system keyboard. Using the same view on both
+/// platforms means this only needs to work correctly once.
+struct ShareCodeEntryView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var code: String = ""
+    @FocusState private var fieldFocused: Bool
+    var onSubmit: (String) -> Void
+
+    private var trimmedCode: String { code.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    var body: some View {
+        VStack(spacing: Theme.Spacing.lg) {
+            Spacer(minLength: 0)
+
+            Text("Restore from a Code")
+                .font(Theme.Font.screenTitle())
+                .screenTitleStyle()
+                .foregroundStyle(Theme.Colors.textPrimary)
+
+            Text("Enter the code shared with you. You'll choose what to restore, and be warned before applying any logins.")
+                .font(.appFont(17))
+                .foregroundStyle(Theme.Colors.textSecondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 520)
+
+            TextField("Share code", text: $code)
+                .focused($fieldFocused)
+                #if os(iOS)
+                .textInputAutocapitalization(.characters)
+                .autocorrectionDisabled()
+                .textFieldStyle(.roundedBorder)
+                .submitLabel(.go)
+                #endif
+                .font(.appFont(24, weight: .semibold))
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 480)
+                .onSubmit(submit)
+
+            HStack(spacing: Theme.Spacing.md) {
+                FocusableButton(title: "Cancel", systemImage: "xmark") { dismiss() }
+                    .frame(maxWidth: .infinity)
+                FocusableButton(title: "Look Up", systemImage: "arrow.down.square",
+                                prominent: true) { submit() }
+                    .frame(maxWidth: .infinity)
+                    .disabled(trimmedCode.isEmpty)
+                    .opacity(trimmedCode.isEmpty ? 0.5 : 1)
+            }
+            .frame(maxWidth: 480)
+
+            Spacer(minLength: 0)
+        }
+        .padding(Theme.Spacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
+        #if os(iOS)
+        .onAppear { fieldFocused = true }
+        #endif
+    }
+
+    private func submit() {
+        guard !trimmedCode.isEmpty else { return }
+        let entered = trimmedCode
+        dismiss()
+        onSubmit(entered)
     }
 }
 

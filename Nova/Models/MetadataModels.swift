@@ -279,6 +279,9 @@ struct TMDBRelatedResponse: Codable {
 /// A person's combined (movie + TV) filmography from TMDB.
 struct TMDBPersonCreditsResponse: Codable {
     let cast: [TMDBPersonCredit]
+    /// Directing, writing, producing, and other credited affiliations. TMDB omits
+    /// this array for some people, so keep the response backward-compatible.
+    let crew: [TMDBPersonCredit]?
 }
 
 struct TMDBPersonCredit: Codable {

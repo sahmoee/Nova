@@ -10,6 +10,7 @@
 import SwiftUI
 #if os(iOS)
 import UniformTypeIdentifiers
+import ZIPFoundation
 #endif
 #if os(iOS)
 import UIKit
@@ -22,6 +23,7 @@ struct AddonsView: View {
     @EnvironmentObject private var env: AppEnvironment
     @State private var showAdd = false
     @State private var showOnlineDirectory = false
+    @State private var showMediaTools = false
     @State private var health: [UUID: AddonStore.Health] = [:]
     @State private var isChecking = false
     @State private var searchText = ""
@@ -164,6 +166,11 @@ struct AddonsView: View {
                 }
             }
         }
+        #if os(iOS)
+        .sheet(isPresented: $showMediaTools) {
+            MediaIntegrationsView()
+        }
+        #endif
         .sheet(item: $editingAddon) { addon in
             AddonMetadataEditor(addon: addon)
         }
@@ -280,6 +287,13 @@ struct AddonsView: View {
 
     @ViewBuilder
     private var headerActions: some View {
+        #if os(iOS)
+        FocusableButton(title: "Media Tools", systemImage: "rectangle.connected.to.line.below") {
+            showMediaTools = true
+        }
+        .frame(maxWidth: Theme.isCompact ? .infinity : 180)
+        #endif
+
         FocusableButton(title: "Browse Online", systemImage: "globe") {
             showOnlineDirectory = true
         }
@@ -546,6 +560,277 @@ struct AddonsView: View {
         return "Provides " + list
     }
 }
+
+// Legacy package-browser source is intentionally excluded. Nova retains only
+// portable, runtime-independent media tools.
+#if false
+private struct KodiCompatibilityView: View {
+    @EnvironmentObject private var env: AppEnvironment
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+
+    @State private var sourceText = ""
+    @State private var index: KodiRepositoryIndex?
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var searchText = ""
+    @State private var showPackageImporter = false
+    @State private var showAdvanced = false
+    @State private var inspectingID: String?
+    @AppStorage("kodi.lastRepositoryURL") private var lastRepositoryURL = ""
+
+    private var filteredPackages: [KodiAddonPackage] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return index?.packages ?? [] }
+        return (index?.packages ?? []).filter {
+            $0.name.lowercased().contains(query) || $0.id.lowercased().contains(query)
+                || ($0.summary?.lowercased().contains(query) == true)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                    ScreenHeader(title: "Kodi Compatibility",
+                                 subtitle: "Browse repositories and safely inspect packages")
+
+                    Text("Nova reads Kodi repository metadata and portable M3U playlists. Python and binary add-ons remain in Kodi because they require Kodi's runtime; Nova never executes code from a package.")
+                        .font(.appFont(16))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .softCard()
+
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Text("Repository or addon.xml URL")
+                            .font(.appFont(18, weight: .semibold))
+                        TextField("https://…/addons.xml", text: $sourceText)
+                            .textFieldStyle(.plain)
+                            .font(.appFont(17))
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .padding(Theme.Spacing.md)
+                            .background(Theme.Colors.card,
+                                        in: RoundedRectangle(cornerRadius: Theme.Radius.button))
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: Theme.Spacing.sm) { loadActions }
+                            VStack(alignment: .leading, spacing: Theme.Spacing.sm) { loadActions }
+                        }
+                    }
+
+                    if let errorMessage {
+                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(Theme.Colors.error)
+                            .softCard()
+                    }
+
+                    if let index {
+                        HStack {
+                            Text("\(index.packages.count) packages")
+                                .font(Theme.Font.sectionTitle())
+                            Spacer()
+                            TextField("Filter packages", text: $searchText)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(maxWidth: 280)
+                        }
+                        ForEach(filteredPackages) { package in
+                            packageRow(package)
+                        }
+                    }
+                }
+                .padding(Theme.Spacing.edge)
+                .frame(maxWidth: Theme.contentMaxWidth(1000), alignment: .leading)
+            }
+            .background(Theme.Colors.appBackground.ignoresSafeArea())
+            .navigationTitle("Kodi")
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showAdvanced = true } label: { Label("Integrations", systemImage: "network") }
+                }
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
+        }
+        .onAppear { if sourceText.isEmpty { sourceText = lastRepositoryURL } }
+        .fileImporter(isPresented: $showPackageImporter,
+                      allowedContentTypes: [.xml, .zip], allowsMultipleSelection: false) { result in
+            guard case .success(let urls) = result, let url = urls.first else { return }
+            inspectLocalFile(url)
+        }
+        .sheet(isPresented: $showAdvanced) { KodiAdvancedView() }
+    }
+
+    @ViewBuilder
+    private var loadActions: some View {
+        FocusableButton(title: isLoading ? "Loading…" : "Load Repository",
+                        systemImage: "shippingbox", prominent: true) { loadRepository() }
+            .disabled(isLoading || normalizedURL == nil)
+        FocusableButton(title: "Import XML or ZIP", systemImage: "doc.badge.plus") {
+            showPackageImporter = true
+        }
+    }
+
+    private func packageRow(_ package: KodiAddonPackage) -> some View {
+        HStack(alignment: .top, spacing: Theme.Spacing.md) {
+            AsyncImage(url: package.iconURL) { image in
+                image.resizable().scaledToFit()
+            } placeholder: {
+                Image(systemName: "puzzlepiece.extension.fill")
+                    .foregroundStyle(Theme.Colors.accent)
+            }
+            .frame(width: 48, height: 48)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(package.name)
+                    .font(.appFont(19, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Text("\(package.id) · v\(package.version)")
+                    .font(.appFont(13))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                if let summary = package.summary, !summary.isEmpty {
+                    Text(summary).font(.appFont(15)).foregroundStyle(Theme.Colors.textSecondary)
+                        .lineLimit(2)
+                }
+                Label(package.compatibility.title,
+                      systemImage: package.compatibility == .kodiRuntimeRequired
+                        ? "lock.app.dashed" : "checkmark.shield")
+                    .font(.appFont(13, weight: .semibold))
+                    .foregroundStyle(package.compatibility == .kodiRuntimeRequired
+                                     ? Theme.Colors.textTertiary : Theme.Colors.success)
+            }
+            Spacer(minLength: Theme.Spacing.sm)
+            if package.compatibility == .repository, let url = package.repositoryInfoURL {
+                Button("Open") { sourceText = url.absoluteString; loadRepository() }
+            } else if let packageURL = package.packageURL {
+                Button(inspectingID == package.id ? "Inspecting…" : "Inspect") {
+                    inspectRemotePackage(packageURL, package: package)
+                }
+                .disabled(inspectingID != nil)
+                Button { openURL(packageURL) } label: { Image(systemName: "safari") }
+                    .accessibilityLabel("Open package URL")
+            }
+        }
+        .softCard()
+    }
+
+    private var normalizedURL: URL? {
+        var value = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !value.lowercased().hasPrefix("http") { value = "https://" + value }
+        return URL(string: value)
+    }
+
+    private func loadRepository() {
+        guard let url = normalizedURL else { return }
+        isLoading = true
+        errorMessage = nil
+        Task {
+            do {
+                let loaded = try await KodiRepositoryClient.load(from: url)
+                await MainActor.run {
+                    index = loaded
+                    lastRepositoryURL = url.absoluteString
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func inspectLocalFile(_ url: URL) {
+        Task {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            do {
+                if url.pathExtension.lowercased() == "zip" {
+                    let result = try inspectKodiArchive(url)
+                    await applyArchiveResult(result)
+                } else {
+                    let data = try Data(contentsOf: url)
+                    let loaded = try KodiRepositoryClient.parse(data: data, sourceURL: url)
+                    await MainActor.run { index = loaded; errorMessage = nil }
+                }
+            } catch {
+                await MainActor.run { errorMessage = error.localizedDescription }
+            }
+        }
+    }
+
+    private func inspectRemotePackage(_ url: URL, package: KodiAddonPackage) {
+        inspectingID = package.id
+        errorMessage = nil
+        Task {
+            let temp = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString).appendingPathExtension("zip")
+            defer { try? FileManager.default.removeItem(at: temp) }
+            do {
+                let (data, response) = try await AppNetworking.shared.data(from: url)
+                guard let http = response as? HTTPURLResponse,
+                      (200..<300).contains(http.statusCode), data.count <= 100_000_000 else {
+                    throw KodiRepositoryError.invalidResponse
+                }
+                try data.write(to: temp, options: .atomic)
+                let result = try inspectKodiArchive(temp)
+                await applyArchiveResult(result)
+            } catch {
+                await MainActor.run { errorMessage = error.localizedDescription }
+            }
+            await MainActor.run { inspectingID = nil }
+        }
+    }
+
+    private func applyArchiveResult(_ result: KodiArchiveInspection) async {
+        var imported = 0
+        for playlist in result.playlists {
+            if (try? env.liveTVSources.importKodiPlaylist(data: playlist.data,
+                                                          name: playlist.name)) != nil {
+                imported += 1
+            }
+        }
+        await MainActor.run {
+            if let package = result.package {
+                index = KodiRepositoryIndex(sourceURL: result.sourceURL, packages: [package])
+            }
+            errorMessage = nil
+            ToastCenter.shared.show(imported > 0
+                ? "Imported \(imported) Kodi playlist\(imported == 1 ? "" : "s") into Live TV"
+                : "Package inspected safely; its executable add-on still requires Kodi")
+        }
+    }
+
+    private func inspectKodiArchive(_ url: URL) throws -> KodiArchiveInspection {
+        let archive = try Archive(url: url, accessMode: .read)
+        var addonXML: Data?
+        var playlists: [KodiArchiveInspection.Playlist] = []
+        for entry in archive {
+            let lower = entry.path.lowercased()
+            guard entry.uncompressedSize <= 25_000_000 else { continue }
+            if lower.hasSuffix("addon.xml") && addonXML == nil {
+                var data = Data(); _ = try archive.extract(entry) { data.append($0) }; addonXML = data
+            } else if lower.hasSuffix(".m3u") || lower.hasSuffix(".m3u8") {
+                var data = Data(); _ = try archive.extract(entry) { data.append($0) }
+                if String(decoding: data.prefix(16), as: UTF8.self).contains("#EXTM3U") {
+                    playlists.append(.init(name: URL(fileURLWithPath: entry.path).deletingPathExtension().lastPathComponent,
+                                           data: data))
+                }
+            }
+        }
+        let package = try addonXML.flatMap {
+            try KodiRepositoryClient.parse(data: $0, sourceURL: url).packages.first
+        }
+        guard package != nil || !playlists.isEmpty else { throw KodiRepositoryError.noAddons }
+        return KodiArchiveInspection(sourceURL: url, package: package, playlists: playlists)
+    }
+}
+
+private struct KodiArchiveInspection {
+    struct Playlist { var name: String; var data: Data }
+    var sourceURL: URL
+    var package: KodiAddonPackage?
+    var playlists: [Playlist]
+}
+#endif
 
 // MARK: - Add addon
 

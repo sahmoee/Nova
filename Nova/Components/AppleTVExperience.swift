@@ -8,6 +8,215 @@
 
 import SwiftUI
 
+@MainActor
+final class ArtworkHeaderCoordinator: ObservableObject {
+    static let shared = ArtworkHeaderCoordinator()
+
+    struct Selection: Equatable {
+        let artworkURL: URL?
+        let title: String?
+    }
+
+    @Published private var selections: [ArtworkHeaderScope: Selection] = [:]
+
+    func select(_ item: MediaItem, in scope: ArtworkHeaderScope) {
+        select(url: item.backdropURL ?? item.posterURL, title: item.displayTitle, in: scope)
+    }
+
+    func select(_ item: CatalogItem, in scope: ArtworkHeaderScope) {
+        select(url: item.backdropURL ?? item.posterURL, title: item.title, in: scope)
+    }
+
+    func select(url: URL?, title: String?, in scope: ArtworkHeaderScope) {
+        let selection = Selection(artworkURL: url, title: title)
+        guard selections[scope] != selection else { return }
+        withAnimation(.easeInOut(duration: Theme.isReduceMotion ? 0 : 0.42)) {
+            selections[scope] = selection
+        }
+    }
+
+    func selection(in scope: ArtworkHeaderScope) -> Selection? { selections[scope] }
+}
+
+enum ArtworkHeaderScope: String, Hashable {
+    case library, discover, collections, ai
+}
+
+/// A reusable full-width artwork layer for media-bearing pages. It follows the
+/// latest focused or tapped title and crossfades without changing page navigation.
+struct ReactiveArtworkBackdrop: View {
+    let scope: ArtworkHeaderScope
+    var fallbackAsset: String? = nil
+    @ObservedObject private var coordinator = ArtworkHeaderCoordinator.shared
+
+    var body: some View {
+        ZStack {
+            if let url = coordinator.selection(in: scope)?.artworkURL {
+                CachedAsyncImage(url: url, maxPixel: 1600) { image in
+                    ZStack {
+                        // Fill the header without stretching the artwork, then lay a
+                        // complete aspect-fit copy over it. Portrait posters and unusually
+                        // wide backdrops therefore keep every edge visible while the soft
+                        // bleed prevents letterboxing from looking like empty space.
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .blur(radius: 20)
+                            .scaleEffect(1.08)
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                    }
+                } placeholder: {
+                    fallback
+                }
+                .id(url)
+                .transition(.opacity)
+            } else {
+                fallback
+            }
+        }
+    }
+
+    @ViewBuilder private var fallback: some View {
+        if let fallbackAsset {
+            let image = Image(fallbackAsset)
+            ZStack {
+                image.resizable().aspectRatio(contentMode: .fill).blur(radius: 20).scaleEffect(1.08)
+                image.resizable().aspectRatio(contentMode: .fit)
+            }
+        } else {
+            LinearGradient(colors: [Theme.Colors.cardElevated, Theme.Colors.background],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
+    }
+}
+
+struct ReactiveArtworkPageHeader: View {
+    let title: String
+    let scope: ArtworkHeaderScope
+    var subtitle: String? = nil
+    var systemImage: String? = nil
+    var height: CGFloat = PlatformCapabilities.platform == .iPad ? 300 : 220
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            ReactiveArtworkBackdrop(scope: scope)
+                .frame(maxWidth: .infinity)
+                .frame(height: height)
+                .clipped()
+
+            LinearGradient(colors: [.clear, Theme.Colors.background.opacity(0.48), Theme.Colors.background],
+                           startPoint: .top, endPoint: .bottom)
+
+            HStack(alignment: .center, spacing: 10) {
+                if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(.appFont(22, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.accent)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.appFont(PlatformCapabilities.platform == .iPad ? 48 : 34, weight: .heavy))
+                        .foregroundStyle(.white)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.appFont(15, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.76))
+                            .lineLimit(2)
+                    }
+                }
+            }
+            .shadow(color: .black.opacity(0.7), radius: 8, y: 3)
+            .padding(.horizontal, Theme.Spacing.edge)
+            .padding(.bottom, Theme.Spacing.md)
+        }
+        .frame(height: height)
+        .clipped()
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Artwork-led Home hero inspired by modern streaming storefronts. It deliberately
+/// contains no embedded controls: tapping opens Nova's own detail page, while the
+/// persistent app tab bar remains completely independent and unchanged.
+struct ImmersiveFeaturedHero: View {
+    let item: MediaItem
+    let height: CGFloat
+    var onOpen: (MediaItem) -> Void
+
+    @Environment(\.dynamicAccent) private var accent
+
+    var body: some View {
+        Button { onOpen(item) } label: {
+            ZStack(alignment: .bottom) {
+                CachedAsyncImage(url: item.backdropURL ?? item.posterURL, maxPixel: 1600) { image in
+                    ZStack {
+                        // A full-bleed copy prevents bars around unusually tall or
+                        // narrow artwork without stretching the visible composition.
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .blur(radius: 22)
+                            .scaleEffect(1.08)
+
+                        // The primary copy is always complete and keeps its native
+                        // aspect ratio. It is never widened to fit the device.
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                    }
+                } placeholder: {
+                    Rectangle().fill(Theme.Colors.card).shimmering()
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: height)
+                .clipped()
+
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0.35),
+                        .init(color: .black.opacity(0.22), location: 0.62),
+                        .init(color: Theme.Colors.background.opacity(0.96), location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                RadialGradient(colors: [.clear, .black.opacity(0.34)],
+                               center: .center,
+                               startRadius: 120,
+                               endRadius: 520)
+
+                VStack(spacing: 5) {
+                    Text(item.displayTitle)
+                        .font(.appFont(PlatformCapabilities.platform == .iPad ? 50 : 38, weight: .black))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.62)
+                        .shadow(color: .black.opacity(0.9), radius: 10, y: 3)
+
+                    if !item.subtitleLine.isEmpty {
+                        Text(item.subtitleLine)
+                            .font(.appFont(14, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.82))
+                            .lineLimit(1)
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.edge)
+                .padding(.bottom, 28)
+            }
+            .frame(height: height)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Open \(item.displayTitle)")
+        .accessibilityHint("Shows details and playback options")
+        .onAppear { AccentManager.shared.deriveAccent(from: item.backdropURL ?? item.posterURL) }
+    }
+}
+
 struct AppleTVSectionHeader: View {
     let title: String
     var subtitle: String? = nil
@@ -169,6 +378,70 @@ struct AppleTVQuickAccessRow: View {
                 .padding(.horizontal, Theme.Spacing.edge)
                 .padding(.vertical, PlatformCapabilities.platform == .appleTV ? 12 : 2)
             }
+        }
+    }
+}
+
+/// Compact two-column destination tiles used under the Home screen's Discover
+/// heading. The subtle artwork-like color fields keep the image-led hierarchy of
+/// the reference without copying its assets or changing Nova's navigation.
+struct StreamingDiscoverGrid: View {
+    let items: [AppleTVQuickAccessItem]
+
+    private let swatches: [[Color]] = [
+        [Color(red: 0.46, green: 0.08, blue: 0.09), Color(red: 0.14, green: 0.02, blue: 0.04)],
+        [Color(red: 0.08, green: 0.11, blue: 0.38), Color(red: 0.02, green: 0.03, blue: 0.13)],
+        [Color(red: 0.05, green: 0.31, blue: 0.31), Color(red: 0.02, green: 0.09, blue: 0.12)],
+        [Color(red: 0.31, green: 0.13, blue: 0.42), Color(red: 0.08, green: 0.03, blue: 0.14)]
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            AppleTVSectionHeader(title: "Discover")
+
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible())],
+                      spacing: 14) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    Button(action: item.action) {
+                        ZStack(alignment: .bottomLeading) {
+                            LinearGradient(colors: swatches[index % swatches.count],
+                                           startPoint: .topLeading,
+                                           endPoint: .bottomTrailing)
+                            Circle()
+                                .fill(Color.white.opacity(0.08))
+                                .frame(width: 150, height: 150)
+                                .blur(radius: 12)
+                                .offset(x: 55, y: -40)
+                            Image(systemName: item.systemImage)
+                                .font(.appFont(54, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.14))
+                                .frame(maxWidth: .infinity, maxHeight: .infinity,
+                                       alignment: .topTrailing)
+                                .padding(16)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.title)
+                                    .font(.appFont(23, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(1)
+                                Text(item.subtitle)
+                                    .font(.appFont(13))
+                                    .foregroundStyle(.white.opacity(0.70))
+                                    .lineLimit(1)
+                            }
+                            .padding(16)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: PlatformCapabilities.platform == .iPad ? 190 : 144)
+                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.8)
+                        }
+                    }
+                    .buttonStyle(NovaListRowStyle())
+                }
+            }
+            .padding(.horizontal, Theme.Spacing.edge)
         }
     }
 }

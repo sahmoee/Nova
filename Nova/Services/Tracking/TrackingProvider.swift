@@ -438,6 +438,28 @@ struct NovaTrackerList: Codable, Identifiable, Sendable {
     let itemCount: Int
 }
 
+/// A provider-neutral row decoded from an offline tracking archive. Trakt IDs are
+/// intentionally not retained: Nova Tracker stores portable IMDb/TMDB identifiers.
+struct NovaTrackerArchiveItem: Sendable, Hashable {
+    let title: String
+    let year: Int?
+    let type: ContentType
+    let imdb: String?
+    let tmdb: Int?
+    var status: String?
+    var rating: Int?
+
+    var catalogItem: CatalogItem {
+        CatalogItem(contentID: ContentID(imdb: imdb, tmdb: tmdb, trakt: nil, type: type),
+                    title: title, year: year)
+    }
+}
+
+struct NovaTrackerArchiveImportResult: Sendable {
+    let imported: Int
+    let failed: Int
+}
+
 private struct NovaTrackerActivityResponse: Codable { let items: [NovaTrackerActivity] }
 private struct NovaTrackerListsResponse: Codable { let items: [NovaTrackerList] }
 
@@ -515,6 +537,32 @@ extension NovaTrackingProvider {
         guard await ensureAccount(), let (data, response) = try? await get("v1/export"),
               (200...299).contains(response.statusCode) else { return nil }
         return data
+    }
+
+    /// Imports normalized offline archive rows into the same status/rating APIs used
+    /// by Nova itself. This makes the operation idempotent and keeps every device in
+    /// sync through Nova Tracker rather than retaining a dependency on the exporter.
+    func importArchive(_ items: [NovaTrackerArchiveItem]) async -> NovaTrackerArchiveImportResult {
+        guard await ensureAccount() else {
+            return NovaTrackerArchiveImportResult(imported: 0, failed: items.count)
+        }
+        var imported = 0
+        var failed = 0
+        for item in items {
+            var wrote = false
+            if let status = item.status {
+                wrote = await setStatus(status, for: item.catalogItem) || wrote
+                if status == "completed" {
+                    wrote = await scrobble(action: .stop, contentID: item.catalogItem.contentID,
+                                           episode: nil, progress: 100) || wrote
+                }
+            }
+            if let rating = item.rating {
+                wrote = await rate(rating, contentID: item.catalogItem.contentID) || wrote
+            }
+            if wrote { imported += 1 } else { failed += 1 }
+        }
+        return NovaTrackerArchiveImportResult(imported: imported, failed: failed)
     }
 }
 

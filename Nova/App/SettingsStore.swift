@@ -477,9 +477,11 @@ final class SettingsStore: ObservableObject {
         self.showSMBSeparately = defaults.bool(forKey: Key.showSMBSeparately)
         self.showTraktInLibrary = defaults.bool(forKey: Key.showTraktInLibrary)
         self.pinnedCollections = defaults.stringArray(forKey: Key.pinnedCollections) ?? []
-        self.libraryStyle = LibraryStyle(
-            rawValue: defaults.string(forKey: Key.libraryStyle) ?? LibraryStyle.clean.rawValue
-        ) ?? .clean
+        // The cinematic My Nova layout replaced the legacy classic presentation.
+        // Normalize old local preferences during launch so an existing install
+        // cannot continue showing the retired design.
+        self.libraryStyle = .clean
+        defaults.set(LibraryStyle.clean.rawValue, forKey: Key.libraryStyle)
         self.detailStyle = DetailStyle(
             rawValue: defaults.string(forKey: Key.detailStyle) ?? DetailStyle.cinematic.rawValue
         ) ?? .cinematic
@@ -578,8 +580,8 @@ final class SettingsStore: ObservableObject {
            cloudCols >= 2, Int(cloudCols) != libraryColumnCount {
             libraryColumnCount = Int(cloudCols)
         }
-        if let v = cloud.string(forKey: Key.libraryStyle),
-           let s = LibraryStyle(rawValue: v), libraryStyle != s { libraryStyle = s }
+        // Ignore stale cloud values for the retired classic library layout.
+        if libraryStyle != .clean { libraryStyle = .clean }
         if let v = cloud.string(forKey: Key.detailStyle),
            let s = DetailStyle(rawValue: v), detailStyle != s { detailStyle = s }
         if let v = cloud.string(forKey: Key.tabBarStyle),
