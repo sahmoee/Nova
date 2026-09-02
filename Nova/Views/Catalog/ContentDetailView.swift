@@ -97,6 +97,7 @@ struct ContentDetailView: View {
                 .frame(width: proxy.size.width, alignment: .leading)
                 .padding(.bottom, Theme.Spacing.xl)
             }
+            .ignoresSafeArea(edges: .top)
         }
         .background(Theme.Colors.appBackground.ignoresSafeArea())
         .navigationDestination(for: CatalogItem.self) { rel in
@@ -118,6 +119,7 @@ struct ContentDetailView: View {
         }
         .onAppear { AccentManager.shared.deriveAccent(from: item.posterURL ?? item.backdropURL) }
         .onDisappear { AccentManager.shared.reset() }
+        .toolbarBackground(.hidden, for: .navigationBar)
     }
 
     // MARK: - Hero header (centered, Apple TV style)
@@ -139,7 +141,10 @@ struct ContentDetailView: View {
     private func heroHeader(width: CGFloat, screenHeight: CGFloat) -> some View {
         ZStack(alignment: .bottomLeading) {
             CachedAsyncImage(url: item.backdropURL ?? item.posterURL, maxPixel: 1600) { image in
-                image.resizable().aspectRatio(contentMode: .fill)
+                ZStack {
+                    image.resizable().aspectRatio(contentMode: .fill).blur(radius: 22).scaleEffect(1.08)
+                    image.resizable().aspectRatio(contentMode: .fit)
+                }
             } placeholder: {
                 Rectangle().fill(Theme.Colors.card).shimmering()
             }

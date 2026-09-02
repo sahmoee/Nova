@@ -36,17 +36,11 @@ struct SMBCheckerView: View {
                         adviceBox(advice)
                     }
 
-                    Button {
+                    FocusableButton(title: running ? "Checking…" : "Run Diagnostic",
+                                    systemImage: running ? "hourglass" : "stethoscope",
+                                    prominent: true) {
                         Task { await runChecks() }
-                    } label: {
-                        HStack {
-                            Image(systemName: running ? "hourglass" : "stethoscope")
-                            Text(running ? "Checking…" : "Run Diagnostic")
-                        }
-                        .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Theme.Colors.accent)
                     .disabled(running)
                 }
                 .padding(Theme.Spacing.edge)

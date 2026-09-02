@@ -15,7 +15,6 @@ struct MediaDetailView: View {
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var progress: PlaybackProgressStore
     @EnvironmentObject private var env: AppEnvironment
-    @EnvironmentObject private var settings: SettingsStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicAccent) private var accent
 
@@ -26,10 +25,7 @@ struct MediaDetailView: View {
                 backdrop(in: geo.size)
 
                 ScrollView {
-                    switch settings.detailStyle {
-                    case .cinematic: cinematicContent(in: geo.size)
-                    case .classic:   classicContent(in: geo.size)
-                    }
+                    cinematicContent(in: geo.size)
                 }
             }
         }
@@ -45,34 +41,6 @@ struct MediaDetailView: View {
                 .environmentObject(env)
                 .environmentObject(library)
         }
-    }
-
-    // MARK: - Classic layout (original)
-
-    private func classicContent(in size: CGSize) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            Spacer(minLength: size.height * 0.35)
-
-            Text(item.title)
-                .font(Theme.Font.screenTitle())
-                .screenTitleStyle()
-                .foregroundStyle(Theme.Colors.textPrimary)
-
-            if !item.subtitleLine.isEmpty {
-                Text(item.subtitleLine)
-                    .font(.appFont(24))
-                    .foregroundStyle(Theme.Colors.textSecondary)
-            }
-
-            metadataChips
-
-            playbackMemoryNote
-
-            actionButtons
-        }
-        .padding(Theme.Spacing.edge)
-        .frame(minHeight: size.height, alignment: .bottom)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Cinematic layout (glass card + tile grid)

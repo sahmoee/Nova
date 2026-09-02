@@ -2,7 +2,7 @@
 //  FocusableButton.swift
 //  Nova
 //
-//  A button styled for tvOS with a clear focus state (scale + accent fill).
+//  A platform-adaptive Apple TV-style control with a bright, lifted focus state.
 //
 
 import SwiftUI
@@ -51,7 +51,6 @@ struct FocusableButtonStyle: ButtonStyle {
         let configuration: Configuration
         let prominent: Bool
         @Environment(\.isFocused) private var isFocused
-        @Environment(\.dynamicAccent) private var accent
         @Environment(\.isEnabled) private var isEnabled
 
         private var active: Bool {
@@ -65,39 +64,32 @@ struct FocusableButtonStyle: ButtonStyle {
 
         private var background: some ShapeStyle {
             if prominent {
-                if Theme.uiStyle == .refined {
-                    return AnyShapeStyle(
-                        LinearGradient(colors: [accent, accent.opacity(0.82)],
-                                       startPoint: .top, endPoint: .bottom)
-                    )
-                }
-                return AnyShapeStyle(accent)
+                return AnyShapeStyle(Theme.Colors.focusedControl)
             }
-            return AnyShapeStyle(active ? accent.opacity(0.9) : Theme.Colors.card)
+            return active ? AnyShapeStyle(Theme.Colors.focusedControl)
+                          : AnyShapeStyle(Theme.Colors.controlGlass)
         }
 
         private var foreground: Color {
             guard isEnabled else { return Theme.Colors.textTertiary }
-            if prominent { return .white }
-            return active ? .white : Theme.Colors.textPrimary
+            return Theme.Colors.textPrimary
         }
 
         var body: some View {
-            let refined = Theme.uiStyle == .refined
             return configuration.label
                 .padding(.horizontal, Theme.Spacing.md)
-                .padding(.vertical, refined ? Theme.Spacing.md : Theme.Spacing.sm)
+                .padding(.vertical, Theme.Spacing.md)
                 .background(background)
                 .foregroundStyle(foreground)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
-                        .stroke(active ? accent : (refined && !prominent ? Color.white.opacity(0.06) : .clear),
-                                lineWidth: active ? 3 : 1)
+                        .stroke(active ? Theme.Colors.accentSecondary : Color.white.opacity(0.14),
+                                lineWidth: active ? 2.5 : 1)
                 )
-                .shadow(color: prominent && refined ? accent.opacity(0.35) : (active ? accent.opacity(0.45) : .clear),
-                        radius: prominent && refined ? 14 : (active ? 20 : 0),
-                        y: prominent && refined ? 5 : (active ? 6 : 0))
+                .shadow(color: active ? Theme.Colors.accent.opacity(0.50) : .black.opacity(prominent ? 0.25 : 0),
+                        radius: active ? 22 : 10,
+                        y: active ? 9 : 4)
                 .scaleEffect(active && !Theme.isReduceMotion ? 1.06 : 1.0)
                 .opacity(isEnabled ? 1 : 0.45)
                 .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18), value: active)

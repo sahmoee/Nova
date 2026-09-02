@@ -387,7 +387,9 @@ struct LibraryView: View {
     @ViewBuilder
     private var cleanHeader: some View {
         ZStack(alignment: .top) {
-            ReactiveArtworkBackdrop(scope: .library, fallbackAsset: "MyNovaHero")
+            Image("MyNovaHero")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .clipped()

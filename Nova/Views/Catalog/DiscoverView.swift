@@ -133,10 +133,9 @@ struct DiscoverView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                    ReactiveArtworkPageHeader(title: "Search",
-                                              scope: .discover,
-                                              subtitle: "Find something worth watching",
-                                              systemImage: "magnifyingglass")
+                    NovaGradientPageHeader(title: "Browse",
+                                           subtitle: "Search movies, shows, live channels, and your connected catalogs",
+                                           systemImage: "magnifyingglass")
                         .padding(.horizontal, -Theme.Spacing.edge)
                         .padding(.top, -Theme.Spacing.edge)
 
@@ -172,7 +171,7 @@ struct DiscoverView: View {
                     }
                 }
                 .padding(Theme.Spacing.edge)
-                .frame(maxWidth: Theme.contentMaxWidth(1500), alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(Theme.Colors.appBackground.ignoresSafeArea())
             .navigationDestination(for: CatalogItem.self) { item in
@@ -267,7 +266,16 @@ struct DiscoverView: View {
             .disabled(aiSearching || query.trimmingCharacters(in: .whitespaces).count < 2)
         }
         .padding(Theme.Spacing.md)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .background(.ultraThinMaterial,
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous)
+                .strokeBorder(searchFocused ? Theme.Colors.accentSecondary : Color.white.opacity(0.14),
+                              lineWidth: searchFocused ? 2.5 : 1)
+        }
+        .shadow(color: searchFocused ? Theme.Colors.accent.opacity(0.32) : .black.opacity(0.22),
+                radius: searchFocused ? 22 : 12, y: 8)
+        .animation(Theme.Motion.quick, value: searchFocused)
         .accessibilityElement(children: .contain)
     }
 

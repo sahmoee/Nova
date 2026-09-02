@@ -50,7 +50,7 @@ struct AddonCatalogBrowserView: View {
                         .textFieldStyle(.plain)
                         .onSubmit { resetAndLoad() }
                     Button("Search") { resetAndLoad() }
-                        .foregroundStyle(Theme.Colors.accent)
+                        .buttonStyle(NovaChipButtonStyle())
                 }
                 .padding(Theme.Spacing.md)
                 .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button))
@@ -76,7 +76,10 @@ struct AddonCatalogBrowserView: View {
                             }
                         }
                     }
-                    if isLoading { ProgressView().frame(maxWidth: .infinity) }
+                    if isLoading {
+                        LoadingView(message: "Loading more titles…", systemImage: "rectangle.stack.fill")
+                            .frame(maxWidth: .infinity, minHeight: 140)
+                    }
                 }
             }
             .padding(Theme.Spacing.edge)

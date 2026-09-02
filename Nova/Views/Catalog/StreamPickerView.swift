@@ -58,9 +58,12 @@ struct StreamPickerView: View {
             switch state {
             case .loading:
                 VStack(spacing: Theme.Spacing.md) {
-                    LoadingView(message: "Finding streams…")
+                    LoadingView(message: loadingMessage, systemImage: "antenna.radiowaves.left.and.right")
                     addonProgressPanel
                         .padding(.horizontal, Theme.Spacing.edge)
+                    streamSkeletons.padding(.horizontal, Theme.Spacing.edge)
+                    Button("Cancel") { dismiss() }
+                        .buttonStyle(NovaChipButtonStyle())
                 }
             case .empty:
                 EmptyStateView(
@@ -92,12 +95,37 @@ struct StreamPickerView: View {
         .navigationDestination(isPresented: $showAddonsSetup) {
             AddonsView()
         }
-        .task { await load() }
+        .task(id: "\(catalog.contentID.stableKey)|\(epRef?.season ?? 0)|\(epRef?.number ?? 0)") { await load() }
     }
 
     private var titleLine: String {
         if let episode { return "\(catalog.title) · \(episode.label)" }
         return catalog.title
+    }
+
+    private var loadingMessage: String {
+        let total = max(env.addonStore.streamAddons.count, addonProgress.count)
+        let finished = addonProgress.values.filter { $0.phase != .started }.count
+        return total > 0 ? "Checking sources · \(finished) of \(total)" : "Finding streams…"
+    }
+
+    private var streamSkeletons: some View {
+        VStack(spacing: Theme.Spacing.sm) {
+            ForEach(0..<3, id: \.self) { _ in
+                HStack(spacing: Theme.Spacing.md) {
+                    RoundedRectangle(cornerRadius: 9).fill(Theme.Colors.card).frame(width: 72, height: 46)
+                    VStack(alignment: .leading, spacing: 8) {
+                        RoundedRectangle(cornerRadius: 5).fill(Theme.Colors.card).frame(height: 16)
+                        RoundedRectangle(cornerRadius: 5).fill(Theme.Colors.card).frame(width: 190, height: 12)
+                    }
+                    Spacer()
+                }
+                .padding(Theme.Spacing.sm)
+                .cinematicGlass(radius: Theme.Radius.card)
+                .shimmering()
+            }
+        }
+        .frame(maxWidth: Theme.contentMaxWidth(980))
     }
 
     /// The cause of an empty result drives the icon, message, and suggested action.
@@ -189,8 +217,9 @@ struct StreamPickerView: View {
                         }
                         .font(.appFont(18, weight: .semibold))
                         .foregroundStyle(groupBySource ? Theme.Colors.accent : Theme.Colors.textSecondary)
+                        .padding(.horizontal, 14).padding(.vertical, 8)
                     }
-                    .novaRowStyle()
+                    .buttonStyle(NovaChipButtonStyle())
                     Button { withAnimation { showFilters.toggle() } } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "line.3.horizontal.decrease.circle\(anyFilterActive ? ".fill" : "")")
@@ -198,8 +227,9 @@ struct StreamPickerView: View {
                         }
                         .font(.appFont(18, weight: .semibold))
                         .foregroundStyle(anyFilterActive ? Theme.Colors.accent : Theme.Colors.textSecondary)
+                        .padding(.horizontal, 14).padding(.vertical, 8)
                     }
-                    .novaRowStyle()
+                    .buttonStyle(NovaChipButtonStyle())
                 }
 
                 if showFilters { filterBar }
@@ -598,7 +628,11 @@ struct StreamPickerView: View {
                 }
                 Spacer()
                 if resolvingStreamID == stream.id {
-                    ProgressView().tint(Theme.Colors.accent)
+                    VStack(spacing: 4) {
+                        ProgressView().tint(.white)
+                        Text(autoFailingOver ? "Trying next" : "Opening")
+                            .font(.appFont(12, weight: .semibold))
+                    }
                 } else {
                     Image(systemName: "play.circle.fill")
                         .font(.appFont(30))
@@ -663,6 +697,9 @@ struct StreamPickerView: View {
                             .foregroundStyle(Theme.Colors.accent)
                     }
                 }
+                let finished = addonProgress.values.filter { $0.phase != .started }.count
+                ProgressView(value: Double(finished), total: Double(max(addonProgress.count, 1)))
+                    .tint(Theme.Colors.accent)
                 ForEach(addonProgress.values.sorted(by: { $0.addonName < $1.addonName }), id: \.addonID) { progress in
                     HStack(spacing: 8) {
                         Image(systemName: progressIcon(progress.phase))
@@ -720,6 +757,9 @@ struct StreamPickerView: View {
 
     private func load() async {
         state = .loading
+        streams = []
+        resolvingStreamID = nil
+        autoFailingOver = false
         addonProgress = [:]
         // Progressive: show results as each addon responds. As soon as we have
         // any streams, flip to the loaded state so the user sees them building up.
@@ -728,15 +768,18 @@ struct StreamPickerView: View {
             episode: epRef,
             preferredQuality: settings.preferredStreamQuality,
             onPartial: { partial in
+                guard !Task.isCancelled else { return }
                 self.streams = partial
                 if !partial.isEmpty, self.state == .loading {
                     self.state = .loaded
                 }
             },
             onStatus: { progress in
+                guard !Task.isCancelled else { return }
                 self.addonProgress[progress.addonID] = progress
             }
         )
+        guard !Task.isCancelled else { return }
         // Re-rank the complete set using the user's full streaming preferences so the
         // manual list order respects source, size, seeders, language, codec, HDR,
         // the source fallback chain, and the user's addon order.
@@ -781,6 +824,7 @@ struct StreamPickerView: View {
             let item = try await env.catalog.makePlayable(
                 stream: stream, catalog: catalog, episode: episode
             )
+            guard !Task.isCancelled else { return }
             env.library.add(item)
             lastPlayedStream = stream
             // Remember this exact stream (and when) so Resume reuses it and the picker
@@ -790,6 +834,7 @@ struct StreamPickerView: View {
                                              episode: epRef)
             playable = item
         } catch {
+            guard !Task.isCancelled else { return }
             // This stream failed to resolve — mark it dead, drop it from the list, and
             // automatically try the next best candidate. Only surface an error if
             // nothing is left to try.

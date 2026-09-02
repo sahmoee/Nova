@@ -17,9 +17,9 @@ enum AppTab: Hashable, CaseIterable {
     var title: String {
         switch self {
         case .home:     return "Home"
-        case .discover: return "Search"
-        case .ai:       return "AI"
-        case .library:  return "My Nova"
+        case .discover: return "Browse"
+        case .ai:       return "Ask Nova"
+        case .library:  return "Library"
         case .settings: return "Settings"
         }
     }
@@ -27,10 +27,10 @@ enum AppTab: Hashable, CaseIterable {
     /// SF Symbol used by the tvOS menu and the iOS tab bar.
     var systemImage: String {
         switch self {
-        case .home:     return "house.fill"
+        case .home:     return "play.square.stack.fill"
         case .discover: return "magnifyingglass"
         case .ai:       return "sparkles"
-        case .library:  return "person.crop.square.fill"
+        case .library:  return "rectangle.stack.fill"
         case .settings: return "gearshape.fill"
         }
     }

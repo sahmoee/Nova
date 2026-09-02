@@ -22,6 +22,8 @@ struct MediaCard: View {
     var quickActions: Bool = false
     /// Limits reactive header updates to the page that owns this card.
     var artworkScope: ArtworkHeaderScope? = nil
+    /// Optional editorial position used by ranked Top Picks rails.
+    var rank: Int? = nil
     let action: () -> Void
 
     @FocusState private var focused: Bool
@@ -190,6 +192,33 @@ struct MediaCard: View {
                                 lineWidth: focused ? 4 : 1)
                 )
 
+            if focused {
+                LinearGradient(colors: [.clear, .black.opacity(0.62)],
+                               startPoint: .center, endPoint: .bottom)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                    .transition(.opacity)
+
+                Image(systemName: item.hasResumePoint ? "play.fill" : "info")
+                    .font(.appFont(22, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 54, height: 54)
+                    .background(Theme.Colors.focusedControl, in: Circle())
+                    .overlay(Circle().strokeBorder(.white.opacity(0.55), lineWidth: 1.5))
+                    .shadow(color: Theme.Colors.accent.opacity(0.55), radius: 18)
+                    .frame(width: width, height: height, alignment: .center)
+                    .transition(.scale.combined(with: .opacity))
+            }
+
+            if let rank {
+                Text("\(rank)")
+                    .font(.appFont(wide ? 58 : 72, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.9), radius: 8, y: 3)
+                    .padding(10)
+                    .frame(width: width, height: height, alignment: .bottomTrailing)
+                    .accessibilityHidden(true)
+            }
+
             // Source chip + favorite marker.
             HStack(spacing: 6) {
                 Image(systemName: item.sourceType.systemImage)
@@ -223,6 +252,17 @@ struct MediaCard: View {
                 }
                 .frame(width: width, height: height)
                 .allowsHitTesting(false)
+            } else if let quality = item.metadata.resolution, !quality.isEmpty {
+                Text(quality.uppercased())
+                    .font(Theme.Font.eyebrow())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .overlay(Capsule().strokeBorder(.white.opacity(0.22), lineWidth: 0.75))
+                    .frame(width: width, height: height, alignment: .topTrailing)
+                    .padding(8)
+                    .allowsHitTesting(false)
             }
 
             // Resume progress bar.
@@ -298,6 +338,9 @@ struct MediaCard: View {
             }
         }
         .padding(.top, 4)
+        .opacity(focused ? 1 : 0.88)
+        .offset(y: focused && !Theme.isReduceMotion ? -2 : 0)
+        .animation(Theme.Motion.quick, value: focused)
     }
 }
 

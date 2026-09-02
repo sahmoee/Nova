@@ -137,6 +137,48 @@ struct ReactiveArtworkPageHeader: View {
     }
 }
 
+/// Deterministic header for utility destinations. Search, AI, Collections, Settings,
+/// and similar pages must never inherit the last focused movie or show.
+struct NovaGradientPageHeader: View {
+    let title: String
+    var subtitle: String? = nil
+    var systemImage: String? = nil
+    var height: CGFloat = PlatformCapabilities.platform == .iPad ? 250 : 190
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            LinearGradient(colors: [Color.white.opacity(0.10), Theme.Colors.cardElevated, Theme.Colors.background],
+                           startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [.clear, Theme.Colors.background], startPoint: .top, endPoint: .bottom)
+            HStack(alignment: .center, spacing: 10) {
+                if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(.appFont(22, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.82))
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.appFont(PlatformCapabilities.platform == .iPad ? 44 : 32, weight: .heavy))
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.appFont(15, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.76))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .padding(.horizontal, Theme.Spacing.edge)
+            .padding(.bottom, Theme.Spacing.md)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: height)
+        .clipped()
+        .accessibilityElement(children: .combine)
+    }
+}
+
 /// Artwork-led Home hero inspired by modern streaming storefronts. It deliberately
 /// contains no embedded controls: tapping opens Nova's own detail page, while the
 /// persistent app tab bar remains completely independent and unchanged.
@@ -144,12 +186,14 @@ struct ImmersiveFeaturedHero: View {
     let item: MediaItem
     let height: CGFloat
     var onOpen: (MediaItem) -> Void
+    var onPlay: (MediaItem) -> Void
 
     @Environment(\.dynamicAccent) private var accent
 
     var body: some View {
-        Button { onOpen(item) } label: {
-            ZStack(alignment: .bottom) {
+        ZStack(alignment: .bottomLeading) {
+            Button { onOpen(item) } label: {
+                ZStack {
                 CachedAsyncImage(url: item.backdropURL ?? item.posterURL, maxPixel: 1600) { image in
                     ZStack {
                         // A full-bleed copy prevents bars around unusually tall or
@@ -187,32 +231,52 @@ struct ImmersiveFeaturedHero: View {
                                center: .center,
                                startRadius: 120,
                                endRadius: 520)
-
-                VStack(spacing: 5) {
-                    Text(item.displayTitle)
-                        .font(.appFont(PlatformCapabilities.platform == .iPad ? 50 : 38, weight: .black))
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.62)
-                        .shadow(color: .black.opacity(0.9), radius: 10, y: 3)
-
-                    if !item.subtitleLine.isEmpty {
-                        Text(item.subtitleLine)
-                            .font(.appFont(14, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.82))
-                            .lineLimit(1)
-                    }
                 }
-                .padding(.horizontal, Theme.Spacing.edge)
-                .padding(.bottom, 28)
+                .contentShape(Rectangle())
             }
-            .frame(height: height)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open \(item.displayTitle)")
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("FEATURED")
+                    .font(Theme.Font.eyebrow())
+                    .tracking(1.5)
+                    .foregroundStyle(.white.opacity(0.72))
+                Text(item.displayTitle)
+                    .font(Theme.Font.heroTitle())
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.56)
+                    .shadow(color: .black.opacity(0.9), radius: 12, y: 4)
+                if !item.subtitleLine.isEmpty {
+                    Text(item.subtitleLine)
+                        .font(.appFont(15, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.84))
+                        .lineLimit(1)
+                }
+                HStack(spacing: 10) {
+                    Button { onPlay(item) } label: {
+                        Label(item.hasResumePoint ? "Resume" : "Play", systemImage: "play.fill")
+                            .font(.appFont(16, weight: .bold))
+                            .padding(.horizontal, 20)
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(FocusableButtonStyle(prominent: true))
+                    Button { onOpen(item) } label: {
+                        Label("More Info", systemImage: "info.circle")
+                            .font(.appFont(16, weight: .semibold))
+                            .padding(.horizontal, 18)
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(NovaChipButtonStyle())
+                }
+                .padding(.top, 4)
+            }
+            .frame(maxWidth: PlatformCapabilities.platform == .iPad ? 560 : 410, alignment: .leading)
+            .padding(.horizontal, Theme.Spacing.edge)
+            .padding(.bottom, Theme.Spacing.lg)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Open \(item.displayTitle)")
-        .accessibilityHint("Shows details and playback options")
+        .frame(height: height)
         .onAppear { AccentManager.shared.deriveAccent(from: item.backdropURL ?? item.posterURL) }
     }
 }
@@ -244,10 +308,17 @@ struct AppleTVSectionHeader: View {
             }
             Spacer(minLength: Theme.Spacing.sm)
             if let actionTitle, let action {
-                Button(actionTitle, action: action)
+                Button(action: action) {
+                    HStack(spacing: 5) {
+                        Text(actionTitle)
+                        Image(systemName: "chevron.right")
+                            .font(.appFont(12, weight: .bold))
+                    }
                     .font(.appFont(16, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .buttonStyle(.plain)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(NovaChipButtonStyle())
             }
         }
         .padding(.horizontal, Theme.Spacing.edge)
@@ -265,12 +336,13 @@ struct AppleTVSmartRailView: View {
                                  systemImage: rail.systemImage)
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: Theme.Spacing.md) {
-                    ForEach(rail.items) { item in
+                    ForEach(Array(rail.items.enumerated()), id: \.element.id) { index, item in
                         MediaCard(item: item,
                                   wide: usesLandscapeCards(for: rail.kind),
                                   widthOverride: cardWidth(for: rail.kind),
                                   heightOverride: cardHeight(for: rail.kind),
-                                  quickActions: true) {
+                                  quickActions: true,
+                                  rank: rail.kind == .topPicks ? index + 1 : nil) {
                             onSelect(item)
                         }
                     }
@@ -278,6 +350,7 @@ struct AppleTVSmartRailView: View {
                 .padding(.horizontal, Theme.Spacing.edge)
                 .padding(.vertical, PlatformCapabilities.platform == .appleTV ? 12 : 2)
             }
+            .scrollClipDisabled()
         }
     }
 
@@ -347,6 +420,7 @@ struct AppleTVUpNextRail: View {
                     .padding(.horizontal, Theme.Spacing.edge)
                     .padding(.vertical, PlatformCapabilities.platform == .appleTV ? 12 : 2)
                 }
+                .scrollClipDisabled()
             }
         }
     }
@@ -378,6 +452,7 @@ struct AppleTVQuickAccessRow: View {
                 .padding(.horizontal, Theme.Spacing.edge)
                 .padding(.vertical, PlatformCapabilities.platform == .appleTV ? 12 : 2)
             }
+            .scrollClipDisabled()
         }
     }
 }
@@ -478,10 +553,11 @@ private struct AppleTVQuickAccessTile: View {
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous)
-                    .strokeBorder(focused ? Color.white.opacity(0.92) : Color.white.opacity(0.08),
+                    .strokeBorder(focused ? Theme.Colors.accentSecondary : Color.white.opacity(0.10),
                                   lineWidth: focused ? 3 : 1)
             )
-            .shadow(color: .black.opacity(focused ? 0.5 : 0.22), radius: focused ? 22 : 10, y: 8)
+            .shadow(color: focused ? Theme.Colors.accent.opacity(0.48) : .black.opacity(0.22),
+                    radius: focused ? 24 : 10, y: 8)
         }
         .buttonStyle(.plain)
         .focused($focused)
@@ -543,6 +619,7 @@ struct AppleTVSourceHub: View {
                 .padding(.horizontal, Theme.Spacing.edge)
                 .padding(.vertical, PlatformCapabilities.platform == .appleTV ? 12 : 2)
             }
+            .scrollClipDisabled()
         }
     }
 }

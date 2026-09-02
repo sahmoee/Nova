@@ -353,7 +353,7 @@ private struct NovaTrackerDashboardView: View {
             TextField("New list name", text: $newListName)
                 .textFieldStyle(.plain)
             Button("Create") { Task { await createList() } }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(FocusableButtonStyle(prominent: true))
                 .disabled(newListName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }.padding(.horizontal, SettingsMetrics.rowSpacing).padding(.vertical, 8)))
         return rows

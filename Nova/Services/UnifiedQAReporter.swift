@@ -34,8 +34,10 @@ struct UnifiedQAPasscodeGate<Content: View>: View {
             SecureField("Passcode", text: $code).textFieldStyle(.roundedBorder).frame(maxWidth: 240)
             #endif
             if wrong { Text("Incorrect passcode").foregroundStyle(.red).font(.caption) }
-            Button("Unlock") { wrong = !UnifiedQAPasscode.unlock(code); code = ""; unlockedUntil = UserDefaults.standard.double(forKey: UnifiedQAPasscode.unlockedUntilKey) }.buttonStyle(.borderedProminent)
-        }.padding(24).navigationTitle("Quality Assurance") } }
+            Button("Unlock") { wrong = !UnifiedQAPasscode.unlock(code); code = ""; unlockedUntil = UserDefaults.standard.double(forKey: UnifiedQAPasscode.unlockedUntilKey) }
+                .buttonStyle(FocusableButtonStyle(prominent: true))
+        }.padding(24).navigationTitle("Quality Assurance")
+            .background(Theme.Colors.appBackground.ignoresSafeArea()) } }
     } }
 }
 
@@ -389,7 +391,14 @@ final class UnifiedQAStore: ObservableObject {
             "NVA-33-0001": "Extended the My Nova artwork header into the status-bar region and increased its compact height while preserving the source artwork's aspect ratio.",
             "NVA-33-0002": "Reworked reactive artwork headers to layer a complete aspect-fit image over a soft full-bleed copy, preventing wide or portrait artwork from being clipped, stretched, or left short.",
             "NVA-34-0001": "Centered the reactive My Nova artwork header explicitly across compact and regular layouts so its subject remains centered on both iPhone and iPad without stretching.",
-            "NVA-34-0002": "Added an editable Library Categories manager that supports renaming, hiding, reordering, deleting, restoring, and importing categories while retaining a safe fallback category."
+            "NVA-34-0002": "Added an editable Library Categories manager that supports renaming, hiding, reordering, deleting, restoring, and importing categories while retaining a safe fallback category.",
+            "NVA-34-0003": "Removed media artwork from non-media utility destinations and replaced it with a deterministic Nova gradient header, so these pages no longer render an unrelated hero.",
+            "NVA-34-0004": "Stopped My Nova from inheriting the last interacted title and centered its dedicated MyNovaHero artwork with aspect-fit rendering across iPhone and iPad.",
+            "NVA-34-0005": "Removed the 1500-point content cap from Search and AI so their page surfaces fill the available width and remain aligned to the device edges.",
+            "NVA-34-0006": "Introduced a reusable gradient utility header for Search, AI, and Collections that never reads media selection state and grows vertically with text.",
+            "NVA-34-0007": "Extended movie and show detail heroes through the top safe area, hid the navigation-bar background, and layered centered aspect-fit artwork over a full-bleed backdrop.",
+            "NVA-34-0008": "Rebuilt detail heroes around a centered aspect-fit foreground and full-width background so source artwork remains complete without losing the immersive edge-to-edge treatment.",
+            "NVA-34-0009": "Collections now lists only user-created and AI-created collections; rule-based Smart Collections remain in their separate destination and no default collection is injected."
         ]
         var changed = false
         for index in tickets.indices where tickets[index].status == "open" {

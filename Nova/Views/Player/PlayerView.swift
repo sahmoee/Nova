@@ -100,7 +100,14 @@ struct PlayerView: View {
     /// Asks the user whether to resume from their saved position or start over.
     private func resumeRestartPrompt(position: TimeInterval) -> some View {
         ZStack {
-            Color.black.opacity(0.85).ignoresSafeArea()
+            if let artwork = item.backdropURL ?? item.posterURL {
+                CachedAsyncImage(url: artwork, maxPixel: 1600) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                        .blur(radius: 18).scaleEffect(1.08)
+                } placeholder: { Color.black }
+                .ignoresSafeArea()
+            }
+            Color.black.opacity(0.72).ignoresSafeArea()
             VStack(spacing: Theme.Spacing.lg) {
                 Image(systemName: "play.circle")
                     .font(.appFont(56, weight: .semibold))
@@ -145,6 +152,9 @@ struct PlayerView: View {
                 }
             }
             .padding(Theme.Spacing.xl)
+            .frame(maxWidth: 620)
+            .cinematicGlass(radius: Theme.Radius.largeCard)
+            .padding(Theme.Spacing.edge)
         }
     }
 
@@ -326,7 +336,17 @@ struct PlayerView: View {
 
             switch model.state {
             case .loading:
-                LoadingView(message: "Preparing playback…")
+                ZStack {
+                    if let artwork = item.backdropURL ?? item.posterURL {
+                        CachedAsyncImage(url: artwork, maxPixel: 1600) { image in
+                            image.resizable().aspectRatio(contentMode: .fill)
+                                .blur(radius: 20).scaleEffect(1.08)
+                        } placeholder: { Color.black }
+                        .ignoresSafeArea()
+                    }
+                    Color.black.opacity(0.68).ignoresSafeArea()
+                    LoadingView(message: "Preparing \(item.displayTitle)…", systemImage: "play.fill")
+                }
             case .ready:
                 // Native AVPlayerViewController UI: scrubbing, subtitle/audio menus,
                 // fullscreen toggle, Picture in Picture, and AirPlay. In fullscreen the
@@ -452,8 +472,20 @@ struct PlayerView: View {
                         .background(.ultraThinMaterial, in: Circle())
                 }
                 .accessibilityLabel("Minimize player")
+                .buttonStyle(NovaIconButtonStyle())
 
                 Spacer()
+
+                if preparedNext != nil {
+                    Button { playNext() } label: {
+                        Image(systemName: "forward.end.fill")
+                            .font(.appFont(19, weight: .semibold))
+                            .frame(width: 46, height: 46)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                    .accessibilityLabel("Play next episode")
+                    .buttonStyle(NovaIconButtonStyle())
+                }
 
                 Button {
                     model.showSubtitlePicker = true
@@ -471,6 +503,7 @@ struct PlayerView: View {
                     }
                 }
                 .accessibilityLabel("Subtitles")
+                .buttonStyle(NovaIconButtonStyle())
 
                 Button {
                     model.stopAndSave()
@@ -482,6 +515,7 @@ struct PlayerView: View {
                         .background(.ultraThinMaterial, in: Circle())
                 }
                 .accessibilityLabel("Stop playback")
+                .buttonStyle(NovaIconButtonStyle())
             }
             .foregroundStyle(.white)
             .padding(.horizontal, Theme.Spacing.md)

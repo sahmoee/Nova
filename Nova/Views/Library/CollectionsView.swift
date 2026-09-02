@@ -28,9 +28,6 @@ struct CollectionsView: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                     header
 
-                    // Smart Collections: auto-updating groups based on simple rules.
-                    smartSection
-
                     if library.collections.isEmpty {
                         emptyState
                     } else {
@@ -63,12 +60,6 @@ struct CollectionsView: View {
             }
         }
         .navigationTitle("Collections")
-        .onAppear {
-            let firstCollectionItem = library.collections.first.flatMap { library.items(in: $0).first }
-            if let first = firstCollectionItem ?? library.recentlyAdded.first ?? library.items.first {
-                ArtworkHeaderCoordinator.shared.select(first, in: .collections)
-            }
-        }
         .fullScreenCover(item: $selectedItem) { item in
             // Present the player as a full-screen cover so no tab bar, sidebar,
             // or mini-bar remains visible during playback on any platform.
@@ -109,10 +100,9 @@ struct CollectionsView: View {
     }
 
     private var header: some View {
-        ReactiveArtworkPageHeader(title: "Collections",
-                                  scope: .collections,
-                                  subtitle: "Your saved worlds, grouped your way",
-                                  systemImage: "rectangle.stack")
+        NovaGradientPageHeader(title: "Collections",
+                               subtitle: "Your saved worlds, grouped your way",
+                               systemImage: "rectangle.stack")
     }
 
     private var emptyState: some View {

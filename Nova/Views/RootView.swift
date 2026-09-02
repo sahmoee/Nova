@@ -105,6 +105,7 @@ struct RootView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) { nowPlayingBar }
             .toolbarBackground(.ultraThinMaterial, for: .tabBar)
             .toolbarBackground(.visible, for: .tabBar)
+            .toolbarColorScheme(.dark, for: .tabBar)
     }
     #endif
 
@@ -114,6 +115,10 @@ struct RootView: View {
     private var televisionTabRoot: some View {
         ZStack(alignment: .bottom) {
             Theme.Colors.appBackground.ignoresSafeArea()
+            RadialGradient(colors: [accentManager.accent.opacity(0.22), .clear],
+                           center: .topLeading, startRadius: 40, endRadius: 1200)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
             tabView
             nowPlayingBar
                 .padding(.horizontal, Theme.Spacing.edge)
@@ -164,6 +169,14 @@ struct RootView: View {
             }
             .navigationTitle("Nova")
             .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
+            .background(.ultraThinMaterial)
+            .safeAreaInset(edge: .bottom) {
+                AppleTVProfileButton(store: ViewingProfileStore.shared) {
+                    nav.selection = .settings
+                }
+                .padding(Theme.Spacing.md)
+            }
         } detail: {
             ZStack(alignment: .bottom) {
                 Theme.Colors.appBackground.ignoresSafeArea()
@@ -262,11 +275,11 @@ struct RootView: View {
                     } label: {
                         Image(systemName: "play.fill")
                             .font(.appFont(isTV ? 24 : 18, weight: .semibold))
-                            .foregroundStyle(.black)
+                            .foregroundStyle(.white)
                             .frame(width: isTV ? 58 : 42, height: isTV ? 58 : 42)
-                            .background(.white, in: Circle())
+                            .background(Theme.Colors.focusedControl, in: Circle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(NovaIconButtonStyle())
                     .accessibilityLabel("Resume playback")
                     .accessibilityHint("Open the player and continue \(item.displayTitle)")
 
@@ -276,7 +289,7 @@ struct RootView: View {
                             .foregroundStyle(.white.opacity(0.76))
                             .frame(width: isTV ? 50 : 38, height: isTV ? 50 : 38)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(NovaIconButtonStyle())
                     .accessibilityLabel("Close Now Playing")
                     .accessibilityHint("Hide the mini player")
                 }

@@ -104,7 +104,7 @@ struct AIView: View {
                         resultsSection
                     }
                     .padding(Theme.Spacing.edge)
-                    .frame(maxWidth: Theme.contentMaxWidth(1500), alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .navigationDestination(for: CatalogItem.self) { item in
@@ -165,10 +165,9 @@ struct AIView: View {
     // MARK: - Headers
 
     private var header: some View {
-        ReactiveArtworkPageHeader(title: "AI",
-                                  scope: .ai,
-                                  subtitle: "Discover, organize, and build your next watch",
-                                  systemImage: "sparkles")
+        NovaGradientPageHeader(title: "AI",
+                               subtitle: "Discover, organize, and build your next watch",
+                               systemImage: "sparkles")
             .padding(.horizontal, -Theme.Spacing.edge)
             .padding(.top, -Theme.Spacing.edge)
     }

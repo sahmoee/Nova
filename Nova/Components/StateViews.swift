@@ -11,12 +11,21 @@ import SwiftUI
 
 struct LoadingView: View {
     var message: String = "Loading…"
+    var systemImage: String = "play.tv.fill"
+    @State private var breathing = false
 
     var body: some View {
         VStack(spacing: Theme.Spacing.md) {
-            ProgressView()
-                .scaleEffect(1.6)
-                .tint(Theme.Colors.accent)
+            ZStack {
+                Circle()
+                    .fill(Theme.Colors.accent.opacity(0.18))
+                    .frame(width: 88, height: 88)
+                    .scaleEffect(breathing && !Theme.isReduceMotion ? 1.12 : 0.94)
+                Image(systemName: systemImage)
+                    .font(.appFont(34, weight: .semibold))
+                    .foregroundStyle(.white)
+                ProgressView().tint(.white).offset(y: 56)
+            }
             Text(message)
                 .font(.appFont(22))
                 .foregroundStyle(Theme.Colors.textSecondary)
@@ -26,6 +35,11 @@ struct LoadingView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(Theme.Spacing.xl)
+        .onAppear {
+            withAnimation(Theme.isReduceMotion ? nil : .easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+                breathing = true
+            }
+        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(message)
     }

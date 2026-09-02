@@ -183,6 +183,17 @@ struct HomeView: View {
             .buttonStyle(NovaListRowStyle())
             .accessibilityLabel("Search")
 
+            Button { showCustomize = true } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.appFont(20, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .frame(width: 42, height: 42)
+                    .background(.thinMaterial, in: Circle())
+                    .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+            }
+            .buttonStyle(NovaListRowStyle())
+            .accessibilityLabel("Customize Home")
+
             AppleTVProfileButton(store: profiles) {
                 showProfiles = true
             }
@@ -216,8 +227,9 @@ struct HomeView: View {
                     let item = items[safeIndex]
                     ImmersiveFeaturedHero(item: item,
                                           height: PlatformCapabilities.homeHeroHeight,
-                                          onOpen: openDetail)
-                        .overlay(alignment: .topTrailing) { customizeButton }
+                                          onOpen: openDetail,
+                                          onPlay: play)
+                        .overlay(alignment: .top) { topBar }
                         .id(item.id)
                         .transition(.opacity)
                 }
@@ -245,7 +257,7 @@ struct HomeView: View {
                                  badge: heroBadge(for: item),
                                  onMoreInfo: openDetail,
                                  playFocusNamespace: heroFocusNS) { play($0) }
-                        .overlay(alignment: .topTrailing) { customizeButton }
+                        .overlay(alignment: .top) { topBar }
                         .id(item.id)
                         .transition(.opacity)
                 }

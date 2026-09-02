@@ -263,14 +263,13 @@ final class SettingsStore: ObservableObject {
 
     // MARK: - Appearance / Interface
 
-    /// How the Home screen is presented: the new cinematic look (default) with a
-    /// swipeable hero carousel and painterly Discover tiles, or the classic dashboard.
+    /// Decode-compatible storage for the retired Home style preference. Nova always
+    /// normalizes this to the single cinematic presentation.
     @Published var homeStyle: HomeStyle {
         didSet { defaults.set(homeStyle.rawValue, forKey: Key.homeStyle); CloudSync.shared.setString(homeStyle.rawValue, forKey: Key.homeStyle) }
     }
 
-    /// How the library media-detail sheet is presented: the new cinematic glass-card
-    /// look (default) with a tile grid of actions, or the classic stacked buttons.
+    /// Decode-compatible storage for the retired detail style preference.
     @Published var detailStyle: DetailStyle {
         didSet { defaults.set(detailStyle.rawValue, forKey: Key.detailStyle); CloudSync.shared.setString(detailStyle.rawValue, forKey: Key.detailStyle) }
     }
@@ -312,14 +311,12 @@ final class SettingsStore: ObservableObject {
         }
     }
 
-    /// The iOS tab bar look: the new floating translucent pill (default) or the
-    /// standard system tab bar. tvOS is unaffected (it uses a menu overlay).
+    /// Decode-compatible storage for the retired tab-bar style preference.
     @Published var tabBarStyle: TabBarStyle {
         didSet { defaults.set(tabBarStyle.rawValue, forKey: Key.tabBarStyle); CloudSync.shared.setString(tabBarStyle.rawValue, forKey: Key.tabBarStyle) }
     }
 
-    /// The app-wide component look (buttons, cards, rows). Pushes into Theme so the
-    /// shared ButtonStyles reflect it immediately.
+    /// Decode-compatible storage for the retired component-style preference.
     @Published var uiStyle: UIComponentStyle {
         didSet {
             defaults.set(uiStyle.rawValue, forKey: Key.uiStyle)
@@ -469,9 +466,8 @@ final class SettingsStore: ObservableObject {
         self.searchLayout = SearchLayoutStyle(
             rawValue: defaults.string(forKey: Key.searchLayout) ?? SearchLayoutStyle.grid.rawValue
         ) ?? .grid
-        self.homeStyle = HomeStyle(
-            rawValue: defaults.string(forKey: Key.homeStyle) ?? HomeStyle.cinematic.rawValue
-        ) ?? .cinematic
+        self.homeStyle = .cinematic
+        defaults.set(HomeStyle.cinematic.rawValue, forKey: Key.homeStyle)
         let storedCols = defaults.object(forKey: Key.libraryColumnCount) as? Int
         self.libraryColumnCount = storedCols.map { min(max($0, 2), 5) } ?? 3
         self.showSMBSeparately = defaults.bool(forKey: Key.showSMBSeparately)
@@ -482,21 +478,16 @@ final class SettingsStore: ObservableObject {
         // cannot continue showing the retired design.
         self.libraryStyle = .clean
         defaults.set(LibraryStyle.clean.rawValue, forKey: Key.libraryStyle)
-        self.detailStyle = DetailStyle(
-            rawValue: defaults.string(forKey: Key.detailStyle) ?? DetailStyle.cinematic.rawValue
-        ) ?? .cinematic
+        self.detailStyle = .cinematic
+        defaults.set(DetailStyle.cinematic.rawValue, forKey: Key.detailStyle)
         self.reviewSafeMode = defaults.bool(forKey: Key.reviewSafeMode)
-        self.tabBarStyle = TabBarStyle(
-            rawValue: defaults.string(forKey: Key.tabBarStyle) ?? TabBarStyle.floatingPill.rawValue
-        ) ?? .floatingPill
-        let resolvedUIStyle = UIComponentStyle(
-            rawValue: defaults.string(forKey: Key.uiStyle) ?? UIComponentStyle.refined.rawValue
-        ) ?? .refined
-        self.uiStyle = resolvedUIStyle
-        Theme.uiStyle = resolvedUIStyle
-        self.vlcOverlayStyle = PlayerOverlayStyle(
-            rawValue: defaults.string(forKey: Key.vlcOverlayStyle) ?? PlayerOverlayStyle.native.rawValue
-        ) ?? .native
+        self.tabBarStyle = .floatingPill
+        defaults.set(TabBarStyle.floatingPill.rawValue, forKey: Key.tabBarStyle)
+        self.uiStyle = .refined
+        defaults.set(UIComponentStyle.refined.rawValue, forKey: Key.uiStyle)
+        Theme.uiStyle = .refined
+        self.vlcOverlayStyle = .native
+        defaults.set(PlayerOverlayStyle.native.rawValue, forKey: Key.vlcOverlayStyle)
         let resolvedRespect = defaults.object(forKey: Key.respectSystemTextSize) == nil
             ? true : defaults.bool(forKey: Key.respectSystemTextSize)
         self.respectSystemTextSize = resolvedRespect
@@ -574,22 +565,19 @@ final class SettingsStore: ObservableObject {
         }
         if let v = cloud.string(forKey: Key.searchLayout),
            let s = SearchLayoutStyle(rawValue: v), searchLayout != s { searchLayout = s }
-        if let v = cloud.string(forKey: Key.homeStyle),
-           let s = HomeStyle(rawValue: v), homeStyle != s { homeStyle = s }
+        // Retired visual preferences remain decodable, but stale cloud values may
+        // never reactivate competing presentations.
+        if homeStyle != .cinematic { homeStyle = .cinematic }
         if let cloudCols = cloud.double(forKey: Key.libraryColumnCount),
            cloudCols >= 2, Int(cloudCols) != libraryColumnCount {
             libraryColumnCount = Int(cloudCols)
         }
         // Ignore stale cloud values for the retired classic library layout.
         if libraryStyle != .clean { libraryStyle = .clean }
-        if let v = cloud.string(forKey: Key.detailStyle),
-           let s = DetailStyle(rawValue: v), detailStyle != s { detailStyle = s }
-        if let v = cloud.string(forKey: Key.tabBarStyle),
-           let s = TabBarStyle(rawValue: v), tabBarStyle != s { tabBarStyle = s }
-        if let v = cloud.string(forKey: Key.uiStyle),
-           let s = UIComponentStyle(rawValue: v), uiStyle != s { uiStyle = s }
-        if let v = cloud.string(forKey: Key.vlcOverlayStyle),
-           let s = PlayerOverlayStyle(rawValue: v), vlcOverlayStyle != s { vlcOverlayStyle = s }
+        if detailStyle != .cinematic { detailStyle = .cinematic }
+        if tabBarStyle != .floatingPill { tabBarStyle = .floatingPill }
+        if uiStyle != .refined { uiStyle = .refined }
+        if vlcOverlayStyle != .native { vlcOverlayStyle = .native }
         applyBool(Key.respectSystemTextSize, \.respectSystemTextSize)
         if let v = cloud.double(forKey: Key.textSizeBoost), v > 0 {
             let clamped = min(max(v, 0.65), 1.25)

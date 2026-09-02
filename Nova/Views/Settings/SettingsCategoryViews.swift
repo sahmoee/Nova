@@ -179,42 +179,14 @@ struct AppearanceSettingsContent: View {
     @EnvironmentObject private var settings: SettingsStore
 
     var body: some View {
-        Group {
-            SettingsGroup(rows: appearanceRows)
-            SettingsGroup(footer: "The Apple player already uses the native overlay. This controls the look of the VLC player used for MKV and other formats.",
-                          rows: [
-                AnyView(SettingsPickerRow(icon: "play.rectangle", color: Theme.Colors.iconRed, title: "VLC Player Overlay",
-                                          selection: $settings.vlcOverlayStyle,
-                                          options: PlayerOverlayStyle.allCases,
-                                          label: { $0.displayName })),
-            ])
-        }
+        SettingsGroup(footer: "Nova uses one cinematic interface across Apple Player and VLC playback.",
+                      rows: appearanceRows)
     }
 
     private var appearanceRows: [AnyView] {
-        var rows: [AnyView] = [
-            AnyView(SettingsPickerRow(icon: "paintbrush", color: Theme.Colors.iconRed, title: "App Style",
-                                      selection: $settings.uiStyle, options: UIComponentStyle.allCases,
-                                      label: { $0.displayName })),
-            AnyView(SettingsPickerRow(icon: "house", color: Theme.Colors.iconRed, title: "Home Style",
-                                      selection: $settings.homeStyle, options: HomeStyle.allCases,
-                                      label: { $0.displayName })),
-            AnyView(SettingsPickerRow(icon: "books.vertical", color: Theme.Colors.iconRed, title: "Library Style",
-                                      selection: $settings.libraryStyle, options: LibraryStyle.allCases,
-                                      label: { $0.displayName })),
-            AnyView(SettingsPickerRow(icon: "rectangle.portrait.on.rectangle.portrait", color: Theme.Colors.iconGraphite,
-                                      title: "Detail Style", selection: $settings.detailStyle,
-                                      options: DetailStyle.allCases, label: { $0.displayName })),
-        ]
-        #if os(iOS)
-        rows.append(AnyView(SettingsPickerRow(icon: "square.bottomthird.inset.filled", color: Theme.Colors.iconRed,
-                                              title: "Tab Bar Style", selection: $settings.tabBarStyle,
-                                              options: TabBarStyle.allCases, label: { $0.displayName })))
-        #endif
-        rows.append(AnyView(SettingsPickerRow(icon: "square.grid.2x2", color: Theme.Colors.iconSilver, title: "Search Layout",
-                                              selection: $settings.searchLayout,
-                                              options: SearchLayoutStyle.allCases, label: { $0.displayName })))
-        return rows
+        [AnyView(SettingsPickerRow(icon: "square.grid.2x2", color: Theme.Colors.iconSilver, title: "Browse Layout",
+                                   selection: $settings.searchLayout,
+                                   options: SearchLayoutStyle.allCases, label: { $0.displayName }))]
     }
 }
 

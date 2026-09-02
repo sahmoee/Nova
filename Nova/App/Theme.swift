@@ -154,19 +154,17 @@ enum Theme {
     // MARK: - Colors
 
     enum Colors {
-        // A cool, cinematic near-black lets artwork remain the visual focus while
-        // pale-blue controls provide a restrained, consistent interactive language.
-        // Cinematic tinted-neutral palette (boxd vibe): never pure black/white, a cool
-        // indigo near-black canvas, restrained pearl controls, artwork stays the focus.
-        static let background = Color(red: 0.045, green: 0.048, blue: 0.062)
-        static let backgroundElevated = Color(red: 0.085, green: 0.090, blue: 0.112)
+        // Apple TV-inspired canvas: almost black, neutral, and deliberately quiet so
+        // artwork supplies the room's color. Elevated surfaces remain translucent.
+        static let background = Color(red: 0.012, green: 0.013, blue: 0.016)
+        static let backgroundElevated = Color(red: 0.055, green: 0.057, blue: 0.064)
 
-        static let card = Color(red: 0.105, green: 0.112, blue: 0.138).opacity(0.60)
-        static let cardElevated = Color(red: 0.105, green: 0.112, blue: 0.138).opacity(0.92)
+        static let card = Color.white.opacity(0.075)
+        static let cardElevated = Color(red: 0.095, green: 0.098, blue: 0.108).opacity(0.94)
 
-        // Accent is a calm pale blue used sparingly — never neon.
-        static let accent = Color(red: 0.20, green: 0.66, blue: 0.96)
-        static let accentSecondary = Color(red: 0.42, green: 0.76, blue: 0.98)
+        // One electric blue family identifies interactive selection throughout Nova.
+        static let accent = Color(red: 0.00, green: 0.48, blue: 1.00)
+        static let accentSecondary = Color(red: 0.30, green: 0.70, blue: 1.00)
         static let iconRed = accent
         static let iconGraphite = Color(white: 0.26)
         static let iconSilver = Color(white: 0.58)
@@ -195,18 +193,13 @@ enum Theme {
         static let watched = Color(red: 0.52, green: 0.78, blue: 0.68)        // sage
 
         static let appBackground = LinearGradient(
-            colors: [
-                Color(red: 0.062, green: 0.066, blue: 0.085),
-                Color(red: 0.045, green: 0.048, blue: 0.062),
-                Color(red: 0.028, green: 0.030, blue: 0.040)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
+            colors: [Color(red: 0.035, green: 0.037, blue: 0.043), background, Color.black],
+            startPoint: .top,
+            endPoint: .bottom
         )
 
         static let cardGradient = LinearGradient(
-            colors: [Color(red: 0.145, green: 0.152, blue: 0.182).opacity(0.55),
-                     Color(red: 0.085, green: 0.090, blue: 0.112).opacity(0.65)],
+            colors: [Color.white.opacity(0.115), Color.white.opacity(0.045)],
             startPoint: .top,
             endPoint: .bottom
         )
@@ -226,17 +219,29 @@ enum Theme {
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
+
+        static let controlGlass = LinearGradient(
+            colors: [Color.white.opacity(0.16), Color.white.opacity(0.07)],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+
+        static let focusedControl = LinearGradient(
+            colors: [accentSecondary, accent],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
 
     // MARK: - Radii
 
     enum Radius {
-        static var card: CGFloat { Theme.scaled(18, min: 12) }
-        static var largeCard: CGFloat { Theme.scaled(28, min: 18) }
-        static var button: CGFloat { Theme.scaled(16, min: 11) }
+        static var card: CGFloat { Theme.scaled(16, min: 12) }
+        static var largeCard: CGFloat { Theme.scaled(22, min: 16) }
+        static var button: CGFloat { Theme.scaled(14, min: 10) }
         static let pill: CGFloat = 999
-        static let poster: CGFloat = 12
-        static let thumb: CGFloat = 10
+        static let poster: CGFloat = 10
+        static let thumb: CGFloat = 9
     }
 
     // MARK: - Soft depth
@@ -256,7 +261,7 @@ enum Theme {
     enum Motion {
         /// Standard springy show/hide for panels, prompts, and the mini player bar.
         static let spring = SwiftUI.Animation.spring(response: 0.38, dampingFraction: 0.82)
-        // boxd motion scale — calm, quick easing for chrome and crossfades.
+        // Calm, quick easing for chrome and artwork crossfades.
         static let quick = SwiftUI.Animation.easeOut(duration: 0.18)
         static let standard = SwiftUI.Animation.easeOut(duration: 0.28)
         static let crossfade = SwiftUI.Animation.easeInOut(duration: 0.40)
@@ -323,10 +328,12 @@ enum Theme {
     // MARK: - Typography helpers
 
     enum Font {
-        static func sectionTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(30), weight: .bold) }
-        static func cardTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(22), weight: .semibold) }
+        static func heroTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(60), weight: .black, design: .rounded) }
+        static func sectionTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(30), weight: .bold, design: .rounded) }
+        static func cardTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(22), weight: .semibold, design: .rounded) }
         static func cardSubtitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(18), weight: .regular) }
-        static func screenTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(56), weight: .heavy) }
+        static func screenTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(56), weight: .heavy, design: .rounded) }
+        static func eyebrow() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(13), weight: .bold, design: .rounded) }
     }
 }
 
@@ -527,22 +534,16 @@ enum UIComponentStyle: String, CaseIterable, Identifiable {
 // MARK: - Refined card background
 
 extension View {
-    /// A drop-in replacement for `.background(Theme.Colors.card, in: RoundedRectangle(...))`
-    /// that honors the app style: a subtle surface gradient with a hairline edge in
-    /// Refined, or the original flat fill in Classic. Keeps the same footprint so it
-    /// doesn't shift any layout.
+    /// Nova's single card surface: a subtle gradient and cool hairline edge.
     func refinedCardBackground(cornerRadius: CGFloat = Theme.Radius.card) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         return self
             .background(
-                Theme.uiStyle == .refined
-                    ? AnyShapeStyle(Theme.Colors.cardGradient)
-                    : AnyShapeStyle(Theme.Colors.card),
+                AnyShapeStyle(Theme.Colors.cardGradient),
                 in: shape
             )
             .overlay(
-                shape.strokeBorder(Color.white.opacity(Theme.uiStyle == .refined ? 0.07 : 0.0),
-                                   lineWidth: 1)
+                shape.strokeBorder(Color.white.opacity(0.07), lineWidth: 1)
             )
     }
 }

@@ -45,7 +45,6 @@ struct VLCPlayerView: View {
     @State private var scrubbingFrom: TimeInterval? = nil
     @State private var scrubTarget: TimeInterval = 0
     #endif
-    @AppStorage("player.minimalControls") private var minimalControls = false
     @State private var resumePromptPosition: TimeInterval?
     @State private var hideControlsTask: Task<Void, Never>?
     @State private var hasStarted = false
@@ -290,15 +289,11 @@ struct VLCPlayerView: View {
 
     // MARK: - Overlay
 
-    /// Chooses the overlay style from the user's setting. "Classic" is the original
-    /// centered transport; "Native" mirrors Apple's player (left-aligned title, a
-    /// thin scrubber with elapsed/remaining timestamps, and a text control row).
+    /// Nova uses one Apple-style playback overlay on every device. Legacy persisted
+    /// choices still decode, but no longer fragment player behavior or focus order.
     @ViewBuilder
     private var activeOverlay: some View {
-        switch settings.vlcOverlayStyle {
-        case .classic: overlay
-        case .native:  nativeOverlay
-        }
+        nativeOverlay
     }
 
     // MARK: - Native-style overlay
@@ -500,177 +495,6 @@ struct VLCPlayerView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(NovaChipButtonStyle())
-    }
-
-    // MARK: - Classic overlay
-
-    private var overlay: some View {
-        VStack {
-            // Top edge: only the close button, padded well below the status bar and
-            // Dynamic Island so it is always tappable. All secondary actions moved to
-            // the bottom More menu, which is reachable on every device.
-            HStack(spacing: Theme.Spacing.sm) {
-                Button { model.minimizeAndSave(); dismiss() } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.appFont(22, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(Theme.Spacing.md)
-                        .background(.ultraThinMaterial, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Minimize")
-
-                Button { model.stopAndSave(); dismiss() } label: {
-                    Image(systemName: "stop.fill")
-                        .font(.appFont(20, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(Theme.Spacing.md)
-                        .background(.ultraThinMaterial, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Stop")
-                Spacer()
-            }
-            .padding(.horizontal, Theme.Spacing.lg)
-            .padding(.top, Theme.Spacing.xl)
-            #if os(iOS)
-            .safeAreaPadding(.top)
-            #endif
-            #if os(tvOS)
-            .focusSection()
-            #endif
-
-            Spacer()
-
-            // Transport controls.
-            VStack(spacing: Theme.Spacing.sm) {
-                // Scrubber.
-                HStack(spacing: Theme.Spacing.sm) {
-                    Text(timeString(model.currentTime))
-                        .font(.appFont(15)).foregroundStyle(.white).monospacedDigit()
-                    #if os(iOS)
-                    Slider(
-                        value: Binding(
-                            get: { model.currentTime },
-                            set: { model.seek(to: $0) }
-                        ),
-                        in: 0...max(model.duration, 1)
-                    )
-                    .tint(accent)
-                    #else
-                    // tvOS: a progress bar (scrubbing is done via the skip controls and
-                    // the remote); Slider isn't available on tvOS.
-                    ProgressView(value: min(model.currentTime, model.duration),
-                                 total: max(model.duration, 1))
-                        .tint(accent)
-                    #endif
-                    Text(timeString(model.duration))
-                        .font(.appFont(15)).foregroundStyle(.white).monospacedDigit()
-                }
-
-                HStack(spacing: Theme.Spacing.xl) {
-                    if !minimalControls {
-                        controlButton("gobackward.15") { model.skipBackward() }
-                    }
-                    controlButton(model.isPlaying ? "pause.fill" : "play.fill", large: true) {
-                        // Light tap on play/pause (no-op on tvOS).
-                        Haptics.impact(.light)
-                        model.togglePlayPause(); revealControls()
-                    }
-                    #if os(tvOS)
-                    .focused($playPauseFocused)
-                    #endif
-                    if !minimalControls {
-                        controlButton("goforward.15") { model.skipForward() }
-                        if hasNextEpisode {
-                            controlButton("forward.end.fill") { playNextEpisode() }
-                        }
-                    }
-                    moreMenu
-                }
-            }
-            .padding(Theme.Spacing.xl)
-            .background(.ultraThinMaterial.opacity(0.4))
-            #if os(tvOS)
-            .focusSection()
-            #endif
-        }
-    }
-
-    /// All secondary player actions, gathered into one always-reachable menu on the
-    /// bottom bar: subtitles, fill/fit, density, sleep timer, and diagnostics. These
-    /// previously lived across the top edge, where the status bar and Dynamic Island
-    /// made them hard or impossible to tap.
-    private var moreMenu: some View {
-        Menu {
-            Button {
-                model.showSubtitlePicker = true
-            } label: { Label("Audio & Subtitles", systemImage: "captions.bubble") }
-
-            Button {
-                model.fillScreen.toggle(); revealControls()
-            } label: {
-                Label(model.fillScreen ? "Fit to Screen" : "Fill Screen",
-                      systemImage: model.fillScreen
-                        ? "arrow.down.right.and.arrow.up.left"
-                        : "arrow.up.left.and.arrow.down.right")
-            }
-
-            Button {
-                minimalControls.toggle(); revealControls()
-            } label: {
-                Label(minimalControls ? "Show All Controls" : "Minimal Controls",
-                      systemImage: minimalControls ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
-            }
-
-            Button {
-                showDiagnostics.toggle(); revealControls()
-            } label: { Label("Diagnostics", systemImage: "waveform.path.ecg") }
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.appFont(28, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 64, height: 64)
-                .background {
-                    if Theme.uiStyle == .refined {
-                        Circle().fill(.ultraThinMaterial)
-                            .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
-                    }
-                }
-                .contentShape(Circle())
-        }
-        .buttonStyle(NovaChipButtonStyle())
-        .accessibilityLabel("More controls")
-    }
-
-    private func controlButton(_ symbol: String, large: Bool = false, action: @escaping () -> Void) -> some View {
-        let refined = Theme.uiStyle == .refined
-        return Button(action: action) {
-            Image(systemName: symbol)
-                .font(.appFont(large ? 44 : 28, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: large ? 92 : 64, height: large ? 92 : 64)
-                .background {
-                    if refined {
-                        Circle().fill(.ultraThinMaterial)
-                            .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
-                    }
-                }
-        }
-        .buttonStyle(NovaChipButtonStyle())
-        .accessibilityLabel(controlAccessibilityLabel(for: symbol))
-    }
-
-    /// Human-readable VoiceOver labels for the transport SF Symbols.
-    private func controlAccessibilityLabel(for symbol: String) -> String {
-        switch symbol {
-        case "gobackward.15":    return "Skip back 15 seconds"
-        case "goforward.15":     return "Skip forward 15 seconds"
-        case "pause.fill":       return "Pause"
-        case "play.fill":        return "Play"
-        case "forward.end.fill": return "Next episode"
-        default:                 return "Playback control"
-        }
     }
 
     // MARK: - Resume prompt

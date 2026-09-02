@@ -64,18 +64,12 @@ struct FeaturedHero: View {
             .frame(width: width, height: heroHeight)
             .clipped()
 
-            // Scrims + artwork-driven ambient wash. The reference lets the selected
-            // artwork color the entire header rather than placing it on a neutral card.
+            // Layered neutral scrims preserve artwork color while keeping type legible.
             Theme.Colors.heroGradient
             LinearGradient(
                 colors: [Theme.Colors.background.opacity(0.92), Theme.Colors.background.opacity(0.08), .clear],
                 startPoint: .leading, endPoint: .trailing
             )
-            LinearGradient(
-                colors: [accent.opacity(0.58), accent.opacity(0.18), .clear],
-                startPoint: .leading, endPoint: .trailing
-            )
-            .blendMode(.plusLighter)
 
             // Foreground content.
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
@@ -84,11 +78,12 @@ struct FeaturedHero: View {
                         .font(.appFont(13, weight: .bold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 10).padding(.vertical, 4)
-                        .background(accent.opacity(0.85), in: Capsule())
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .overlay(Capsule().strokeBorder(.white.opacity(0.28), lineWidth: 1))
                         .shadow(color: .black.opacity(0.4), radius: 4)
                 }
                 Text(item.displayTitle)
-                    .font(.appFont(PlatformCapabilities.platform == .appleTV ? 58 : 44, weight: .heavy))
+                    .font(Theme.Font.heroTitle())
                     .foregroundStyle(.white)
                     .lineLimit(2)
                     .minimumScaleFactor(0.72)
@@ -212,7 +207,7 @@ struct FeaturedHero: View {
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, Theme.Spacing.xs)
         }
-        .buttonStyle(HeroPlayButtonStyle(accent: accent))
+        .buttonStyle(HeroPlayButtonStyle())
         .accessibilityLabel("\(item.hasResumePoint ? "Resume" : "Play") \(item.title)")
         .accessibilityHint(item.hasResumePoint ? "Continue from the saved position" : "Start playback")
 
@@ -239,8 +234,10 @@ private struct HeroIconButtonStyle: ButtonStyle {
 
         var body: some View {
             configuration.label
-                .foregroundStyle(isFocused ? Theme.Colors.background : .white)
-                .background(isFocused ? Color.white : Color.white.opacity(0.12), in: Circle())
+                .foregroundStyle(.white)
+                .background(isFocused ? AnyShapeStyle(Theme.Colors.focusedControl)
+                                      : AnyShapeStyle(Theme.Colors.controlGlass), in: Circle())
+                .overlay(Circle().strokeBorder(isFocused ? Theme.Colors.accentSecondary : .white.opacity(0.16), lineWidth: 1.5))
                 .scaleEffect(isFocused && !Theme.isReduceMotion ? 1.12 : 1)
                 .shadow(color: .black.opacity(isFocused ? 0.45 : 0), radius: 18, y: 8)
                 .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.16), value: isFocused)
@@ -280,15 +277,12 @@ private struct HeroInfoButtonStyle: ButtonStyle {
 /// The hero Play/Resume button style. Implemented as a ButtonStyle reading isFocused
 /// so on tvOS it fully replaces the system white focus card with an accent capsule.
 private struct HeroPlayButtonStyle: ButtonStyle {
-    let accent: Color
-
     func makeBody(configuration: Configuration) -> some View {
-        HeroPlayBody(configuration: configuration, accent: accent)
+        HeroPlayBody(configuration: configuration)
     }
 
     private struct HeroPlayBody: View {
         let configuration: ButtonStyleConfiguration
-        let accent: Color
         @Environment(\.isFocused) private var isFocused
 
         private var active: Bool {
@@ -301,11 +295,11 @@ private struct HeroPlayButtonStyle: ButtonStyle {
 
         var body: some View {
             configuration.label
-                .background(active ? .white : Theme.Colors.accent, in: Capsule())
-                .foregroundStyle(Theme.Colors.background)
+                .background(Theme.Colors.focusedControl, in: Capsule())
+                .foregroundStyle(.white)
                 .scaleEffect(active && !Theme.isReduceMotion ? 1.06 : 1.0)
-                .shadow(color: active ? accent.opacity(0.5) : .clear,
-                        radius: active ? 20 : 0, y: 6)
+                .shadow(color: active ? Theme.Colors.accent.opacity(0.55) : .black.opacity(0.22),
+                        radius: active ? 22 : 10, y: active ? 9 : 4)
                 .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18), value: active)
         }
     }

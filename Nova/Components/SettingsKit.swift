@@ -2,8 +2,8 @@
 //  SettingsKit.swift
 //  Nova
 //
-//  Reusable building blocks for the redesigned, iOS-Settings-style settings screens:
-//  colored icon tiles, grouped rounded cards with hairline dividers, and consistent
+//  Reusable building blocks for cinematic, Apple TV-style settings screens:
+//  monochrome symbol wells, floating grouped cards, and consistent
 //  navigation / toggle / picker rows. Shared by the settings directory and every
 //  category screen so the look stays identical across iOS, iPadOS, and tvOS.
 //
@@ -50,7 +50,7 @@ enum SettingsStyle {
 
 // MARK: - Icon tile
 
-/// A colored rounded-square with a white SF Symbol, matching iOS Settings row icons.
+/// A restrained monochrome symbol well. The color remains as a subtle identity cue.
 struct SettingsIconTile: View {
     let systemImage: String
     let color: Color
@@ -58,9 +58,11 @@ struct SettingsIconTile: View {
     var body: some View {
         Image(systemName: systemImage)
             .font(.appFont(SettingsMetrics.symbol, weight: .semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(color.opacity(0.95))
             .frame(width: SettingsMetrics.tile, height: SettingsMetrics.tile)
-            .background(color, in: RoundedRectangle(cornerRadius: SettingsMetrics.tileRadius, style: .continuous))
+            .background(Color.white.opacity(0.09), in: RoundedRectangle(cornerRadius: SettingsMetrics.tileRadius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: SettingsMetrics.tileRadius, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1))
             .accessibilityHidden(true)
     }
 }
@@ -94,7 +96,7 @@ struct SettingsGroup: View {
                     }
                 }
             }
-            .background(SettingsStyle.groupBackground)
+            .background(.thinMaterial)
             .clipShape(RoundedRectangle(cornerRadius: SettingsMetrics.groupRadius, style: .continuous))
             if let footer, !footer.isEmpty {
                 Text(footer)

@@ -67,7 +67,9 @@ struct SourceCard: View {
         .accessibilityLabel("\(title), \(statusLine)")
         .accessibilityAddTraits(.isButton)
         .scaleEffect(focused ? Theme.CardSize.focusScale : 1.0)
-        .animation(.easeOut(duration: 0.16), value: focused)
+        .shadow(color: focused ? Theme.Colors.accent.opacity(0.48) : .black.opacity(0.20),
+                radius: focused ? 26 : 10, y: focused ? 10 : 5)
+        .animation(Theme.Motion.quick, value: focused)
     }
 
     private var cardContent: some View {
@@ -103,10 +105,10 @@ struct SourceCard: View {
         .padding(Theme.Spacing.lg)
         .frame(maxWidth: .infinity, minHeight: Theme.CardSize.sourceHeight,
                alignment: .topLeading)
-        .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous))
+        .background(Theme.Colors.controlGlass, in: RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous)
-                .stroke(focused ? Theme.Colors.accent : Theme.Colors.separator,
+                .stroke(focused ? Theme.Colors.accentSecondary : Theme.Colors.separator,
                         lineWidth: focused ? 4 : 1)
         )
     }
