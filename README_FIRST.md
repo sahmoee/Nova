@@ -31,3 +31,10 @@ execute third-party modules or binaries in Nova.
 Nova Tracker is first-party and zero-configuration at `https://api.sowensstudios.com/tracker`.
 Settings → Accounts → Nova Tracker exposes synced stats, recent activity, custom lists,
 and portable JSON backup. Title detail pages can add a title to any custom list.
+
+
+Build numbers are automatic through shared Xcode schemes; `MARKETING_VERSION` remains manual.
+The repo-owned `scripts/qa_build_number.py` reserves a locked project-wide number and stamps every
+built app/extension/test plist before signing. It is vendored from Stocked; see
+`scripts/QA_BUILD_NUMBER.md`. Use a shared scheme, not a direct `-target` build. Simulator builds/tests
+currently require the user's approval; this setup does not authorize uploads.

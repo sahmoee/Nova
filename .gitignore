@@ -18,3 +18,7 @@ commit.sh
 COMMIT_MSG.txt
 ._*
 *.bak.*
+
+# Local monotonic QA build reservations (never app data or version numbers)
+.qa-build/
+scripts/__pycache__/

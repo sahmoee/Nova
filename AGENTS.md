@@ -81,3 +81,17 @@ Tracker changes must remain additive so installed clients continue syncing.
 8. Validate a matrix covering the owner, direct consumers, extensions/widgets, public content, and fallback paths.
 9. Update README-first, AI instructions, cross-project sync, and public documentation in the same verified batch.
 10. Retain a rollback or compatibility path until deployed clients and persisted data confirm the new contract.
+
+
+## Automatic QA build numbering
+
+Stocked owns `scripts/qa_build_number.py`; identical copies ship in all five QA-enabled Xcode repos.
+Shared-scheme pre-actions reserve one project-wide integer, with a local locked high-water counter
+and a DerivedData-scoped reservation. Per-target post-Info.plist/pre-signing phases stamp the actual
+app, extension and test bundle. Script sandboxing stays enabled: the generated plist is a declared mutable input/output, plus a
+completion marker. App sandboxing/signing entitlements are unchanged. Scripts do not use the network or edit public
+versions. Preserve `MARKETING_VERSION` byte-for-byte and avoid duplicate bumps in deployment scripts.
+Validate built metadata and embedded bundles, not just project settings. Rollout is local project plus
+script/scheme together; missing reservations fail, failed builds may leave gaps, and existing app/QA
+schemas are unchanged. Tests are native fixture checks plus approved device-target builds; simulator
+builds/tests require asking the user first. See `scripts/QA_BUILD_NUMBER.md`.
