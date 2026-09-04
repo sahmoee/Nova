@@ -35,6 +35,9 @@ enum AppNetworking {
         // Reasonable timeouts so a slow addon doesn't hang the whole fan-out.
         config.timeoutIntervalForRequest = 20
         config.timeoutIntervalForResource = 45
+        config.httpShouldSetCookies = false
+        config.httpCookieAcceptPolicy = .never
+        config.urlCredentialStorage = nil
 
         return URLSession(configuration: config)
     }()
@@ -42,6 +45,21 @@ enum AppNetworking {
     // MARK: - Shared request helpers
 
     enum RequestError: Error { case badStatus(Int, retryAfter: TimeInterval?) }
+
+    /// Shared in-flight GETs avoid sending the same metadata request multiple times
+    /// when several shelves become visible together.
+    private actor GETCoalescer {
+        var tasks: [URLRequest: Task<(Data, URLResponse), Error>] = [:]
+
+        func data(for request: URLRequest, session: URLSession) async throws -> (Data, URLResponse) {
+            if let task = tasks[request] { return try await task.value }
+            let task = Task { try await session.data(for: request) }
+            tasks[request] = task
+            defer { tasks[request] = nil }
+            return try await task.value
+        }
+    }
+    private static let getCoalescer = GETCoalescer()
 
     /// Parses a Retry-After header (integer seconds form) if present.
     static func retryAfterSeconds(_ http: HTTPURLResponse) -> TimeInterval? {
@@ -59,7 +77,7 @@ enum AppNetworking {
         var req = URLRequest(url: url)
         req.timeoutInterval = timeout
         for (k, v) in headers { req.setValue(v, forHTTPHeaderField: k) }
-        let (data, response) = try await shared.data(for: req)
+        let (data, response) = try await getCoalescer.data(for: req, session: shared)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw RequestError.badStatus(http.statusCode, retryAfter: retryAfterSeconds(http))
         }

@@ -323,8 +323,8 @@ struct VLCPlayerView: View {
                             .font(.appFont(30, weight: .bold))
                             .foregroundStyle(.white)
                             .lineLimit(1)
-                        if !model.item.subtitleLine.isEmpty {
-                            Text(model.item.subtitleLine)
+                        if !playerMetadataLine.isEmpty {
+                            Text(playerMetadataLine)
                                 .font(.appFont(17, weight: .medium))
                                 .foregroundStyle(.white.opacity(0.72))
                                 .lineLimit(1)
@@ -345,7 +345,7 @@ struct VLCPlayerView: View {
                 Spacer()
 
                 VStack(spacing: Theme.Spacing.md) {
-                    HStack(spacing: Theme.Spacing.xl) {
+                    HStack(spacing: Theme.Spacing.lg) {
                         transportButton("gobackward.10", accessibility: "Back 10 seconds") {
                             model.skipBackward(10); revealControls()
                         }
@@ -356,10 +356,10 @@ struct VLCPlayerView: View {
                             model.togglePlayPause(); revealControls()
                         } label: {
                             Image(systemName: model.isPlaying ? "pause.fill" : "play.fill")
-                                .font(.appFont(40, weight: .semibold))
+                                .font(.appFont(32, weight: .semibold))
                                 .foregroundStyle(.black)
-                                .frame(width: Theme.scaled(92, min: 72),
-                                       height: Theme.scaled(92, min: 72))
+                                .frame(width: Theme.scaled(78, min: 64),
+                                       height: Theme.scaled(78, min: 64))
                                 .background(.white, in: Circle())
                                 .shadow(color: .black.opacity(0.35), radius: 18, y: 8)
                         }
@@ -376,14 +376,11 @@ struct VLCPlayerView: View {
 
                     VStack(spacing: 6) {
                         #if os(iOS)
-                        Slider(
-                            value: Binding(
-                                get: { model.currentTime },
-                                set: { model.seek(to: $0) }
-                            ),
-                            in: 0...max(model.duration, 1)
-                        )
-                        .tint(.white)
+                        TapSeekBar(value: model.currentTime,
+                                   duration: max(model.duration, 1)) { target in
+                            model.seek(to: target)
+                            revealControls()
+                        }
                         #else
                         ProgressView(value: min(model.currentTime, model.duration),
                                      total: max(model.duration, 1))
@@ -400,29 +397,7 @@ struct VLCPlayerView: View {
                         .foregroundStyle(.white.opacity(0.78))
                     }
 
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: Theme.Spacing.lg) {
-                            if hasNextEpisode {
-                                nativeTextButton("Next", systemImage: "forward.end.fill") {
-                                    playNextEpisode()
-                                }
-                            }
-                            nativeTextButton(model.isLoadingExternalSubtitles ? "Searching…" : "Subtitles",
-                                             systemImage: "captions.bubble.fill") {
-                                model.showSubtitlePicker = true
-                            }
-                            nativeTextButton(model.fillScreen ? "Fit" : "Fill",
-                                             systemImage: model.fillScreen
-                                                ? "arrow.down.right.and.arrow.up.left"
-                                                : "arrow.up.left.and.arrow.down.right") {
-                                model.fillScreen.toggle(); revealControls()
-                            }
-                            nativeTextButton("Diagnostics", systemImage: "waveform.path.ecg") {
-                                showDiagnostics.toggle(); revealControls()
-                            }
-                        }
-                        .padding(.horizontal, Theme.Spacing.xs)
-                    }
+                    playerOptionsMenu
                 }
                 .padding(.horizontal, Theme.Spacing.xl)
                 .padding(.bottom, Theme.Spacing.xl)
@@ -442,9 +417,10 @@ struct VLCPlayerView: View {
             Image(systemName: symbol)
                 .font(.appFont(29, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: Theme.scaled(70, min: 56),
-                       height: Theme.scaled(70, min: 56))
-                .background(.ultraThinMaterial, in: Circle())
+                .frame(width: Theme.scaled(58, min: 48),
+                       height: Theme.scaled(58, min: 48))
+                .background(.thinMaterial, in: Circle())
+                .overlay(Circle().strokeBorder(.white.opacity(0.12), lineWidth: 1))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibility)
@@ -465,17 +441,46 @@ struct VLCPlayerView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Minimize")
 
-            // Explicit Stop: fully ends playback and clears the now-playing bar.
-            Button { model.stopAndSave(); dismiss() } label: {
-                Image(systemName: "stop.fill")
-                    .font(.appFont(20, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .padding(Theme.Spacing.md)
-                    .background(.ultraThinMaterial, in: Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Stop")
         }
+    }
+
+    /// Keeps the playback surface calm: only transport is persistent. Less common
+    /// actions remain one tap away and use the same menu on iPhone, iPad and tvOS.
+    private var playerOptionsMenu: some View {
+        Menu {
+            if hasNextEpisode {
+                Button { playNextEpisode() } label: {
+                    Label("Play Next Episode", systemImage: "forward.end.fill")
+                }
+            }
+            Button { model.showSubtitlePicker = true } label: {
+                Label(model.isLoadingExternalSubtitles ? "Searching…" : "Audio & Subtitles",
+                      systemImage: "captions.bubble.fill")
+            }
+            Button { model.fillScreen.toggle(); revealControls() } label: {
+                Label(model.fillScreen ? "Fit to Screen" : "Fill Screen",
+                      systemImage: model.fillScreen
+                        ? "arrow.down.right.and.arrow.up.left"
+                        : "arrow.up.left.and.arrow.down.right")
+            }
+            Button { showDiagnostics.toggle(); revealControls() } label: {
+                Label("Playback Diagnostics", systemImage: "waveform.path.ecg")
+            }
+            Divider()
+            Button(role: .destructive) { model.stopAndSave(); dismiss() } label: {
+                Label("Stop Playback", systemImage: "stop.fill")
+            }
+        } label: {
+            Label("More", systemImage: "ellipsis.circle")
+                .font(.appFont(15, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.88))
+                .padding(.horizontal, 16)
+                .frame(minHeight: 44)
+                .background(.thinMaterial, in: Capsule())
+                .overlay(Capsule().strokeBorder(.white.opacity(0.12), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Playback options")
     }
 
     /// A native-style text button: an SF Symbol above a small caption, no filled
@@ -737,8 +742,60 @@ struct VLCPlayerView: View {
                      : String(format: "%d:%02d", m, s)
     }
 
+    /// Episode identifiers are already part of `displayTitle`; remove the same
+    /// leading token from the metadata line so portrait playback does not announce
+    /// S01E01 twice.
+    private var playerMetadataLine: String {
+        let parts = model.item.subtitleLine.components(separatedBy: " · ")
+        guard let episode = model.item.episode else { return model.item.subtitleLine }
+        let token = String(format: "S%02dE%02d", episode.season, episode.number)
+        return parts.filter { $0.caseInsensitiveCompare(token) != .orderedSame }
+            .joined(separator: " · ")
+    }
+
 
 }
+
+#if os(iOS)
+/// A timeline that seeks on either a tap or a drag. SwiftUI's stock Slider only
+/// responds reliably when its thumb is dragged, which made jumping to a point in a
+/// long episode unnecessarily difficult.
+private struct TapSeekBar: View {
+    let value: TimeInterval
+    let duration: TimeInterval
+    let onSeek: (TimeInterval) -> Void
+
+    var body: some View {
+        GeometryReader { proxy in
+            let progress = min(max(value / max(duration, 1), 0), 1)
+            ZStack(alignment: .leading) {
+                Capsule().fill(.white.opacity(0.22)).frame(height: 5)
+                Capsule().fill(.white).frame(width: max(5, proxy.size.width * progress), height: 5)
+            }
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { location in seek(at: location.location.x, width: proxy.size.width) }
+                    .onEnded { location in seek(at: location.location.x, width: proxy.size.width) }
+            )
+        }
+        .frame(height: 28)
+        .accessibilityElement()
+        .accessibilityLabel("Playback position")
+        .accessibilityValue("(Int((value / max(duration, 1)) * 100)) percent")
+        .accessibilityAdjustableAction { direction in
+            let delta = duration * 0.05 * (direction == .increment ? 1 : -1)
+            onSeek(min(max(value + delta, 0), duration))
+        }
+    }
+
+    private func seek(at x: CGFloat, width: CGFloat) {
+        guard width > 0 else { return }
+        onSeek(duration * min(max(Double(x / width), 0), 1))
+    }
+}
+#endif
 
 
 #if canImport(VLCKitSPM)

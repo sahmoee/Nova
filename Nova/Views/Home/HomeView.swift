@@ -170,33 +170,7 @@ struct HomeView: View {
                     .foregroundStyle(Theme.Colors.textSecondary)
             }
             Spacer()
-            Button {
-                nav.selection = .discover
-            } label: {
-                Image(systemName: "magnifyingglass")
-                    .font(.appFont(20, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .frame(width: 42, height: 42)
-                    .background(.thinMaterial, in: Circle())
-                    .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
-            }
-            .buttonStyle(NovaListRowStyle())
-            .accessibilityLabel("Search")
-
-            Button { showCustomize = true } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.appFont(20, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .frame(width: 42, height: 42)
-                    .background(.thinMaterial, in: Circle())
-                    .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
-            }
-            .buttonStyle(NovaListRowStyle())
-            .accessibilityLabel("Customize Home")
-
-            AppleTVProfileButton(store: profiles) {
-                showProfiles = true
-            }
+            homeMenu
         }
         .padding(.horizontal, Theme.Spacing.edge)
         .padding(.top, PlatformCapabilities.platform == .appleTV ? Theme.Spacing.xl : Theme.Spacing.md)
@@ -205,13 +179,7 @@ struct HomeView: View {
     // MARK: - Hero
 
     private var heroItems: [MediaItem] {
-        let topPicks = PersonalizedHomeEngine.rails(library: library, profile: profiles.activeProfile)
-            .first(where: { $0.kind == .topPicks })?.items ?? []
-        var seen = Set<String>()
-        return (library.continueWatching + topPicks + library.recentlyAdded + library.favorites)
-            .filter { seen.insert($0.contentKey).inserted }
-            .prefix(10)
-            .map { $0 }
+        library.viewingHistoryHeroItems
     }
 
     @ViewBuilder
@@ -294,30 +262,34 @@ struct HomeView: View {
 
     private func heroBadge(for item: MediaItem) -> String? {
         if item.hasResumePoint { return "Up Next" }
-        if library.queueIDs.contains(item.id) { return "In Your Queue" }
-        if item.isFavorite { return "Favorite" }
-        if item.addedDate > Date().addingTimeInterval(-60 * 60 * 24 * 14) { return "Recently Added" }
-        return "Top Pick"
+        return "Recently Watched"
     }
 
-    private var customizeButton: some View {
-        Button { showCustomize = true } label: {
-            Image(systemName: "slider.horizontal.3")
-                .font(.appFont(20, weight: .semibold))
-                .foregroundStyle(.white)
-                .padding(Theme.Spacing.sm)
-                .background(.ultraThinMaterial, in: Circle())
+    private var homeMenu: some View {
+        Menu {
+            Button { nav.selection = .discover } label: {
+                Label("Search and Browse", systemImage: "magnifyingglass")
+            }
+            Button { showCustomize = true } label: {
+                Label("Customize Home", systemImage: "slider.horizontal.3")
+            }
+            Button { showProfiles = true } label: {
+                Label("Switch Profile", systemImage: "person.crop.circle")
+            }
+            Divider()
+            Button { nav.selection = .settings } label: {
+                Label("Settings", systemImage: "gearshape")
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.appFont(20, weight: .bold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .frame(width: Theme.minTouchTarget, height: Theme.minTouchTarget)
+                .background(.thinMaterial, in: Circle())
+                .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
         }
-        .buttonStyle(NovaListRowStyle())
-        // Accessibility: icon-only button needs a spoken name and purpose.
-        .accessibilityLabel("Customize Home")
-        .accessibilityHint("Choose which shelves appear on Home")
-        .padding(.horizontal, Theme.Spacing.edge)
-        .padding(.top, Theme.Spacing.sm)
-        #if os(tvOS)
-        .safeAreaPadding(.top)
-        .safeAreaPadding(.trailing)
-        #endif
+        .novaIconStyle()
+        .accessibilityLabel("Home menu")
     }
 
     // MARK: - Personal rails
@@ -501,12 +473,12 @@ struct HomeView: View {
                     .font(Theme.Font.screenTitle())
                     .screenTitleStyle()
                     .foregroundStyle(Theme.Colors.textPrimary)
-                Text("Add something to your queue or library to build Watch Now.")
+                Text("Start watching a movie or show to build your rotating hero.")
                     .font(.appFont(17))
                     .foregroundStyle(Theme.Colors.textSecondary)
             }
             Spacer()
-            customizeButton
+            homeMenu
         }
         .padding(.horizontal, Theme.Spacing.edge)
         .padding(.vertical, Theme.Spacing.lg)

@@ -269,7 +269,7 @@ struct UniversalSearchView: View {
                     .buttonStyle(NovaListRowStyle())
             }
         }
-        .onAppear { ImageLoader.shared.prefetch(items.compactMap(\.posterURL)) }
+        .onAppear { ImageLoader.shared.prefetch(Array(items.prefix(16)).compactMap(\.posterURL)) }
     }
 
     private var skeletonGrid: some View {
@@ -320,7 +320,8 @@ struct UniversalSearchView: View {
             guard !Task.isCancelled else { return }
             let found = await env.catalog.search(q)
             guard !Task.isCancelled else { return }
-            await MainActor.run { suggestions = found }
+            guard query.trimmingCharacters(in: .whitespacesAndNewlines) == q else { return }
+            suggestions = Array(found.prefix(8))
         }
     }
 
@@ -353,6 +354,8 @@ struct UniversalSearchView: View {
         state = .searching
         correctedQuery = nil
         let found = await env.catalog.search(q)
+        guard !Task.isCancelled,
+              query.trimmingCharacters(in: .whitespacesAndNewlines) == q else { return }
         if !found.isEmpty {
             results = found
             state = .results

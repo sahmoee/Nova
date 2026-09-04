@@ -323,7 +323,7 @@ struct ContentDetailView: View {
         HStack(spacing: Theme.Spacing.sm) {
             Button {
                 streamTarget = StreamTarget(catalog: item,
-                    episode: item.isSeries ? (nextUnwatchedEpisode() ?? firstEpisode()) : nil)
+                    episode: item.isSeries ? nextUnwatchedEpisode() : nil)
             } label: {
                 Label(item.isSeries ? "Watch Now" : playButtonTitle, systemImage: "play.fill")
                     .font(.appFont(18, weight: .bold))
@@ -704,11 +704,14 @@ struct ContentDetailView: View {
             env.library.isEpisodeInProgress(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
                                             season: $0.season, number: $0.number)
         }) { return inProgress }
-        // Otherwise the first unwatched.
-        return ordered.first(where: {
-            !env.library.isEpisodeWatched(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
-                                          season: $0.season, number: $0.number)
-        }) ?? ordered.first
+        if let latest = env.library.latestPlayedEpisode(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb),
+           let index = ordered.firstIndex(where: { $0.season == latest.season && $0.number == latest.number }) {
+            let watched = env.library.isEpisodeWatched(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
+                                                       season: latest.season, number: latest.number)
+            return watched ? ordered.dropFirst(index + 1).first : ordered[index]
+        }
+        // No tracked progress means the user chooses an episode; never silently S1E1.
+        return nil
     }
 
     private func resumeButtonTitle(_ ep: EpisodeInfo) -> String {
@@ -1093,8 +1096,10 @@ struct ContentDetailView: View {
             for await hydrated in env.catalog.hydrateProgressively(item) {
                 item = hydrated
                 if selectedSeason == nil {
-                    selectedSeason = hydrated.seasons.first(where: { $0.number > 0 })?.number
-                        ?? hydrated.seasons.first?.number
+                    selectedSeason = env.library.latestPlayedEpisode(imdb: hydrated.contentID.imdb,
+                                                                     tmdb: hydrated.contentID.tmdb)?.season
+                        ?? hydrated.seasons.filter { $0.number > 0 }.max(by: { $0.number < $1.number })?.number
+                        ?? hydrated.seasons.max(by: { $0.number < $1.number })?.number
                 }
             }
         } else {

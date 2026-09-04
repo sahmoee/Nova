@@ -321,11 +321,15 @@ private struct NovaTrackerDashboardView: View {
     private var overview: some View {
         Group {
             if let stats {
-                HStack(spacing: 12) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 105), spacing: 12)], spacing: 12) {
                     trackerMetric("Watching", stats.watching)
                     trackerMetric("Watchlist", stats.watchlist)
                     trackerMetric("Completed", stats.completed)
                     trackerMetric("Rated", stats.rated)
+                    trackerMetric("Collection", stats.collected ?? 0)
+                    trackerMetric("Favorites", stats.favorites ?? 0)
+                    trackerMetric("Plays", stats.plays ?? 0)
+                    trackerMetric("Hours", (stats.minutesWatched ?? 0) / 60)
                 }
                 .padding(.vertical, 8)
             } else {
@@ -578,13 +582,14 @@ private enum TraktArchiveParser {
         guard imdb != nil || tmdb != nil else { return nil }
         let lower = path.lowercased()
         let watched = lower.contains("history") || lower.contains("watched") || wrapper["watched_at"] != nil
-        let planned = lower.contains("watchlist") || lower.contains("collection") || wrapper["listed_at"] != nil
+        let isCollection = lower.contains("collection")
+        let planned = lower.contains("watchlist") || wrapper["listed_at"] != nil
         let rating = integer(wrapper["rating"] ?? entity["rating"]).map { min(max($0, 1), 10) }
         return NovaTrackerArchiveItem(title: title,
                                       year: integer(entity["year"] ?? wrapper["year"]),
                                       type: type, imdb: imdb, tmdb: tmdb,
                                       status: watched ? "completed" : (planned ? "plantowatch" : nil),
-                                      rating: rating)
+                                      rating: rating, collected: isCollection)
     }
 
     private static func parseCSV(_ data: Data, path: String) -> [NovaTrackerArchiveItem] {
@@ -600,12 +605,14 @@ private enum TraktArchiveParser {
             guard imdb != nil || tmdb != nil else { return nil }
             let rawType = (row["type"] ?? row["media_type"] ?? "").lowercased()
             let lower = path.lowercased()
+            let isCollection = lower.contains("collection")
             let status = (lower.contains("history") || lower.contains("watched")) ? "completed"
-                : ((lower.contains("watchlist") || lower.contains("collection")) ? "plantowatch" : nil)
+                : (lower.contains("watchlist") ? "plantowatch" : nil)
             return NovaTrackerArchiveItem(title: title, year: Int(row["year"] ?? ""),
                                           type: rawType.contains("movie") ? .movie : .series,
                                           imdb: imdb, tmdb: tmdb, status: status,
-                                          rating: Int(row["rating"] ?? "").map { min(max($0, 1), 10) })
+                                          rating: Int(row["rating"] ?? "").map { min(max($0, 1), 10) },
+                                          collected: isCollection)
         }
     }
 

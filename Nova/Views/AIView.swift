@@ -206,26 +206,25 @@ struct AIView: View {
     private var promptPlaceholder: String { capability.placeholder }
 
     private var suggestionChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Theme.Spacing.sm) {
-                ForEach(suggestions, id: \.self) { s in
-                    Button {
-                        prompt = s
-                        run()
-                    } label: {
-                        Text(s)
-                            .font(.appFont(16))
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                            .padding(.horizontal, Theme.Spacing.md)
-                            .padding(.vertical, Theme.Spacing.sm)
-                            .background(Theme.Colors.card, in: Capsule())
-                    }
-                    // Chip style gives these a proper tvOS focus/press effect,
-                    // matching every other chip in the app.
-                    .buttonStyle(NovaChipButtonStyle())
+        Menu {
+            ForEach(suggestions, id: \.self) { suggestion in
+                Button(suggestion) {
+                    prompt = suggestion
+                    run()
                 }
             }
+        } label: {
+            Label("Prompt ideas", systemImage: "lightbulb")
+                .font(.appFont(16, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textSecondary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .padding(.horizontal, 14)
+                .frame(minHeight: Theme.minTouchTarget)
+                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
+        .buttonStyle(NovaRowButtonStyle())
+        .accessibilityHint("Choose a suggested AI prompt")
     }
 
     // MARK: - Results

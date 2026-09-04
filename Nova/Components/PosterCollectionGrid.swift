@@ -108,10 +108,13 @@ struct PosterCollectionGrid<Item: Identifiable, Cell: View>: UIViewRepresentable
                 - insets.leading - insets.trailing
             let columns = max(1, Int((available + spacing) / (minItemWidth + spacing)))
 
-            // Each repeated item owns one fraction of the row. A 1.0 fraction made
-            // every cell request the whole group even when the group had 2–3 columns.
-            let itemFraction = 1.0 / CGFloat(columns)
-            let itemSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(itemFraction),
+            // Fixed gaps sit *between* items, so subtract them before dividing the
+            // row. Fractional widths plus fixed gaps exceeded 100% and shifted the
+            // last column beyond the trailing edge on iPhone.
+            let usableWidth = max(minItemWidth,
+                                  available - spacing * CGFloat(max(columns - 1, 0)))
+            let itemWidth = floor(usableWidth / CGFloat(columns))
+            let itemSize = NSCollectionLayoutSize(widthDimension: .absolute(itemWidth),
                                                   heightDimension: .estimated(minItemWidth * 1.7))
             let item = NSCollectionLayoutItem(layoutSize: itemSize)
 

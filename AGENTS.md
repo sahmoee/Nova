@@ -88,8 +88,8 @@ Tracker changes must remain additive so installed clients continue syncing.
 Stocked owns `scripts/qa_build_number.py`; identical copies ship in all five QA-enabled Xcode repos.
 Shared-scheme pre-actions reserve one project-wide integer, with a local locked high-water counter
 and a DerivedData-scoped reservation. Per-target post-Info.plist/pre-signing phases stamp the actual
-app, extension and test bundle. Script sandboxing stays enabled: the generated plist is a declared mutable input/output, plus a
-completion marker. App sandboxing/signing entitlements are unchanged. Scripts do not use the network or edit public
+app, extension and test bundle. The generated plist is an input, not a declared output, to avoid an Xcode dependency-graph cycle.
+User-script sandboxing is disabled only for this repo-owned local phase. App sandboxing/signing entitlements are unchanged. Scripts do not use the network or edit public
 versions. Preserve `MARKETING_VERSION` byte-for-byte and avoid duplicate bumps in deployment scripts.
 Validate built metadata and embedded bundles, not just project settings. Rollout is local project plus
 script/scheme together; missing reservations fail, failed builds may leave gaps, and existing app/QA

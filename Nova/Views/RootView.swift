@@ -103,7 +103,7 @@ struct RootView: View {
     private var iPhoneTabRoot: some View {
         tabView
             .safeAreaInset(edge: .bottom, spacing: 0) { nowPlayingBar }
-            .toolbarBackground(.ultraThinMaterial, for: .tabBar)
+            .toolbarBackground(Theme.Colors.appBackground.opacity(0.98), for: .tabBar)
             .toolbarBackground(.visible, for: .tabBar)
             .toolbarColorScheme(.dark, for: .tabBar)
     }
@@ -283,15 +283,21 @@ struct RootView: View {
                     .accessibilityLabel("Resume playback")
                     .accessibilityHint("Open the player and continue \(item.displayTitle)")
 
-                    Button { withAnimation { nowPlaying.clear() } } label: {
-                        Image(systemName: "xmark")
+                    Menu {
+                        Button { reopenItem = item } label: {
+                            Label("Open Player", systemImage: "rectangle.inset.filled.and.person.filled")
+                        }
+                        Button(role: .destructive) { withAnimation { nowPlaying.clear() } } label: {
+                            Label("Dismiss Now Playing", systemImage: "xmark.circle")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
                             .font(.appFont(isTV ? 21 : 16, weight: .semibold))
                             .foregroundStyle(.white.opacity(0.76))
                             .frame(width: isTV ? 50 : 38, height: isTV ? 50 : 38)
                     }
                     .buttonStyle(NovaIconButtonStyle())
-                    .accessibilityLabel("Close Now Playing")
-                    .accessibilityHint("Hide the mini player")
+                    .accessibilityLabel("Now Playing menu")
                 }
                 .padding(.horizontal, isTV ? Theme.Spacing.md : 12)
                 .padding(.vertical, isTV ? Theme.Spacing.sm : 8)
@@ -548,13 +554,16 @@ struct AiringCalendarView: View {
         var built: [Entry] = []
         for m in series {
             guard let tmdb = m.contentID?.tmdb else { continue }
+            let upcoming = try? await env.tmdb.nextEpisodeToAir(tmdbID: tmdb)
             let latest = try? await env.tmdb.lastEpisodeToAir(tmdbID: tmdb)
-            let upcoming = latest == nil ? (try? await env.tmdb.nextEpisodeToAir(tmdbID: tmdb)) : nil
-            guard let episode = latest ?? upcoming,
-                  let ds = episode.air_date, let d = Self.ymd.date(from: ds) else { continue }
+            let today = Calendar.current.startOfDay(for: Date())
+            let latestDate = latest.flatMap { $0.air_date }.flatMap(Self.ymd.date)
+            let newlyReleased = latestDate.map { Calendar.current.startOfDay(for: $0) == today } == true ? latest : nil
+            guard let episode = upcoming ?? newlyReleased,
+                  let ds = episode.air_date, let d = Self.ymd.date(from: ds), d >= today else { continue }
             var label = String(format: "S%02dE%02d", episode.season_number ?? 0, episode.episode_number ?? 0)
             if let name = episode.name, !name.isEmpty { label += " · \(name)" }
-            label += latest != nil ? " · Latest release" : " · Upcoming"
+            label += upcoming != nil ? " · Upcoming" : " · Released today"
             let cid = m.contentID ?? ContentID(imdb: nil, tmdb: tmdb, trakt: nil, type: .series)
             let catalog = CatalogItem(contentID: cid, title: m.displayTitle, posterURL: m.posterURL)
             built.append(Entry(title: m.displayTitle, poster: m.posterURL, date: d, label: label, catalog: catalog))

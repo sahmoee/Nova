@@ -85,7 +85,7 @@ struct NovaApp: App {
                 .environmentObject(environment.library)
                 .environmentObject(environment.progress)
                 .environmentObject(environment.settings)
-                .preferredColorScheme(.dark)
+                .novaThemeBoundary()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {

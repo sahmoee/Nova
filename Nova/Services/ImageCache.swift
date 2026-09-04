@@ -23,6 +23,7 @@ actor ImageLoader {
     private let session: URLSession
     private let memory = NSCache<NSURL, PlatformImage>()
     private var inFlight: [URL: Task<PlatformImage?, Never>] = [:]
+    private var prefetchTask: Task<Void, Never>?
     private let diskDir: URL
 
     init() {
@@ -35,6 +36,11 @@ actor ImageLoader {
         config.requestCachePolicy = .returnCacheDataElseLoad
         config.httpMaximumConnectionsPerHost = 6
         config.waitsForConnectivity = true
+        config.timeoutIntervalForRequest = 15
+        config.timeoutIntervalForResource = 30
+        config.httpShouldSetCookies = false
+        config.httpCookieAcceptPolicy = .never
+        config.urlCredentialStorage = nil
         session = URLSession(configuration: config)
         memory.countLimit = 400
         memory.totalCostLimit = 80 * 1024 * 1024   // ~80 MB of decoded pixels
@@ -67,6 +73,8 @@ actor ImageLoader {
     /// Clears the in-memory image cache; the disk cache is retained.
     func purgeMemory() {
         memory.removeAllObjects()
+        for task in inFlight.values { task.cancel() }
+        inFlight.removeAll()
     }
 
     /// Loads an image, downsampled to roughly `maxPixel` on the long edge. Decoding a
@@ -97,7 +105,11 @@ actor ImageLoader {
             // 2) Fetch raw bytes (URLCache may serve these without the network).
             var request = URLRequest(url: url)
             request.cachePolicy = .returnCacheDataElseLoad
-            guard let (data, _) = try? await session.data(for: request) else { return nil }
+            guard !Task.isCancelled,
+                  let (data, response) = try? await session.data(for: request),
+                  let http = response as? HTTPURLResponse,
+                  (200..<300).contains(http.statusCode),
+                  data.count <= 25 * 1024 * 1024 else { return nil }
 
             // 3) Downsample at decode time via ImageIO (much cheaper than full decode).
             guard let image = Self.downsample(data: data, maxPixel: maxPixel) else {
@@ -129,16 +141,31 @@ actor ImageLoader {
     /// Warm the cache for a set of URLs (e.g. the next rows in a grid) so they're
     /// already decoded by the time they scroll on screen. Fire-and-forget.
     nonisolated func prefetch(_ urls: [URL], maxPixel: CGFloat = 600) {
-        Task.detached(priority: .utility) {
-            let limited = Array(Set(urls).prefix(16))
+        Task(priority: .utility) { await self.schedulePrefetch(urls, maxPixel: maxPixel) }
+    }
+
+    private func schedulePrefetch(_ urls: [URL], maxPixel: CGFloat) {
+        // Build a bounded eager array. A stateful LazyFilterSequence combined with
+        // prefix could be evaluated re-entrantly by concurrent callers and crash in
+        // Swift's range implementation. Eager de-duplication is deterministic and
+        // never asks the lazy collection for unstable indices.
+        var seen = Set<URL>()
+        var queue: [URL] = []
+        queue.reserveCapacity(min(16, urls.count))
+        for url in urls where queue.count < 16 {
+            if seen.insert(url).inserted { queue.append(url) }
+        }
+        prefetchTask?.cancel()
+        prefetchTask = Task(priority: .utility) { [queue] in
             await withTaskGroup(of: Void.self) { group in
-                var iterator = limited.makeIterator()
-                for _ in 0..<min(4, limited.count) {
+                var iterator = queue.makeIterator()
+                for _ in 0..<min(4, queue.count) {
                     if let url = iterator.next() {
                         group.addTask { _ = await self.image(for: url, maxPixel: maxPixel) }
                     }
                 }
                 while await group.next() != nil {
+                    guard !Task.isCancelled else { group.cancelAll(); return }
                     if let url = iterator.next() {
                         group.addTask { _ = await self.image(for: url, maxPixel: maxPixel) }
                     }
@@ -233,7 +260,7 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
             }
         }
         .animation(.easeOut(duration: 0.25), value: loaded != nil)
-        .task(id: url) {
+        .task(id: LoadIdentity(url: url, maxPixel: maxPixel)) {
             loaded = nil
             failed = false
             guard let url else { return }
@@ -243,5 +270,10 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
                 failed = true
             }
         }
+    }
+
+    private struct LoadIdentity: Hashable {
+        let url: URL?
+        let maxPixel: CGFloat
     }
 }

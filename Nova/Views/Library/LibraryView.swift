@@ -2,7 +2,7 @@
 //  LibraryView.swift
 //  Nova
 //
-//  Unified library with filter segments (All, Favorites, Recently Added,
+//  Streaming-first "My Nova" destination with filter segments (All, Favorites, Recently Added,
 //  Continue Watching, By Source) and a focusable grid.
 //
 
@@ -37,6 +37,11 @@ struct LibraryView: View {
     @State private var pendingRemovalItem: MediaItem?
     @State private var authenticatedSMBShareIDs: Set<UUID> = []
     @State private var checkingSMBAvailability = false
+    @State private var historyHeroIndex = 0
+    @State private var trackedWatching: [CatalogItem] = []
+    @State private var trackedTVWatchlist: [CatalogItem] = []
+    @State private var trackedMovieWatchlist: [CatalogItem] = []
+    @State private var trackedCollection: [CatalogItem] = []
 
     private var columns: [GridItem] { Theme.posterGridColumns }
 
@@ -156,64 +161,7 @@ struct LibraryView: View {
                     .ignoresSafeArea()
                 }
 
-                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                    // My Nova now has one canonical presentation.  Do not allow an
-                    // older synced `classic` preference to silently restore the
-                    // superseded layout on another device.
-                    cleanHeader
-
-                    libraryQuickActions
-
-                    if !displayedItems.isEmpty {
-                        librarySectionHeader
-                    }
-
-                    if isTraktTab {
-                        ScrollView { traktGrid }
-                    } else if displayedItems.isEmpty {
-                        EmptyStateView(
-                            systemImage: emptyIcon,
-                            title: emptyTitle,
-                            message: emptyMessage,
-                            actionTitle: emptyActionTitle,
-                            actionSystemImage: emptyActionSystemImage,
-                            action: emptyAction
-                        )
-                    } else {
-                        #if os(iOS)
-                        // UICollectionView-backed grid: real cell reuse + poster
-                        // prefetching for smooth scrolling on large libraries. Cards
-                        // are the same SwiftUI views, hosted per cell; `library` must
-                        // be re-injected because UIHostingConfiguration does not
-                        // inherit environment objects. `reloadToken` re-runs the card
-                        // builder when bulk-edit state changes without the item set.
-                        PosterCollectionGrid(
-                            items: displayedItems,
-                            minItemWidth: Theme.isCompact ? 148 : Theme.CardSize.posterWidth * 0.90,
-                            spacing: Theme.isCompact ? 22 : Theme.Spacing.lg,
-                            sectionInsets: EdgeInsets(top: Theme.isCompact ? 4 : Theme.Spacing.md,
-                                                      leading: Theme.isCompact ? 35 : Theme.Spacing.edge,
-                                                      bottom: Theme.Spacing.md,
-                                                      trailing: Theme.isCompact ? 35 : Theme.Spacing.edge),
-                            reloadToken: AnyHashable("\(bulkEditing)|\(selectedIDs.hashValue)"),
-                            prefetchURL: { $0.posterURL }
-                        ) { item in
-                            libraryGridCard(item)
-                                .environmentObject(library)
-                        }
-                        #else
-                        ScrollView {
-                            LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
-                                ForEach(displayedItems) { item in
-                                    libraryGridCard(item)
-                                }
-                            }
-                            .padding(.horizontal, Theme.Spacing.edge)
-                            .padding(.vertical, Theme.Spacing.md)
-                        }
-                        #endif
-                    }
-                }
+                if Theme.isCompact { compactMyNovaFeed } else { wideMyNovaLayout }
             }
             .sheet(isPresented: $showStats) {
                 NavigationStack { WatchStatsView() }
@@ -247,6 +195,7 @@ struct LibraryView: View {
         }
         .task {
             await refreshSMBAvailability()
+            await loadTrackerRails()
         }
         .onReceive(NotificationCenter.default.publisher(for: NetworkConditionMonitor.networkRestored)) { _ in
             Task { await refreshSMBAvailability() }
@@ -261,7 +210,7 @@ struct LibraryView: View {
         .onChange(of: typeFilter) { _, _ in saveLibraryPrefs() }
         .onChange(of: hideWatched) { _, _ in saveLibraryPrefs() }
         .onChange(of: displayedItems) { _, items in
-            ImageLoader.shared.prefetch(items.compactMap(\.posterURL), maxPixel: 700)
+            ImageLoader.shared.prefetch(items.prefix(24).compactMap(\.posterURL), maxPixel: 700)
             if let first = items.first {
                 ArtworkHeaderCoordinator.shared.select(first, in: .library)
             }
@@ -303,6 +252,132 @@ struct LibraryView: View {
         } message: {
             Text("This item will be removed from your library.")
         }
+    }
+
+    /// One Netflix-style feed on iPhone. The hero, shortcuts, tracking rails, and
+    /// Recently Added grid share this ScrollView, so the grid never behaves like a
+    /// second independently scrolling page.
+    private var compactMyNovaFeed: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            LazyVStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                cleanHeader
+                libraryQuickActions
+                trackerRails
+                libraryResultsContent(useReusableGrid: false)
+            }
+            .padding(.bottom, Theme.Spacing.xl)
+        }
+        .ignoresSafeArea(edges: .top)
+    }
+
+    private var wideMyNovaLayout: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            cleanHeader
+            libraryQuickActions
+            trackerRails
+            libraryResultsContent(useReusableGrid: true)
+        }
+    }
+
+    @ViewBuilder
+    private func libraryResultsContent(useReusableGrid: Bool) -> some View {
+        if !displayedItems.isEmpty { librarySectionHeader }
+        if isTraktTab {
+            traktGrid
+        } else if displayedItems.isEmpty {
+            EmptyStateView(systemImage: emptyIcon, title: emptyTitle, message: emptyMessage,
+                           actionTitle: emptyActionTitle, actionSystemImage: emptyActionSystemImage,
+                           action: emptyAction)
+        } else if useReusableGrid {
+            #if os(iOS)
+            PosterCollectionGrid(items: displayedItems,
+                                 minItemWidth: Theme.CardSize.posterWidth * 0.90,
+                                 spacing: Theme.Spacing.lg,
+                                 sectionInsets: EdgeInsets(top: Theme.Spacing.md, leading: Theme.Spacing.edge,
+                                                           bottom: Theme.Spacing.md, trailing: Theme.Spacing.edge),
+                                 reloadToken: AnyHashable("\(bulkEditing)|\(selectedIDs.hashValue)"),
+                                 prefetchURL: { $0.posterURL }) { item in
+                libraryGridContent(item)
+            }
+            #else
+            swiftUIGrid
+            #endif
+        } else {
+            swiftUIGrid
+        }
+    }
+
+    private var swiftUIGrid: some View {
+        LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
+            ForEach(displayedItems) { item in libraryGridCard(item) }
+        }
+        .padding(.horizontal, Theme.Spacing.edge)
+        .padding(.vertical, Theme.Spacing.xs)
+    }
+
+    private func libraryThumbnailURL(_ item: MediaItem) -> URL? { item.posterURL }
+    private func libraryGridContent(_ item: MediaItem) -> some View {
+        libraryGridCard(item).environmentObject(library)
+    }
+
+    @ViewBuilder
+    private var trackerRails: some View {
+        if !trackedWatching.isEmpty || !trackedTVWatchlist.isEmpty || !trackedMovieWatchlist.isEmpty || !trackedCollection.isEmpty {
+            LazyVStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                trackerRail("Currently Watching", items: trackedWatching)
+                trackerRail("TV Watchlist", items: trackedTVWatchlist)
+                trackerRail("Movie Watchlist", items: trackedMovieWatchlist)
+                trackerRail("Collection", items: trackedCollection)
+            }
+            .padding(.vertical, Theme.Spacing.xs)
+        }
+    }
+
+    @ViewBuilder
+    private func trackerRail(_ title: String, items: [CatalogItem]) -> some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Text(title)
+                    .font(Theme.Font.sectionTitle())
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .padding(.horizontal, Theme.Spacing.edge)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: Theme.Spacing.md) {
+                        ForEach(items) { item in
+                            NavigationLink(value: item) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    CachedAsyncImage(url: item.posterURL, maxPixel: 600) { image in
+                                        image.resizable().aspectRatio(contentMode: .fill)
+                                    } placeholder: { Theme.Colors.card }
+                                    .frame(width: Theme.isCompact ? 116 : 150, height: Theme.isCompact ? 174 : 225)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                    Text(item.title).font(.appFont(13, weight: .medium))
+                                        .foregroundStyle(Theme.Colors.textPrimary).lineLimit(1)
+                                }
+                                .frame(width: Theme.isCompact ? 116 : 150, alignment: .leading)
+                            }
+                            .buttonStyle(NovaListRowStyle())
+                        }
+                    }
+                    .padding(.horizontal, Theme.Spacing.edge)
+                }
+            }
+        }
+    }
+
+    private func loadTrackerRails() async {
+        async let watching = env.novaTracker.statusItems("watching")
+        async let watchlist = env.trackers.watchlist()
+        async let collection = env.novaTracker.libraryItems("collected")
+        let loaded = await (watching, watchlist, collection)
+        async let enrichedWatching = env.tmdb.enrichArtwork(loaded.0)
+        async let enrichedWatchlist = env.tmdb.enrichArtwork(loaded.1)
+        async let enrichedCollection = env.tmdb.enrichArtwork(loaded.2)
+        let enriched = await (enrichedWatching, enrichedWatchlist, enrichedCollection)
+        trackedWatching = enriched.0
+        trackedTVWatchlist = enriched.1.filter { $0.contentID.type == .series }
+        trackedMovieWatchlist = enriched.1.filter { $0.contentID.type == .movie }
+        trackedCollection = enriched.2
     }
 
     /// Opens the library item matching a deep-link content key, then clears the
@@ -386,13 +461,17 @@ struct LibraryView: View {
     /// sorting, collections, and editing no longer consume two persistent rows.
     @ViewBuilder
     private var cleanHeader: some View {
+        let heroes = library.viewingHistoryHeroItems
         ZStack(alignment: .top) {
-            Image("MyNovaHero")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .clipped()
+            if !heroes.isEmpty {
+                let item = heroes[min(historyHeroIndex, heroes.count - 1)]
+                historyHeroArtwork(item)
+                    .id(item.contentKey)
+                    .transition(.opacity)
+            } else {
+                LinearGradient(colors: [Theme.Colors.backgroundElevated, Theme.Colors.background],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
 
             LinearGradient(colors: [
                 Theme.Colors.background.opacity(0.12),
@@ -417,14 +496,50 @@ struct LibraryView: View {
         // Reach behind the status bar and retain enough vertical room to show the
         // complete selected artwork. The backdrop itself uses aspect-fit over a
         // blurred full-bleed copy, so this never widens or distorts a poster.
-        .frame(height: Theme.isCompact ? 320 : 380)
-        .padding(.top, Theme.isCompact ? -60 : 0)
+        .frame(height: Theme.isCompact ? 300 : 320)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.isCompact ? 32 : 34, style: .continuous))
+        .padding(.horizontal, Theme.isCompact ? 8 : Theme.Spacing.edge)
+        .animation(profiles.preferences.reduceArtworkMotion ? nil : Theme.Motion.crossfade,
+                   value: historyHeroIndex)
+        .task(id: heroes.map(\.contentKey)) {
+            historyHeroIndex = min(historyHeroIndex, max(heroes.count - 1, 0))
+            guard heroes.count > 1 else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(12))
+                guard !Task.isCancelled else { return }
+                withAnimation(Theme.Motion.crossfade) {
+                    historyHeroIndex = (historyHeroIndex + 1) % heroes.count
+                }
+            }
+        }
 
         if !library.allTags.isEmpty {
             tagFilterRow
         }
         if bulkEditing {
             bulkBar
+        }
+    }
+
+    @ViewBuilder
+    private func historyHeroArtwork(_ item: MediaItem) -> some View {
+        if let url = item.backdropURL ?? item.posterURL {
+            CachedAsyncImage(url: url, maxPixel: 1600) { image in
+                ZStack {
+                    image.resizable().aspectRatio(contentMode: .fill)
+                        .blur(radius: 20).scaleEffect(1.08)
+                    image.resizable().aspectRatio(contentMode: .fit)
+                }
+            } placeholder: {
+                Theme.Colors.backgroundElevated
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
+            .accessibilityLabel("Recently watched: \(item.displayTitle)")
+        } else {
+            LinearGradient(colors: [Theme.Colors.cardElevated, Theme.Colors.background],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+                .accessibilityLabel("Recently watched: \(item.displayTitle)")
         }
     }
 

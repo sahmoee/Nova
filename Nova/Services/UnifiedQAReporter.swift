@@ -8,6 +8,45 @@ enum UnifiedQASettings {
     static let longPressKey = "nova.qa.longPress.enabled"
     static let autoMonitorKey = "nova.qa.monitor.enabled"
     static let touchTrackingKey = "nova.qa.touches.enabled"
+    static let testerKey = "nova.qa.tester"
+}
+
+enum NovaQATester: String, CaseIterable, Identifiable {
+    case unassigned, key, shalise
+    var id: String { rawValue }
+    var title: String {
+        switch self { case .unassigned: "Not selected"; case .key: "Key"; case .shalise: "Shalise" }
+    }
+}
+
+enum NovaQADeviceIdentity {
+    static var identifier: String {
+        #if targetEnvironment(simulator)
+        return ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] ?? "Simulator"
+        #else
+        var system = utsname(); uname(&system)
+        return withUnsafeBytes(of: &system.machine) {
+            String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self)
+        }
+        #endif
+    }
+
+    static var family: String {
+        if identifier.hasPrefix("iPad") { return "iPad" }
+        if identifier.hasPrefix("iPhone") { return "iPhone" }
+        if identifier.hasPrefix("AppleTV") { return "Apple TV" }
+        return UIDevice.current.model
+    }
+
+    static var model: String {
+        let known = [
+            "iPhone18,1": "iPhone 17 Pro", "iPhone18,2": "iPhone 17 Pro Max",
+            "iPhone18,3": "iPhone 17", "iPhone18,4": "iPhone Air",
+            "iPad17,1": "iPad Pro 11-inch (M5)", "iPad17,2": "iPad Pro 11-inch (M5)",
+            "iPad17,3": "iPad Pro 13-inch (M5)", "iPad17,4": "iPad Pro 13-inch (M5)"
+        ]
+        return known[identifier] ?? "\(family) (\(identifier))"
+    }
 }
 
 enum UnifiedQAPasscode {
@@ -268,6 +307,13 @@ final class UnifiedQAStore: ObservableObject {
             body: details, severity: severity, screen: screen, hasScreenshot: shot != nil,
             environment: Self.environment(app: app), resolution: nil, verifiedAt: nil,
             refileCount: nil, syncState: "pending", lastSyncError: nil, history: [])
+        if ticket == nil {
+            let tester = NovaQATester(rawValue: UserDefaults.standard.string(forKey: UnifiedQASettings.testerKey) ?? "") ?? .unassigned
+            value.environment["tester"] = tester == .unassigned ? "Unassigned" : tester.title
+            value.environment["deviceFamily"] = NovaQADeviceIdentity.family
+            value.environment["deviceModel"] = NovaQADeviceIdentity.model
+            value.environment["modelIdentifier"] = NovaQADeviceIdentity.identifier
+        }
         value.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         value.body = details.trimmingCharacters(in: .whitespacesAndNewlines)
         value.severity = severity
@@ -398,7 +444,9 @@ final class UnifiedQAStore: ObservableObject {
             "NVA-34-0006": "Introduced a reusable gradient utility header for Search, AI, and Collections that never reads media selection state and grows vertically with text.",
             "NVA-34-0007": "Extended movie and show detail heroes through the top safe area, hid the navigation-bar background, and layered centered aspect-fit artwork over a full-bleed backdrop.",
             "NVA-34-0008": "Rebuilt detail heroes around a centered aspect-fit foreground and full-width background so source artwork remains complete without losing the immersive edge-to-edge treatment.",
-            "NVA-34-0009": "Collections now lists only user-created and AI-created collections; rule-based Smart Collections remain in their separate destination and no default collection is injected."
+            "NVA-34-0009": "Collections now lists only user-created and AI-created collections; rule-based Smart Collections remain in their separate destination and no default collection is injected.",
+            "NVA-51-0010": "Corrected the reusable collection layout to subtract fixed inter-item gaps before calculating cell width, keeping every poster column centered inside equal leading and trailing insets.",
+            "NVA-51-0011": "Reduced the compact My Nova viewing-history hero from 320 to 230 points, reduced its status-area offset, and retained complete aspect-fit foreground artwork over the cinematic bleed."
         ]
         var changed = false
         for index in tickets.indices where tickets[index].status == "open" {
@@ -446,7 +494,9 @@ final class UnifiedQAStore: ObservableObject {
     private static func environment(app: String) -> [String: String] {
         ["app": app, "appVersion": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?",
          "build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?",
-         "device": UIDevice.current.model, "os": "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)"]
+         "device": NovaQADeviceIdentity.model, "deviceFamily": NovaQADeviceIdentity.family,
+         "modelIdentifier": NovaQADeviceIdentity.identifier,
+         "os": "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)"]
     }
 
     static func capture() -> UIImage? {
@@ -575,6 +625,7 @@ struct UnifiedQASettingsView: View {
     @AppStorage(UnifiedQASettings.longPressKey) private var longPress = true
     @AppStorage(UnifiedQASettings.autoMonitorKey) private var monitor = true
     @AppStorage(UnifiedQASettings.touchTrackingKey) private var touches = true
+    @AppStorage(UnifiedQASettings.testerKey) private var tester = NovaQATester.unassigned.rawValue
     @AppStorage(UnifiedQAPasscode.unlockedUntilKey) private var unlockedUntil = 0.0
     @State private var code = ""; @State private var wrongCode = false
     private var unlocked: Bool { unlockedUntil > Date().timeIntervalSinceReferenceDate }
@@ -591,6 +642,14 @@ struct UnifiedQASettingsView: View {
                 Toggle("Monitor performance and resources", isOn: $monitor).disabled(!enabled)
                 Toggle("Record taps and navigation path", isOn: $touches).disabled(!enabled)
                 if unlocked && enabled { QAAIOverrideView(app: "nova") }
+            }
+            Section("Tester and device") {
+                Picker("Tester on this device", selection: $tester) {
+                    ForEach(NovaQATester.allCases) { Text($0.title).tag($0.rawValue) }
+                }
+                LabeledContent("Device type", value: NovaQADeviceIdentity.family)
+                LabeledContent("Model", value: NovaQADeviceIdentity.model)
+                LabeledContent("Hardware", value: NovaQADeviceIdentity.identifier)
             }
             Section { Text("Nova QA captures playback/source state, library and download counts, SMB configuration, network conditions, memory, thermal state, frame hitches, recent QA activity, and a screenshot. Tickets sync automatically and retain edit, fix, verification, and refile history.").font(.caption).foregroundStyle(.secondary) }
         }.navigationTitle("Quality Assurance").onAppear { if !unlocked { enabled = false } }
@@ -671,6 +730,7 @@ private struct NovaQATicketEditor: View {
     @State private var title: String; @State private var details: String; @State private var severity: String
     @State private var screen: String; @State private var category: String; @State private var status: String; @State private var resolution: String
     @State private var requiresManualReview: Bool
+    @State private var attachScreenshot: Bool
     private let categories = ["Playback", "Streams & Sources", "SMB", "Library & Metadata", "Downloads", "Calendar & Episodes", "Notifications", "Tracking & Accounts", "Search & Browse", "Subtitles", "UI & Accessibility", "Performance", "Other"]
 
     init(app: String, source: String, prefix: String, ticket: UnifiedQATicket?, draft: NovaQAReportDraft?) {
@@ -679,18 +739,19 @@ private struct NovaQATicketEditor: View {
         _severity=State(initialValue: ticket?.severity ?? "major"); _screen=State(initialValue: ticket?.screen ?? draft?.screen ?? "Current screen")
         _category=State(initialValue: ticket?.environment["novaCategory"] ?? "Other"); _status=State(initialValue: ticket?.status ?? "open"); _resolution=State(initialValue: ticket?.resolution ?? "")
         _requiresManualReview=State(initialValue: ticket?.requiresManualReview ?? false)
+        _attachScreenshot=State(initialValue: draft?.screenshot != nil || ticket?.hasScreenshot == true)
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("What went wrong?") { TextField("Short title", text: $title); TextField("Expected behavior and what happened", text: $details, axis: .vertical).lineLimit(4...10) }
-                Section("Nova context") { Picker("Area", selection: $category) { ForEach(categories, id: \.self) { Text($0) } }; Picker("Severity", selection: $severity) { Text("Blocker").tag("blocker"); Text("Major").tag("major"); Text("Minor").tag("minor") }; Toggle("Requires manual review", isOn: $requiresManualReview); Text("Turn this on when your wording or design intent needs human interpretation. AI will ask for specifics instead of guessing.").font(.caption).foregroundStyle(.secondary); TextField("Screen", text: $screen); if draft?.screenshot != nil || ticket?.hasScreenshot == true { Label("Screenshot attached", systemImage: "camera.fill").foregroundStyle(.green) } }
+                Section("Nova context") { Picker("Area", selection: $category) { ForEach(categories, id: \.self) { Text($0) } }; Picker("Severity", selection: $severity) { Text("Blocker").tag("blocker"); Text("Major").tag("major"); Text("Minor").tag("minor") }; Toggle("Requires manual review", isOn: $requiresManualReview); Text("Turn this on when your wording or design intent needs human interpretation. AI will ask for specifics instead of guessing.").font(.caption).foregroundStyle(.secondary); TextField("Screen", text: $screen); if draft?.screenshot != nil || ticket?.hasScreenshot == true { Toggle("Attach screenshot", isOn: $attachScreenshot) } }
                 if ticket != nil { Section("Fix lifecycle") { Picker("Status", selection: $status) { Text("Open").tag("open"); Text("Investigating").tag("investigating"); Text("Fixed — needs verification").tag("fixed"); Text("Verified").tag("verified") }; TextField("What was fixed", text: $resolution, axis: .vertical).lineLimit(3...8); if let ticket, ticket.status == "fixed" { Button("Verify Fix") { store.verify(ticket, source: source); dismiss() }; Button("Refile — still broken", role: .destructive) { store.refile(ticket, source: source); dismiss() } }; if let history = ticket?.history { ForEach(history, id: \.self) { Text($0).font(.caption).foregroundStyle(.secondary) } } } }
                 Section { Text("Saving writes JSON, Markdown, and screenshot evidence locally, then syncs automatically. Failed uploads remain pending and retry when Nova QA opens.").font(.caption).foregroundStyle(.secondary) }
             }
             .navigationTitle(ticket == nil ? "New Nova Ticket" : ticket!.number)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { store.save(app: app, source: source, prefix: prefix, ticket: ticket, title: title, details: details, severity: severity, screen: screen, category: category, status: status, resolution: resolution, requiresManualReview: requiresManualReview, screenshot: draft?.screenshot, diagnosticContext: draft?.context ?? ticket?.environment["novaDiagnostics"] ?? ""); dismiss() }.disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || (status == "fixed" && resolution.trimmingCharacters(in: .whitespaces).isEmpty)) } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { store.save(app: app, source: source, prefix: prefix, ticket: ticket, title: title, details: details, severity: severity, screen: screen, category: category, status: status, resolution: resolution, requiresManualReview: requiresManualReview, screenshot: attachScreenshot ? draft?.screenshot : nil, diagnosticContext: draft?.context ?? ticket?.environment["novaDiagnostics"] ?? ""); dismiss() }.disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || (status == "fixed" && resolution.trimmingCharacters(in: .whitespaces).isEmpty)) } }
         }
     }
 }
@@ -767,12 +828,20 @@ struct UnifiedQAProfile {
         item("episodes", "Catalog", "Episode grouping", "Episodes remain inside their series; only the most recently watched series entry appears elsewhere."),
         item("streams", "Playback", "Stream discovery", "Providers resolve, rank, retry, and explain unavailable sources."),
         item("player", "Playback", "Playback lifecycle", "Play, pause, seek, subtitles, progress, resume, and completion work."),
+        item("player-tap-seek", "Playback", "Tap-to-seek timeline", "Tapping or dragging anywhere on the timeline seeks accurately and keeps controls visible."),
+        item("player-menu", "Playback", "Minimal playback controls", "Transport stays prominent while subtitles, aspect, diagnostics, next episode, and stop remain available in one menu."),
+        item("player-portrait", "Playback", "Portrait player layout", "Title, video, transport, timeline, and menus remain centered without duplicated metadata or oversized controls."),
         item("external", "Playback", "External player return", "External playback launches safely and reconciles progress on return."),
         item("downloads", "Downloads", "Long-press download", "Long-pressing a movie or episode queues the correct item."),
         item("manager", "Downloads", "Download manager", "Pause, resume, retry, delete, storage, and offline playback remain consistent."),
-        item("calendar", "Episodes", "Release calendar", "Only the newest available or release episode is surfaced."),
-        item("notify", "Episodes", "Episode notifications", "Only the newest episode creates a notification and duplicates are suppressed."),
+        item("calendar", "Episodes", "Release calendar", "Only episodes released today or scheduled in the future appear; historical episodes never backfill."),
+        item("notify", "Episodes", "Episode notifications", "Only episodes released today create a notification and duplicates are suppressed."),
+        item("episode-resume", "Episodes", "Latest episode resume", "Every show entry point resumes the latest played episode and season and never silently resets to S1E1."),
         item("library", "My Nova", "Library identity", "Watch progress and identity deduplicate across sources."),
+        item("library-grid", "My Nova", "Centered poster grid", "All columns remain inside symmetric edge insets at every iPhone and iPad width."),
+        item("history-hero", "My Nova", "Viewing-history hero", "The compact hero stays fully visible and rotates only through current or recently watched titles."),
+        item("tracker-rails", "My Nova", "Tracker rails", "Currently Watching, TV Watchlist, Movie Watchlist, and imported Collection remain separate and open the correct title."),
+        item("adaptive-controls", "UI", "Adaptive control labels", "Buttons use restrained corners and preserve complete labels at supported Dynamic Type sizes."),
         item("smb", "My Nova", "SMB folder browser", "Authentication, browsing, selection, reconnect, and library ingestion work."),
         item("trakt", "Tracking", "Trakt sync", "Authentication, expiry, watch state, ratings, and retries reconcile."),
         item("simkl", "Tracking", "SIMKL sync", "PIN login, token persistence, lists, watched state, and errors work."),
@@ -785,6 +854,8 @@ struct UnifiedQAProfile {
         item("memory", "Reliability", "Long-session resources", "Memory stays bounded and background/foreground does not leak playback."),
         item("privacy", "Security", "Credentials and reports", "Secrets stay in Keychain and QA evidence contains no secret values."),
         item("ticket", "QA", "Ticket lifecycle", "File, screenshot, edit, sync, fixed, verify, and refile preserve history.")
+        ,item("qa-identity", "QA", "Tester and exact device", "Key or Shalise and the device family, marketed model, and hardware identifier attach to every new ticket.")
+        ,item("qa-evidence", "QA", "Optional screenshot evidence", "The tester can include or omit the automatically captured screenshot before saving.")
     ]
 
     static let atlas = [
@@ -811,6 +882,7 @@ struct UnifiedQAProfile {
         item("widgets", "Extensions", "Widgets and activities", "Widget and Live Activity state reflects the app and handles stale data."),
         item("accessibility", "UI", "Accessibility", "VoiceOver, focus, Dynamic Type, contrast, and touch targets pass."),
         item("performance", "Reliability", "Large library performance", "Browse, search, and document history stay responsive."),
+        item("image-prefetch-regression", "Reliability", "Bounded image prefetch", "Rapid typing and scrolling keep one bounded eager prefetch queue without lazy-sequence range crashes or runaway tasks."),
         item("privacy", "Security", "Private content", "Documents, photos, notes, credentials, and QA evidence remain private."),
         item("ticket", "QA", "Ticket lifecycle", "File, screenshot, edit, sync, fixed, verify, and refile preserve history.")
     ]

@@ -38,62 +38,7 @@ struct DiscoverView: View {
     @ViewBuilder
     private var discoverShelves: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
-            NavigationLink {
-                NewAndHotView(path: $newAndHotPath)
-            } label: {
-                HStack(spacing: Theme.Spacing.sm) {
-                    Image(systemName: "play.rectangle.on.rectangle.fill")
-                        .font(.appFont(22, weight: .semibold))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("New & Hot")
-                            .font(.appFont(20, weight: .semibold))
-                        Text("Trending, new this week, and coming soon")
-                            .font(.appFont(14))
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right").font(.appFont(16))
-                }
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .padding(.vertical, Theme.Spacing.xs)
-                .contentShape(Rectangle())
-            }
-            .novaRowStyle()
-
-            NavigationLink(value: DiscoverRoute.liveTV) {
-                HStack(spacing: Theme.Spacing.sm) {
-                    Image(systemName: "dot.radiowaves.left.and.right")
-                        .font(.appFont(22, weight: .semibold))
-                    Text("Live TV")
-                        .font(.appFont(20, weight: .semibold))
-                    Spacer()
-                    Image(systemName: "chevron.right").font(.appFont(16))
-                }
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .padding(.vertical, Theme.Spacing.xs)
-                .contentShape(Rectangle())
-            }
-            .novaRowStyle()
-
-            NavigationLink(value: DiscoverRoute.anime) {
-                HStack(spacing: Theme.Spacing.sm) {
-                    Image(systemName: "film.stack")
-                        .font(.appFont(22, weight: .semibold))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Anime")
-                            .font(.appFont(20, weight: .semibold))
-                        Text("Popular series, movies, genres, and top-rated picks")
-                            .font(.appFont(14))
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right").font(.appFont(16))
-                }
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .padding(.vertical, Theme.Spacing.xs)
-                .contentShape(Rectangle())
-            }
-            .novaRowStyle()
+            browseMenu
 
             if shelfStore.enabledShelves.isEmpty {
                 hint
@@ -110,7 +55,28 @@ struct DiscoverView: View {
         }
     }
 
-    enum DiscoverRoute: Hashable { case liveTV, anime }
+    enum DiscoverRoute: Hashable { case newAndHot, liveTV, anime }
+
+    private var browseMenu: some View {
+        Menu {
+            Button { path.append(DiscoverRoute.newAndHot) } label: {
+                Label("New & Hot", systemImage: "play.rectangle.on.rectangle.fill")
+            }
+            Button { path.append(DiscoverRoute.liveTV) } label: {
+                Label("Live TV", systemImage: "dot.radiowaves.left.and.right")
+            }
+            Button { path.append(DiscoverRoute.anime) } label: {
+                Label("Anime", systemImage: "film.stack")
+            }
+        } label: {
+            Label("Browse categories", systemImage: "ellipsis.circle")
+                .font(.appFont(17, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textSecondary)
+                .frame(minHeight: Theme.minTouchTarget)
+        }
+        .buttonStyle(NovaChipButtonStyle())
+        .accessibilityHint("Open New and Hot, Live TV, or Anime")
+    }
 
     private var recentSearches: [String] {
         recentSearchesRaw.split(separator: "\n").map(String.init)
@@ -179,6 +145,7 @@ struct DiscoverView: View {
             }
             .navigationDestination(for: DiscoverRoute.self) { route in
                 switch route {
+                case .newAndHot: NewAndHotView(path: $newAndHotPath)
                 case .liveTV: LiveTVView()
                 case .anime: AnimeView()
                 }
@@ -416,7 +383,7 @@ struct DiscoverView: View {
                 resultRail(title: "More Results", items: other)
             }
         }
-        .onAppear { ImageLoader.shared.prefetch(results.compactMap(\.posterURL)) }
+        .onAppear { ImageLoader.shared.prefetch(results.prefix(24).compactMap(\.posterURL)) }
     }
 
     private func resultRail(title: String, items: [CatalogItem]) -> some View {
@@ -451,7 +418,7 @@ struct DiscoverView: View {
         }
         // Warm poster images ahead of scroll so the grid stays smooth.
         .onAppear {
-            ImageLoader.shared.prefetch(items.compactMap(\.posterURL))
+            ImageLoader.shared.prefetch(items.prefix(24).compactMap(\.posterURL))
         }
     }
 

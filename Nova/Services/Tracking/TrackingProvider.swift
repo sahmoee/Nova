@@ -414,6 +414,25 @@ struct NovaTrackerStats: Codable, Sendable {
     let rated: Int
     let averageRating: Double
     let watching: Int
+    let collected: Int?
+    let favorites: Int?
+    let plays: Int?
+    let minutesWatched: Int?
+}
+
+struct NovaTrackerHistoryItem: Codable, Identifiable, Sendable {
+    let id: String; let season: Int; let episode: Int; let watchedAt: Double
+    let duration: Double?; let tmdb: Int?; let imdb: String?; let title: String?
+    let year: Int?; let mediaType: String?
+    enum CodingKeys: String, CodingKey { case id, season, episode, duration, tmdb, imdb, title, year; case watchedAt = "watched_at"; case mediaType = "media_type" }
+}
+
+struct NovaTrackerPlaybackItem: Codable, Identifiable, Sendable {
+    var id: String { "\(tmdb ?? 0)-\(imdb ?? "")-\(season)-\(episode)" }
+    let season: Int; let episode: Int; let position: Double; let duration: Double?
+    let updatedAt: Double; let tmdb: Int?; let imdb: String?; let title: String?
+    let year: Int?; let mediaType: String?
+    enum CodingKeys: String, CodingKey { case season, episode, position, duration, tmdb, imdb, title, year; case updatedAt = "updated_at"; case mediaType = "media_type" }
 }
 
 struct NovaTrackerActivity: Codable, Identifiable, Sendable {
@@ -448,6 +467,7 @@ struct NovaTrackerArchiveItem: Sendable, Hashable {
     let tmdb: Int?
     var status: String?
     var rating: Int?
+    var collected: Bool = false
 
     var catalogItem: CatalogItem {
         CatalogItem(contentID: ContentID(imdb: imdb, tmdb: tmdb, trakt: nil, type: type),
@@ -462,6 +482,8 @@ struct NovaTrackerArchiveImportResult: Sendable {
 
 private struct NovaTrackerActivityResponse: Codable { let items: [NovaTrackerActivity] }
 private struct NovaTrackerListsResponse: Codable { let items: [NovaTrackerList] }
+private struct NovaTrackerHistoryResponse: Codable { let items: [NovaTrackerHistoryItem] }
+private struct NovaTrackerPlaybackResponse: Codable { let items: [NovaTrackerPlaybackItem] }
 
 extension NovaTrackingProvider {
     /// Current status + rating + playback + watched for a title.
@@ -514,6 +536,60 @@ extension NovaTrackingProvider {
         return (try? decoder.decode(NovaTrackerListsResponse.self, from: data).items) ?? []
     }
 
+    func watchHistory() async -> [NovaTrackerHistoryItem] {
+        guard await ensureAccount(), let (data, response) = try? await get("v1/history"),
+              (200...299).contains(response.statusCode) else { return [] }
+        return (try? decoder.decode(NovaTrackerHistoryResponse.self, from: data).items) ?? []
+    }
+
+    func continueWatching() async -> [NovaTrackerPlaybackItem] {
+        guard await ensureAccount(), let (data, response) = try? await get("v1/playback"),
+              (200...299).contains(response.statusCode) else { return [] }
+        return (try? decoder.decode(NovaTrackerPlaybackResponse.self, from: data).items) ?? []
+    }
+
+    func statusItems(_ status: String) async -> [CatalogItem] {
+        guard await ensureAccount(), ["plantowatch", "watching", "completed", "hold", "dropped"].contains(status),
+              let (data, response) = try? await get("v1/status/\(status)"),
+              (200...299).contains(response.statusCode) else { return [] }
+        return catalogItems(from: data)
+    }
+
+    func libraryItems(_ field: String) async -> [CatalogItem] {
+        guard await ensureAccount(), ["collected", "favorite", "hidden"].contains(field),
+              let (data, response) = try? await get("v1/library/\(field)"),
+              (200...299).contains(response.statusCode) else { return [] }
+        return catalogItems(from: data)
+    }
+
+    private func catalogItems(from data: Data) -> [CatalogItem] {
+        let list = try? decoder.decode(NovaStatusListResponse.self, from: data)
+        return (list?.items ?? []).compactMap { row in
+            guard let title = row.title else { return nil }
+            let type: ContentType = row.media_type == "movie" ? .movie : .series
+            return CatalogItem(contentID: ContentID(imdb: row.imdb, tmdb: row.tmdb, trakt: nil, type: type),
+                               title: title, year: row.year)
+        }
+    }
+
+    @discardableResult
+    func setLibraryFlag(_ field: String, enabled: Bool, for item: CatalogItem, note: String? = nil) async -> Bool {
+        guard await ensureAccount(), ["collected", "favorite", "hidden"].contains(field) else { return false }
+        var body: [String: Any] = ["ids": ids(item.contentID), "type": mediaType(item.contentID),
+                                   "title": item.title, "year": item.year as Any,
+                                   "field": field, "value": enabled]
+        if let note, !note.isEmpty { body["note"] = note }
+        return await post("v1/library", body: body)
+    }
+
+    @discardableResult
+    func sendRecommendationFeedback(_ sentiment: String, for item: CatalogItem) async -> Bool {
+        guard await ensureAccount(), ["like", "dislike", "dismiss"].contains(sentiment) else { return false }
+        return await post("v1/recommendations/feedback", body: ["ids": ids(item.contentID),
+            "type": mediaType(item.contentID), "title": item.title, "year": item.year as Any,
+            "sentiment": sentiment])
+    }
+
     @discardableResult
     func createCustomList(named name: String) async -> Bool {
         let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -559,6 +635,9 @@ extension NovaTrackingProvider {
             }
             if let rating = item.rating {
                 wrote = await rate(rating, contentID: item.catalogItem.contentID) || wrote
+            }
+            if item.collected {
+                wrote = await setLibraryFlag("collected", enabled: true, for: item.catalogItem) || wrote
             }
             if wrote { imported += 1 } else { failed += 1 }
         }
@@ -643,7 +722,8 @@ final class EpisodeAvailabilityNotifier {
         for m in trackedSeries() {
             guard let tmdbID = m.contentID?.tmdb else { continue }
             guard let last = try? await tmdb.lastEpisodeToAir(tmdbID: tmdbID),
-                  let ds = last.air_date, let aired = ymd.date(from: ds), aired <= today,
+                  let ds = last.air_date, let aired = ymd.date(from: ds),
+                  Calendar.current.startOfDay(for: aired) == today,
                   let season = last.season_number, let number = last.episode_number else { continue }
             let key = "tmdb:\(tmdbID)|S\(season)E\(number)"
             if sent.contains(key) { continue }

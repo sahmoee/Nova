@@ -691,6 +691,19 @@ extension LibraryStore {
 
 extension LibraryStore {
 
+    /// The only media eligible for app-level hero placement. In-progress titles
+    /// lead, followed by recently played/watched titles. Keeping this rule here
+    /// prevents individual screens from quietly falling back to favorites,
+    /// recently-added catalog items, recommendations, or bundled hero artwork.
+    var viewingHistoryHeroItems: [MediaItem] {
+        var seen = Set<String>()
+        return (continueWatching + recentlyWatched)
+            .filter { !$0.isHidden }
+            .filter { seen.insert($0.contentKey).inserted }
+            .prefix(10)
+            .map { $0 }
+    }
+
     var favorites: [MediaItem] {
         collapseToShow(items.filter { $0.isFavorite })
     }
@@ -819,6 +832,22 @@ extension LibraryStore {
             if let tmdb, item.contentID?.tmdb == tmdb { return true }
             return false
         }
+    }
+
+    /// Most recently played episode for a series. All entry points use this single
+    /// source so a show never resets to S1E1 after progress exists.
+    func latestPlayedEpisode(imdb: String?, tmdb: Int?) -> EpisodeRef? {
+        items.filter { item in
+            guard item.episode != nil, item.lastPlayedDate != nil || item.lastPlayedPosition > 0 else { return false }
+            return (imdb != nil && item.contentID?.imdb == imdb) || (tmdb != nil && item.contentID?.tmdb == tmdb)
+        }
+        .max { lhs, rhs in
+            let ld = lhs.lastPlayedDate ?? .distantPast, rd = rhs.lastPlayedDate ?? .distantPast
+            if ld != rd { return ld < rd }
+            let le = lhs.episode!, re = rhs.episode!
+            return le.season == re.season ? le.number < re.number : le.season < re.season
+        }
+        .flatMap { $0.episode.map { EpisodeRef(season: $0.season, number: $0.number) } }
     }
 
     /// Whether a specific episode has been watched (>= 90%).

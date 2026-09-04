@@ -154,25 +154,28 @@ enum Theme {
     // MARK: - Colors
 
     enum Colors {
-        // Apple TV-inspired canvas: almost black, neutral, and deliberately quiet so
-        // artwork supplies the room's color. Elevated surfaces remain translucent.
-        static let background = Color(red: 0.012, green: 0.013, blue: 0.016)
-        static let backgroundElevated = Color(red: 0.055, green: 0.057, blue: 0.064)
+        // Midnight-indigo canvas: still quiet enough for artwork to lead, but with
+        // enough cool chroma to keep black screens and modal surfaces from feeling
+        // flat. Every screen consumes these semantic tokens rather than owning a
+        // local palette.
+        static let background = Color(red: 0.012, green: 0.014, blue: 0.026)
+        static let backgroundElevated = Color(red: 0.047, green: 0.052, blue: 0.083)
 
         static let card = Color.white.opacity(0.075)
-        static let cardElevated = Color(red: 0.095, green: 0.098, blue: 0.108).opacity(0.94)
+        static let cardElevated = Color(red: 0.078, green: 0.084, blue: 0.128).opacity(0.96)
 
-        // One electric blue family identifies interactive selection throughout Nova.
-        static let accent = Color(red: 0.00, green: 0.48, blue: 1.00)
-        static let accentSecondary = Color(red: 0.30, green: 0.70, blue: 1.00)
+        // Aurora indigo identifies interaction throughout Nova. It is deliberately
+        // less generic than system blue while retaining strong dark-mode contrast.
+        static let accent = Color(red: 0.40, green: 0.42, blue: 1.00)
+        static let accentSecondary = Color(red: 0.31, green: 0.78, blue: 0.94)
         static let iconRed = accent
         static let iconGraphite = Color(white: 0.26)
         static let iconSilver = Color(white: 0.58)
 
         static let textPrimary = Color(red: 0.96, green: 0.965, blue: 0.978)
-        static let textSecondary = Color(red: 0.72, green: 0.74, blue: 0.80)
-        static let textTertiary = Color(red: 0.52, green: 0.54, blue: 0.60)
-        static let textQuaternary = Color(red: 0.40, green: 0.42, blue: 0.48)
+        static let textSecondary = Color(red: 0.76, green: 0.78, blue: 0.86)
+        static let textTertiary = Color(red: 0.58, green: 0.61, blue: 0.71)
+        static let textQuaternary = Color(red: 0.45, green: 0.48, blue: 0.58)
 
         static let success = Color(red: 0.52, green: 0.78, blue: 0.68)   // muted sage
         static let warning = Color(red: 0.90, green: 0.82, blue: 0.62)   // soft gold
@@ -193,7 +196,7 @@ enum Theme {
         static let watched = Color(red: 0.52, green: 0.78, blue: 0.68)        // sage
 
         static let appBackground = LinearGradient(
-            colors: [Color(red: 0.035, green: 0.037, blue: 0.043), background, Color.black],
+            colors: [Color(red: 0.055, green: 0.060, blue: 0.105), background, Color.black],
             startPoint: .top,
             endPoint: .bottom
         )
@@ -366,7 +369,22 @@ extension View {
     /// Places the soft app-wide gradient behind a screen so every view shares one
     /// continuous, gently-lit backdrop instead of a flat fill.
     func appBackground() -> some View {
-        self.background(Theme.Colors.appBackground.ignoresSafeArea())
+        self
+            .foregroundStyle(Theme.Colors.textPrimary)
+            .tint(Theme.Colors.accent)
+            .background(Theme.Colors.appBackground.ignoresSafeArea())
+            .presentationBackground(Theme.Colors.backgroundElevated)
+    }
+
+    /// Applies Nova's theme at a scene or presentation boundary. This catches
+    /// system-owned navigation, menus, alerts and sheets that do not draw a custom
+    /// `appBackground`, preventing the default gray/white flash during presentation.
+    func novaThemeBoundary() -> some View {
+        self
+            .foregroundStyle(Theme.Colors.textPrimary)
+            .tint(Theme.Colors.accent)
+            .preferredColorScheme(.dark)
+            .background(Theme.Colors.background.ignoresSafeArea())
     }
 
     /// Wraps content in an elegant raised card: soft surface gradient, rounded
