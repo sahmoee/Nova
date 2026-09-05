@@ -15,6 +15,7 @@
 import SwiftUI
 
 struct ExpandableText: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let text: String
     /// Lines shown while collapsed.
     var collapsedLineLimit: Int = 3
@@ -37,39 +38,44 @@ struct ExpandableText: View {
                 .lineLimit(expanded ? nil : collapsedLineLimit)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: frameAlignment)
-                .background(clipDetector)
-                .animation(.easeInOut(duration: 0.2), value: expanded)
+                .background(clipDetector.id(text))
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: expanded)
 
             if showsToggle {
                 toggleButton
             }
         }
         .frame(maxWidth: .infinity, alignment: frameAlignment)
-        #if !os(tvOS)
-        .contentShape(Rectangle())
-        .onTapGesture { if showsToggle { withAnimation { expanded.toggle() } } }
-        #endif
+        .onChange(of: text) { _, _ in
+            expanded = false
+            showsToggle = false
+            fullHeight = 0
+            clippedHeight = 0
+        }
     }
 
     @ViewBuilder private var toggleButton: some View {
         #if os(tvOS)
         Button {
-            withAnimation { expanded.toggle() }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { expanded.toggle() }
         } label: {
             Label(expanded ? "Read less" : "Read more",
                   systemImage: expanded ? "chevron.up" : "chevron.down")
                 .font(.appFont(15, weight: .semibold))
         }
         .buttonStyle(NovaChipButtonStyle())
+        .accessibilityValue(expanded ? "Expanded" : "Collapsed")
         #else
         Button {
-            withAnimation { expanded.toggle() }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { expanded.toggle() }
         } label: {
             Text(expanded ? "Read less" : "Read more")
                 .font(.appFont(15, weight: .semibold))
                 .foregroundStyle(Theme.Colors.accent)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(NovaChipButtonStyle())
+        .frame(minHeight: Theme.minTouchTarget)
+        .accessibilityValue(expanded ? "Expanded" : "Collapsed")
         #endif
     }
 
@@ -110,10 +116,10 @@ struct ExpandableText: View {
     @State private var clippedHeight: CGFloat = 0
 
     private func updateToggle() {
-        // Only turn the toggle on; never render-hide the text. 2pt tolerance avoids
-        // sub-pixel false positives.
-        if fullHeight > 0, clippedHeight > 0, fullHeight - clippedHeight > 2 {
-            if !showsToggle { showsToggle = true }
+        // Re-evaluate when the text or available width changes; the text itself
+        // remains visible regardless of measurement. Avoid sub-pixel false positives.
+        if fullHeight > 0, clippedHeight > 0 {
+            showsToggle = fullHeight - clippedHeight > 2
         }
     }
 

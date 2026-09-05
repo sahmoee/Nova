@@ -22,7 +22,7 @@ final class PlaybackProgressStore: ObservableObject {
     /// Progress is cleared only when playback actually reaches the end; pausing late
     /// in a title still resumes at that late timestamp.
     func save(position: TimeInterval, duration: TimeInterval?, for item: MediaItem) {
-        guard position.isFinite, position >= 0 else { return }
+        guard item.sourceType != .liveTV, position.isFinite, position >= 0 else { return }
 
         // Playback normally adds the resolved item before presenting the player, but
         // direct/deep-link routes can bypass that step. Persist it here as a safety net
@@ -32,7 +32,8 @@ final class PlaybackProgressStore: ObservableObject {
         }
         guard var persisted = persistedItem(matching: item) else { return }
 
-        if let duration, duration.isFinite, duration > 0 {
+        if let duration = MediaReliabilityPolicy.validDuration(duration)
+            ?? MediaReliabilityPolicy.validDuration(persisted.duration) {
             persisted.duration = duration
             // Completion callbacks save the full duration. Do not use a broad
             // percentage threshold here: stopping at 91% or 98% must still resume at

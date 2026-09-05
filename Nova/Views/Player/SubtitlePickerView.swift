@@ -17,6 +17,7 @@ struct SubtitlePickerView: View {
     let onSelect: (SubtitleTrack?) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @State private var searchText = ""
 
     var body: some View {
         NavigationStack {
@@ -34,6 +35,13 @@ struct SubtitlePickerView: View {
                             dismiss()
                         }
 
+                        if !searchText.isEmpty, groupedTracks.isEmpty, !tracks.isEmpty {
+                            EmptyStateView(systemImage: "magnifyingglass", title: "No matching subtitles",
+                                message: "Search for another language or provider.", actionTitle: "Clear Search") {
+                                    searchText = ""
+                                }
+                        }
+
                         ForEach(groupedTracks, id: \.source) { group in
                             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                                 Text(group.source)
@@ -41,6 +49,7 @@ struct SubtitlePickerView: View {
                                     .foregroundStyle(Theme.Colors.textSecondary)
                                     .textCase(.uppercase)
                                     .padding(.top, Theme.Spacing.sm)
+                                    .accessibilityAddTraits(.isHeader)
 
                                 ForEach(group.tracks) { track in
                                     row(title: track.languageDisplay,
@@ -72,7 +81,13 @@ struct SubtitlePickerView: View {
                     .frame(maxWidth: Theme.contentMaxWidth(900), alignment: .leading)
                 }
             }
-            .navigationTitle("Audio & Subtitles")
+            .navigationTitle("Subtitles")
+            .searchable(text: $searchText, prompt: "Language or provider")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -80,12 +95,19 @@ struct SubtitlePickerView: View {
     }
 
     private var groupedTracks: [(source: String, tracks: [SubtitleTrack])] {
-        let grouped = Dictionary(grouping: tracks) { track in
+        let query = NovaPresentationPolicy.searchQuery(searchText)
+        let matches = NovaPresentationPolicy.unique(tracks, by: \.id).filter { track in
+            query.isEmpty || track.languageDisplay.localizedCaseInsensitiveContains(query)
+                || track.source.localizedCaseInsensitiveContains(query)
+        }
+        let grouped = Dictionary(grouping: matches) { track in
             track.source.isEmpty ? "Subtitles" : track.source
         }
         return grouped.keys.sorted().map { source in
             let sorted = (grouped[source] ?? []).sorted {
-                $0.languageDisplay.localizedCaseInsensitiveCompare($1.languageDisplay) == .orderedAscending
+                if ($0.id == selectedID) != ($1.id == selectedID) { return $0.id == selectedID }
+                let order = $0.languageDisplay.localizedCaseInsensitiveCompare($1.languageDisplay)
+                return order == .orderedSame ? $0.id < $1.id : order == .orderedAscending
             }
             return (source, sorted)
         }
@@ -125,6 +147,7 @@ struct SubtitlePickerView: View {
         }
         .buttonStyle(NovaListRowStyle())
         .disabled(isLoading)
+        .accessibilityLabel(isLoading ? "Searching subtitle providers" : "Search subtitle providers")
     }
 
     private func row(title: String, subtitle: String?, isSelected: Bool,
@@ -163,5 +186,9 @@ struct SubtitlePickerView: View {
             .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
         .buttonStyle(NovaListRowStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue([subtitle, isSelected ? "Selected" : nil].compactMap { $0 }.joined(separator: ", "))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

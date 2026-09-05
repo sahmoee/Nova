@@ -33,29 +33,34 @@ func withRetry<T>(
     maxElapsed: TimeInterval = 30,
     operation: @Sendable () async throws -> T
 ) async throws -> T {
-    let start = Date()
+    let clock = ContinuousClock()
+    let start = clock.now
+    let elapsedLimit = MediaReliabilityPolicy.boundedInterval(maxElapsed, fallback: 30)
+    let delayLimit = MediaReliabilityPolicy.boundedInterval(maxDelay, fallback: 10)
+    let attemptLimit = min(max(maxAttempts, 1), 10)
     var attempt = 0
-    var delay = initialDelay
+    var delay = MediaReliabilityPolicy.boundedInterval(initialDelay, fallback: 0.5, maximum: delayLimit)
     while true {
         try Task.checkCancellation()
         do {
-            return try await operation()
+            let result = try await operation()
+            try Task.checkCancellation()
+            return result
         } catch is CancellationError {
             throw CancellationError()
         } catch {
             attempt += 1
-            let elapsed = Date().timeIntervalSince(start)
-            guard attempt < maxAttempts, isTransient(error), elapsed < maxElapsed else { throw error }
+            let duration = start.duration(to: clock.now).components
+            let elapsed = Double(duration.seconds) + Double(duration.attoseconds) / 1e18
+            guard attempt < attemptLimit, isTransient(error), elapsed < elapsedLimit else { throw error }
 
             // Honor Retry-After if the server sent one; otherwise jittered backoff.
-            let base = retryAfter(from: error) ?? min(delay, maxDelay)
-            let jittered = base * Double.random(in: 0.8...1.2)
-            // Don't sleep past the deadline.
-            let remaining = maxElapsed - elapsed
-            let sleepFor = max(0, min(jittered, remaining))
-            if sleepFor <= 0 { throw error }
-            try await Task.sleep(nanoseconds: UInt64(sleepFor * 1_000_000_000))
-            delay = min(delay * 2, maxDelay)
+            guard let sleepFor = MediaReliabilityPolicy.retryDelay(
+                backoff: min(delay, delayLimit), serverMinimum: retryAfter(from: error),
+                remaining: elapsedLimit - elapsed, jitter: Double.random(in: 0.8...1.2)) else { throw error }
+            try await Task.sleep(for: .seconds(sleepFor))
+            guard start.duration(to: clock.now) < .seconds(elapsedLimit) else { throw error }
+            delay = min(delay * 2, delayLimit)
         }
     }
 }

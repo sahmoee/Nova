@@ -44,7 +44,7 @@ enum AppNetworking {
 
     // MARK: - Shared request helpers
 
-    enum RequestError: Error { case badStatus(Int, retryAfter: TimeInterval?) }
+    enum RequestError: Error { case badStatus(Int, retryAfter: TimeInterval?), invalidResponse }
 
     /// Shared in-flight GETs avoid sending the same metadata request multiple times
     /// when several shelves become visible together.
@@ -52,20 +52,25 @@ enum AppNetworking {
         var tasks: [URLRequest: Task<(Data, URLResponse), Error>] = [:]
 
         func data(for request: URLRequest, session: URLSession) async throws -> (Data, URLResponse) {
-            if let task = tasks[request] { return try await task.value }
+            try Task.checkCancellation()
+            if let task = tasks[request] {
+                let value = try await task.value
+                try Task.checkCancellation()
+                return value
+            }
             let task = Task { try await session.data(for: request) }
             tasks[request] = task
             defer { tasks[request] = nil }
-            return try await task.value
+            let value = try await task.value
+            try Task.checkCancellation()
+            return value
         }
     }
     private static let getCoalescer = GETCoalescer()
 
-    /// Parses a Retry-After header (integer seconds form) if present.
+    /// Supports delta seconds and HTTP dates, ignoring invalid/non-finite values.
     static func retryAfterSeconds(_ http: HTTPURLResponse) -> TimeInterval? {
-        guard let v = http.value(forHTTPHeaderField: "Retry-After")?.trimmingCharacters(in: .whitespaces),
-              let secs = TimeInterval(v) else { return nil }
-        return max(0, secs)
+        MediaReliabilityPolicy.retryAfter(http.value(forHTTPHeaderField: "Retry-After"))
     }
 
     /// GETs a URL and decodes JSON — the request/status-check/decode boilerplate
@@ -75,10 +80,13 @@ enum AppNetworking {
                                       headers: [String: String] = [:],
                                       decoder: JSONDecoder = Coders.decoder) async throws -> T {
         var req = URLRequest(url: url)
-        req.timeoutInterval = timeout
+        req.timeoutInterval = MediaReliabilityPolicy.boundedInterval(timeout, fallback: 20)
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
         for (k, v) in headers { req.setValue(v, forHTTPHeaderField: k) }
         let (data, response) = try await getCoalescer.data(for: req, session: shared)
-        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+        try Task.checkCancellation()
+        guard let http = response as? HTTPURLResponse else { throw RequestError.invalidResponse }
+        if !(200..<300).contains(http.statusCode) {
             throw RequestError.badStatus(http.statusCode, retryAfter: retryAfterSeconds(http))
         }
         return try decoder.decode(T.self, from: data)
@@ -90,14 +98,18 @@ enum AppNetworking {
                                                         timeout: TimeInterval = 30,
                                                         headers: [String: String] = [:],
                                                         decoder: JSONDecoder = Coders.decoder) async throws -> T {
+        try Task.checkCancellation()
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
         for (k, v) in headers { req.setValue(v, forHTTPHeaderField: k) }
         req.httpBody = try Coders.encoder.encode(body)
-        req.timeoutInterval = timeout
+        req.timeoutInterval = MediaReliabilityPolicy.boundedInterval(timeout, fallback: 30)
         let (data, response) = try await shared.data(for: req)
-        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+        try Task.checkCancellation()
+        guard let http = response as? HTTPURLResponse else { throw RequestError.invalidResponse }
+        if !(200..<300).contains(http.statusCode) {
             throw RequestError.badStatus(http.statusCode, retryAfter: retryAfterSeconds(http))
         }
         return try decoder.decode(T.self, from: data)

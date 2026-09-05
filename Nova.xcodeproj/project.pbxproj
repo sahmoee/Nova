@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A50500000000000000000001 /* MediaReliabilityPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A50500000000000000000003 /* MediaReliabilityPolicy.swift */; };
+		A50500000000000000000002 /* MediaReliabilityPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A50500000000000000000003 /* MediaReliabilityPolicy.swift */; };
 		0144A47C7E7A4177992C406E /* ../Views/Settings/GuestModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2835FF8A9D0C4E3295CF4244 /* ../Views/Settings/GuestModeView.swift */; };
 		016D44CEC3A625BC31EC4D33 /* CollectionPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0CB13C2E1D3A27BA21C7FB5 /* CollectionPickerSheet.swift */; };
 		01C7A4EA1C34CC9696E7DB84 /* DuplicatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4974EDA4C5B58142AA007C8D /* DuplicatesView.swift */; };
@@ -445,6 +447,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A50500000000000000000003 /* MediaReliabilityPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaReliabilityPolicy.swift; sourceTree = "<group>"; };
 		0018B4468D814440B24504E5 /* ../Views/Library/FixMatchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../Views/Library/FixMatchView.swift; sourceTree = "<group>"; };
 		01343E017C42B6492DAB5600 /* SubtitlePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitlePickerView.swift; sourceTree = "<group>"; };
 		02CE2BC66986B738CE05444C /* StreamResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamResolver.swift; sourceTree = "<group>"; };
@@ -909,6 +912,7 @@
 				4331807226B18AC817555954 /* SpotlightIndexer.swift */,
 				DA8E2B5F459F4270DEB4A277 /* MetadataParser.swift */,
 				D9A3CF2809BE0FF038926BC0 /* NetworkRetry.swift */,
+				A50500000000000000000003 /* MediaReliabilityPolicy.swift */,
 				E658E90B445C5F22C32F7996 /* NowPlayingStore.swift */,
 				DEA7F133A395D7BB5996E293 /* StreamHistoryStore.swift */,
 				6BD943F44F89A49EAC1736DD /* RecommendationFeedbackStore.swift */,
@@ -1413,6 +1417,7 @@
 				E526BC820594B93766A05931 /* EPGService.swift in Sources */,
 				ADE3095B2500CFA1AD2B3538 /* MetadataParser.swift in Sources */,
 				37D0C5B4609F15FCDBB13270 /* NetworkRetry.swift in Sources */,
+				A50500000000000000000001 /* MediaReliabilityPolicy.swift in Sources */,
 				156B2972B629C29C0279B189 /* NowPlayingStore.swift in Sources */,
 				13ABF6F475BA0F5DB6F77796 /* StreamHistoryStore.swift in Sources */,
 				C67136304C3B55F7861A66EA /* RecommendationFeedbackStore.swift in Sources */,
@@ -1604,6 +1609,7 @@
 				3D8A3818BF970B646140B560 /* EPGService.swift in Sources */,
 				C33ACC304EA53CC8D1769787 /* MetadataParser.swift in Sources */,
 				F97853D45251273A4560E351 /* NetworkRetry.swift in Sources */,
+				A50500000000000000000002 /* MediaReliabilityPolicy.swift in Sources */,
 				7789224A734D31BF3BC8F5FB /* NowPlayingStore.swift in Sources */,
 				F1FDAACD99CDC31B4321D621 /* StreamHistoryStore.swift in Sources */,
 				93A19CECE9815A7A27D56B36 /* RecommendationFeedbackStore.swift in Sources */,

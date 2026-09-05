@@ -5,6 +5,11 @@ Newest at the top. Keep it plain ASCII (see .gitmessage.txt for the commit rules
 
 ## [Unreleased]
 
+### September 5: fifty reliability and interface improvements
+- Added 25 core and 25 UI/UX fixes covering downloads, resume state, bounded retries, cancellable source selection, subtitles, protected drafts and adaptive recovery.
+- Final device-target builds passed: iPhone/iPad 76 and tvOS 77; 75 native checks and cinematic UI audit passed. Physical-device QA/publication remain pending.
+- Complete evidence: docs/NOVA_50_IMPROVEMENTS_2026_09_05.md. Existing library/media and service contracts remain intact.
+
 ### Offline download reliability and adaptive manager
 - Rebuilt downloads as an atomic, file-backed, resumable queue with bounded concurrency, reconnect recovery, legacy migration, and reduced persistence churn.
 - Added queue-wide pause, resume, retry, and cleanup actions plus search, status filters, sorting, storage totals, transfer speed, ETA, retry history, and accessible progress.

@@ -21,6 +21,15 @@ Every page, sheet, popover, and cover must fill its presentation with Nova's act
 
 App-level headers and root tab bars have one shared implementation and one geometry source. Feature pages must not locally override brand placement, chrome height, safe-area spacing, icon slots, labels, or selected-tab geometry.
 
+Source discovery/resolution owns cancellable generation-checked work; manual choice and cancellation
+win over late automatic selection. Every automatic source path, including failover, honors required
+cached sources and active filters. Returning from playback must not automatically replay.
+Preserve draft protection, deterministic subtitle identity and truthful offline progress states.
+Provider cooldowns are minimum delays. Download actions/callbacks must validate lifecycle and task
+identity; delete/play only the owning transfer's file. Failed legacy migration retains its old blob.
+Persist only finite playback positions/durations, and never advertise live-channel resume points.
+Both platform targets include MediaReliabilityPolicy.swift. See docs/NOVA_50_IMPROVEMENTS_2026_09_05.md.
+
 ## Cross-project ownership and synchronization
 
 

@@ -16,6 +16,7 @@ private struct OfflineDownloadsContent: View {
     }
 
     @ObservedObject var manager: DownloadManager
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var searchText = ""
     @State private var filter: Filter = .all
     @State private var sort: Sort = .newest
@@ -26,7 +27,8 @@ private struct OfflineDownloadsContent: View {
     private var visibleDownloads: [OfflineDownload] {
         manager.downloads
             .filter { download in
-                let matchesSearch = searchText.isEmpty || download.title.localizedCaseInsensitiveContains(searchText)
+                let query = NovaPresentationPolicy.searchQuery(searchText)
+                let matchesSearch = query.isEmpty || download.title.localizedCaseInsensitiveContains(query)
                 let matchesFilter: Bool
                 switch filter {
                 case .all: matchesFilter = true
@@ -39,10 +41,12 @@ private struct OfflineDownloadsContent: View {
             }
             .sorted {
                 switch sort {
-                case .newest: return $0.createdAt > $1.createdAt
-                case .oldest: return $0.createdAt < $1.createdAt
-                case .title: return $0.title.localizedStandardCompare($1.title) == .orderedAscending
-                case .largest: return $0.receivedBytes > $1.receivedBytes
+                case .newest: return $0.createdAt == $1.createdAt ? $0.id.uuidString < $1.id.uuidString : $0.createdAt > $1.createdAt
+                case .oldest: return $0.createdAt == $1.createdAt ? $0.id.uuidString < $1.id.uuidString : $0.createdAt < $1.createdAt
+                case .title:
+                    let order = $0.title.localizedStandardCompare($1.title)
+                    return order == .orderedSame ? $0.id.uuidString < $1.id.uuidString : order == .orderedAscending
+                case .largest: return $0.receivedBytes == $1.receivedBytes ? $0.id.uuidString < $1.id.uuidString : $0.receivedBytes > $1.receivedBytes
                 }
             }
     }
@@ -82,11 +86,13 @@ private struct OfflineDownloadsContent: View {
                 if let id = pendingRemoval?.id { manager.remove(id) }; pendingRemoval = nil
             }
             Button("Cancel", role: .cancel) { pendingRemoval = nil }
-        } message: { Text("The offline file will be removed from this device.") }
+        } message: { Text("“\(pendingRemoval?.title ?? "This download")” will be removed from this device. Your library and watch progress are kept.") }
         .confirmationDialog("Remove all completed downloads?", isPresented: $showRemoveCompleted,
                             titleVisibility: .visible) {
             Button("Remove Completed", role: .destructive) { manager.removeCompleted() }
             Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Remove \(manager.completedCount) completed downloads from this device. Your library and watch progress are kept.")
         }
         .fullScreenCover(item: $playbackItem) { item in
             NavigationStack { PlayerView(item: item) }
@@ -159,19 +165,25 @@ private struct OfflineDownloadsContent: View {
     }
 
     private func row(_ download: OfflineDownload) -> some View {
-        HStack(alignment: .top, spacing: Theme.Spacing.md) {
+        (dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: Theme.Spacing.md))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: Theme.Spacing.md))) {
             Image(systemName: icon(download.state)).font(.appFont(26)).foregroundStyle(color(download.state))
                 .frame(width: 44).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 7) {
                 Text(download.title).font(.appFont(19, weight: .semibold)).foregroundStyle(Theme.Colors.textPrimary)
                     .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 if [.downloading, .queued, .paused].contains(download.state) {
-                    ProgressView(value: download.progress).tint(Theme.Colors.accent)
-                        .accessibilityLabel("Download progress")
-                        .accessibilityValue(download.progress.formatted(.percent.precision(.fractionLength(0))))
+                    if (download.expectedBytes ?? 0) > 0 {
+                        ProgressView(value: NovaPresentationPolicy.progress(download.progress)).tint(Theme.Colors.accent)
+                            .accessibilityLabel("Download progress")
+                            .accessibilityValue(NovaPresentationPolicy.progress(download.progress).formatted(.percent.precision(.fractionLength(0))))
+                    } else if download.state == .downloading {
+                        ProgressView("Downloading · size unknown").tint(Theme.Colors.accent)
+                    }
                 }
                 Text(detail(download)).font(.appFont(14)).foregroundStyle(download.state == .failed ? Theme.Colors.error : Theme.Colors.textTertiary)
-                    .lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                    .fixedSize(horizontal: false, vertical: true)
                 if download.state == .complete, let date = download.completedAt {
                     Text("Finished \(date.formatted(.relative(presentation: .named)))")
                         .font(.appFont(13)).foregroundStyle(Theme.Colors.textQuaternary)
@@ -186,7 +198,7 @@ private struct OfflineDownloadsContent: View {
             if let item = manager.playbackItem(for: download) {
                 Button("Play Download", systemImage: "play.fill") { playbackItem = item }
             }
-            if download.state == .downloading { Button("Pause", systemImage: "pause.fill") { manager.pause(download.id) } }
+            if download.state == .downloading || download.state == .queued { Button("Pause", systemImage: "pause.fill") { manager.pause(download.id) } }
             if download.state == .paused { Button("Resume", systemImage: "play.fill") { manager.resume(download.id) } }
             if download.state == .failed { Button("Retry", systemImage: "arrow.clockwise") { manager.retry(download.id) } }
             Button("Remove", systemImage: "trash", role: .destructive) { pendingRemoval = download }
@@ -198,12 +210,12 @@ private struct OfflineDownloadsContent: View {
         HStack(spacing: Theme.Spacing.sm) {
             if let item = manager.playbackItem(for: download) {
                 compactButton("Play", "play.fill") { playbackItem = item }
-            } else if download.state == .downloading { compactButton("Pause", "pause.fill") { manager.pause(download.id) } }
+            } else if download.state == .downloading || download.state == .queued { compactButton("Pause", "pause.fill") { manager.pause(download.id) } }
             else if download.state == .paused { compactButton("Resume", "play.fill") { manager.resume(download.id) } }
             else if download.state == .failed { compactButton("Retry", "arrow.clockwise") { manager.retry(download.id) } }
             Button { pendingRemoval = download } label: {
                 Image(systemName: "trash").frame(minWidth: 44, minHeight: 44)
-            }.buttonStyle(.plain).foregroundStyle(Theme.Colors.error).accessibilityLabel("Remove \(download.title)")
+            }.buttonStyle(NovaChipButtonStyle()).foregroundStyle(Theme.Colors.error).accessibilityLabel("Remove \(download.title)")
         }
     }
 
@@ -212,7 +224,7 @@ private struct OfflineDownloadsContent: View {
             if Theme.isCompact { Image(systemName: icon) }
             else { Label(title, systemImage: icon) }
         }
-            .buttonStyle(.plain).foregroundStyle(Theme.Colors.accent).frame(minWidth: 44, minHeight: 44)
+            .buttonStyle(NovaChipButtonStyle()).foregroundStyle(Theme.Colors.accent).frame(minWidth: 44, minHeight: 44)
             .accessibilityLabel(title)
     }
 
@@ -220,7 +232,7 @@ private struct OfflineDownloadsContent: View {
         if let error = download.errorMessage { return error }
         var parts = [download.state.rawValue.capitalized, format(download.receivedBytes)]
         if let expected = download.expectedBytes { parts[1] += " of \(format(expected))" }
-        if let rate = download.bytesPerSecond, rate > 0 { parts.append("\(format(Int64(rate)))/s") }
+        if let rate = NovaPresentationPolicy.rateBytes(download.bytesPerSecond) { parts.append("\(format(rate))/s") }
         if let eta = download.estimatedSecondsRemaining, eta.isFinite, eta > 0 {
             parts.append("about \(Duration.seconds(eta).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))) left")
         }

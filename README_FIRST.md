@@ -2,6 +2,14 @@
 
 Nova is a local-first iOS/iPadOS/tvOS personal-media app. User libraries and progress are authoritative; remote metadata, AI, tracking, and sharing are optional. Start in `Nova/App`, then the relevant `Nova/Services` or `Nova/Views` area. Keep credentials in Keychain, never source control.
 
+The September 5 fifty-improvement pass is recorded in docs/NOVA_50_IMPROVEMENTS_2026_09_05.md.
+Requests honor provider cooldown minima and monotonic retry budgets. Download actions/callbacks
+respect transfer identity and lifecycle; only owned files are played/deleted, and failed migration
+retains legacy data. Live channels never acquire VOD resume points; malformed numeric state repairs
+on read. Source-picker work is cancellable/generation-guarded; all automatic picks and failover honor
+visible filters and the required-cached preference. Returning from playback does not auto-replay.
+Prompts protect drafts; subtitle selection and offline queue states remain shared across platforms.
+
 Nova's primary UI is one cinematic Apple TV-inspired system: near-black artwork-led canvases, compact translucent control bars, restrained blue focus/accent states, consistent glass summary surfaces, and content-first poster rails or grids. Keep top-level controls condensed; never rebuild stacked oversized filter rows when a compact menu plus segmented control preserves the same functions.
 
 Home is an artwork-first streaming storefront: a full-bleed rotating title hero fading directly into the black canvas, circular page indicators, compact landscape Continue Watching cards, and a two-column visual Discover grid. Use Nova's live artwork and destinations; do not embed reference-screen branding or imagery. The existing tab bar is a separate invariant and must not be restyled as part of Home feed work.

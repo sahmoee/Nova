@@ -19,6 +19,7 @@ struct StreamPickerView: View {
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var settings: SettingsStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ObservedObject private var network = NetworkConditionMonitor.shared
 
     @State private var streams: [StreamOption] = []
@@ -30,6 +31,14 @@ struct StreamPickerView: View {
     @State private var playable: MediaItem?
     @State private var showAddonsSetup = false
     @State private var addonProgress: [UUID: AddonStreamProgress] = [:]
+    @State private var loadTask: Task<Void, Never>?
+    @State private var resolutionTask: Task<Void, Never>?
+    @State private var availabilityTask: Task<Void, Never>?
+    @State private var loadGeneration = UUID()
+    @State private var resolutionGeneration = UUID()
+    @State private var isSearching = false
+    @State private var loadedContentKey: String?
+    @State private var userChoseSource = false
 
     // Result filters.
     @State private var minQuality: StreamQuality? = nil      // nil = any
@@ -57,14 +66,16 @@ struct StreamPickerView: View {
 
             switch state {
             case .loading:
+              ScrollView {
                 VStack(spacing: Theme.Spacing.md) {
                     LoadingView(message: loadingMessage, systemImage: "antenna.radiowaves.left.and.right")
                     addonProgressPanel
                         .padding(.horizontal, Theme.Spacing.edge)
                     streamSkeletons.padding(.horizontal, Theme.Spacing.edge)
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") { cancelWork(); dismiss() }
                         .buttonStyle(NovaChipButtonStyle())
                 }
+              }
             case .empty:
                 EmptyStateView(
                     systemImage: emptyIcon,
@@ -74,7 +85,9 @@ struct StreamPickerView: View {
                     action: emptyAction
                 )
             case .error(let m):
-                ErrorStateView(message: m, onRetry: { Task { await load() } }, onBack: { dismiss() })
+                ScrollView {
+                    ErrorStateView(message: m, onRetry: startLoading, onBack: { cancelWork(); dismiss() })
+                }
             case .loaded:
                 content
             }
@@ -87,7 +100,9 @@ struct StreamPickerView: View {
                     // The stream the player was using died. Mark it and auto-play the next.
                     if let dead = lastPlayedStream { markDead(dead) }
                     if let next = nextCandidate() {
-                        Task { await play(next) }
+                        startPlayback(next)
+                    } else {
+                        state = .error("All available sources have failed. Retry to check them again, or choose another title.")
                     }
                 })
             }
@@ -95,12 +110,27 @@ struct StreamPickerView: View {
         .navigationDestination(isPresented: $showAddonsSetup) {
             AddonsView()
         }
-        .task(id: "\(catalog.contentID.stableKey)|\(epRef?.season ?? 0)|\(epRef?.number ?? 0)") { await load() }
+        .task(id: contentKey) {
+            // Returning from playback must not immediately auto-play the title again.
+            if loadedContentKey != contentKey || (state == .loading && !isSearching) {
+                loadedContentKey = contentKey
+                startLoading()
+            }
+        }
+        .onDisappear { cancelWork() }
+        .onChange(of: showAddonsSetup) { _, showing in if !showing { startLoading() } }
+        .onChange(of: cachedOnly) { _, value in
+            UserDefaults.standard.set(value, forKey: PrefKey.streamsCachedOnly)
+        }
     }
 
     private var titleLine: String {
         if let episode { return "\(catalog.title) · \(episode.label)" }
         return catalog.title
+    }
+
+    private var contentKey: String {
+        "\(catalog.contentID.stableKey)|\(epRef?.season ?? 0)|\(epRef?.number ?? 0)"
     }
 
     private var loadingMessage: String {
@@ -126,6 +156,7 @@ struct StreamPickerView: View {
             }
         }
         .frame(maxWidth: Theme.contentMaxWidth(980))
+        .accessibilityHidden(true)
     }
 
     /// The cause of an empty result drives the icon, message, and suggested action.
@@ -174,7 +205,7 @@ struct StreamPickerView: View {
     private var emptyAction: (() -> Void)? {
         switch emptyCause {
         case .safeMode:
-            return { settings.safeMode = false; Task { await load() } }
+            return { settings.safeMode = false; startLoading() }
         case .noAddons, .noResults:
             return { showAddonsSetup = true }
         }
@@ -195,6 +226,8 @@ struct StreamPickerView: View {
                 .foregroundStyle(isActive ? .white : Theme.Colors.textSecondary)
         }
         .buttonStyle(NovaChipButtonStyle())
+        .accessibilityAddTraits(isActive ? .isSelected : [])
+        .accessibilityLabel(quality == nil ? "Any quality" : "Minimum quality \(label)")
     }
 
     private var content: some View {
@@ -205,7 +238,9 @@ struct StreamPickerView: View {
                     .screenTitleStyle()
                     .foregroundStyle(Theme.Colors.textPrimary)
 
-                HStack {
+                (dynamicTypeSize.isAccessibilitySize || Theme.isCompact
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: Theme.Spacing.sm))
+                    : AnyLayout(HStackLayout(spacing: Theme.Spacing.sm))) {
                     Text(filterSummary)
                         .font(.appFont(20))
                         .foregroundStyle(Theme.Colors.textSecondary)
@@ -220,6 +255,7 @@ struct StreamPickerView: View {
                         .padding(.horizontal, 14).padding(.vertical, 8)
                     }
                     .buttonStyle(NovaChipButtonStyle())
+                    .accessibilityValue(groupBySource ? "Grouped by source" : "Ranked list")
                     Button { withAnimation { showFilters.toggle() } } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "line.3.horizontal.decrease.circle\(anyFilterActive ? ".fill" : "")")
@@ -230,6 +266,7 @@ struct StreamPickerView: View {
                         .padding(.horizontal, 14).padding(.vertical, 8)
                     }
                     .buttonStyle(NovaChipButtonStyle())
+                    .accessibilityValue(showFilters ? "Expanded" : "Collapsed")
                 }
 
                 if showFilters { filterBar }
@@ -256,12 +293,23 @@ struct StreamPickerView: View {
                             .foregroundStyle(cachedOnly ? .white : Theme.Colors.textSecondary)
                         }
                         .buttonStyle(NovaChipButtonStyle())
+                        .accessibilityAddTraits(cachedOnly ? .isSelected : [])
                     }
                 }
 
                 networkBanner
 
                 addonProgressPanel
+
+                if resolvingStreamID != nil {
+                    Button("Cancel Opening Source") {
+                        resolutionTask?.cancel()
+                        resolutionGeneration = UUID()
+                        resolvingStreamID = nil
+                        autoFailingOver = false
+                    }
+                    .buttonStyle(NovaChipButtonStyle())
+                }
 
                 if groupBySource {
                     ForEach(groupedStreams, id: \.0) { group in
@@ -277,10 +325,11 @@ struct StreamPickerView: View {
                 }
 
                 if filteredStreams.isEmpty {
-                    Text("No streams match these filters.")
-                        .font(.appFont(20))
-                        .foregroundStyle(Theme.Colors.textTertiary)
-                        .padding(.top, Theme.Spacing.lg)
+                    EmptyStateView(systemImage: "line.3.horizontal.decrease.circle", title: "No matching sources",
+                        message: isSearching ? "More sources are still being checked. You can also clear your filters." : "Your quality, source, size, or smart filters hide the available streams.",
+                        actionTitle: anyFilterActive ? "Clear All Filters" : "Retry Sources",
+                        actionSystemImage: "arrow.counterclockwise",
+                        action: anyFilterActive ? resetFilters : startLoading)
                 }
             }
             .padding(Theme.Spacing.edge)
@@ -341,7 +390,6 @@ struct StreamPickerView: View {
     /// pairs of (group title, streams).
     private var groupedStreams: [(String, [StreamOption])] {
         let order: [SourceKind] = [.cloud, .torrent, .localSMB, .directURL, .liveTV, .unknown]
-        let grouped = Dictionary(grouping: filteredStreams, by: { $0.sourceKind })
         var result: [(String, [StreamOption])] = []
         // Continue: the exact stream last used for this title, surfaced at the very
         // top as a one-tap resume.
@@ -355,6 +403,9 @@ struct StreamPickerView: View {
         if !recommended.isEmpty {
             result.append(("Recommended", recommended))
         }
+        // Each source has one focus target, even when promoted to Continue/Recommended.
+        let promoted = Set(result.flatMap { $0.1.map(\.id) })
+        let grouped = Dictionary(grouping: filteredStreams.filter { !promoted.contains($0.id) }, by: { $0.sourceKind })
         result += order.compactMap { kind in
             guard let items = grouped[kind], !items.isEmpty else { return nil }
             return (sourceGroupTitle(kind), items)
@@ -465,11 +516,7 @@ struct StreamPickerView: View {
                 .padding(Theme.Spacing.sm)
                 .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
                 // Re-parse as the user types so the list updates live.
-                .onChange(of: cachedOnly) { _, new in
-            // The cached-only choice is sticky across titles and launches.
-            UserDefaults.standard.set(new, forKey: PrefKey.streamsCachedOnly)
-        }
-        .onChange(of: smartFilterText) { _, new in
+                .onChange(of: smartFilterText) { _, new in
                     smartFilter = StreamFilterParser.parse(new)
                 }
             }
@@ -501,10 +548,7 @@ struct StreamPickerView: View {
             chip("Instant (cached) only", active: cachedOnly) { cachedOnly.toggle() }
 
             if anyFilterActive {
-                Button("Clear filters") {
-                    minQuality = nil; selectedSource = nil; maxSizeGB = nil; cachedOnly = false
-                    smartFilterText = ""; smartFilter = ParsedStreamFilter()
-                }
+                Button("Clear filters", action: resetFilters)
                 .font(.appFont(17, weight: .semibold))
                 .foregroundStyle(Theme.Colors.accent)
                 .padding(.top, 4)
@@ -536,6 +580,7 @@ struct StreamPickerView: View {
                 .foregroundStyle(active ? .white : Theme.Colors.textPrimary)
         }
         .buttonStyle(NovaChipButtonStyle())
+        .accessibilityAddTraits(active ? .isSelected : [])
     }
 
     /// The remembered stream entry for this movie/episode, if any.
@@ -558,7 +603,7 @@ struct StreamPickerView: View {
     }
 
     private func streamRow(_ stream: StreamOption, labels: [StreamRanker.StreamLabel]) -> some View {
-        Button { Task { await play(stream) } } label: {
+        Button { startPlayback(stream) } label: {
             HStack(spacing: Theme.Spacing.md) {
                 // Quality chip.
                 Text(stream.quality.rawValue)
@@ -615,7 +660,7 @@ struct StreamPickerView: View {
                     if !stream.badges.isEmpty {
                         FlowBadges(badges: stream.badges)
                     }
-                    HStack(spacing: Theme.Spacing.sm) {
+                    WrapFlowLayout(spacing: Theme.Spacing.sm, lineSpacing: 6) {
                         Label(stream.addonName, systemImage: "puzzlepiece.extension")
                         if let size = stream.sizeDisplay { Text(size) }
                         if let seeders = stream.seeders { Label("\(seeders)", systemImage: "arrow.up.circle") }
@@ -645,6 +690,10 @@ struct StreamPickerView: View {
         }
         .novaRowStyle()
         .disabled(resolvingStreamID != nil)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Play \(stream.rawTitle)")
+        .accessibilityValue([stream.quality.rawValue, stream.addonName, stream.isCached ? "Cached" : "Not verified cached", stream.sizeDisplay ?? "Size unknown", StreamRanker.confidence(stream).rawValue].joined(separator: ", "))
+        .accessibilityHint("Opens this source. Nova tries another source if it cannot play.")
     }
 
     /// A single "Best Match" badge. Positive labels use the accent; the low-seeders
@@ -691,15 +740,19 @@ struct StreamPickerView: View {
                         .font(.appFont(16, weight: .bold))
                         .foregroundStyle(Theme.Colors.textSecondary)
                     Spacer()
-                    if addonProgress.values.contains(where: { $0.phase == .failed || $0.phase == .circuitOpen }) {
-                        Button("Retry") { Task { await load() } }
+                    if !isSearching {
+                        Button("Refresh Sources", action: startLoading)
                             .font(.appFont(15, weight: .semibold))
                             .foregroundStyle(Theme.Colors.accent)
+                            .buttonStyle(NovaChipButtonStyle())
+                            .disabled(isSearching || resolvingStreamID != nil)
                     }
                 }
                 let finished = addonProgress.values.filter { $0.phase != .started }.count
                 ProgressView(value: Double(finished), total: Double(max(addonProgress.count, 1)))
                     .tint(Theme.Colors.accent)
+                    .accessibilityLabel("Sources checked")
+                    .accessibilityValue("\(finished) of \(addonProgress.count)")
                 ForEach(addonProgress.values.sorted(by: { $0.addonName < $1.addonName }), id: \.addonID) { progress in
                     HStack(spacing: 8) {
                         Image(systemName: progressIcon(progress.phase))
@@ -755,7 +808,47 @@ struct StreamPickerView: View {
 
     // MARK: - Actions
 
-    private func load() async {
+    private func resetFilters() {
+        minQuality = nil
+        selectedSource = nil
+        maxSizeGB = nil
+        cachedOnly = false
+        smartFilterText = ""
+        smartFilter = ParsedStreamFilter()
+    }
+
+    private func cancelWork() {
+        loadTask?.cancel()
+        resolutionTask?.cancel()
+        availabilityTask?.cancel()
+        loadGeneration = UUID()
+        resolutionGeneration = UUID()
+        isSearching = false
+        resolvingStreamID = nil
+        autoFailingOver = false
+    }
+
+    private func startLoading() {
+        cancelWork()
+        let generation = loadGeneration
+        deadStreamIDs.removeAll()
+        userChoseSource = false
+        loadTask = Task { await load(generation: generation) }
+    }
+
+    private func startPlayback(_ stream: StreamOption) {
+        guard resolvingStreamID == nil else { return }
+        userChoseSource = true
+        let generation = UUID()
+        resolutionGeneration = generation
+        resolvingStreamID = stream.id
+        resolutionTask = Task { await play(stream, generation: generation) }
+    }
+
+    private func load(generation: UUID) async {
+        guard !Task.isCancelled, generation == loadGeneration else { return }
+        isSearching = true
+        defer { if generation == loadGeneration { isSearching = false } }
         state = .loading
         streams = []
         resolvingStreamID = nil
@@ -768,29 +861,33 @@ struct StreamPickerView: View {
             episode: epRef,
             preferredQuality: settings.preferredStreamQuality,
             onPartial: { partial in
-                guard !Task.isCancelled else { return }
-                self.streams = partial
+                guard !Task.isCancelled, generation == loadGeneration else { return }
+                self.streams = StreamRanker.dedupeByIdentity(partial).filter { !deadStreamIDs.contains($0.id) }
                 if !partial.isEmpty, self.state == .loading {
                     self.state = .loaded
                 }
             },
             onStatus: { progress in
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, generation == loadGeneration else { return }
                 self.addonProgress[progress.addonID] = progress
             }
         )
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled, generation == loadGeneration else { return }
         // Re-rank the complete set using the user's full streaming preferences so the
         // manual list order respects source, size, seeders, language, codec, HDR,
         // the source fallback chain, and the user's addon order.
         let prefs = settings.streamPreferences(addonOrder: env.addonStore.addons.map(\.name))
         streams = StreamRanker.rank(StreamRanker.dedupeByIdentity(found), preferences: prefs)
+            .filter { !deadStreamIDs.contains($0.id) }
         if found.isEmpty { state = .empty; return }
 
         // Batch Real-Debrid instant-availability: one request marks every torrent
         // hash that is actually cached, instead of trusting addon labels alone.
         // Verification refines badges/ranking, but never delays auto-play.
-        Task { await refreshInstantAvailability(preferences: prefs) }
+        availabilityTask = Task { await refreshInstantAvailability(preferences: prefs, generation: generation) }
+
+        // A user may already have chosen a progressive result. Never override that choice.
+        guard resolvingStreamID == nil, playable == nil, !userChoseSource else { return }
 
         // Prefer the previously-used stream when resuming: if the user played a
         // specific source before and it's still in the results, reuse it instead of
@@ -799,32 +896,33 @@ struct StreamPickerView: View {
         if !forceManual,
            let previous = StreamHistoryStore.shared.entry(catalogKey: catalog.contentID.stableKey,
                                                           episode: epRef),
-           let match = streams.first(where: { $0.id == previous.stream.id && !deadStreamIDs.contains($0.id) }) {
+           let match = filteredStreams.first(where: { $0.id == previous.stream.id && (!settings.requireCachedStreams || $0.isCached) }) {
             state = .loaded
-            await play(match)
+            startPlayback(match)
             return
         }
 
         // Auto-select path (skipped when the user explicitly chose to pick manually).
         if settings.autoSelectStream, !forceManual,
-           let best = StreamRanker.autoSelect(found,
-                                              preferences: settings.streamPreferences,
+           let best = StreamRanker.autoSelect(filteredStreams,
+                                              preferences: prefs,
                                               requireCached: settings.requireCachedStreams) {
             state = .loaded
-            await play(best)
+            startPlayback(best)
         } else {
             state = .loaded
         }
     }
 
-    private func play(_ stream: StreamOption) async {
+    private func play(_ stream: StreamOption, generation: UUID) async {
+        guard !Task.isCancelled, generation == resolutionGeneration else { return }
         resolvingStreamID = stream.id
-        defer { resolvingStreamID = nil }
+        defer { if generation == resolutionGeneration { resolvingStreamID = nil; autoFailingOver = false } }
         do {
             let item = try await env.catalog.makePlayable(
                 stream: stream, catalog: catalog, episode: episode
             )
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, generation == resolutionGeneration else { return }
             env.library.add(item)
             lastPlayedStream = stream
             // Remember this exact stream (and when) so Resume reuses it and the picker
@@ -834,14 +932,14 @@ struct StreamPickerView: View {
                                              episode: epRef)
             playable = item
         } catch {
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, generation == resolutionGeneration else { return }
             // This stream failed to resolve — mark it dead, drop it from the list, and
             // automatically try the next best candidate. Only surface an error if
             // nothing is left to try.
             markDead(stream)
             if let next = nextCandidate() {
                 autoFailingOver = true
-                await play(next)
+                await play(next, generation: generation)
             } else {
                 autoFailingOver = false
                 state = .error((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
@@ -851,12 +949,13 @@ struct StreamPickerView: View {
 
     /// One batched Real-Debrid check upgrades isCached on streams whose infohash is
     /// in the user's cloud, then re-ranks so cached copies float up.
-    private func refreshInstantAvailability(preferences: StreamRanker.StreamPreferences) async {
+    private func refreshInstantAvailability(preferences: StreamRanker.StreamPreferences, generation: UUID) async {
         guard KeychainStore.shared.realDebridToken != nil else { return }
         let hashes = Array(Set(streams.compactMap { $0.isCached ? nil : $0.infoHash?.lowercased() }))
         guard !hashes.isEmpty,
               let available = try? await env.realDebrid.instantAvailability(hashes: hashes),
               !available.isEmpty else { return }
+        guard !Task.isCancelled, generation == loadGeneration else { return }
         var updated = streams
         for idx in updated.indices {
             if let hash = updated[idx].infoHash?.lowercased(), available.contains(hash) {
@@ -877,7 +976,7 @@ struct StreamPickerView: View {
     /// The next best still-alive stream to try, honoring the current filters and
     /// preferring cached/instant sources first.
     private func nextCandidate() -> StreamOption? {
-        filteredStreams.first { !deadStreamIDs.contains($0.id) }
+        filteredStreams.first { !deadStreamIDs.contains($0.id) && (!settings.requireCachedStreams || $0.isCached) }
     }
 }
 
@@ -889,7 +988,7 @@ struct StreamQualityChips: View {
     let stream: StreamOption
 
     private struct Mark: Identifiable {
-        let id = UUID()
+        var id: String { label }
         let label: String
         let tint: Color
         let systemImage: String?

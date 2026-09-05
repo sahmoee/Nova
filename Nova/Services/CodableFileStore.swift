@@ -73,12 +73,15 @@ final class CodableFileStore<Value: Codable & Equatable> {
     // MARK: - Save
 
     /// Persists locally and mirrors to iCloud (if a cloud key was provided).
-    func save(_ value: Value) {
-        guard let data = try? encoder.encode(value) else { return }
-        try? data.write(to: fileURL, options: [.atomic])
+    @discardableResult
+    func save(_ value: Value) -> Bool {
+        guard let data = try? encoder.encode(value) else { return false }
+        do { try data.write(to: fileURL, options: [.atomic]) }
+        catch { return false }
         if let cloudKey {
             CloudSync.shared.setData(data, forKey: cloudKey)
         }
+        return true
     }
 
     private func writeLocal(_ value: Value) {

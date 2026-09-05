@@ -95,8 +95,8 @@ struct MediaItem: Identifiable, Codable, Hashable {
         self.playbackURL = playbackURL
         self.posterURL = posterURL
         self.backdropURL = backdropURL
-        self.duration = duration
-        self.lastPlayedPosition = lastPlayedPosition
+        self.duration = MediaReliabilityPolicy.validDuration(duration)
+        self.lastPlayedPosition = MediaReliabilityPolicy.validPosition(lastPlayedPosition)
         self.addedDate = addedDate
         self.lastPlayedDate = lastPlayedDate
         self.isFavorite = isFavorite
@@ -109,7 +109,7 @@ struct MediaItem: Identifiable, Codable, Hashable {
         self.skipSegments = skipSegments
         self.tags = tags
         self.isHidden = isHidden
-        self.subtitleOffset = subtitleOffset
+        self.subtitleOffset = subtitleOffset.isFinite ? subtitleOffset : 0
     }
 
     // Backward-compatible decoding: libraries saved before Phase 3 lack the new
@@ -122,8 +122,8 @@ struct MediaItem: Identifiable, Codable, Hashable {
         playbackURL = try c.decode(URL.self, forKey: .playbackURL)
         posterURL = try c.decodeIfPresent(URL.self, forKey: .posterURL)
         backdropURL = try c.decodeIfPresent(URL.self, forKey: .backdropURL)
-        duration = try c.decodeIfPresent(TimeInterval.self, forKey: .duration)
-        lastPlayedPosition = try c.decodeIfPresent(TimeInterval.self, forKey: .lastPlayedPosition) ?? 0
+        duration = MediaReliabilityPolicy.validDuration(try c.decodeIfPresent(TimeInterval.self, forKey: .duration))
+        lastPlayedPosition = MediaReliabilityPolicy.validPosition(try c.decodeIfPresent(TimeInterval.self, forKey: .lastPlayedPosition) ?? 0)
         addedDate = try c.decodeIfPresent(Date.self, forKey: .addedDate) ?? Date()
         lastPlayedDate = try c.decodeIfPresent(Date.self, forKey: .lastPlayedDate)
         isFavorite = try c.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
@@ -137,14 +137,14 @@ struct MediaItem: Identifiable, Codable, Hashable {
         tags = try c.decodeIfPresent([String].self, forKey: .tags) ?? []
         isHidden = try c.decodeIfPresent(Bool.self, forKey: .isHidden) ?? false
         subtitleOffset = try c.decodeIfPresent(Double.self, forKey: .subtitleOffset) ?? 0
+        if !subtitleOffset.isFinite { subtitleOffset = 0 }
     }
 
     // MARK: - Derived helpers
 
     /// Fraction watched, 0...1, based on saved position and known duration.
     var progressFraction: Double {
-        guard let duration, duration > 0 else { return 0 }
-        return min(max(lastPlayedPosition / duration, 0), 1)
+        MediaReliabilityPolicy.progress(position: lastPlayedPosition, duration: duration)
     }
 
     /// True once the item is at least 90% complete.
@@ -155,9 +155,7 @@ struct MediaItem: Identifiable, Codable, Hashable {
     /// True if there's a meaningful saved checkpoint. Resume remains available even
     /// past the conventional 90% "watched" threshold and disappears only at the end.
     var hasResumePoint: Bool {
-        guard lastPlayedPosition > 5 else { return false }
-        guard let duration, duration > 0 else { return true }
-        return lastPlayedPosition < max(duration - 0.75, 0)
+        MediaReliabilityPolicy.canResume(position: lastPlayedPosition, duration: duration, isLive: sourceType == .liveTV)
     }
 
     /// Convenience subtitle line built from whatever metadata exists.
