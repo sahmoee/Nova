@@ -498,7 +498,7 @@ Exit: all acceptance criteria below pass; no failed build is published.
 Run incrementally and retain evidence:
 
 ```sh
-cd /Users/key/Documents/GitHub/Nova
+cd /Users/key/Documents/Nova
 git diff --check
 ./validate_nova_config.sh
 ./bundleid-guard.sh
