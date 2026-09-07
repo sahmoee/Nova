@@ -48,8 +48,7 @@ while IFS= read -r -d '' f; do
     for p in "${problems[@]}"; do echo "    - $p" >&2; done
   fi
 done < <(find "$SRC_DIR" -name '*.swift' -type f \
-             -not -name '._*' \
-             -not -path '*/.buildbuddy-backups/*' -print0)
+             -not -name '._*' -print0)
 
 if [[ "$FAIL" -ne 0 ]]; then
   echo "" >&2

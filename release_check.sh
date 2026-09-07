@@ -50,11 +50,10 @@ fi
 step "6/6 Repository hygiene"
 AD=$(find . -name '._*' -not -path './.git/*' | wc -l | tr -d ' ')
 DS=$(find . -name '.DS_Store' -not -path './.git/*' | wc -l | tr -d ' ')
-BB=$(find . -type d -name '.buildbuddy-backups' -not -path './.git/*' | wc -l | tr -d ' ')
-if [[ "$AD" -eq 0 && "$DS" -eq 0 && "$BB" -eq 0 ]]; then
+if [[ "$AD" -eq 0 && "$DS" -eq 0 ]]; then
   echo "  ✓ clean"
 else
-  echo ">> Pollution present (AppleDouble=$AD .DS_Store=$DS backups=$BB). Run ./cleanup_repo.sh"
+  echo ">> Pollution present (AppleDouble=$AD .DS_Store=$DS). Run ./cleanup_repo.sh"
   FAIL=1
 fi
 
