@@ -44,7 +44,12 @@ struct FocusableButtonStyle: ButtonStyle {
     var prominent: Bool
 
     func makeBody(configuration: Configuration) -> some View {
+        #if os(tvOS)
+        TVReferenceButtonStyle(selected: prominent).makeBody(configuration: configuration)
+            .padding(.horizontal, 16).padding(.vertical, 8)
+        #else
         FocusableButtonBody(configuration: configuration, prominent: prominent)
+        #endif
     }
 
     private struct FocusableButtonBody: View {

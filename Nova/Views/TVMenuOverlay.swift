@@ -1,100 +1,105 @@
-//
-//  TVMenuOverlay.swift
-//  Nova
-//
-//  tvOS-only. Summoned by the Menu / TV button, styled like the Apple TV app's top
-//  tab bar: a translucent capsule bar pinned near the top with text pills per
-//  section. The focused pill fills white with black text; the current section shows
-//  a soft white wash when unfocused.
-//
-
 #if os(tvOS)
 import SwiftUI
 
+/// A compact floating menu. Only this panel participates in focus while open;
+/// the active screen stays visible behind it without shifting its artwork.
 struct TVMenuOverlay: View {
     @Binding var selection: AppTab
     var onDismiss: () -> Void
-
+    var onRemote: () -> Void
     @Namespace private var menuScope
-    @FocusState private var focusedTab: AppTab?
+    @FocusState private var focused: String?
+    private let tabs: [AppTab] = [.home, .discover, .library, .settings]
 
     var body: some View {
-        ZStack(alignment: .top) {
-            LinearGradient(colors: [.black.opacity(0.72), .black.opacity(0.25), .clear],
-                           startPoint: .top, endPoint: .bottom)
-                .ignoresSafeArea()
-
-            HStack(spacing: Theme.Spacing.sm) {
-                ForEach(AppTab.allCases, id: \.self) { tab in
-                    tabPill(tab)
+        ZStack(alignment: .topLeading) {
+            Color.black.opacity(0.08).ignoresSafeArea().allowsHitTesting(false)
+            VStack(spacing: 4) {
+                menuRow("Remote", symbol: "appletvremote.gen1", id: "remote", action: onRemote)
+                ForEach(tabs, id: \.self) { tab in
+                    menuRow(tab.title, symbol: symbol(for: tab), id: tab.title) {
+                        selection = tab
+                        onDismiss()
+                    }
                 }
             }
-            .padding(.horizontal, Theme.Spacing.md)
-            .padding(.vertical, Theme.Spacing.sm)
-            .background(.ultraThinMaterial, in: Capsule())
-            .overlay(Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 1))
-            .shadow(color: .black.opacity(0.45), radius: 30, y: 14)
-            .padding(.top, Theme.Spacing.xl)
+            .padding(10)
+            .frame(width: 344)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .background(Color.black.opacity(0.50), in: RoundedRectangle(cornerRadius: 24))
+            .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(.white.opacity(0.12), lineWidth: 1))
+            .shadow(color: .black.opacity(0.45), radius: 30, y: 12)
+            .padding(.leading, 44).padding(.top, 32)
             .focusSection()
         }
+        .ignoresSafeArea()
         .focusScope(menuScope)
-        .onExitCommand { onDismiss() }
-        .onAppear { focusedTab = selection }
-        .onChange(of: focusedTab) { _, newValue in
-            if newValue == nil { focusedTab = selection }
-        }
+        .onAppear { focused = tabs.contains(selection) ? selection.title : AppTab.home.title }
+        .onExitCommand(perform: onDismiss)
+        .accessibilityIdentifier("tv.navigation.menu")
     }
 
-    private func tabPill(_ tab: AppTab) -> some View {
-        Button {
-            selection = tab
-            onDismiss()
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: tab.systemImage)
-                    .font(.appFont(22, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
-                Text(tab.title)
-                    .font(.appFont(24, weight: .semibold))
+    private func menuRow(_ title: String, symbol: String, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 20) {
+                Image(systemName: symbol).font(.system(size: 28, weight: .medium)).frame(width: 36)
+                Text(title).font(.system(size: 26, weight: .semibold))
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, Theme.Spacing.lg)
-            .padding(.vertical, Theme.Spacing.sm)
-            .contentShape(Capsule())
+            .padding(.horizontal, 20).frame(height: 74)
         }
-        .buttonStyle(TVTabPillStyle(isSelected: tab == selection))
-        .focused($focusedTab, equals: tab)
-        .prefersDefaultFocus(tab == selection, in: menuScope)
+        .buttonStyle(TVMenuRowStyle())
+        .focused($focused, equals: id)
+        .prefersDefaultFocus(id == selection.title, in: menuScope)
+        .accessibilityIdentifier("tv.navigation.\(id.lowercased())")
+    }
+
+    private func symbol(for tab: AppTab) -> String {
+        switch tab {
+        case .home: return "house"
+        case .discover: return "magnifyingglass"
+        case .library: return "books.vertical"
+        case .settings: return "gearshape"
+        case .ai: return "sparkles"
+        }
     }
 }
 
-/// Apple TV app tab pill: focused = white fill, black text, gentle lift; the
-/// active-but-unfocused section keeps a soft white wash so it reads as current.
-private struct TVTabPillStyle: ButtonStyle {
-    var isSelected: Bool
-
-    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
-        TVTabPillBody(configuration: configuration, isSelected: isSelected)
+private struct TVMenuRowStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { Row(configuration: configuration) }
+    private struct Row: View {
+        let configuration: Configuration
+        @Environment(\.isFocused) private var focused
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        var body: some View {
+            configuration.label
+                .foregroundStyle(focused ? Color(white: 0.10) : .white)
+                .background(focused ? Color(white: 0.94) : .clear, in: RoundedRectangle(cornerRadius: 10))
+                .opacity(configuration.isPressed ? 0.85 : 1)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: focused)
+        }
     }
 }
 
-private struct TVTabPillBody: View {
-    let configuration: ButtonStyleConfiguration
-    let isSelected: Bool
-    @Environment(\.isFocused) private var isFocused
-
+struct TVRemoteHelpView: View {
+    @Environment(\.dismiss) private var dismiss
     var body: some View {
-        configuration.label
-            .foregroundStyle(isFocused ? .black : (isSelected ? .white : Color.white.opacity(0.65)))
-            .background(
-                Capsule().fill(isFocused ? Color.white
-                               : (isSelected ? Color.white.opacity(0.16) : Color.clear))
-            )
-            .shadow(color: isFocused ? Color.black.opacity(0.5) : .clear,
-                    radius: isFocused ? 18 : 0, y: isFocused ? 8 : 0)
-            // Slight press-down while the remote click is held, on top of focus lift.
-            .scaleEffect(configuration.isPressed ? 0.97 : (isFocused ? 1.06 : 1.0))
-            .animation(.easeOut(duration: 0.16), value: isFocused)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+        VStack(alignment: .leading, spacing: 28) {
+            Label("Remote", systemImage: "appletvremote.gen1").font(.system(size: 38, weight: .semibold))
+            Text("Move through Nova with the clickpad or directional buttons. Press the center to choose a title or action.")
+            Label("Back: return from a title, or open the menu from a main page. Press Back again to close the menu.", systemImage: "chevron.left")
+            Label("Play/Pause: control the current video during playback.", systemImage: "playpause")
+            Text("For text entry, open Apple TV Remote in your iPhone or iPad Control Center and choose this Apple TV. Both devices must be able to reach each other on your network.")
+                .foregroundStyle(.white.opacity(0.72))
+            Button("Done") { dismiss() }
+                .padding(.top, 10)
+                .buttonStyle(TVReferenceButtonStyle())
+        }
+        .font(.system(size: 26))
+        .padding(60).frame(maxWidth: 1200, maxHeight: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(TVReferenceStyle.canvas.ignoresSafeArea())
+        .onExitCommand { dismiss() }
     }
 }
 #endif

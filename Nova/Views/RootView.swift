@@ -3,7 +3,7 @@
 //  Nova
 //
 //  Adaptive Apple TV-style shell. iPhone uses a native bottom tab bar, iPad keeps a
-//  persistent sidebar, and tvOS uses the platform's focus-driven tab navigation.
+//  persistent sidebar, and tvOS opens a compact floating menu with Back.
 //  Every tab owns an independent NavigationStack through NavigationCoordinator.
 //
 
@@ -16,6 +16,12 @@ struct RootView: View {
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var settings: SettingsStore
 
+    #if os(tvOS)
+    @State private var showTVMenu = false
+    @State private var showRemoteHelp = false
+    @State private var mountedTVTabs: Set<AppTab> = [.home]
+    @State private var visibleTVRoots: Set<AppTab> = []
+    #endif
     @State private var offerRestore = false
     @State private var showWhatsNew = false
     @AppStorage("hasSeenPersonalMediaDisclosure") private var hasSeenDisclosure = false
@@ -110,20 +116,52 @@ struct RootView: View {
     #endif
 
     #if os(tvOS)
-    /// tvOS lets SwiftUI render the native focusable television tab strip. This is
-    /// more predictable than intercepting the remote Menu button with a custom panel.
+    /// Sections stay mounted after their first visit, retaining their focused
+    /// content, filters and navigation stack when the compact menu changes tabs.
     private var televisionTabRoot: some View {
         ZStack(alignment: .bottom) {
-            Theme.Colors.appBackground.ignoresSafeArea()
-            RadialGradient(colors: [accentManager.accent.opacity(0.22), .clear],
-                           center: .topLeading, startRadius: 40, endRadius: 1200)
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
-            tabView
-            nowPlayingBar
-                .padding(.horizontal, Theme.Spacing.edge)
-                .padding(.bottom, Theme.Spacing.sm)
+            TVReferenceStyle.canvas.ignoresSafeArea()
+            ZStack {
+                ForEach(AppTab.allCases.filter { mountedTVTabs.contains($0) }, id: \.self) { tab in
+                    screen(for: tab)
+                        .environment(\.setTVRootVisible, { visible in
+                            if visible { visibleTVRoots.insert(tab) }
+                            else { visibleTVRoots.remove(tab) }
+                        })
+                        .opacity(nav.selection == tab ? 1 : 0)
+                        .disabled(nav.selection != tab || showTVMenu)
+                        .allowsHitTesting(nav.selection == tab && !showTVMenu)
+                        .accessibilityHidden(nav.selection != tab || showTVMenu)
+                }
+            }
+            if visibleTVRoots.contains(nav.selection) {
+                nowPlayingBar
+                    .disabled(showTVMenu)
+                    .padding(.horizontal, TVReferenceStyle.edge)
+                    .padding(.bottom, 24)
+                    .onExitCommand {
+                        withAnimation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18)) { showTVMenu = true }
+                    }
+            }
+            if showTVMenu {
+                TVMenuOverlay(selection: nav.selectionBinding, onDismiss: closeTVMenu) {
+                    closeTVMenu()
+                    showRemoteHelp = true
+                }
+                .zIndex(10)
+                .transition(.opacity.combined(with: .offset(x: -16)))
+            }
         }
+        .environment(\.openTVMenu, {
+            guard !nowPlaying.playerPresented else { return }
+            withAnimation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18)) { showTVMenu = true }
+        })
+        .onChange(of: nav.selection) { _, tab in mountedTVTabs.insert(tab) }
+        .sheet(isPresented: $showRemoteHelp) { TVRemoteHelpView() }
+    }
+
+    private func closeTVMenu() {
+        withAnimation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.16)) { showTVMenu = false }
     }
     #endif
 
@@ -200,9 +238,12 @@ struct RootView: View {
     #endif
 
     @ViewBuilder
-    private var activeScreen: some View {
+    private var activeScreen: some View { screen(for: nav.selection) }
+
+    @ViewBuilder
+    private func screen(for tab: AppTab) -> some View {
         Group {
-            switch nav.selection {
+            switch tab {
             case .home:     HomeView(path: $nav.homePath)
             case .discover: DiscoverView(path: $nav.discoverPath)
             case .library:  LibraryView(path: $nav.libraryPath)

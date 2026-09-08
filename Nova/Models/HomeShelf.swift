@@ -122,21 +122,44 @@ final class HomeShelfStore: ObservableObject {
     private var cancellable: AnyCancellable?
 
     private init() {
-        // Prefer an iCloud value, then a local one, then defaults.
-        if let decoded = backing.load(), !decoded.isEmpty {
-            shelves = decoded
-        } else {
-            shelves = HomeShelfStore.defaults
-        }
+        shelves = HomeShelfStore.defaults
+        loadPreferences()
 
-        // Apply changes made on other devices in real time.
-        cancellable = backing.externalChange
-            .sink { [weak self] decoded in
-                guard let self else { return }
-                self.isApplyingRemote = true
-                self.shelves = decoded
-                self.isApplyingRemote = false
+        // Preference resets are domain events rather than writes to this exact
+        // key, so listen for both before applying a replacement shelf list.
+        cancellable = CloudSync.shared.externalChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] keys in
+                if keys.contains(PrefKey.homeShelves) || keys.contains(SettingsDataDomain.preferences.deletionKey) {
+                    self?.loadPreferences()
+                }
             }
+        NotificationCenter.default.addObserver(
+            forName: .novaBackupRestored, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.reloadFromPreferences() }
+        }
+    }
+
+    /// The Settings reset/Pull already changed the local preferences. Prefer that
+    /// authoritative copy and cancel any shelf edit queued before the operation.
+    func reloadFromPreferences() {
+        backing.cancelPendingPush()
+        loadPreferences(preferLocal: true)
+    }
+
+    private func loadPreferences(preferLocal: Bool = false) {
+        let cloud = CloudSync.shared
+        if cloud.consumeDeletion(.preferences, consumer: ".homeShelves") {
+            backing.cancelPendingPush()
+            UserDefaults.standard.removeObject(forKey: PrefKey.homeShelves)
+        }
+        let local = UserDefaults.standard.data(forKey: PrefKey.homeShelves)
+            .flatMap { try? Coders.decoder.decode([ShelfConfig].self, from: $0) }
+        let decoded = preferLocal ? (local ?? backing.load()) : (backing.load() ?? local)
+        isApplyingRemote = true
+        shelves = decoded ?? HomeShelfStore.defaults
+        isApplyingRemote = false
     }
 
     static var defaults: [ShelfConfig] {

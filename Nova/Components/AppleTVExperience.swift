@@ -928,3 +928,106 @@ struct WatchHistoryTimelineView: View {
         }
     }
 }
+
+#if os(tvOS)
+/// Shared geometry for the television storefront and its remote menu.
+enum TVReferenceStyle {
+    static let edge: CGFloat = 80
+    static let top: CGFloat = 42
+    static let controlHeight: CGFloat = 56
+    static let cornerRadius: CGFloat = 10
+    static let canvas = LinearGradient(colors: [Color(white: 0.085), Color(white: 0.035), .black],
+                                       startPoint: .topTrailing, endPoint: .bottomLeading)
+}
+
+private struct TVRootVisibilityKey: EnvironmentKey {
+    static var defaultValue: (Bool) -> Void { { _ in } }
+}
+private struct OpenTVMenuKey: EnvironmentKey {
+    static var defaultValue: () -> Void { {} }
+}
+extension EnvironmentValues {
+    var setTVRootVisible: (Bool) -> Void {
+        get { self[TVRootVisibilityKey.self] }
+        set { self[TVRootVisibilityKey.self] = newValue }
+    }
+    var openTVMenu: () -> Void {
+        get { self[OpenTVMenuKey.self] }
+        set { self[OpenTVMenuKey.self] = newValue }
+    }
+}
+
+/// Attach to the visible root content *inside* its NavigationStack. Pushed
+/// destinations retain their native Back behavior rather than opening the menu.
+private struct TVRootMenuModifier: ViewModifier {
+    @Environment(\.openTVMenu) private var openMenu
+    @Environment(\.setTVRootVisible) private var setVisible
+    func body(content: Content) -> some View {
+        content.onExitCommand { openMenu() }
+            .onAppear { setVisible(true) }
+            .onDisappear { setVisible(false) }
+    }
+}
+extension View {
+    func tvRootMenu() -> some View { modifier(TVRootMenuModifier()) }
+}
+
+struct TVPageHeading: View {
+    let title: String
+    let systemImage: String
+    @Environment(\.openTVMenu) private var openMenu
+    var body: some View {
+        Button(action: openMenu) {
+            HStack(spacing: 10) {
+                Image(systemName: "chevron.left").font(.system(size: 23, weight: .semibold))
+                Image(systemName: systemImage)
+                    .font(.system(size: 24, weight: .medium))
+                    .frame(width: 42, height: 42)
+                    .background(.white.opacity(0.12), in: Circle())
+                Text(title).font(.system(size: 26, weight: .semibold))
+            }
+            .padding(.horizontal, 10).frame(height: TVReferenceStyle.controlHeight)
+        }
+        .buttonStyle(TVReferenceButtonStyle(cornerRadius: 28))
+        .accessibilityLabel("\(title), open navigation menu")
+        .accessibilityHint("You can also press Back on the remote")
+    }
+}
+
+struct TVReferenceButtonStyle: ButtonStyle {
+    var selected = false
+    var cornerRadius: CGFloat = TVReferenceStyle.cornerRadius
+    func makeBody(configuration: Configuration) -> some View {
+        ReferenceButtonBody(configuration: configuration, selected: selected, cornerRadius: cornerRadius)
+    }
+    private struct ReferenceButtonBody: View {
+        let configuration: Configuration
+        let selected: Bool
+        let cornerRadius: CGFloat
+        @Environment(\.isFocused) private var focused
+        @Environment(\.isEnabled) private var enabled
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @AppStorage("nova.tvFocusGlowEnabled") private var glowEnabled = true
+        @AppStorage("nova.tvFocusGlowStrength") private var glowStrength = 0.35
+        var body: some View {
+            let active = focused && enabled
+            configuration.label
+                .foregroundStyle(active ? Color.black : Color.white)
+                .colorMultiply(active ? Color(white: 0.16) : Color.white)
+                .background {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(active ? Color(white: 0.94) : .white.opacity(selected ? 0.19 : 0.075))
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(.white.opacity(active ? 0.85 : selected ? 0.38 : 0.16), lineWidth: 1)
+                }
+                .opacity(enabled ? 1 : 0.42)
+                .shadow(color: .white.opacity(active && glowEnabled ? min(max(glowStrength, 0), 1) * 0.45 : 0), radius: 14)
+                .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: active)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
+        }
+    }
+}
+#endif

@@ -107,6 +107,9 @@ struct AIView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+            #if os(tvOS)
+            .tvRootMenu()
+            #endif
             .navigationDestination(for: CatalogItem.self) { item in
                 ContentDetailView(item: item)
             }

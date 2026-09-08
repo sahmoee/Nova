@@ -195,11 +195,16 @@ enum Theme {
         static let progressFill = Color(red: 0.92, green: 0.72, blue: 0.38)   // amber
         static let watched = Color(red: 0.52, green: 0.78, blue: 0.68)        // sage
 
+        #if os(tvOS)
+        static let appBackground = TVReferenceStyle.canvas
+        #else
         static let appBackground = LinearGradient(
             colors: [Color(red: 0.055, green: 0.060, blue: 0.105), background, Color.black],
             startPoint: .top,
             endPoint: .bottom
         )
+
+        #endif
 
         static let cardGradient = LinearGradient(
             colors: [Color.white.opacity(0.115), Color.white.opacity(0.045)],

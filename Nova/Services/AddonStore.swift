@@ -38,6 +38,8 @@ final class AddonStore: ObservableObject {
     @Published private(set) var lastPersistenceError: String?
     @Published private(set) var lastRemoved: InstalledAddon?
     private var lastRemovedSecret: String?
+    private var persistenceGeneration = 0
+    private var deletionGeneration = 0
 
     private let fileURL: URL
     private let disk: AddonDiskPersistence
@@ -68,7 +70,9 @@ final class AddonStore: ObservableObject {
         CloudSync.shared.externalChange
             .receive(on: RunLoop.main)
             .sink { [weak self] keys in
-                if keys.contains(Self.cloudKey) { self?.mergeFromCloud() }
+                if keys.contains(Self.cloudKey) || keys.contains(SettingsDataDomain.addons.deletionKey) {
+                    self?.mergeFromCloud()
+                }
             }
             .store(in: &cancellables)
 
@@ -95,6 +99,8 @@ final class AddonStore: ObservableObject {
     }
 
     private func persist() {
+        persistenceGeneration += 1
+        let generation = persistenceGeneration
         let snapshot = addons.map { addon -> InstalledAddon in
             var safe = addon
             safe.manifestURL = addon.redactedManifestURL
@@ -102,7 +108,9 @@ final class AddonStore: ObservableObject {
         }
         Task {
             do {
+                guard generation == persistenceGeneration else { return }
                 let data = try await disk.write(snapshot)
+                guard generation == persistenceGeneration else { return }
                 CloudSync.shared.setData(data, forKey: Self.cloudKey)
                 lastPersistenceError = nil
             } catch {
@@ -114,6 +122,7 @@ final class AddonStore: ObservableObject {
 
     /// Pulls the iCloud addon list if it exists and differs from local.
     private func mergeFromCloud() {
+        applySettingsDeletion()
         guard let data = CloudSync.shared.data(forKey: Self.cloudKey),
               let cloudAddons = try? decoder.decode([InstalledAddon].self, from: data) else { return }
         // Last-write-wins by adopting the cloud set when it's non-empty.
@@ -122,11 +131,16 @@ final class AddonStore: ObservableObject {
         // locally installed addon.
         guard !cloudAddons.isEmpty else { return }
         if cloudAddons != addons {
+            persistenceGeneration += 1
+            let generation = persistenceGeneration
             addons = cloudAddons
             // Persist locally without re-pushing identical data to the cloud.
             let snapshot = addons
             Task {
-                do { _ = try await disk.write(snapshot) }
+                do {
+                    guard generation == persistenceGeneration else { return }
+                    _ = try await disk.write(snapshot)
+                }
                 catch { lastPersistenceError = error.localizedDescription }
             }
         }
@@ -185,10 +199,12 @@ final class AddonStore: ObservableObject {
     /// Installs an addon by manifest URL. Fetches and parses the manifest first.
     @discardableResult
     func install(manifestURL: URL) async throws -> InstalledAddon {
+        let generation = deletionGeneration
         if let existing = addons.first(where: { resolved($0).manifestURL == manifestURL }) {
             return existing
         }
         var addon = try await client.fetchManifest(at: manifestURL)
+        guard generation == deletionGeneration else { throw CancellationError() }
         if addon.manifestURLContainsSensitiveConfiguration {
             try KeychainStore.shared.set(manifestURL.absoluteString, for: addon.secureManifestAccount)
             addon.manifestURL = addon.redactedManifestURL
@@ -413,12 +429,46 @@ final class AddonStore: ObservableObject {
     /// Seeds Cinemeta (metadata) and any config-file addons if not present.
     /// Safe to call repeatedly; only installs what's missing.
     func seedDefaultsIfNeeded() async {
+        guard CloudSync.shared.deletionDate(.addons) == 0 else { return }
         if !contains(manifestURL: Self.cinemetaManifest) {
             _ = try? await install(manifestURL: Self.cinemetaManifest)
         }
         for url in AppConfig.shared.seedAddonURLs where !contains(manifestURL: url) {
             _ = try? await install(manifestURL: url)
         }
+    }
+
+    func applySettingsDeletion() {
+        guard CloudSync.shared.consumeDeletion(.addons, consumer: ".addons") else { return }
+        persistenceGeneration += 1
+        deletionGeneration += 1
+        addons = []
+        availableUpdates = [:]
+        lastRemoved = nil
+        lastRemovedSecret = nil
+        lastPingMS = [:]
+        lastHealthCheck = [:]
+        let generation = persistenceGeneration
+        Task {
+            do {
+                guard generation == persistenceGeneration else { return }
+                _ = try await disk.write([])
+                lastPersistenceError = nil
+            } catch {
+                CloudSync.shared.retryDeletion(.addons, consumer: ".addons")
+                lastPersistenceError = error.localizedDescription
+            }
+        }
+    }
+
+    func pushSettingsDataToCloud() {
+        CloudSync.shared.resumeSync(.addons)
+        persist()
+    }
+
+    func pullSettingsDataFromCloud() {
+        CloudSync.shared.resumeSync(.addons, pulling: true)
+        mergeFromCloud()
     }
 }
 

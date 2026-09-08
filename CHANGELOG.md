@@ -5,6 +5,14 @@ Newest at the top. Keep it plain ASCII (see .gitmessage.txt for the commit rules
 
 ## [Unreleased]
 
+### September 8: tvOS reference interface
+- Validation: tvOS simulator 93, signed tvOS 94, and signed iOS/iPadOS 95 builds passed; 13 new native regression fixtures and source checks passed. Visual/remote and live iCloud checks remain pending; see [validation notes](docs/validation/TVOS_REFERENCE_2026_09_08.md).
+- Replaced persistent television tab navigation with a floating Back menu for Remote, Home, Search, Library, and Settings. Visited sections retain their state; pushed destinations keep native Back navigation.
+- Rebuilt television Home around real artwork, title-logo/text fallback, metadata, compact playback/queue/detail controls, page indicators, and landscape Continue Watching cards.
+- Rebuilt television Library as six 2:3 poster columns with cached-metadata genre filtering, media types, deterministic sorting, and an actual item count. Kept sources, folders, collections, tracker lists, category editing, and bulk actions in Library options.
+- Added horizontal Settings categories and shared neutral white focus styling. Category panels use existing settings, account/import routes, cache actions, and previewable Nova snapshot import; they do not add live Trakt authentication or an Apple TV web server.
+- Renamed the visible My Nova destination to Library while retaining iPhone/iPad layouts and blue accent styling. Simulator validation for this redesign was authorized on September 8; actual build, test, and visual-review results are recorded separately.
+
 ### September 5: fifty reliability and interface improvements
 - Added 25 core and 25 UI/UX fixes covering downloads, resume state, bounded retries, cancellable source selection, subtitles, protected drafts and adaptive recovery.
 - Final device-target builds passed: iPhone/iPad 76 and tvOS 77; 75 native checks and cinematic UI audit passed. Physical-device QA/publication remain pending.
@@ -51,7 +59,7 @@ Newest at the top. Keep it plain ASCII (see .gitmessage.txt for the commit rules
 - **Nova Tracker**: first-party cross-device watch tracking (history/scrobble, watchlist
   statuses, ratings) with an iCloud-shared identity, offline cache + delta sync, and a
   status/rating panel on the detail screen. Designed to replace Trakt/SIMKL.
-- SIMKL and TMDB-account trackers alongside Trakt, behind a provider hub (writes fan out,
+- SIMKL and TMDB-account trackers alongside Nova Tracker, behind a provider hub (writes fan out,
   reads merge) so trackers are optional and coexist.
 - Anime catalog tab; Airing Calendar tab (upcoming episodes for tracked shows).
 - Notifications when a new episode of a tracked show becomes streamable from your addons.

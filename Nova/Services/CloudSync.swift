@@ -13,6 +13,7 @@
 
 import Foundation
 import Combine
+import CryptoKit
 
 @MainActor
 final class CloudSync: ObservableObject {
@@ -20,6 +21,120 @@ final class CloudSync: ObservableObject {
     static let shared = CloudSync()
 
     private let store = NSUbiquitousKeyValueStore.default
+    @Published private(set) var lastSyncRequest: Date?
+    @Published private(set) var lastExternalChange: Date?
+    @Published private(set) var syncIssue: String?
+    private var suppressWrites = false
+
+    var accountAvailable: Bool { FileManager.default.ubiquityIdentityToken != nil }
+    var storedKeys: [String] { Array(store.dictionaryRepresentation.keys) }
+
+    func isPaused(_ domain: SettingsDataDomain) -> Bool {
+        UserDefaults.standard.bool(forKey: domain.pausedKey)
+    }
+
+    func deletionDate(_ domain: SettingsDataDomain) -> Double {
+        max(UserDefaults.standard.double(forKey: domain.deletionKey), store.double(forKey: domain.deletionKey))
+    }
+    func sharedDeletionDate(_ domain: SettingsDataDomain) -> Double { store.double(forKey: domain.deletionKey) }
+    func rawMirrorData(forKey key: String) -> Data? { store.data(forKey: key) }
+
+    /// Used only to redact a selected category from a shared composite mirror.
+    func replaceMirrorAfterDeletion(_ data: Data, forKey key: String) {
+        store.set(data, forKey: key)
+        recordWrite(key)
+        scheduleFlush()
+    }
+
+    func acknowledgedDeletion(_ domain: SettingsDataDomain) -> Double {
+        let consumers: [String]
+        switch domain {
+        case .history: consumers = [".library", ".streams"]
+        case .library: consumers = [".library"]
+        case .addons: consumers = [".addons"]
+        case .preferences: consumers = [""]
+        }
+        return consumers.map { UserDefaults.standard.double(forKey: domain.appliedKey + $0) }.min() ?? 0
+    }
+
+    func consumeDeletion(_ domain: SettingsDataDomain, consumer: String = "") -> Bool {
+        let date = deletionDate(domain)
+        let appliedKey = domain.appliedKey + consumer
+        guard date > UserDefaults.standard.double(forKey: appliedKey) else { return false }
+        UserDefaults.standard.set(date, forKey: domain.deletionKey)
+        UserDefaults.standard.set(date, forKey: appliedKey)
+        return true
+    }
+
+    func retryDeletion(_ domain: SettingsDataDomain, consumer: String) {
+        UserDefaults.standard.removeObject(forKey: domain.appliedKey + consumer)
+    }
+
+    func beginDeletion(_ domain: SettingsDataDomain, includingCloud: Bool) {
+        let date = Date().timeIntervalSince1970
+        UserDefaults.standard.set(date, forKey: domain.deletionKey)
+        UserDefaults.standard.set(true, forKey: domain.pausedKey)
+        if includingCloud {
+            store.set(date, forKey: domain.deletionKey)
+            for key in storedKeys where SettingsDataPolicy.domain(for: key) == domain {
+                store.removeObject(forKey: key)
+            }
+            flush()
+        }
+        externalChange.send([domain.deletionKey])
+    }
+
+    func resumeSync(_ domain: SettingsDataDomain, pulling: Bool = false) {
+        UserDefaults.standard.set(false, forKey: domain.pausedKey)
+        if pulling {
+            // A deliberate Pull can restore a device-only reset from its untouched
+            // cloud copy. Shared deletion markers continue to apply.
+            UserDefaults.standard.set(sharedDeletionDate(domain), forKey: domain.deletionKey)
+        }
+    }
+
+    func withoutCloudWrites(_ work: () -> Void) {
+        let old = suppressWrites
+        suppressWrites = true
+        defer { suppressWrites = old }
+        work()
+    }
+
+    private func canRead(_ key: String) -> Bool {
+        guard let domain = SettingsDataPolicy.domain(for: key) else { return true }
+        guard SettingsDataPolicy.accepts(revision: store.double(forKey: "nova.data.modified." + key),
+                                         deletedAt: deletionDate(domain), paused: isPaused(domain)) else { return false }
+        // A legacy writer may replace a value without replacing our stamp. Bind
+        // the acknowledgement to its actual bytes before accepting it after a reset.
+        return deletionDate(domain) <= 0 || fingerprint(key) == store.string(forKey: "nova.data.fingerprint." + key)
+    }
+
+    private func prepareWrite(_ key: String) -> Bool {
+        guard !suppressWrites else { return false }
+        if let domain = SettingsDataPolicy.domain(for: key) {
+            guard !isPaused(domain) else { return false }
+            guard acknowledgedDeletion(domain) >= sharedDeletionDate(domain) else { return false }
+            if domain == .library {
+                guard UserDefaults.standard.double(forKey: SettingsDataDomain.history.appliedKey + ".library")
+                    >= sharedDeletionDate(.history) else { return false }
+            }
+        }
+        return true
+    }
+
+    private func fingerprint(_ key: String) -> String? {
+        guard let value = store.object(forKey: key),
+              let data = try? PropertyListSerialization.data(fromPropertyList: ["value": value], format: .binary, options: 0)
+        else { return nil }
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func recordWrite(_ key: String) {
+        guard SettingsDataPolicy.domain(for: key) != nil else { return }
+        store.set(Date().timeIntervalSince1970, forKey: "nova.data.modified." + key)
+        if let digest = fingerprint(key) { store.set(digest, forKey: "nova.data.fingerprint." + key) }
+        else { store.removeObject(forKey: "nova.data.fingerprint." + key) }
+    }
 
     /// Emits when iCloud reports that values changed on another device.
     let externalChange = PassthroughSubject<Set<String>, Never>()
@@ -54,7 +169,11 @@ final class CloudSync: ObservableObject {
     // the main actor to publish through `externalChange`.
     @objc private nonisolated func handleExternalChange(_ note: Notification) {
         let keys = (note.userInfo?[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String]) ?? []
+        let reason = note.userInfo?[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int
         Task { @MainActor in
+            self.lastExternalChange = Date()
+            self.syncIssue = reason == NSUbiquitousKeyValueStoreQuotaViolationChange
+                ? "iCloud storage quota reached. Local data is preserved." : nil
             self.externalChange.send(Set(keys))
         }
     }
@@ -62,45 +181,58 @@ final class CloudSync: ObservableObject {
     // MARK: - Primitive accessors
 
     func bool(forKey key: String) -> Bool? {
-        guard store.object(forKey: key) != nil else { return nil }
+        guard canRead(key), store.object(forKey: key) != nil else { return nil }
         return store.bool(forKey: key)
     }
     func setBool(_ value: Bool, forKey key: String) {
-        store.set(value, forKey: key); scheduleFlush()
+        guard prepareWrite(key) else { return }
+        store.set(value, forKey: key); recordWrite(key); scheduleFlush()
     }
 
-    func string(forKey key: String) -> String? { store.string(forKey: key) }
+    func string(forKey key: String) -> String? { canRead(key) ? store.string(forKey: key) : nil }
     func setString(_ value: String?, forKey key: String) {
+        guard prepareWrite(key) else { return }
         if let value { store.set(value, forKey: key) } else { store.removeObject(forKey: key) }
+        recordWrite(key)
         scheduleFlush()
     }
 
-    func data(forKey key: String) -> Data? { store.data(forKey: key) }
+    func data(forKey key: String) -> Data? { canRead(key) ? store.data(forKey: key) : nil }
     func setData(_ value: Data?, forKey key: String) {
+        guard prepareWrite(key) else { return }
         if let value { store.set(value, forKey: key) } else { store.removeObject(forKey: key) }
+        recordWrite(key)
         scheduleFlush()
     }
 
     func double(forKey key: String) -> Double? {
-        guard store.object(forKey: key) != nil else { return nil }
+        guard canRead(key), store.object(forKey: key) != nil else { return nil }
         return store.double(forKey: key)
     }
     func setDouble(_ value: Double, forKey key: String) {
-        store.set(value, forKey: key); scheduleFlush()
+        guard prepareWrite(key) else { return }
+        store.set(value, forKey: key); recordWrite(key); scheduleFlush()
     }
 
-    func object(forKey key: String) -> Any? { store.object(forKey: key) }
+    func object(forKey key: String) -> Any? { canRead(key) ? store.object(forKey: key) : nil }
 
     /// Pushes any pending changes to iCloud immediately.
     /// Pulls the newest iCloud values down before reading a snapshot.
     func pull() {
-        store.synchronize()
+        requestSync()
     }
 
     func flush() {
         flushWorkItem?.cancel()
         flushWorkItem = nil
-        store.synchronize()
+        requestSync()
+    }
+
+    private func requestSync() {
+        lastSyncRequest = Date()
+        if !accountAvailable { syncIssue = "iCloud account unavailable; changes remain on this device." }
+        else if !store.synchronize() { syncIssue = "iCloud sync request could not start. Try again later." }
+        else { syncIssue = nil }
     }
 
     // MARK: - Coalesced flush

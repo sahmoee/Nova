@@ -116,9 +116,19 @@ actor ImageLoader {
                 return PlatformImage(data: data)
             }
 
-            // 4) Persist the downsampled JPEG for instant future loads.
-            if let jpeg = image.jpegData(compressionQuality: 0.85) {
-                try? jpeg.write(to: diskPath, options: .atomic)
+            // 4) Preserve transparent title/channel logos when persisting a decode.
+            // Opaque artwork keeps the compact JPEG representation. The existing
+            // cache filename is retained; UIImage identifies either format by bytes.
+            let hasAlpha: Bool
+            switch image.cgImage?.alphaInfo {
+            case .first, .last, .premultipliedFirst, .premultipliedLast, .alphaOnly:
+                hasAlpha = true
+            default:
+                hasAlpha = false
+            }
+            let encoded = hasAlpha ? image.pngData() : image.jpegData(compressionQuality: 0.85)
+            if let encoded {
+                try? encoded.write(to: diskPath, options: .atomic)
             }
             return image
         }

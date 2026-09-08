@@ -53,7 +53,7 @@ enum WhatsNew {
                 ReleaseFeature(
                     symbol: "rectangle.3.group.fill",
                     title: "A sharper streaming layout",
-                    detail: "Edge-to-edge artwork, ranked poster rails, tighter cards, crimson accents, and a focused My Nova destination make browsing faster."
+                    detail: "Edge-to-edge artwork, ranked poster rails, tighter cards, crimson accents, and a focused Library destination make browsing faster."
                 ),
                 ReleaseFeature(
                     symbol: "textformat.size",

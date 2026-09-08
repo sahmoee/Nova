@@ -16,6 +16,7 @@ final class LibraryStore: ObservableObject {
 
     @Published private(set) var items: [MediaItem] = []
     @Published private(set) var collections: [MediaCollection] = []
+    @Published private(set) var lastPersistenceError: String?
 
     private let fileURL: URL
     private let collectionsURL: URL
@@ -68,7 +69,9 @@ final class LibraryStore: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] keys in
                 guard let self else { return }
-                if keys.contains(self.cloudKey) || keys.contains(self.cloudRevisionKey) {
+                if keys.contains(self.cloudKey) || keys.contains(self.cloudRevisionKey)
+                    || keys.contains(SettingsDataDomain.library.deletionKey)
+                    || keys.contains(SettingsDataDomain.history.deletionKey) {
                     self.mergeFromCloudIfNewer()
                 }
             }
@@ -79,8 +82,18 @@ final class LibraryStore: ObservableObject {
     /// then publishes it. Uses a monotonically increasing revision so the most recent
     /// write wins and devices converge.
     private func mergeFromCloudIfNewer() {
+        applySettingsDeletions()
+        // Progress lives inside the library payload. A device-only history reset
+        // must suspend both directions until the user explicitly resumes sync.
+        guard !CloudSync.shared.isPaused(.history) else { return }
         guard let data = CloudSync.shared.data(forKey: cloudKey),
-              let decoded = try? decoder.decode([MediaItem].self, from: data) else { return }
+              var decoded = try? decoder.decode([MediaItem].self, from: data) else { return }
+        let historyDeletion = CloudSync.shared.deletionDate(.history)
+        for index in decoded.indices where historyDeletion > 0
+            && (decoded[index].lastPlayedDate?.timeIntervalSince1970 ?? 0) <= historyDeletion {
+            decoded[index].lastPlayedPosition = 0
+            decoded[index].lastPlayedDate = nil
+        }
 
         let cloudRev = CloudSync.shared.double(forKey: cloudRevisionKey) ?? 0
         let localRev = UserDefaults.standard.double(forKey: cloudRevisionKey)
@@ -115,7 +128,7 @@ final class LibraryStore: ObservableObject {
     }
 
     private func pushToCloudNow() {
-        guard !applyingRemoteChange else { return }
+        guard !applyingRemoteChange, !CloudSync.shared.isPaused(.history) else { return }
         guard let data = try? encoder.encode(items) else { return }
         // Skip if the payload exceeds iCloud KVS's per-value limit (~1MB); the local
         // file still holds everything, we just can't mirror an oversized library.
@@ -299,12 +312,16 @@ final class LibraryStore: ObservableObject {
 
     /// Writes only the local file, without touching iCloud (used when applying a
     /// change that came *from* iCloud, to avoid an echo).
-    private func persistLocalOnly() {
+    @discardableResult
+    private func persistLocalOnly() -> Bool {
         do {
             let data = try encoder.encode(items)
             try data.write(to: fileURL, options: [.atomic])
+            lastPersistenceError = nil
+            return true
         } catch {
-            // Persistence failure shouldn't crash the UI; surface elsewhere if needed.
+            lastPersistenceError = error.localizedDescription
+            return false
         }
     }
 
@@ -451,6 +468,73 @@ final class LibraryStore: ObservableObject {
     func clearAll() {
         items.removeAll()
         persist()
+    }
+
+    /// Explicit Settings resets are local writes. Cloud deletion is represented
+    /// separately by a tombstone, never by an ambiguous empty merge.
+    func applySettingsDeletions() {
+        let cloud = CloudSync.shared
+        if cloud.consumeDeletion(.library, consumer: ".library") {
+            cloudPushTask?.cancel()
+            items = []
+            collections = []
+            queueIDs = []
+            var saved = persistLocalOnly()
+            do { try encoder.encode(collections).write(to: collectionsURL, options: .atomic) }
+            catch { saved = false; lastPersistenceError = error.localizedDescription }
+            if !saved { cloud.retryDeletion(.library, consumer: ".library") }
+            UserDefaults.standard.set(try? encoder.encode(queueIDs), forKey: queueDefaultsKey)
+            SpotlightIndexer.clear()
+            writeWidgetSnapshot()
+        }
+        if cloud.consumeDeletion(.history, consumer: ".library") {
+            cloudPushTask?.cancel()
+            for index in items.indices {
+                items[index].lastPlayedPosition = 0
+                items[index].lastPlayedDate = nil
+            }
+            if !persistLocalOnly() { cloud.retryDeletion(.history, consumer: ".library") }
+            writeWidgetSnapshot()
+        }
+    }
+
+    func pushSettingsDataToCloud() {
+        CloudSync.shared.resumeSync(.library)
+        CloudSync.shared.resumeSync(.history)
+        pushToCloudNow()
+        persistCollections()
+        persistQueue()
+    }
+
+    func pullSettingsDataFromCloud() {
+        CloudSync.shared.resumeSync(.library, pulling: true)
+        CloudSync.shared.resumeSync(.history, pulling: true)
+        // This is an explicit replacement request, including queue and collections.
+        UserDefaults.standard.set(0, forKey: cloudRevisionKey)
+        mergeFromCloudIfNewer()
+        if let data = CloudSync.shared.data(forKey: queueDefaultsKey),
+           let decoded = try? decoder.decode([UUID].self, from: data) {
+            queueIDs = decoded
+            UserDefaults.standard.set(data, forKey: queueDefaultsKey)
+        }
+        if let string = CloudSync.shared.string(forKey: collectionsCloudKey),
+           let data = string.data(using: .utf8),
+           let decoded = try? decoder.decode([MediaCollection].self, from: data) {
+            collections = decoded
+            try? data.write(to: collectionsURL, options: .atomic)
+        }
+    }
+
+    func redactCloudWatchHistory() {
+        guard let data = CloudSync.shared.rawMirrorData(forKey: cloudKey),
+              var shared = try? decoder.decode([MediaItem].self, from: data) else { return }
+        for index in shared.indices {
+            shared[index].lastPlayedPosition = 0
+            shared[index].lastPlayedDate = nil
+        }
+        if let redacted = try? encoder.encode(shared) {
+            CloudSync.shared.replaceMirrorAfterDeletion(redacted, forKey: cloudKey)
+        }
     }
 
     /// Resets only watch progress across the whole library.

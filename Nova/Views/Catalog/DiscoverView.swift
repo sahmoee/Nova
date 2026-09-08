@@ -13,6 +13,7 @@ struct DiscoverView: View {
     @Binding var path: NavigationPath
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var settings: SettingsStore
+    @EnvironmentObject private var nav: NavigationCoordinator
 
     @State private var query = ""
     @State private var results: [CatalogItem] = []
@@ -59,6 +60,9 @@ struct DiscoverView: View {
 
     private var browseMenu: some View {
         Menu {
+            #if os(tvOS)
+            Button { nav.selection = .ai } label: { Label("Ask Nova", systemImage: "sparkles") }
+            #endif
             Button { path.append(DiscoverRoute.newAndHot) } label: {
                 Label("New & Hot", systemImage: "play.rectangle.on.rectangle.fill")
             }
@@ -99,11 +103,15 @@ struct DiscoverView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                    #if os(tvOS)
+                    TVPageHeading(title: "Search", systemImage: "magnifyingglass")
+                    #else
                     NovaGradientPageHeader(title: "Browse",
                                            subtitle: "Search movies, shows, live channels, and your connected catalogs",
                                            systemImage: "magnifyingglass")
                         .padding(.horizontal, -Theme.Spacing.edge)
                         .padding(.top, -Theme.Spacing.edge)
+                    #endif
 
                     searchField
 
@@ -140,6 +148,9 @@ struct DiscoverView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(Theme.Colors.appBackground.ignoresSafeArea())
+            #if os(tvOS)
+            .tvRootMenu()
+            #endif
             .navigationDestination(for: CatalogItem.self) { item in
                 ContentDetailView(item: item)
             }

@@ -59,10 +59,13 @@ struct BackupSnapshot: Codable, Equatable {
     /// Keychain secrets: account -> value. Includes API keys, tokens, and the
     /// per-share SMB passwords (accounts of the form "smb.<uuid>").
     var secrets: [String: String] = [:]
+    /// Additive acknowledgement: legacy snapshots lack this and cannot resurrect
+    /// a category after a newer client has recorded a shared deletion.
+    var deletionAcknowledgements: [String: Double] = [:]
 
     private enum CodingKeys: String, CodingKey {
         case version, createdAt, deviceName, settings
-        case smbSharesJSON, addonsJSON, liveTVJSON, secrets
+        case smbSharesJSON, addonsJSON, liveTVJSON, secrets, deletionAcknowledgements
     }
 
     init() {}
@@ -80,6 +83,7 @@ struct BackupSnapshot: Codable, Equatable {
         addonsJSON = try values.decodeIfPresent(Data.self, forKey: .addonsJSON)
         liveTVJSON = try values.decodeIfPresent(Data.self, forKey: .liveTVJSON)
         secrets = try values.decodeIfPresent([String: String].self, forKey: .secrets) ?? [:]
+        deletionAcknowledgements = try values.decodeIfPresent([String: Double].self, forKey: .deletionAcknowledgements) ?? [:]
     }
 }
 
@@ -297,7 +301,7 @@ final class BackupManager: ObservableObject {
         let defaults = UserDefaults.standard
         let all = defaults.dictionaryRepresentation()
         for (key, value) in all {
-            guard settingPrefixes.contains(where: { key.hasPrefix($0) }) else { continue }
+            guard SettingsDataPolicy.domain(for: key) == .preferences else { continue }
             switch value {
             case let n as NSNumber:
                 // UserDefaults bridges Bool and numbers to NSNumber; tell them apart.
@@ -307,6 +311,8 @@ final class BackupManager: ObservableObject {
                 snap.settings[key] = .string(s)
             case let d as Data:
                 snap.settings[key] = .data(d)
+            case let values as [String]:
+                if let data = try? JSONEncoder().encode(values) { snap.settings[key] = .data(data) }
             default:
                 break   // arrays/dicts are captured via their own JSON keys
             }
@@ -329,6 +335,7 @@ final class BackupManager: ObservableObject {
     func createBackup() {
         var snap = BackupSnapshot()
         snap.deviceName = deviceName()
+        captureDeletionAcknowledgements(into: &snap)
 
         // Settings: capture every app-owned preference by prefix, plus the JSON blobs.
         captureAllSettings(into: &snap)
@@ -351,6 +358,13 @@ final class BackupManager: ObservableObject {
                 snap.secrets[account] = value
             }
         }
+
+        // Device-only resets must not alter the shared automatic setup backup.
+        // Preserve those categories from the previous mirror, or omit them if no
+        // shared version exists. Local export remains an explicit separate action.
+        let previous = loadSnapshotRecordFromCloud()?.snapshot
+        snap = SettingsDataPolicy.preservingPausedCategories(in: snap, previous: previous,
+            paused: Set(SettingsDataDomain.allCases.filter { CloudSync.shared.isPaused($0) }))
 
         // Persist to iCloud.
         if let data = try? JSONEncoder().encode(snap) {
@@ -448,7 +462,7 @@ final class BackupManager: ObservableObject {
     // MARK: - Helpers
 
     private func loadSnapshotFromCloud() -> BackupSnapshot? {
-        loadSnapshotRecordFromCloud()?.snapshot
+        loadSnapshotRecordFromCloud().map { sanitizedForCurrentDeletionState($0.snapshot) }
     }
 
     /// Reads both the iCloud Documents mirror and the KVS fallback, preferring the
@@ -581,6 +595,7 @@ final class BackupManager: ObservableObject {
     func exportSnapshotFile(including contents: BackupContents = .safe) -> URL? {
         var snap = BackupSnapshot()
         snap.deviceName = deviceName()
+        captureDeletionAcknowledgements(into: &snap)
 
         if contents.contains(.preferences) {
             captureAllSettings(into: &snap)
@@ -631,6 +646,7 @@ final class BackupManager: ObservableObject {
     private func buildSnapshotData(including contents: BackupContents) -> Data? {
         var snap = BackupSnapshot()
         snap.deviceName = deviceName()
+        captureDeletionAcknowledgements(into: &snap)
         if contents.contains(.preferences) {
             captureAllSettings(into: &snap)
             let defaults = UserDefaults.standard
@@ -777,11 +793,24 @@ final class BackupManager: ObservableObject {
     /// Downloads a snapshot from a URL (e.g. a link or one encoded in a QR code) and
     /// returns it as Data for inspection/import. Only http(s) URLs are fetched.
     func downloadSnapshot(from url: URL) async -> Data? {
-        guard url.scheme == "http" || url.scheme == "https" else { return nil }
+        guard SettingsDataPolicy.validSnapshotURL(url.absoluteString) != nil else { return nil }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = 30
+        configuration.timeoutIntervalForResource = 60
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
         do {
-            let (data, response) = try await AppNetworking.shared.data(from: url)
+            let (bytes, response) = try await session.bytes(from: url)
             if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                 return nil
+            }
+            let limit = 10 * 1024 * 1024
+            guard response.expectedContentLength <= Int64(limit) else { return nil }
+            var data = Data()
+            for try await byte in bytes {
+                try Task.checkCancellation()
+                guard data.count < limit else { return nil }
+                data.append(byte)
             }
             // Validate it actually decodes as a snapshot before handing it back.
             guard (try? BackupCompatibility.decode(data, fileName: url.lastPathComponent)) != nil else {
@@ -789,7 +818,7 @@ final class BackupManager: ObservableObject {
             }
             return data
         } catch {
-            NovaLog.sync.error("Snapshot download failed: \(String(describing: error), privacy: .public)")
+            NovaLog.sync.error("Snapshot download failed or was cancelled")
             return nil
         }
     }
@@ -797,7 +826,43 @@ final class BackupManager: ObservableObject {
     /// Returns which categories a raw snapshot blob contains.
     func contentsOfSnapshotData(_ data: Data) -> BackupContents? {
         guard let decoded = try? BackupCompatibility.decode(data) else { return nil }
-        return availableContents(in: decoded.snapshot)
+        return availableContents(in: sanitizedForCurrentDeletionState(decoded.snapshot))
+    }
+
+    func snapshotPreview(_ data: Data) -> BackupSnapshot? {
+        guard data.count <= 10 * 1024 * 1024,
+              let decoded = try? BackupCompatibility.decode(data) else { return nil }
+        return sanitizedForCurrentDeletionState(decoded.snapshot)
+    }
+
+    /// Deletion markers also apply to automatic/explicit backup restoration. An
+    /// old setup backup must never silently reinstate a category the user cleared.
+    private func sanitizedForCurrentDeletionState(_ original: BackupSnapshot) -> BackupSnapshot {
+        let cloud = CloudSync.shared
+        return SettingsDataPolicy.sanitizeSnapshot(original,
+            deletedAt: Dictionary(uniqueKeysWithValues: SettingsDataDomain.allCases.map { ($0, cloud.deletionDate($0)) }),
+            paused: Set(SettingsDataDomain.allCases.filter { cloud.isPaused($0) }))
+    }
+
+    private func captureDeletionAcknowledgements(into snapshot: inout BackupSnapshot) {
+        snapshot.deletionAcknowledgements = Dictionary(uniqueKeysWithValues: SettingsDataDomain.allCases.map {
+            ($0.rawValue, CloudSync.shared.acknowledgedDeletion($0))
+        })
+    }
+
+    /// Remove deleted categories from both stored backup mirrors while preserving
+    /// every unrelated category. Tombstones remain authoritative if a mirror is
+    /// temporarily unavailable or an older device later sends its old backup.
+    func redactDeletedCategoryFromCloudBackup(_ domain: SettingsDataDomain) {
+        guard let record = loadSnapshotRecordFromCloud() else { return }
+        var snapshot = record.snapshot
+        if domain == .addons { snapshot.addonsJSON = nil }
+        snapshot.settings = snapshot.settings.filter { SettingsDataPolicy.domain(for: $0.key) != domain }
+        snapshot.deletionAcknowledgements[domain.rawValue] = CloudSync.shared.deletionDate(domain)
+        guard let data = try? JSONEncoder().encode(snapshot) else { return }
+        writeUbiquityBackup(data)
+        CloudSync.shared.setData(data, forKey: BackupCompatibility.currentCloudKey)
+        CloudSync.shared.flush()
     }
 
     /// Imports a snapshot from a raw blob (from a URL download or QR payload),
@@ -842,14 +907,24 @@ final class BackupManager: ObservableObject {
 
     /// Applies a snapshot's selected categories to this device.
     private func apply(_ snap: BackupSnapshot, restoring contents: BackupContents) {
+        let snap = sanitizedForCurrentDeletionState(snap)
         let defaults = UserDefaults.standard
         if contents.contains(.preferences) {
             for (k, v) in snap.settings {
+                let localKey = SettingsDataPolicy.localPreferenceKey(for: k)
+                let cloudKey = k == "stream.history.v1" ? StreamHistoryStore.cloudKey
+                    : SettingsDataPolicy.cloudPreferenceKey(for: k)
                 switch v {
-                case .bool(let b):   defaults.set(b, forKey: k); CloudSync.shared.setBool(b, forKey: k)
-                case .string(let s): defaults.set(s, forKey: k); CloudSync.shared.setString(s, forKey: k)
-                case .double(let d): defaults.set(d, forKey: k)
-                case .data(let d):   defaults.set(d, forKey: k); CloudSync.shared.setData(d, forKey: k)
+                case .bool(let b):   defaults.set(b, forKey: localKey); CloudSync.shared.setBool(b, forKey: cloudKey)
+                case .string(let s): defaults.set(s, forKey: localKey); CloudSync.shared.setString(s, forKey: cloudKey)
+                case .double(let d):
+                    guard d.isFinite else { continue }
+                    defaults.set(d, forKey: localKey); CloudSync.shared.setDouble(d, forKey: cloudKey)
+                case .data(let d):
+                    if k == "settings.pinnedCollections", let pins = try? JSONDecoder().decode([String].self, from: d) {
+                        defaults.set(pins, forKey: localKey)
+                    } else { defaults.set(d, forKey: localKey) }
+                    CloudSync.shared.setData(d, forKey: cloudKey)
                 }
             }
         }
@@ -864,6 +939,7 @@ final class BackupManager: ObservableObject {
         }
         if contents.contains(.addons), let addons = snap.addonsJSON {
             writeSupportFile("addons.json", addons)
+            CloudSync.shared.setData(addons, forKey: "cloud.addons")
         }
         if contents.contains(.secrets) {
             for (account, value) in snap.secrets {

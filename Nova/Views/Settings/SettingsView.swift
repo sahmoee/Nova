@@ -18,7 +18,7 @@ struct SettingsView: View {
 
     @State private var settingsSearch = ""
     #if os(tvOS)
-    @State private var selectedCategory: String = "playback"
+    @State private var selectedCategory: String = "icloud"
     #endif
 
     // MARK: - Directory model
@@ -135,21 +135,19 @@ struct SettingsView: View {
     #if os(tvOS)
     private var tvOSBody: some View {
         NavigationStack(path: $path) {
-            VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                Text("Settings")
-                    .font(Theme.Font.screenTitle())
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .padding(.horizontal, Theme.Spacing.edge)
-                    .padding(.top, Theme.Spacing.lg)
+            VStack(alignment: .leading, spacing: 18) {
+                TVPageHeading(title: "Settings", systemImage: "gearshape.fill")
+                    .padding(.horizontal, TVReferenceStyle.edge)
+                    .padding(.top, TVReferenceStyle.top)
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Theme.Spacing.md) {
-                        ForEach(allCategories) { cat in
+                    HStack(spacing: 10) {
+                        ForEach(tvCategories) { cat in
                             categoryTab(cat)
                         }
                     }
-                    .padding(.horizontal, Theme.Spacing.edge)
-                    .padding(.vertical, Theme.Spacing.sm)
+                    .padding(.horizontal, TVReferenceStyle.edge)
+                    .padding(.vertical, 6)
                 }
 
                 // The selected category screen scrolls itself, so it isn't wrapped in
@@ -158,28 +156,53 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
             .background(Theme.Colors.appBackground.ignoresSafeArea())
+            .tvRootMenu()
         }
     }
 
     private var selectedDestination: some View {
-        (allCategories.first { $0.id == selectedCategory } ?? allCategories[0]).destination()
+        (tvCategories.first { $0.id == selectedCategory } ?? tvCategories[0]).destination()
     }
 
     private func categoryTab(_ cat: Category) -> some View {
         Button { selectedCategory = cat.id } label: {
-            HStack(spacing: Theme.Spacing.sm) {
-                Image(systemName: cat.icon)
-                Text(cat.title)
-            }
-            .font(.appFont(22, weight: .semibold))
-            .padding(.horizontal, Theme.Spacing.md)
-            .padding(.vertical, Theme.Spacing.sm)
-            .background(selectedCategory == cat.id ? Theme.Colors.accent : Theme.Colors.card,
-                        in: Capsule())
-            .foregroundStyle(selectedCategory == cat.id ? Color.white : Theme.Colors.textSecondary)
+            Text(cat.title)
+                .font(.appFont(22, weight: .semibold))
+                .padding(.horizontal, 17)
+                .frame(height: TVReferenceStyle.controlHeight)
         }
-        .buttonStyle(NovaChipButtonStyle())
+        .buttonStyle(TVReferenceButtonStyle(selected: selectedCategory == cat.id))
         .accessibilityValue(selectedCategory == cat.id ? "Selected" : "")
+    }
+
+    private var tvCategories: [Category] {
+        func tab(_ id: String, _ title: String, _ destination: @escaping () -> AnyView) -> Category {
+            Category(id: id, icon: "gearshape", color: Theme.Colors.accent, title: title, destination: destination)
+        }
+        var tabs: [Category] = []
+        if !settings.guestMode {
+            tabs.append(tab("sources", "Sources") { AnyView(SourcesView()) })
+            if !settings.reviewSafeMode {
+                tabs.append(tab("addons", "Addons") { AnyView(AddonsView()) })
+            }
+        }
+        tabs.append(tab("player", "Player") { AnyView(TVPlayerSettingsPanel()) })
+        if !settings.guestMode {
+            tabs.append(tab("mdblist", "MDBList") { AnyView(TVIntegrationSettingsPanel(kind: .mdblist)) })
+            tabs.append(tab("trakt", "Trakt") { AnyView(TVIntegrationSettingsPanel(kind: .trakt)) })
+        }
+        tabs.append(tab("regex", "Regex") { AnyView(TitleCleanupRulesView()) })
+        tabs.append(tab("autoplay", "Auto-Play") { AnyView(TVAutoPlaySettingsPanel()) })
+        tabs.append(tab("cache", "Cache") { AnyView(TVCacheSettingsPanel()) })
+        tabs.append(tab("search", "Search") { AnyView(TVSearchSettingsPanel()) })
+        tabs.append(tab("ui", "UI") { AnyView(TVInterfaceSettingsPanel()) })
+        tabs.append(tab("glow", "Glow") { AnyView(TVIntegrationSettingsPanel(kind: .glow)) })
+        tabs.append(tab("legal", "Legal") { AnyView(SettingsScreen(title: "Legal") { PrivacyLegalSettingsContent() }) })
+        if !settings.guestMode {
+            tabs.append(tab("icloud", "iCloud") { AnyView(TVCloudSettingsPanel(addonStore: env.addonStore)) })
+            tabs.append(tab("web", "Web Management") { AnyView(TVWebManagementPanel()) })
+        }
+        return tabs
     }
     #endif
 
@@ -251,7 +274,7 @@ struct SettingsView: View {
         }
 
         // Library & home.
-        groups.append(CategoryGroup(header: "My Nova", items: [
+        groups.append(CategoryGroup(header: "Library", items: [
             Category(id: "library", icon: "books.vertical.fill", color: Theme.Colors.iconRed, title: "Library") {
                 AnyView(SettingsScreen(title: "Library") { LibrarySettingsContent() })
             },

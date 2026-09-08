@@ -47,6 +47,13 @@ final class CloudBackedStore<Value: Codable> {
         }
     }
 
+    /// An explicit local reset or replacement must invalidate a previously queued
+    /// write before it can put the older value back into the shared mirror.
+    func cancelPendingPush() {
+        pushTask?.cancel()
+        pushTask = nil
+    }
+
     /// Emits the freshly decoded value whenever another device changes this key.
     var externalChange: AnyPublisher<Value, Never> {
         CloudSync.shared.externalChange

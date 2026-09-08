@@ -15,7 +15,6 @@ struct HomeView: View {
     @EnvironmentObject private var nav: NavigationCoordinator
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var settings: SettingsStore
-    @Environment(\.dynamicAccent) private var dynamicAccent
 
     @StateObject private var shelfStore = HomeShelfStore.shared
     @StateObject private var profiles = ViewingProfileStore.shared
@@ -44,25 +43,15 @@ struct HomeView: View {
             ZStack {
                 Theme.Colors.appBackground.ignoresSafeArea()
 
-                #if os(tvOS)
-                // Let the selected artwork tint the full living-room canvas, matching
-                // the reference's immersive red/blue/green scene treatment.
-                RadialGradient(
-                    colors: [dynamicAccent.opacity(0.34), .clear],
-                    center: .topLeading,
-                    startRadius: 20,
-                    endRadius: 1250
-                )
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
-                #endif
-
                 if library.items.isEmpty && shelfStore.enabledShelves.isEmpty {
                     welcomeState
                 } else {
                     watchNowContent
                 }
             }
+            #if os(tvOS)
+            .tvRootMenu()
+            #endif
             .fullScreenCover(item: $selectedItem) { item in
                 // Present the player as a full-screen cover so no tab bar, sidebar,
                 // or mini-bar remains visible during playback on any platform.
@@ -89,6 +78,9 @@ struct HomeView: View {
     // MARK: - Watch Now
 
     private var watchNowContent: some View {
+        #if os(tvOS)
+        tvWatchNowContent
+        #else
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
                 if !env.tmdb.hasKey {
@@ -105,56 +97,119 @@ struct HomeView: View {
                     onManage: { showQueue = true }
                 )
 
-                if profiles.preferences.showQuickAccess {
-                    #if os(iOS)
-                    StreamingDiscoverGrid(items: Array(quickAccessItems.prefix(4)))
-                    #else
-                    AppleTVQuickAccessRow(items: quickAccessItems)
-                    #endif
-                }
-
-                if profiles.preferences.showBecauseYouWatched,
-                   let anchor = library.recentlyWatched.first {
-                    BecauseYouWatchedCatalogRail(anchor: anchor) { catalog in
-                        path.append(catalog)
-                    }
-                }
-
-                ForEach(primarySmartRails) { rail in
-                    AppleTVSmartRailView(rail: rail, onSelect: openDetail)
-                }
-
-                // Editorial catalog rows remain network-backed and user-customizable,
-                // but now sit inside the same Watch Now feed as personal rails.
-                Group {
-                    ForEach(shelfStore.enabledShelves) { shelf in
-                        CatalogShelfRow(shelf: shelf, showSourceLabel: false)
-                    }
-                }
-                .id(shelfRefreshToken)
-
-                if profiles.preferences.showSourceHub {
-                    AppleTVSourceHub(items: sourceHealthItems) {
-                        path.append(HomeRoute.sources)
-                    }
-                }
-
-                if profiles.preferences.showSmartCollections {
-                    smartCollectionsFooter
-                }
+                additionalHomeSections
             }
             .padding(.bottom, Theme.Spacing.xl)
         }
-        #if os(iOS)
         // The artwork is the page header, so it reaches behind the status area.
         // ImmersiveFeaturedHero keeps the complete foreground artwork aspect-fit.
         .ignoresSafeArea(edges: .top)
         .refreshable { await refreshShelves() }
-        #else
-        .ignoresSafeArea(edges: .top)
-        .focusScope(heroFocusNS)
-        .scrollClipDisabled()
         #endif
+    }
+
+    #if os(tvOS)
+    private var tvWatchNowContent: some View {
+        GeometryReader { geometry in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 28) {
+                    TVHomeHeroCarousel(
+                        items: heroItems,
+                        height: max(620, geometry.size.height * 0.74),
+                        autoAdvance: profiles.preferences.autoAdvanceHero,
+                        isActive: nav.selection == .home && path.isEmpty && selectedItem == nil
+                            && !showCustomize && !showQueue && !showProfiles,
+                        reduceArtworkMotion: profiles.preferences.reduceArtworkMotion,
+                        playFocusNamespace: heroFocusNS,
+                        onPlay: play,
+                        onOpen: openDetail
+                    )
+                    .overlay(alignment: .topLeading) {
+                        TVPageHeading(title: "Home", systemImage: "house")
+                            .accessibilityIdentifier("home.menu")
+                            .padding(.leading, TVReferenceStyle.edge)
+                            .padding(.top, TVReferenceStyle.top)
+                    }
+
+                    TVContinueWatchingRail(
+                        items: PersonalizedHomeEngine.upNext(library: library),
+                        availableWidth: geometry.size.width,
+                        onPlay: play,
+                        onRestart: restart,
+                        onRemove: removeFromUpNext,
+                        onManage: { showQueue = true }
+                    )
+
+                    if !env.tmdb.hasKey { setupBanner }
+                    additionalHomeSections
+                    tvHomeOptions
+                }
+                .padding(.bottom, 64)
+            }
+            .scrollClipDisabled()
+            .focusScope(heroFocusNS)
+        }
+        .ignoresSafeArea()
+    }
+
+    private var tvHomeOptions: some View {
+        HStack(spacing: 20) {
+            Button { showCustomize = true } label: {
+                Label("Customize Home", systemImage: "slider.horizontal.3")
+                    .padding(.horizontal, 24)
+                    .frame(height: TVReferenceStyle.controlHeight)
+            }
+            Button { showProfiles = true } label: {
+                Label("Switch Profile", systemImage: "person.crop.circle")
+                    .padding(.horizontal, 24)
+                    .frame(height: TVReferenceStyle.controlHeight)
+            }
+        }
+        .font(.appFont(21, weight: .medium))
+        .buttonStyle(TVReferenceButtonStyle())
+        .padding(.horizontal, TVReferenceStyle.edge)
+    }
+    #endif
+
+    @ViewBuilder
+    private var additionalHomeSections: some View {
+        if profiles.preferences.showQuickAccess {
+            #if os(iOS)
+            StreamingDiscoverGrid(items: Array(quickAccessItems.prefix(4)))
+            #else
+            AppleTVQuickAccessRow(items: quickAccessItems)
+            #endif
+        }
+
+        if profiles.preferences.showBecauseYouWatched,
+           let anchor = library.recentlyWatched.first {
+            BecauseYouWatchedCatalogRail(anchor: anchor) { catalog in
+                path.append(catalog)
+            }
+        }
+
+        ForEach(primarySmartRails) { rail in
+            AppleTVSmartRailView(rail: rail, onSelect: openDetail)
+        }
+
+        // Editorial catalog rows remain network-backed and user-customizable,
+        // but now sit inside the same Watch Now feed as personal rails.
+        Group {
+            ForEach(shelfStore.enabledShelves) { shelf in
+                CatalogShelfRow(shelf: shelf, showSourceLabel: false)
+            }
+        }
+        .id(shelfRefreshToken)
+
+        if profiles.preferences.showSourceHub {
+            AppleTVSourceHub(items: sourceHealthItems) {
+                path.append(HomeRoute.sources)
+            }
+        }
+
+        if profiles.preferences.showSmartCollections {
+            smartCollectionsFooter
+        }
     }
 
     private var topBar: some View {
@@ -182,6 +237,7 @@ struct HomeView: View {
         library.viewingHistoryHeroItems
     }
 
+    #if os(iOS)
     @ViewBuilder
     private var heroCarousel: some View {
         let items = heroItems
@@ -189,7 +245,6 @@ struct HomeView: View {
             fallbackHeader
         } else {
             VStack(spacing: Theme.Spacing.sm) {
-                #if os(iOS)
                 ZStack {
                     let safeIndex = min(heroIndex, items.count - 1)
                     let item = items[safeIndex]
@@ -216,23 +271,6 @@ struct HomeView: View {
                             }
                         }
                 )
-                #else
-                ZStack {
-                    let safeIndex = min(heroIndex, items.count - 1)
-                    let item = items[safeIndex]
-                    FeaturedHero(item: item,
-                                 height: PlatformCapabilities.homeHeroHeight,
-                                 badge: heroBadge(for: item),
-                                 onMoreInfo: openDetail,
-                                 playFocusNamespace: heroFocusNS) { play($0) }
-                        .overlay(alignment: .top) { topBar }
-                        .id(item.id)
-                        .transition(.opacity)
-                }
-                .animation(profiles.preferences.reduceArtworkMotion ? nil : .easeInOut(duration: 0.55),
-                           value: heroIndex)
-                .frame(height: PlatformCapabilities.homeHeroHeight)
-                #endif
 
                 if items.count > 1 {
                     HStack(spacing: 6) {
@@ -260,10 +298,7 @@ struct HomeView: View {
         }
     }
 
-    private func heroBadge(for item: MediaItem) -> String? {
-        if item.hasResumePoint { return "Up Next" }
-        return "Recently Watched"
-    }
+    #endif
 
     private var homeMenu: some View {
         Menu {

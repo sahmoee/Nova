@@ -45,7 +45,9 @@ final class StreamHistoryStore: ObservableObject {
         CloudSync.shared.externalChange
             .receive(on: RunLoop.main)
             .sink { [weak self] keys in
-                if keys.contains(Self.cloudKey) { self?.mergeFromCloud() }
+                if keys.contains(Self.cloudKey) || keys.contains(SettingsDataDomain.history.deletionKey) {
+                    self?.mergeFromCloud()
+                }
             }
             .store(in: &cancellables)
 
@@ -121,7 +123,8 @@ final class StreamHistoryStore: ObservableObject {
     private func load() {
         guard let data = defaults.data(forKey: defaultsKey),
               let decoded = try? JSONDecoder().decode([String: StreamHistoryEntry].self, from: data) else { return }
-        entries = decoded
+        let boundary = CloudSync.shared.deletionDate(.history)
+        entries = decoded.filter { $0.value.lastUsed.timeIntervalSince1970 > boundary }
     }
 
     private func persist() {
@@ -133,10 +136,11 @@ final class StreamHistoryStore: ObservableObject {
     /// Adopt the iCloud copy, merging by most-recent-per-key so no device's history
     /// is lost when two devices played different things.
     private func mergeFromCloud() {
+        applySettingsDeletion()
         guard let data = CloudSync.shared.data(forKey: Self.cloudKey),
               let cloud = try? JSONDecoder().decode([String: StreamHistoryEntry].self, from: data) else { return }
         var merged = entries
-        for (k, v) in cloud {
+        for (k, v) in cloud where v.lastUsed.timeIntervalSince1970 > CloudSync.shared.deletionDate(.history) {
             if let local = merged[k] {
                 if v.lastUsed > local.lastUsed { merged[k] = v }
             } else {
@@ -149,5 +153,21 @@ final class StreamHistoryStore: ObservableObject {
                 defaults.set(encoded, forKey: defaultsKey)
             }
         }
+    }
+
+    func applySettingsDeletion() {
+        guard CloudSync.shared.consumeDeletion(.history, consumer: ".streams") else { return }
+        entries = [:]
+        defaults.set(try? JSONEncoder().encode(entries), forKey: defaultsKey)
+    }
+
+    func pushSettingsDataToCloud() {
+        CloudSync.shared.resumeSync(.history)
+        persist()
+    }
+
+    func pullSettingsDataFromCloud() {
+        CloudSync.shared.resumeSync(.history, pulling: true)
+        mergeFromCloud()
     }
 }

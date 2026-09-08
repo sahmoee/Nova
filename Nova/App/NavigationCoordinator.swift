@@ -17,9 +17,14 @@ enum AppTab: Hashable, CaseIterable {
     var title: String {
         switch self {
         case .home:     return "Home"
-        case .discover: return "New & Hot"
+        case .discover:
+            #if os(tvOS)
+            return "Search"
+            #else
+            return "New & Hot"
+            #endif
         case .ai:       return "Ask Nova"
-        case .library:  return "My Nova"
+        case .library:  return "Library"
         case .settings: return "Settings"
         }
     }

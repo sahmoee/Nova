@@ -31,6 +31,11 @@ actor TMDBClient {
     private let session: URLSession
     private let decoder = JSONDecoder()
     private let keyProvider: @Sendable () -> String?
+    private let titleLogoCache = TTLCache<String, TitleLogoResult>(ttl: 24 * 60 * 60, maxEntries: 100)
+
+    private struct TitleLogoResult: Sendable {
+        let url: URL?
+    }
 
     init(session: URLSession = AppNetworking.shared,
          keyProvider: @escaping @Sendable () -> String? = { AppConfig.shared.tmdbKey }) {
@@ -171,6 +176,34 @@ actor TMDBClient {
         let path = isMovie ? "movie/\(tmdbID)" : "tv/\(tmdbID)"
         let detail: TMDBArtworkDetail = try await get(path)
         return (TMDBImage.poster(detail.posterPath), TMDBImage.backdrop(detail.backdropPath))
+    }
+
+    /// Real title artwork for the TV hero. A successful empty response is cached
+    /// too, so titles without logos do not repeat the lookup on every rotation.
+    /// This is presentation-only; library and catalog persistence stay unchanged.
+    func titleLogoURL(for contentID: ContentID) async throws -> URL? {
+        try Task.checkCancellation()
+        guard !contentID.type.isLive else { return nil }
+        let cacheKey = "\(contentID.type.rawValue):\(contentID.stableKey)"
+        if let cached = await titleLogoCache.value(for: cacheKey) { return cached.url }
+        guard hasKey else { return nil }
+
+        let isMovie = contentID.type == .movie
+        var resolvedID = contentID.tmdb
+        if resolvedID == nil, let imdb = contentID.imdb {
+            resolvedID = try await tmdbID(forIMDB: imdb, isMovie: isMovie)
+        }
+        try Task.checkCancellation()
+        guard let resolvedID, resolvedID > 0 else { return nil }
+
+        let kind = isMovie ? "movie" : "tv"
+        let response: TMDBTitleImages = try await get(
+            "\(kind)/\(resolvedID)/images", query: ["include_image_language": "en,null"]
+        )
+        try Task.checkCancellation()
+        let result = TitleLogoResult(url: response.preferredLogoURL)
+        await titleLogoCache.set(result, for: cacheKey)
+        return result.url
     }
 
     /// Returns a YouTube URL for the best trailer for a TMDB id, or nil if none.
@@ -505,5 +538,49 @@ extension TMDBClient {
     func lastEpisodeToAir(tmdbID: Int) async throws -> TMDBNextEpisode? {
         let detail: TMDBTVLastDetail = try await get("tv/\(tmdbID)")
         return detail.last_episode_to_air
+    }
+}
+
+// Only the logo subset of /images is decoded. PNG keeps the provider's transparent
+// lettering; unsupported formats and other languages fall back to the live title.
+struct TMDBTitleImages: Decodable, Sendable {
+    let logos: [Logo]
+
+    struct Logo: Decodable, Sendable {
+        let filePath: String
+        let language: String?
+        let width: Int
+        let height: Int
+        let voteAverage: Double?
+        let voteCount: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case width, height
+            case filePath = "file_path"
+            case language = "iso_639_1"
+            case voteAverage = "vote_average"
+            case voteCount = "vote_count"
+        }
+    }
+
+    var preferredLogoURL: URL? {
+        let candidates = logos.filter {
+            $0.filePath.lowercased().hasSuffix(".png") && $0.filePath.hasPrefix("/")
+                && ($0.language == "en" || $0.language == nil)
+                && $0.width > 0 && $0.height > 0
+        }
+        let best = candidates.sorted { left, right in
+            if (left.language == "en") != (right.language == "en") { return left.language == "en" }
+            let leftRating = left.voteAverage ?? 0
+            let rightRating = right.voteAverage ?? 0
+            if leftRating != rightRating { return leftRating > rightRating }
+            let leftVotes = left.voteCount ?? 0
+            let rightVotes = right.voteCount ?? 0
+            if leftVotes != rightVotes { return leftVotes > rightVotes }
+            if left.width != right.width { return left.width > right.width }
+            return left.filePath < right.filePath
+        }.first
+        guard let path = best?.filePath else { return nil }
+        return URL(string: TMDBImage.base + "original" + path)
     }
 }

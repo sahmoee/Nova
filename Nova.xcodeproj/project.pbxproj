@@ -7,8 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A50500000000000000000001 /* MediaReliabilityPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A50500000000000000000003 /* MediaReliabilityPolicy.swift */; };
-		A50500000000000000000002 /* MediaReliabilityPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A50500000000000000000003 /* MediaReliabilityPolicy.swift */; };
 		0144A47C7E7A4177992C406E /* ../Views/Settings/GuestModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2835FF8A9D0C4E3295CF4244 /* ../Views/Settings/GuestModeView.swift */; };
 		016D44CEC3A625BC31EC4D33 /* CollectionPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0CB13C2E1D3A27BA21C7FB5 /* CollectionPickerSheet.swift */; };
 		01C7A4EA1C34CC9696E7DB84 /* DuplicatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4974EDA4C5B58142AA007C8D /* DuplicatesView.swift */; };
@@ -73,6 +71,7 @@
 		29017800E6C9D484AA521BF6 /* PlaybackFailureReason.swift in Sources */ = {isa = PBXBuildFile; fileRef = 195002D833EFACCA7B669CDB /* PlaybackFailureReason.swift */; };
 		2949EFFBE12588BF52E92744 /* PlayerGestureOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 388E42C977C02DB5900E8FA8 /* PlayerGestureOverlay.swift */; };
 		2B20D0183B6445FBA89525BB /* ../Views/App/PersonalMediaDisclosureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9096BB0AB70541318ACCE62E /* ../Views/App/PersonalMediaDisclosureView.swift */; };
+		2C197DE97F19FE3D9D67ADE2 /* TVSettingsPanels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF75A65907D488E68308EB /* TVSettingsPanels.swift */; };
 		2C54E698554D464C8032273C /* LiveTVSourceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81593455C6754FA5A1512821 /* LiveTVSourceStore.swift */; };
 		2C54E698554D464C8032274C /* KodiAdvancedServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36CDA0124FF84BFB849A49A0 /* KodiAdvancedServices.swift */; };
 		2C54E698554D464C8032274D /* KodiAdvancedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36CDA0124FF84BFB849A49A1 /* KodiAdvancedView.swift */; };
@@ -81,6 +80,7 @@
 		2EC9E685A1DF4A94C6E9441E /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE3ABE58915541F160C540E1 /* QRScannerView.swift */; };
 		2FBA2AE3B71570960E2AA182 /* CollectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD28AB0F57F8C90396EEF8DA /* CollectionsView.swift */; };
 		2FE20AC91A84A06E2235EEE7 /* CloudBackedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C4F43F1FF1B7D16F4D0D0D9 /* CloudBackedStore.swift */; };
+		309EA22DEC44437F739A75BA /* SettingsDataPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C62A13CAA6CFBC2651B753A /* SettingsDataPolicy.swift */; };
 		30BF6037871EA9216F222BAE /* ContentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB93FE6531785B3E58686B8D /* ContentDetailView.swift */; };
 		3167C2EAE91670A5FF46D71E /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC594B0BAEC0D365B05066C1 /* LibraryStore.swift */; };
 		3180A8DF0AC50FFE7D788635 /* PlaybackProgressStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8DDEC4592E90E4DF8676EBD /* PlaybackProgressStore.swift */; };
@@ -243,6 +243,7 @@
 		9D5E869535D332D20EDC7739 /* VLCKitSPM in Frameworks */ = {isa = PBXBuildFile; productRef = 9A07A06C9D0037B1C911F758 /* VLCKitSPM */; };
 		9E77809DB16E46383CB2AB0C /* CloudBackedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C4F43F1FF1B7D16F4D0D0D9 /* CloudBackedStore.swift */; };
 		9FFD2D733A17EC7C1F5F72A1 /* VLCPlayerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 623954A6B50ECFBB344C96F4 /* VLCPlayerModel.swift */; };
+		A0407E944842F2967369CD0F /* TVHomeExperience.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1067296B5B715CC6856D24 /* TVHomeExperience.swift */; };
 		A11CE0010000000000000001 /* UnifiedQAReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000001 /* UnifiedQAReporter.swift */; };
 		A11CE0020000000000000001 /* UnifiedQAReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000001 /* UnifiedQAReporter.swift */; };
 		A11CE0110000000000000001 /* QAAIOverrideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0100000000000000001 /* QAAIOverrideView.swift */; };
@@ -257,6 +258,8 @@
 		A493BA90E230EDB0DA1C73A0 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3605D97A79B9AC12B001BD24 /* HomeView.swift */; };
 		A4ABB94C1A8742ABBEDEF617 /* ../Views/Library/FixMatchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0018B4468D814440B24504E5 /* ../Views/Library/FixMatchView.swift */; };
 		A4F33210453FAF7644264028 /* Sources/SourcesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E739E2597C4A8700F5D8AA04 /* Sources/SourcesView.swift */; };
+		A50500000000000000000001 /* MediaReliabilityPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A50500000000000000000003 /* MediaReliabilityPolicy.swift */; };
+		A50500000000000000000002 /* MediaReliabilityPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A50500000000000000000003 /* MediaReliabilityPolicy.swift */; };
 		A578F60DD65F852F9833715D /* SMBService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E02843FF0C186D60397EFC2 /* SMBService.swift */; };
 		A5B701AFE260C5A6D18C3904 /* MediaRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8243FC1919BC503B71FAB073 /* MediaRow.swift */; };
 		A614E5D42F837A7B74FE3BE7 /* VideoFileDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCE5B2E24E31F6EA00E7F72C /* VideoFileDetector.swift */; };
@@ -294,6 +297,7 @@
 		BCBD54F98906B4F665E1CE85 /* AddonStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3113BC855DAFD76F714E502E /* AddonStore.swift */; };
 		BCE709EDB43F14A2D1AE18AB /* DiskJSONCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6874AC4F6CBD256D3FA35C3 /* DiskJSONCache.swift */; };
 		BD31DDD1D1667A14FCB4BF0D /* StreamRanker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FDC1C7E9F7D7C4CE9065ECD /* StreamRanker.swift */; };
+		BD45E332FF486A03114F1AE0 /* TVSettingsPanels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF75A65907D488E68308EB /* TVSettingsPanels.swift */; };
 		BDAA2FA9B72220A480137965 /* MediaRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8243FC1919BC503B71FAB073 /* MediaRow.swift */; };
 		BDD019E179C19B8FF7194A74 /* StreamFilterParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04F20FC99B9CA657BD1A922F /* StreamFilterParser.swift */; };
 		BE4CB19152984FBCADF437CB /* AddonManagementComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F6EAC4729A4C13833E2C5D /* AddonManagementComponents.swift */; };
@@ -342,6 +346,8 @@
 		E4423BAEEDE0626B0124775D /* AddonStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3113BC855DAFD76F714E502E /* AddonStore.swift */; };
 		E47F8A472D84DF7649820F8F /* LibraryCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E01039EC91A80EEB10B225 /* LibraryCleanup.swift */; };
 		E526BC820594B93766A05931 /* EPGService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E5848E2DC6DECC9AE065EDE /* EPGService.swift */; };
+		E5CC8E430FA5BFD06ECF4F12 /* TVHomeExperience.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1067296B5B715CC6856D24 /* TVHomeExperience.swift */; };
+		E696EE9171D9E78B4414DF5A /* SettingsDataPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C62A13CAA6CFBC2651B753A /* SettingsDataPolicy.swift */; };
 		E69E30C19E64483DB3B0FB6D /* DiskJSONCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6874AC4F6CBD256D3FA35C3 /* DiskJSONCache.swift */; };
 		E727E4C734429F74E0D8DADF /* SMBStreamServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B03807FF5A0213B684F13BA /* SMBStreamServer.swift */; };
 		E73E83401B07485CB7A16EDC /* GeneratedPoster.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5CE7EFB7472D11354238143 /* GeneratedPoster.swift */; };
@@ -447,7 +453,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		A50500000000000000000003 /* MediaReliabilityPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaReliabilityPolicy.swift; sourceTree = "<group>"; };
 		0018B4468D814440B24504E5 /* ../Views/Library/FixMatchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../Views/Library/FixMatchView.swift; sourceTree = "<group>"; };
 		01343E017C42B6492DAB5600 /* SubtitlePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitlePickerView.swift; sourceTree = "<group>"; };
 		02CE2BC66986B738CE05444C /* StreamResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamResolver.swift; sourceTree = "<group>"; };
@@ -498,6 +503,7 @@
 		43C936856E3D4228C0C70A72 /* StreamModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamModels.swift; sourceTree = "<group>"; };
 		44483A3741A3146721D8B9CC /* HomeShelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeShelf.swift; sourceTree = "<group>"; };
 		4455167B362AA66733DE71F5 /* PlayerMemory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerMemory.swift; sourceTree = "<group>"; };
+		47AF75A65907D488E68308EB /* TVSettingsPanels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVSettingsPanels.swift; sourceTree = "<group>"; };
 		47F79402BB28EE3F82626E35 /* Nova.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Nova.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		48C23B60F65D2B45B9C58BB8 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		4974EDA4C5B58142AA007C8D /* DuplicatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuplicatesView.swift; sourceTree = "<group>"; };
@@ -515,6 +521,7 @@
 		57A309E70BDB4310B7F8E81F /* LibraryFolderStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryFolderStore.swift; sourceTree = "<group>"; };
 		58165057D48A7EAA60F6E97F /* PersonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonView.swift; sourceTree = "<group>"; };
 		5AC62884E4EFB136668EDA67 /* TraktClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TraktClient.swift; sourceTree = "<group>"; };
+		5C62A13CAA6CFBC2651B753A /* SettingsDataPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsDataPolicy.swift; sourceTree = "<group>"; };
 		5CA6E8C823A1C1FC2E0645D9 /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
 		5CADDA5C3797534329077911 /* FocusableButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusableButton.swift; sourceTree = "<group>"; };
 		5D65CB86D7CF8C7F02893171 /* HomeCustomizeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeCustomizeView.swift; sourceTree = "<group>"; };
@@ -562,6 +569,7 @@
 		9F142E8F22DC6AF0074871BC /* LanguageNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageNames.swift; sourceTree = "<group>"; };
 		A11CE0000000000000000001 /* UnifiedQAReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedQAReporter.swift; sourceTree = "<group>"; };
 		A11CE0100000000000000001 /* QAAIOverrideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QAAIOverrideView.swift; sourceTree = "<group>"; };
+		A50500000000000000000003 /* MediaReliabilityPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaReliabilityPolicy.swift; sourceTree = "<group>"; };
 		A57A00000000000000000002 /* NovaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NovaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A659D99C45AB4145BEBEC3FF /* PrivacyLegalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyLegalView.swift; sourceTree = "<group>"; };
 		A696F9E091F8F8DBFF1472AE /* LibraryCleanupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryCleanupView.swift; sourceTree = "<group>"; };
@@ -599,6 +607,7 @@
 		CB0FA42F693AECB67486AF1B /* PlaybackEngineRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackEngineRouter.swift; sourceTree = "<group>"; };
 		CB93FE6531785B3E58686B8D /* ContentDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentDetailView.swift; sourceTree = "<group>"; };
 		CBF62EC4C0977A9564D41FC8 /* Info-iOS.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-iOS.plist"; sourceTree = "<group>"; };
+		CC1067296B5B715CC6856D24 /* TVHomeExperience.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVHomeExperience.swift; sourceTree = "<group>"; };
 		CC332E4AAF036B86D4FECE00 /* PlaybackDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackDiagnostics.swift; sourceTree = "<group>"; };
 		CC542829C9B9623A7B195ABD /* SubtitleMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleMatcher.swift; sourceTree = "<group>"; };
 		CE6A4FDCD25B45BA32E3775D /* AddonModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddonModels.swift; sourceTree = "<group>"; };
@@ -705,6 +714,7 @@
 				EF8BD9365E738C71B05EAF6E /* CatalogShelfRow.swift */,
 				F61EA3D5970E9100BB084B82 /* FeaturedHero.swift */,
 				6BF803E67E684E889762C385 /* AppleTVExperience.swift */,
+				CC1067296B5B715CC6856D24 /* TVHomeExperience.swift */,
 				5CADDA5C3797534329077911 /* FocusableButton.swift */,
 				B8FE1CD994D810DCCBDB566C /* TextPromptSheet.swift */,
 				AE25591FDF8E628DCF17FB05 /* ExpandableText.swift */,
@@ -892,6 +902,7 @@
 				C4B6B11C8B202C03CABA9905 /* CatalogCache.swift */,
 				A9A7C4E1AFA66F74900ABB30 /* CatalogService.swift */,
 				9E57411D31532633B500CBFA /* CloudSync.swift */,
+				5C62A13CAA6CFBC2651B753A /* SettingsDataPolicy.swift */,
 				86F479B94958CAD981263A79 /* CodableFileStore.swift */,
 				B6E6E99F2C1AAF086CAAA463 /* DirectURLService.swift */,
 				5CA6E8C823A1C1FC2E0645D9 /* ImageCache.swift */,
@@ -1052,6 +1063,7 @@
 				A659D99C45AB4145BEBEC3FF /* PrivacyLegalView.swift */,
 				EE3ABE58915541F160C540E1 /* QRScannerView.swift */,
 				8FC799C8FC202185F638B2DF /* SettingsView.swift */,
+				47AF75A65907D488E68308EB /* TVSettingsPanels.swift */,
 				C5648ECDF32142A4AB7A313C /* OfflineDownloadsView.swift */,
 				6206D6A6B20150D04B288F1D /* SettingsCategoryViews.swift */,
 				F57A74FE5A8C29D2E9025A06 /* PlayFromLinkView.swift */,
@@ -1358,6 +1370,7 @@
 				5052DCFBF6CBB9AB693CC738 /* CatalogShelfRow.swift in Sources */,
 				F229DB054B56D0A75241E865 /* FeaturedHero.swift in Sources */,
 				F0AD6BDBFF7040FE8C4869B8 /* AppleTVExperience.swift in Sources */,
+				A0407E944842F2967369CD0F /* TVHomeExperience.swift in Sources */,
 				5A405587EB51B96C18386C8E /* FocusableButton.swift in Sources */,
 				E08AD7A59A7644CA077E16F8 /* TextPromptSheet.swift in Sources */,
 				6E9790F49D70BDD5228DEE0F /* ExpandableText.swift in Sources */,
@@ -1398,6 +1411,7 @@
 				91CE871B06CA54B23B2B4705 /* CatalogCache.swift in Sources */,
 				D5ACD8FFC813541D11D054C6 /* CatalogService.swift in Sources */,
 				F171FE5F14D976CAFF3558BD /* CloudSync.swift in Sources */,
+				309EA22DEC44437F739A75BA /* SettingsDataPolicy.swift in Sources */,
 				FDAA8B4E828464A47C82F9F6 /* CodableFileStore.swift in Sources */,
 				EFE68754176369F874128B61 /* DirectURLService.swift in Sources */,
 				A741C8D63812CAB7D3E8BDF5 /* ImageCache.swift in Sources */,
@@ -1526,6 +1540,7 @@
 				436E8D72BE1C9F753D97304A /* PrivacyLegalView.swift in Sources */,
 				2EC9E685A1DF4A94C6E9441E /* QRScannerView.swift in Sources */,
 				EAC1069E5978F856D05629F5 /* SettingsView.swift in Sources */,
+				BD45E332FF486A03114F1AE0 /* TVSettingsPanels.swift in Sources */,
 				DB9C5866B3814016AC43F9E1 /* OfflineDownloadsView.swift in Sources */,
 				EE027B581B71CEB3D6D5AEBF /* SettingsCategoryViews.swift in Sources */,
 				36BCFD8924BAA6DC2A488DE5 /* PlayFromLinkView.swift in Sources */,
@@ -1550,6 +1565,7 @@
 				41D20B86CC38D548CBBFBF57 /* CatalogShelfRow.swift in Sources */,
 				EB0BD8CEF6ECCF500BDEF8F3 /* FeaturedHero.swift in Sources */,
 				48263C1B794942AA85C2CE23 /* AppleTVExperience.swift in Sources */,
+				E5CC8E430FA5BFD06ECF4F12 /* TVHomeExperience.swift in Sources */,
 				065713796C383D75AFDC0BC3 /* FocusableButton.swift in Sources */,
 				BC142DF796683515E6168CFF /* TextPromptSheet.swift in Sources */,
 				CD18E89666487B117818AF79 /* ExpandableText.swift in Sources */,
@@ -1590,6 +1606,7 @@
 				A1B07703B593FB08A766950C /* CatalogCache.swift in Sources */,
 				BA04B98BD13A865FB18ADA56 /* CatalogService.swift in Sources */,
 				188C776565F6BA1480F6DE19 /* CloudSync.swift in Sources */,
+				E696EE9171D9E78B4414DF5A /* SettingsDataPolicy.swift in Sources */,
 				77E817CDE53CAF6CB15CEFEB /* CodableFileStore.swift in Sources */,
 				1FB980552C3F80A4F6A36F68 /* DirectURLService.swift in Sources */,
 				C7682B40FC2C1D820802FD98 /* ImageCache.swift in Sources */,
@@ -1718,6 +1735,7 @@
 				6870A63AF437109F9EB890E1 /* PrivacyLegalView.swift in Sources */,
 				B979825A57CFF051A12F24FD /* QRScannerView.swift in Sources */,
 				04CA3B72B7CD1A73DF99DC77 /* SettingsView.swift in Sources */,
+				2C197DE97F19FE3D9D67ADE2 /* TVSettingsPanels.swift in Sources */,
 				6605D4923B8E422DA74E987E /* OfflineDownloadsView.swift in Sources */,
 				5B95A9FB7FCCA43665A54B6A /* SettingsCategoryViews.swift in Sources */,
 				424A4FB4933F5777FBF90C7A /* PlayFromLinkView.swift in Sources */,
@@ -1806,7 +1824,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 42;
+				CURRENT_PROJECT_VERSION = 43;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-tvOS.plist";
@@ -1835,7 +1853,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 42;
+				CURRENT_PROJECT_VERSION = 43;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-tvOS.plist";
@@ -1867,7 +1885,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CODE_SIGN_ENTITLEMENTS = NovaWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 42;
+				CURRENT_PROJECT_VERSION = 43;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NovaWidgets/Info.plist;
@@ -1911,7 +1929,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CODE_SIGN_ENTITLEMENTS = NovaWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 42;
+				CURRENT_PROJECT_VERSION = 43;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NovaWidgets/Info.plist;
@@ -1949,7 +1967,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 42;
+				CURRENT_PROJECT_VERSION = 43;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-iOS.plist";
@@ -1977,7 +1995,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 42;
+				CURRENT_PROJECT_VERSION = 43;
 				DEVELOPMENT_TEAM = 5DV5N49VG8;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-iOS.plist";

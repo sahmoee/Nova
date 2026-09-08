@@ -28,7 +28,12 @@ extension EnvironmentValues {
 /// default white focus card.
 struct NovaRowButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
+        #if os(tvOS)
+        TVReferenceButtonStyle(cornerRadius: 10).makeBody(configuration: configuration)
+            .padding(.horizontal, 16).padding(.vertical, 12)
+        #else
         NovaRowBody(configuration: configuration)
+        #endif
     }
 
     private struct NovaRowBody: View {
@@ -83,7 +88,11 @@ extension View {
 /// because it's a custom ButtonStyle, fully suppresses the tvOS default white card.
 struct NovaChipButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
+        #if os(tvOS)
+        TVReferenceButtonStyle(cornerRadius: 10).makeBody(configuration: configuration)
+        #else
         NovaChipBody(configuration: configuration)
+        #endif
     }
 
     private struct NovaChipBody: View {
@@ -152,7 +161,12 @@ extension View {
 /// instead of the default tvOS white focus card.
 struct NovaIconButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
+        #if os(tvOS)
+        TVReferenceButtonStyle(cornerRadius: 28).makeBody(configuration: configuration)
+            .padding(8)
+        #else
         NovaIconBody(configuration: configuration)
+        #endif
     }
 
     private struct NovaIconBody: View {
@@ -201,7 +215,11 @@ extension View {
 /// fill, without adding its own outer card, and never shows the tvOS white focus card.
 struct NovaListRowStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
+        #if os(tvOS)
+        TVReferenceButtonStyle(cornerRadius: 10).makeBody(configuration: configuration)
+        #else
         NovaListRowBody(configuration: configuration)
+        #endif
     }
 
     private struct NovaListRowBody: View {

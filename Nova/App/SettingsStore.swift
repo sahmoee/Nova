@@ -8,6 +8,7 @@
 
 import SwiftUI
 import Combine
+import CoreFoundation
 
 /// How to resolve conflicts when local watch state and Trakt disagree.
 enum TraktConflictBehavior: String, CaseIterable, Identifiable {
@@ -505,6 +506,12 @@ final class SettingsStore: ObservableObject {
         // Pull any iCloud values that exist (a newer device may have synced).
         mergeFromCloud()
 
+        NotificationCenter.default.addObserver(forName: .novaBackupRestored, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                CloudSync.shared.withoutCloudWrites { self?.reloadLocalPreferences() }
+            }
+        }
+
         // Live updates when another device changes a setting.
         CloudSync.shared.externalChange
             .receive(on: RunLoop.main)
@@ -512,83 +519,198 @@ final class SettingsStore: ObservableObject {
             .store(in: &cancellables)
     }
 
-    private var cancellables = Set<AnyCancellable>()
+    func resetLocalPreferences() {
+        CloudSync.shared.withoutCloudWrites {
+            for key in defaults.dictionaryRepresentation().keys
+                where SettingsDataPolicy.domain(for: key) == .preferences {
+                defaults.removeObject(forKey: key)
+            }
+            reloadLocalPreferences()
+            HomeShelfStore.shared.reloadFromPreferences()
+            RecommendationFeedbackStore.shared.reloadFromPreferences()
+        }
+    }
 
-    /// Applies any values present in iCloud KVS over the local ones. Setting the
-    /// @Published properties also re-persists locally via their didSet, keeping
-    /// UserDefaults and iCloud consistent. Writes are skipped when unchanged to
-    /// avoid feedback loops.
-    private func mergeFromCloud() {
+    func reloadLocalPreferences() {
+        // Establish defaults the first time only.
+        let firstRunDefaults: [String: Any] = [
+            Key.resumePlayback: true,
+            Key.requireLegalConfirmation: true,
+            Key.autoPlayNext: true,
+            Key.skipIntro: true,
+            Key.autoSkipIntro: false,
+            Key.skipOutro: true,
+            Key.autoSelectStream: false,
+            Key.requireCachedStreams: true,
+            Key.subtitlesEnabled: true,
+            Key.autoDownloadSubtitles: true,
+            Key.traktScrobbling: true,
+            Key.respectSystemTextSize: true,
+            Key.textSizeBoost: 1.0
+        ]
+        for (k, v) in firstRunDefaults where defaults.object(forKey: k) == nil {
+            defaults.set(v, forKey: k)
+        }
+
+        // Move existing installs to the Apple TV-style player once. Users can still
+        // choose Classic later; the migration never runs again after this build.
+        if !defaults.bool(forKey: Key.didMigrateApplePlayerChrome) {
+            defaults.set(PlayerOverlayStyle.native.rawValue, forKey: Key.vlcOverlayStyle)
+            defaults.set(true, forKey: Key.didMigrateApplePlayerChrome)
+        }
+
+        self.resumePlaybackEnabled = defaults.bool(forKey: Key.resumePlayback)
+        self.requireLegalConfirmation = defaults.bool(forKey: Key.requireLegalConfirmation)
+        self.defaultQuality = PlaybackQuality(
+            rawValue: defaults.string(forKey: Key.defaultQuality) ?? PlaybackQuality.auto.rawValue
+        ) ?? .auto
+        self.autoPlayNext = defaults.bool(forKey: Key.autoPlayNext)
+        self.skipIntroEnabled = defaults.bool(forKey: Key.skipIntro)
+        self.autoSkipIntro = defaults.bool(forKey: Key.autoSkipIntro)
+        self.skipOutroEnabled = defaults.bool(forKey: Key.skipOutro)
+        self.autoSelectStream = defaults.bool(forKey: Key.autoSelectStream)
+        self.safeMode = defaults.bool(forKey: Key.safeMode)
+        self.requireCachedStreams = defaults.bool(forKey: Key.requireCachedStreams)
+        self.preferredStreamQuality = StreamQuality(
+            rawValue: defaults.string(forKey: Key.preferredStreamQuality) ?? StreamQuality.fhd1080.rawValue
+        ) ?? .fhd1080
+        self.maxStreamSizeGB = defaults.integer(forKey: Key.maxStreamSizeGB)   // 0 = no limit
+        self.sourceKindPriority = (defaults.string(forKey: Key.sourceKindPriority) ?? "")
+            .split(separator: ",").map(String.init)
+        self.preferredSourceKind = SourceKindPreference(
+            rawValue: defaults.string(forKey: Key.preferredSourceKind) ?? SourceKindPreference.any.rawValue
+        ) ?? .any
+        self.minSeeders = defaults.integer(forKey: Key.minSeeders)             // 0 = no minimum
+        self.preferEfficientCodec = defaults.bool(forKey: Key.preferEfficientCodec)
+        self.preferredAudioLanguage = defaults.string(forKey: Key.preferredAudioLanguage) ?? ""
+        self.subtitlesEnabled = defaults.bool(forKey: Key.subtitlesEnabled)
+        self.autoDownloadSubtitles = defaults.bool(forKey: Key.autoDownloadSubtitles)
+        // Playback speed defaults to 1.0 (UserDefaults returns 0 when unset).
+        let savedSpeed = defaults.double(forKey: Key.playbackSpeed)
+        self.playbackSpeed = savedSpeed > 0 ? savedSpeed : 1.0
+        self.nightMode = defaults.bool(forKey: Key.nightMode)
+        self.bandwidthSaver = defaults.bool(forKey: Key.bandwidthSaver)
+        self.travelMode = defaults.bool(forKey: Key.travelMode)
+        self.subtitleLanguage = defaults.string(forKey: Key.subtitleLanguage) ?? "en"
+        self.traktScrobblingEnabled = defaults.bool(forKey: Key.traktScrobbling)
+        let savedTraktMinWatch = defaults.integer(forKey: Key.traktMinWatchPercent)
+        self.traktMinWatchPercent = savedTraktMinWatch == 0 ? 90 : savedTraktMinWatch   // default 90% if unset
+        self.traktSyncProgress = defaults.object(forKey: Key.traktSyncProgress) == nil ? true : defaults.bool(forKey: Key.traktSyncProgress)
+        self.traktSyncFavorites = defaults.object(forKey: Key.traktSyncFavorites) == nil ? true : defaults.bool(forKey: Key.traktSyncFavorites)
+        self.traktConflict = TraktConflictBehavior(rawValue: defaults.string(forKey: Key.traktConflict) ?? "") ?? .ask
+        self.guestMode = defaults.bool(forKey: Key.guestMode)
+        self.guestPIN = defaults.string(forKey: Key.guestPIN) ?? ""
+        self.builtInPlayer = BuiltInPlayer(
+            rawValue: defaults.string(forKey: Key.builtInPlayer) ?? BuiltInPlayer.auto.rawValue
+        ) ?? .auto
+        self.useExternalPlayer = defaults.bool(forKey: Key.useExternalPlayer)
+        self.preferredExternalPlayer = ExternalPlayer(
+            rawValue: defaults.string(forKey: Key.preferredExternalPlayer) ?? ExternalPlayer.infuse.rawValue
+        ) ?? .infuse
+        self.searchLayout = SearchLayoutStyle(
+            rawValue: defaults.string(forKey: Key.searchLayout) ?? SearchLayoutStyle.grid.rawValue
+        ) ?? .grid
+        self.homeStyle = .cinematic
+        defaults.set(HomeStyle.cinematic.rawValue, forKey: Key.homeStyle)
+        let storedCols = defaults.object(forKey: Key.libraryColumnCount) as? Int
+        self.libraryColumnCount = storedCols.map { min(max($0, 2), 5) } ?? 3
+        self.showSMBSeparately = defaults.bool(forKey: Key.showSMBSeparately)
+        self.showTraktInLibrary = defaults.bool(forKey: Key.showTraktInLibrary)
+        self.pinnedCollections = defaults.stringArray(forKey: Key.pinnedCollections) ?? []
+        // The cinematic My Nova layout replaced the legacy classic presentation.
+        // Normalize old local preferences during launch so an existing install
+        // cannot continue showing the retired design.
+        self.libraryStyle = .clean
+        defaults.set(LibraryStyle.clean.rawValue, forKey: Key.libraryStyle)
+        self.detailStyle = .cinematic
+        defaults.set(DetailStyle.cinematic.rawValue, forKey: Key.detailStyle)
+        self.reviewSafeMode = defaults.bool(forKey: Key.reviewSafeMode)
+        self.tabBarStyle = .floatingPill
+        defaults.set(TabBarStyle.floatingPill.rawValue, forKey: Key.tabBarStyle)
+        self.uiStyle = .refined
+        defaults.set(UIComponentStyle.refined.rawValue, forKey: Key.uiStyle)
+        Theme.uiStyle = .refined
+        self.vlcOverlayStyle = .native
+        defaults.set(PlayerOverlayStyle.native.rawValue, forKey: Key.vlcOverlayStyle)
+        let resolvedRespect = defaults.object(forKey: Key.respectSystemTextSize) == nil
+            ? true : defaults.bool(forKey: Key.respectSystemTextSize)
+        self.respectSystemTextSize = resolvedRespect
+        let savedBoost = defaults.double(forKey: Key.textSizeBoost)
+        let resolvedBoost = min(max(savedBoost > 0 ? savedBoost : 1.0, 0.65), 1.25)
+        self.textSizeBoost = resolvedBoost
+
+        // Reflect text-size prefs into Theme before any view builds a font. Uses the
+        // resolved locals so this doesn't touch `self` before initialization finishes.
+        #if os(iOS)
+        Theme.respectSystemTextSize = resolvedRespect
+        Theme.textSizeBoost = CGFloat(resolvedBoost)
+        #endif
+
+    }
+
+    var preferenceCount: Int {
+        defaults.dictionaryRepresentation().keys.filter { SettingsDataPolicy.domain(for: $0) == .preferences }.count
+    }
+
+    func pushPreferencesToCloud() {
         let cloud = CloudSync.shared
-
-        func applyBool(_ kv: String, _ keyPath: ReferenceWritableKeyPath<SettingsStore, Bool>) {
-            if let v = cloud.bool(forKey: kv), self[keyPath: keyPath] != v {
-                self[keyPath: keyPath] = v
+        cloud.resumeSync(.preferences)
+        for (localKey, value) in defaults.dictionaryRepresentation()
+            where SettingsDataPolicy.domain(for: localKey) == .preferences {
+            let key = SettingsDataPolicy.cloudPreferenceKey(for: localKey)
+            if let values = value as? [String], let data = try? JSONEncoder().encode(values) {
+                cloud.setData(data, forKey: key)
+            }
+            else if let data = value as? Data { cloud.setData(data, forKey: key) }
+            else if let value = value as? String { cloud.setString(value, forKey: key) }
+            else if let value = value as? NSNumber {
+                if CFGetTypeID(value) == CFBooleanGetTypeID() { cloud.setBool(value.boolValue, forKey: key) }
+                else { cloud.setDouble(value.doubleValue, forKey: key) }
             }
         }
-        applyBool(Key.resumePlayback, \.resumePlaybackEnabled)
-        applyBool(Key.autoPlayNext, \.autoPlayNext)
-        applyBool(Key.skipIntro, \.skipIntroEnabled)
-        applyBool(Key.autoSkipIntro, \.autoSkipIntro)
-        applyBool(Key.skipOutro, \.skipOutroEnabled)
-        applyBool(Key.autoSelectStream, \.autoSelectStream)
-        applyBool(Key.requireCachedStreams, \.requireCachedStreams)
-        applyBool(Key.subtitlesEnabled, \.subtitlesEnabled)
-        applyBool(Key.autoDownloadSubtitles, \.autoDownloadSubtitles)
-        applyBool(Key.traktScrobbling, \.traktScrobblingEnabled)
-        applyBool(Key.requireLegalConfirmation, \.requireLegalConfirmation)
-        applyBool(Key.useExternalPlayer, \.useExternalPlayer)
+        cloud.flush()
+    }
 
-        if let v = cloud.string(forKey: Key.defaultQuality),
-           let q = PlaybackQuality(rawValue: v), defaultQuality != q { defaultQuality = q }
-        if let v = cloud.string(forKey: Key.preferredStreamQuality),
-           let q = StreamQuality(rawValue: v), preferredStreamQuality != q { preferredStreamQuality = q }
-        if let v = cloud.string(forKey: Key.subtitleLanguage), subtitleLanguage != v {
-            subtitleLanguage = v
+    func pullPreferencesFromCloud() {
+        CloudSync.shared.resumeSync(.preferences, pulling: true)
+        CloudSync.shared.pull()
+        mergeFromCloud()
+        CloudSync.shared.withoutCloudWrites {
+            HomeShelfStore.shared.reloadFromPreferences()
+            RecommendationFeedbackStore.shared.reloadFromPreferences()
         }
-        if let v = cloud.string(forKey: Key.builtInPlayer),
-           let p = BuiltInPlayer(rawValue: v), builtInPlayer != p { builtInPlayer = p }
-        if let v = cloud.string(forKey: Key.preferredExternalPlayer),
-           let p = ExternalPlayer(rawValue: v), preferredExternalPlayer != p { preferredExternalPlayer = p }
+        // Shelf/feedback stores react to their own changed keys after the full
+        // preference mirror has been applied to UserDefaults.
+        let keys = CloudSync.shared.storedKeys.filter { SettingsDataPolicy.domain(for: $0) == .preferences }
+        CloudSync.shared.externalChange.send(Set(keys))
+    }
 
-        applyBool(Key.preferEfficientCodec, \.preferEfficientCodec)
-        if let v = cloud.double(forKey: Key.maxStreamSizeGB), maxStreamSizeGB != Int(v) {
-            maxStreamSizeGB = Int(v)
-        }
-        if let v = cloud.double(forKey: Key.minSeeders), minSeeders != Int(v) {
-            minSeeders = Int(v)
-        }
-        if let v = cloud.string(forKey: Key.preferredSourceKind),
-           let p = SourceKindPreference(rawValue: v), preferredSourceKind != p { preferredSourceKind = p }
-        if let v = cloud.string(forKey: Key.preferredAudioLanguage), preferredAudioLanguage != v {
-            preferredAudioLanguage = v
-        }
-        if let v = cloud.string(forKey: Key.searchLayout),
-           let s = SearchLayoutStyle(rawValue: v), searchLayout != s { searchLayout = s }
-        // Retired visual preferences remain decodable, but stale cloud values may
-        // never reactivate competing presentations.
-        if homeStyle != .cinematic { homeStyle = .cinematic }
-        if let cloudCols = cloud.double(forKey: Key.libraryColumnCount),
-           cloudCols >= 2, Int(cloudCols) != libraryColumnCount {
-            libraryColumnCount = Int(cloudCols)
-        }
-        // Ignore stale cloud values for the retired classic library layout.
-        if libraryStyle != .clean { libraryStyle = .clean }
-        if detailStyle != .cinematic { detailStyle = .cinematic }
-        if tabBarStyle != .floatingPill { tabBarStyle = .floatingPill }
-        if uiStyle != .refined { uiStyle = .refined }
-        if vlcOverlayStyle != .native { vlcOverlayStyle = .native }
-        applyBool(Key.respectSystemTextSize, \.respectSystemTextSize)
-        if let v = cloud.double(forKey: Key.textSizeBoost), v > 0 {
-            let clamped = min(max(v, 0.65), 1.25)
-            if textSizeBoost != clamped { textSizeBoost = clamped }
-        }
-        // FIX: pinned collections were pushed to iCloud in didSet but never merged
-        // back here, so pins made on one device never appeared on the others.
-        if let data = cloud.data(forKey: Key.pinnedCollections),
-           let pins = try? JSONDecoder().decode([String].self, from: data),
-           pinnedCollections != pins {
-            pinnedCollections = pins
+    private var cancellables = Set<AnyCancellable>()
+
+    /// Applies the complete allowlisted preference mirror and reloads typed live
+    /// settings without echoing received values back into iCloud.
+    private func mergeFromCloud() {
+        if CloudSync.shared.consumeDeletion(.preferences) { resetLocalPreferences() }
+        let cloud = CloudSync.shared
+        cloud.withoutCloudWrites {
+            var changed = false
+            for key in cloud.storedKeys where SettingsDataPolicy.domain(for: key) == .preferences {
+                // The canonical feedback mirror wins over an older backup alias.
+                if key == "reco.feedback.v1", cloud.object(forKey: "cloud.reco.feedback.v1") != nil { continue }
+                guard let value = cloud.object(forKey: key) else { continue }
+                if let number = value as? NSNumber, !number.doubleValue.isFinite { continue }
+                let localKey = SettingsDataPolicy.localPreferenceKey(for: key)
+                let localValue: Any
+                if localKey == Key.pinnedCollections {
+                    guard let data = value as? Data,
+                          let pins = try? JSONDecoder().decode([String].self, from: data) else { continue }
+                    localValue = pins
+                } else { localValue = value }
+                if let old = defaults.object(forKey: localKey) as? NSObject, old.isEqual(localValue) { continue }
+                defaults.set(localValue, forKey: localKey)
+                changed = true
+            }
+            if changed { reloadLocalPreferences() }
         }
     }
 

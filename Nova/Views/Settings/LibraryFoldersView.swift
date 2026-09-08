@@ -55,7 +55,7 @@ private struct LibraryFoldersContent: View {
                 Task {
                     let count = await store.rescan(folder, using: env)
                     let noun = count == 1 ? "item" : "items"
-                    lastResult = "Added \(count) \(noun) from \(name) to My Nova / Library."
+                    lastResult = "Added \(count) \(noun) from \(name) to Library."
                 }
             }
             .environmentObject(env)

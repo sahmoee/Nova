@@ -21,11 +21,22 @@ The compatibility command `swift generate_brand_assets.swift <source.png>` invok
 
 ### Library and discovery
 
-- Home, Discover, Library, AI, and Settings destinations with adaptive iPhone tabs, iPad sidebar, and tvOS focus UI
+- Home, Discover, Library, AI, and Settings destinations with iPhone tabs, an iPad sidebar, and an Apple TV floating navigation menu
 - Personal library, collections, favorites, history, watchlist, continue watching, duplicates, quality checks, and metadata correction
 - Catalog browsing through user-installed add-ons, people/title detail, recommendations, airing information, and personalized shelves
 - Search cleanup/correction, title rules, metadata parsing, library enrichment, and optional AI-assisted search/filtering
 - Compact AI task picker with multiline prompts and previewable multi-collection generation
+
+### Apple TV interface
+
+- Press Back on a main page, or select its heading, to open the floating Remote / Home / Search / Library / Settings menu. Back closes the menu; detail screens keep native Back navigation. Ask Nova remains available from Search's browsing menu.
+- Home presents real artwork, title artwork with a text fallback, metadata, Play/Resume and queue/detail controls, page indicators, and landscape Continue Watching cards.
+- Library puts genre, type, and sort menus above six columns of 2:3 posters, with the actual matching item count. Genres come from cached title details; Library options retain collections, watch stats, sources, folders, categories, and editing actions.
+- Settings uses horizontal category tabs and panels, with neutral white focus styling shared across the television interface. iPhone and iPad retain their existing layout and blue accent styling.
+- iCloud settings show actual local counts and available mirror status, request manual Push/Pull, and preview URL snapshots before importing selected categories. Separate history, addon, preference, and Library resets offer device-only or device-and-iCloud scope. Device-only resets pause the affected sync until an explicit Push/Pull; media files and account credentials remain separate.
+- Glow controls adjust the shared focus highlight. Player, subtitles, Auto-Play, Regex, Search, cache, and accessibility panels retain their working settings and maintenance actions.
+
+Settings connects its named categories to Nova's existing features: MDBList guidance points to catalog addons, Trakt guidance points to portable import into Nova Tracker, and Web Management previews a private Nova snapshot before importing selected contents. Web Management does not run an HTTP server on the Apple TV.
 
 ### Sources and playback
 
@@ -139,7 +150,7 @@ Run repository guards before building:
 plutil -lint Nova.xcodeproj/project.pbxproj
 ```
 
-[`Tests/`](Tests/) covers parser behavior, disk caches, backup compatibility, add-on security, Worker configuration, and stream filtering. Hosted CI dynamically selects an available iPhone simulator, tests iOS, and builds tvOS. Local simulator use is optional.
+[`Tests/`](Tests/) covers parser behavior, disk caches, backup compatibility, add-on security, Worker configuration, and stream filtering. Hosted CI dynamically selects an available iPhone simulator, tests iOS, and builds tvOS. Local simulator builds/tests require user authorization; reuse approval already granted for the current scope. Simulator validation for the tvOS reference redesign was approved on September 8, 2026, for that pass only. Record build/test results and manual visual/focus checks separately; approval alone is not a successful test result.
 
 When adding a Swift file, ensure it is registered in every intended target. Shared code may require both iOS and tvOS source build phases; [`verify_registration.sh`](verify_registration.sh) checks this explicitly.
 

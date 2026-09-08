@@ -66,7 +66,7 @@ struct WatchStatsView: View {
     private var statsSummary: String {
         let s = stats
         var lines = [
-            "My Nova Watch Stats",
+            "Library Watch Stats",
             "Watched this month: \(s.watchedThisMonth)",
             "Watched all time: \(s.watchedAllTime)",
             "In progress: \(s.inProgress)",

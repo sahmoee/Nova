@@ -2,7 +2,7 @@
 //  LibraryView.swift
 //  Nova
 //
-//  Streaming-first "My Nova" destination with filter segments (All, Favorites, Recently Added,
+//  Streaming-first Library destination with filter segments (All, Favorites, Recently Added,
 //  Continue Watching, By Source) and a focusable grid.
 //
 
@@ -42,6 +42,10 @@ struct LibraryView: View {
     @State private var trackedTVWatchlist: [CatalogItem] = []
     @State private var trackedMovieWatchlist: [CatalogItem] = []
     @State private var trackedCollection: [CatalogItem] = []
+    #if os(tvOS)
+    @State private var selectedGenre: String?
+    @State private var cachedGenres: [String: [String]] = [:]
+    #endif
 
     private var columns: [GridItem] { Theme.posterGridColumns }
 
@@ -151,6 +155,9 @@ struct LibraryView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
+                #if os(tvOS)
+                TVReferenceStyle.canvas.ignoresSafeArea()
+                #else
                 Theme.Colors.appBackground.ignoresSafeArea()
                 if Theme.isCompact {
                     RadialGradient(colors: [
@@ -160,8 +167,13 @@ struct LibraryView: View {
                     ], center: .top, startRadius: 20, endRadius: 620)
                     .ignoresSafeArea()
                 }
+                #endif
 
+                #if os(tvOS)
+                tvLibraryLayout
+                #else
                 if Theme.isCompact { compactMyNovaFeed } else { wideMyNovaLayout }
+                #endif
             }
             .sheet(isPresented: $showStats) {
                 NavigationStack { WatchStatsView() }
@@ -253,6 +265,410 @@ struct LibraryView: View {
             Text("This item will be removed from your library.")
         }
     }
+
+    #if os(tvOS)
+    /// tvOS keeps the library's actual results directly below a single filter row.
+    /// The phone/tablet feed and its artwork header remain independent.
+    private var tvLibraryLayout: some View {
+        GeometryReader { geometry in
+            let spacing: CGFloat = 42
+            let width = max(1, (geometry.size.width - TVReferenceStyle.edge * 2 - spacing * 5) / 6)
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    TVPageHeading(title: "Library", systemImage: "books.vertical.fill")
+                    Spacer()
+                    tvLibraryOptions
+                }
+                tvLibraryFilters
+                ScrollView(.vertical, showsIndicators: false) {
+                    if tvDisplayedItems.isEmpty {
+                        tvLibraryEmptyState
+                            .frame(maxWidth: .infinity, minHeight: 420)
+                    } else {
+                        LazyVGrid(columns: Array(repeating: GridItem(.fixed(width), spacing: spacing), count: 6),
+                                  alignment: .leading, spacing: 40) {
+                            ForEach(tvDisplayedItems, id: \.tvLibraryDisplayID) { item in
+                                tvLibraryPoster(item, width: width)
+                            }
+                        }
+                        .padding(.top, 16)
+                        .padding(.bottom, 60)
+                    }
+                }
+                .scrollClipDisabled()
+            }
+            .padding(.horizontal, TVReferenceStyle.edge)
+            .padding(.top, TVReferenceStyle.top)
+        }
+        .ignoresSafeArea()
+        .tvRootMenu()
+        .toolbar(.hidden, for: .navigationBar)
+        .task(id: library.items.map(\.contentKey)) { await loadTVGenres() }
+        .onChange(of: detailItem) { _, item in
+            if item == nil { Task { await loadTVGenres() } }
+        }
+        .onChange(of: selectedGenre) { _, genre in
+            UserDefaults.standard.set(genre, forKey: libKey("tvGenre"))
+        }
+        .sheet(isPresented: $showTagPrompt) {
+            TextPromptSheet(title: "Add Tag", message: "Tag \(selectedIDs.count) selected items.",
+                            placeholder: "Tag name", confirmTitle: "Add") { entered in
+                library.addTag(entered, to: selectedIDs)
+                endBulk()
+            }
+        }
+    }
+
+    private var tvLibraryFilters: some View {
+        HStack(spacing: 20) {
+            Menu {
+                Button("All Genres") { selectedGenre = nil }
+                ForEach(tvAvailableGenres, id: \.self) { genre in
+                    Button {
+                        selectedGenre = genre
+                    } label: {
+                        if selectedGenre == genre { Label(genre, systemImage: "checkmark") }
+                        else { Text(genre) }
+                    }
+                }
+                if tvAvailableGenres.isEmpty {
+                    Text("Open a title's details to make its genres available here.")
+                }
+            } label: {
+                tvFilterLabel(selectedGenre ?? "All Genres")
+            }
+            .buttonStyle(TVReferenceButtonStyle(selected: selectedGenre != nil))
+            .accessibilityLabel("Genre: \(selectedGenre ?? "All Genres")")
+
+            Menu {
+                Picker("Type", selection: $typeFilter) {
+                    ForEach(LibraryTypeFilter.allCases) { type in
+                        Text(type == .all ? "All Types" : type.title).tag(type)
+                    }
+                }
+            } label: {
+                tvFilterLabel(typeFilter == .all ? "All Types" : typeFilter.title)
+            }
+            .buttonStyle(TVReferenceButtonStyle(selected: typeFilter != .all))
+
+            Menu {
+                Picker("Sort", selection: $sortOrder) {
+                    ForEach(LibrarySortOrder.allCases) { order in
+                        Text(order == .recentlyAdded ? "Default" : order.title).tag(order)
+                    }
+                }
+            } label: {
+                tvFilterLabel(sortOrder == .recentlyAdded ? "Default" : sortOrder.title)
+            }
+            .buttonStyle(TVReferenceButtonStyle(selected: sortOrder != .recentlyAdded))
+
+            Text("\(tvDisplayedItems.count) \(tvDisplayedItems.count == 1 ? "item" : "items")")
+                .font(.appFont(28))
+                .foregroundStyle(.white.opacity(0.85))
+                .fixedSize()
+                .accessibilityLabel("\(tvDisplayedItems.count) library items")
+            Spacer(minLength: 0)
+            if bulkEditing {
+                Text("\(selectedIDs.count) selected")
+                    .font(.appFont(24))
+                    .foregroundStyle(.white.opacity(0.8))
+            } else if filter != .recentlyAdded || hideWatched || showingHidden || activeTag != nil {
+                Text(tvViewDescription)
+                    .font(.appFont(24))
+                    .foregroundStyle(.white.opacity(0.65))
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private func tvFilterLabel(_ title: String) -> some View {
+        HStack(spacing: 10) {
+            Text(title).font(.appFont(28, weight: .medium))
+            Image(systemName: "chevron.down").font(.appFont(18, weight: .semibold))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 16)
+        .frame(height: TVReferenceStyle.controlHeight)
+        .fixedSize()
+    }
+
+    private var tvViewDescription: String {
+        var labels: [String] = []
+        if filter != .recentlyAdded { labels.append(filterTitle(filter)) }
+        if showingHidden { labels.append("Hidden") }
+        if hideWatched { labels.append("Unwatched") }
+        if let activeTag { labels.append(activeTag) }
+        return labels.joined(separator: " · ")
+    }
+
+    private var tvLibraryOptions: some View {
+        Menu {
+            Picker("Library View", selection: $filter) {
+                ForEach(activeFilters) { value in
+                    Text(value == .recentlyAdded ? "All Library Items" : filterTitle(value)).tag(value)
+                }
+            }
+            Toggle("Hide Watched", isOn: $hideWatched)
+            Toggle("Show Hidden Items", isOn: $showingHidden)
+            if !library.allTags.isEmpty {
+                Menu("Tags") {
+                    Button("All Tags") { activeTag = nil }
+                    ForEach(library.allTags, id: \.self) { tag in
+                        Button(tag) { activeTag = tag }
+                    }
+                }
+            }
+            Button("Reset Filters") { resetTVFilters() }
+            Divider()
+            NavigationLink { CollectionsView() } label: {
+                Label("Collections", systemImage: "rectangle.stack")
+            }
+            NavigationLink { AiringCalendarView() } label: {
+                Label("Upcoming Episodes", systemImage: "calendar")
+            }
+            Button { showStats = true } label: {
+                Label("Watch Stats", systemImage: "chart.bar.xaxis")
+            }
+            Menu("Nova Tracker") {
+                NavigationLink("Currently Watching") {
+                    tvTrackedTitles("Currently Watching", items: trackedWatching)
+                }
+                NavigationLink("TV Watchlist") {
+                    tvTrackedTitles("TV Watchlist", items: trackedTVWatchlist)
+                }
+                NavigationLink("Movie Watchlist") {
+                    tvTrackedTitles("Movie Watchlist", items: trackedMovieWatchlist)
+                }
+                NavigationLink("Collection") {
+                    tvTrackedTitles("Collection", items: trackedCollection)
+                }
+            }
+            Divider()
+            NavigationLink { SMBListView() } label: {
+                Label("SMB Shares", systemImage: "externaldrive.connected.to.line.below")
+            }
+            NavigationLink { LibraryFoldersView() } label: {
+                Label("Library Folders", systemImage: "folder")
+            }
+            Toggle("Show SMB Separately", isOn: $settings.showSMBSeparately)
+            NavigationLink { LibraryCategoryManagerView() } label: {
+                Label("Edit Library Categories", systemImage: "rectangle.3.group")
+            }
+            NavigationLink { LibraryEnrichView() } label: {
+                Label("Clean Up Library (AI)", systemImage: "wand.and.stars")
+            }
+            Divider()
+            Button(bulkEditing ? "Done Selecting" : "Select Items") {
+                if bulkEditing { endBulk() } else { bulkEditing = true }
+            }
+            if bulkEditing {
+                Button(allVisibleSelected ? "Deselect All" : "Select All") { toggleVisibleSelection() }
+                Button("Favorite Selected") { library.setFavorite(true, for: selectedIDs); endBulk() }
+                    .disabled(selectedIDs.isEmpty)
+                Button("Tag Selected") { showTagPrompt = true }.disabled(selectedIDs.isEmpty)
+                Button(showingHidden ? "Unhide Selected" : "Hide Selected") {
+                    library.setHidden(!showingHidden, for: selectedIDs); endBulk()
+                }
+                .disabled(selectedIDs.isEmpty)
+                Button("Remove Selected", role: .destructive) { confirmBulkRemove = true }
+                    .disabled(selectedIDs.isEmpty)
+            }
+            if filter == .continueWatching && !tvDisplayedItems.isEmpty {
+                Button("Clear Continue Watching", role: .destructive) { confirmClearContinueWatching = true }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.appFont(25, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: TVReferenceStyle.controlHeight, height: TVReferenceStyle.controlHeight)
+        }
+        .buttonStyle(TVReferenceButtonStyle(selected: bulkEditing))
+        .accessibilityLabel("Library options")
+    }
+
+    private func tvLibraryPoster(_ item: MediaItem, width: CGFloat) -> some View {
+        VStack(spacing: 16) {
+            Button {
+                if bulkEditing { toggleSelection(item.id) }
+                else if item.isDirectPlay { openDirect(item) }
+                else { detailItem = item }
+            } label: {
+                tvPosterArtwork(url: item.posterURL, width: width)
+                    .overlay(alignment: .topTrailing) {
+                        if bulkEditing {
+                            Image(systemName: selectedIDs.contains(item.id) ? "checkmark.circle.fill" : "circle")
+                                .font(.appFont(32, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .shadow(color: .black, radius: 5)
+                                .padding(14)
+                        }
+                    }
+            }
+            .buttonStyle(TVLibraryPosterButtonStyle(selected: bulkEditing && selectedIDs.contains(item.id)))
+            .accessibilityLabel(item.seriesTitle ?? item.title)
+            .accessibilityHint(bulkEditing ? "Select this title" : (item.isDirectPlay ? "Play this title" : "Open title details"))
+            .contextMenu {
+                Button(item.isFavorite ? "Unfavorite" : "Favorite") { library.toggleFavorite(item) }
+                Button(item.isWatched ? "Mark as Unwatched" : "Mark as Watched") {
+                    if item.isWatched { library.markUnwatched(item) } else { library.markWatched(item) }
+                }
+                Button(item.isHidden ? "Unhide" : "Hide") { library.toggleHidden(item) }
+                if item.hasResumePoint {
+                    Button("Remove from Continue Watching", role: .destructive) { library.clearProgress(for: item.id) }
+                }
+                Button("Remove from Library", role: .destructive) { pendingRemovalItem = item }
+            }
+            Text(item.seriesTitle ?? item.title)
+                .font(.appFont(24, weight: .medium))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .frame(width: width, height: 32)
+                .accessibilityHidden(true)
+        }
+        .frame(width: width)
+    }
+
+    private func tvPosterArtwork(url: URL?, width: CGFloat) -> some View {
+        CachedAsyncImage(url: url, maxPixel: 800) { image in
+            image.resizable().aspectRatio(contentMode: .fill)
+        } placeholder: {
+            ZStack {
+                Theme.Colors.card
+                Image(systemName: "film")
+                    .font(.appFont(44, weight: .light))
+                    .foregroundStyle(.white.opacity(0.2))
+            }
+        }
+        .frame(width: width, height: width * 1.5)
+        .clipShape(RoundedRectangle(cornerRadius: TVReferenceStyle.cornerRadius, style: .continuous))
+    }
+
+    private func tvTrackedTitles(_ title: String, items: [CatalogItem]) -> some View {
+        GeometryReader { geometry in
+            let width = max(1, (geometry.size.width - TVReferenceStyle.edge * 2 - 42 * 5) / 6)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 32) {
+                    Text(title).font(.appFont(36, weight: .semibold)).foregroundStyle(.white)
+                    if items.isEmpty {
+                        Text("No titles here yet.").font(.appFont(28)).foregroundStyle(.white.opacity(0.7))
+                    }
+                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(width), spacing: 42), count: 6), spacing: 40) {
+                        ForEach(items) { item in
+                            VStack(spacing: 16) {
+                                NavigationLink(value: item) { tvPosterArtwork(url: item.posterURL, width: width) }
+                                    .buttonStyle(TVLibraryPosterButtonStyle())
+                                    .accessibilityLabel(item.title)
+                                Text(item.title).font(.appFont(24, weight: .medium)).foregroundStyle(.white)
+                                    .lineLimit(1).frame(width: width, height: 32).accessibilityHidden(true)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, TVReferenceStyle.edge)
+                .padding(.vertical, TVReferenceStyle.top)
+            }
+            .scrollClipDisabled()
+        }
+        .background(TVReferenceStyle.canvas.ignoresSafeArea())
+    }
+
+    private var tvDisplayedItems: [MediaItem] {
+        let items = displayedItems.filter { item in
+            guard let selectedGenre else { return true }
+            return tvGenres(for: item).contains { $0.caseInsensitiveCompare(selectedGenre) == .orderedSame }
+        }
+        // A deterministic tie break keeps equal-year/date rows from jumping while
+        // artwork and remote metadata arrive.
+        return items.sorted { left, right in
+            switch sortOrder {
+            case .recentlyAdded:
+                if left.addedDate != right.addedDate { return left.addedDate > right.addedDate }
+            case .title:
+                let comparison = (left.seriesTitle ?? left.title).localizedCaseInsensitiveCompare(right.seriesTitle ?? right.title)
+                if comparison != .orderedSame { return comparison == .orderedAscending }
+            case .year:
+                let leftYear = left.metadata.year ?? 0
+                let rightYear = right.metadata.year ?? 0
+                if leftYear != rightYear { return leftYear > rightYear }
+            case .recentlyPlayed:
+                let leftDate = left.lastPlayedDate ?? .distantPast
+                let rightDate = right.lastPlayedDate ?? .distantPast
+                if leftDate != rightDate { return leftDate > rightDate }
+            }
+            return left.tvLibraryDisplayID < right.tvLibraryDisplayID
+        }
+    }
+
+    private var tvAvailableGenres: [String] {
+        var names: [String: String] = [:]
+        for item in displayedItems {
+            for genre in tvGenres(for: item) {
+                let name = genre.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !name.isEmpty { names[name.lowercased()] = name }
+            }
+        }
+        return names.values.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    private func tvGenres(for item: MediaItem) -> [String] {
+        guard let key = item.contentID?.stableKey else { return [] }
+        return (cachedGenres[key] ?? []).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+    }
+
+    /// Reuse existing local metadata: genre filtering never fans out remote detail
+    /// requests merely because the user opened a large library.
+    private func loadTVGenres() async {
+        let keys = Set(library.items.compactMap { $0.contentID?.stableKey }.filter { !$0.hasPrefix("unknown:") })
+        var index: [String: [String]] = [:]
+        for key in keys {
+            guard !Task.isCancelled else { return }
+            if let cached = await CatalogCaches.metadata.staleValue(for: key), !cached.genres.isEmpty {
+                index[key] = cached.genres
+            } else if let cached = await OfflineMetadataCache.shared.item(for: key) {
+                index[key] = cached.genres
+            }
+        }
+        guard !Task.isCancelled else { return }
+        for item in trackedWatching + trackedTVWatchlist + trackedMovieWatchlist + trackedCollection where !item.genres.isEmpty {
+            index[item.id] = item.genres
+        }
+        cachedGenres = index
+    }
+
+    private var tvLibraryEmptyState: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "books.vertical").font(.appFont(50, weight: .light))
+            Text(tvHasFilters ? "No matching titles" : "Your library is empty")
+                .font(.appFont(32, weight: .semibold))
+            Text(tvHasFilters ? "Try another filter to see more of your library." : "Add a source or discover a title to get started.")
+                .font(.appFont(24)).foregroundStyle(.white.opacity(0.65))
+            Button {
+                if tvHasFilters { resetTVFilters() } else { nav.selection = .settings }
+            } label: {
+                Text(tvHasFilters ? "Reset Filters" : "Set Up Sources")
+                    .font(.appFont(26, weight: .medium))
+                    .padding(.horizontal, 24)
+                    .frame(height: TVReferenceStyle.controlHeight)
+            }
+            .padding(.top, 8)
+            .buttonStyle(TVReferenceButtonStyle())
+        }
+        .foregroundStyle(.white)
+    }
+
+    private var tvHasFilters: Bool {
+        selectedGenre != nil || typeFilter != .all || filter != .recentlyAdded || showingHidden || hideWatched || activeTag != nil
+    }
+
+    private func resetTVFilters() {
+        selectedGenre = nil
+        typeFilter = .all
+        filter = .recentlyAdded
+        showingHidden = false
+        hideWatched = false
+        activeTag = nil
+    }
+    #endif
 
     /// One Netflix-style feed on iPhone. The hero, shortcuts, tracking rails, and
     /// Recently Added grid share this ScrollView, so the grid never behaves like a
@@ -378,6 +794,11 @@ struct LibraryView: View {
         trackedTVWatchlist = enriched.1.filter { $0.contentID.type == .series }
         trackedMovieWatchlist = enriched.1.filter { $0.contentID.type == .movie }
         trackedCollection = enriched.2
+        #if os(tvOS)
+        for item in enriched.0 + enriched.1 + enriched.2 where !item.genres.isEmpty {
+            cachedGenres[item.id] = item.genres
+        }
+        #endif
     }
 
     /// Opens the library item matching a deep-link content key, then clears the
@@ -397,7 +818,7 @@ struct LibraryView: View {
     @ViewBuilder
     private var classicHeader: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("My Nova")
+            Text("Library")
                 .font(Theme.Font.screenTitle())
                 .screenTitleStyle()
                 .foregroundStyle(Theme.Colors.textPrimary)
@@ -481,7 +902,7 @@ struct LibraryView: View {
             ], startPoint: .top, endPoint: .bottom)
 
             HStack(spacing: 9) {
-                Text("My Nova")
+                Text("Library")
                 .font(.appFont(Theme.isCompact ? 32 : 54, weight: .heavy))
                     .foregroundStyle(.white)
                     .lineLimit(1)
@@ -833,6 +1254,9 @@ struct LibraryView: View {
             typeFilter = LibraryTypeFilter.allCases[ti]
         }
         hideWatched = d.bool(forKey: libKey("hideWatched"))
+        #if os(tvOS)
+        selectedGenre = d.string(forKey: libKey("tvGenre"))
+        #endif
     }
 
     private func saveLibraryPrefs() {
@@ -919,8 +1343,13 @@ struct LibraryView: View {
         var result: [MediaItem]
         switch typeFilter {
         case .all:    result = base
+        #if os(tvOS)
+        case .shows:  result = base.filter(\.isSeries)
+        case .movies: result = base.filter { !$0.isSeries && $0.sourceType != .liveTV }
+        #else
         case .shows:  result = base.filter { $0.episode != nil || $0.seriesTitle != nil }
         case .movies: result = base.filter { $0.episode == nil && $0.seriesTitle == nil }
+        #endif
         }
         // Hide hidden/archived items unless the user is viewing them.
         result = result.filter { showingHidden ? $0.isHidden : !$0.isHidden }
@@ -1089,7 +1518,11 @@ struct LibraryView: View {
     }
 
     private var visibleIDs: Set<UUID> {
+        #if os(tvOS)
+        Set(tvDisplayedItems.map(\.id))
+        #else
         Set(displayedItems.map(\.id))
+        #endif
     }
 
     private var allVisibleSelected: Bool {
@@ -1168,6 +1601,46 @@ struct LibraryView: View {
         }
     }
 }
+
+#if os(tvOS)
+private extension MediaItem {
+    /// A series keeps its focus identity when another episode becomes its card.
+    var tvLibraryDisplayID: String {
+        if isSeries {
+            return "series:" + (seriesTitle?.lowercased() ?? contentID?.stableKey ?? title.lowercased())
+        }
+        return id.uuidString
+    }
+}
+
+/// Focus belongs to the poster, preserving both the image colors and row geometry.
+private struct TVLibraryPosterButtonStyle: ButtonStyle {
+    var selected = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        PosterBody(configuration: configuration, selected: selected)
+    }
+
+    private struct PosterBody: View {
+        let configuration: Configuration
+        let selected: Bool
+        @Environment(\.isFocused) private var focused
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+        var body: some View {
+            configuration.label
+                .overlay {
+                    RoundedRectangle(cornerRadius: TVReferenceStyle.cornerRadius, style: .continuous)
+                        .strokeBorder(focused ? .white : selected ? Theme.Colors.accent : .clear,
+                                      lineWidth: focused ? 4 : 3)
+                }
+                .shadow(color: .black.opacity(focused ? 0.65 : 0.15), radius: focused ? 14 : 4, y: 5)
+                .opacity(configuration.isPressed ? 0.85 : 1)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: focused)
+        }
+    }
+}
+#endif
 
 // MARK: - Filters
 
@@ -1302,6 +1775,9 @@ private struct LibraryCategoryManagerView: View {
     var body: some View {
         #if os(tvOS)
         categoryList
+            .listStyle(.plain)
+            .background(TVReferenceStyle.canvas.ignoresSafeArea())
+            .preferredColorScheme(.dark)
         #else
         categoryList
             .toolbar { EditButton() }
@@ -1326,7 +1802,7 @@ private struct LibraryCategoryManagerView: View {
             } header: {
                 Text("Library categories")
             } footer: {
-                Text("Rename, hide, reorder, or remove the default My Nova categories. At least one usable category is always retained.")
+                Text("Rename, hide, reorder, or remove the default Library categories. At least one usable category is always retained.")
             }
 
             Section {

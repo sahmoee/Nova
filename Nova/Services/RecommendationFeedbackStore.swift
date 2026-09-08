@@ -44,13 +44,17 @@ final class RecommendationFeedbackStore: ObservableObject {
         CloudSync.shared.externalChange
             .receive(on: RunLoop.main)
             .sink { [weak self] keys in
-                if keys.contains(Self.cloudKey) { self?.load() }
+                guard let self else { return }
+                if keys.contains(Self.cloudKey) || keys.contains(self.defaultsKey)
+                    || keys.contains(SettingsDataDomain.preferences.deletionKey) {
+                    self.load()
+                }
             }
             .store(in: &cancellables)
         NotificationCenter.default.addObserver(
             forName: .novaBackupRestored, object: nil, queue: .main
         ) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.load() }
+            Task { @MainActor [weak self] in self?.reloadFromPreferences() }
         }
     }
 
@@ -121,10 +125,30 @@ final class RecommendationFeedbackStore: ObservableObject {
         if genreScores[g] == 0 { genreScores[g] = nil }
     }
 
-    private func load() {
-        // Prefer the iCloud copy if present; fall back to local.
-        let data = CloudSync.shared.data(forKey: Self.cloudKey) ?? defaults.data(forKey: defaultsKey)
-        guard let data, let snap = try? JSONDecoder().decode(Snapshot.self, from: data) else { return }
+    /// Used after Settings has explicitly replaced the local preference values.
+    /// No cloud write is produced while refreshing the live recommendation state.
+    func reloadFromPreferences() {
+        load(preferLocal: true)
+    }
+
+    private func load(preferLocal: Bool = false) {
+        let cloud = CloudSync.shared
+        if cloud.consumeDeletion(.preferences, consumer: ".recommendations") {
+            hiddenKeys = []
+            watchedKeys = []
+            genreScores = [:]
+            defaults.removeObject(forKey: defaultsKey)
+        }
+        let local = defaults.data(forKey: defaultsKey)
+        let remote = cloud.data(forKey: Self.cloudKey)
+        let data = preferLocal ? (local ?? remote) : (remote ?? local)
+        guard let data else {
+            hiddenKeys = []
+            watchedKeys = []
+            genreScores = [:]
+            return
+        }
+        guard let snap = try? JSONDecoder().decode(Snapshot.self, from: data) else { return }
         hiddenKeys = Set(snap.hidden)
         watchedKeys = Set(snap.watched)
         genreScores = snap.genres
