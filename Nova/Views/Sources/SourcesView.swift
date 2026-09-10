@@ -41,6 +41,12 @@ struct SourcesView: View {
                         .padding(.horizontal, Theme.Spacing.edge)
 
                     LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
+                        NavigationLink { MediaServersView() } label: {
+                            SourceCard(title: "Media Servers", systemImage: "play.tv",
+                                       status: env.mediaServers.connections.isEmpty ? .notConfigured : .connected,
+                                       lastSynced: env.mediaServers.connections.compactMap(\.lastIndexed).max(),
+                                       isInteractive: false) {}
+                        }.buttonStyle(.plain)
                         if !settings.reviewSafeMode {
                             NavigationLink { RealDebridView() } label: {
                                 SourceCard(title: "Real-Debrid",

@@ -9,27 +9,39 @@ struct TVMenuOverlay: View {
     var onRemote: () -> Void
     @Namespace private var menuScope
     @FocusState private var focused: String?
-    private let tabs: [AppTab] = [.home, .discover, .library, .settings]
+    private let tabs = AppTab.primaryTabs
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            Color.black.opacity(0.08).ignoresSafeArea().allowsHitTesting(false)
-            VStack(spacing: 4) {
-                menuRow("Remote", symbol: "appletvremote.gen1", id: "remote", action: onRemote)
+            Color.black.opacity(0.34).ignoresSafeArea().allowsHitTesting(false)
+            VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Nova")
+                        .font(.system(size: 32, weight: .bold))
+                    Text(selection.title)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.60))
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+
                 ForEach(tabs, id: \.self) { tab in
                     menuRow(tab.title, symbol: symbol(for: tab), id: tab.title) {
                         selection = tab
                         onDismiss()
                     }
                 }
+
+                Divider().overlay(.white.opacity(0.12)).padding(.vertical, 6)
+                menuRow("Remote Help", symbol: "appletvremote.gen1", id: "remote", action: onRemote)
             }
-            .padding(10)
-            .frame(width: 344)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .background(Color.black.opacity(0.50), in: RoundedRectangle(cornerRadius: 24))
-            .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(.white.opacity(0.12), lineWidth: 1))
+            .padding(12)
+            .frame(width: 350)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 28).strokeBorder(.white.opacity(0.18), lineWidth: 1))
             .shadow(color: .black.opacity(0.45), radius: 30, y: 12)
-            .padding(.leading, 44).padding(.top, 32)
+            .padding(.leading, 36).padding(.vertical, 32)
             .focusSection()
         }
         .ignoresSafeArea()
@@ -48,10 +60,14 @@ struct TVMenuOverlay: View {
             }
             .padding(.horizontal, 20).frame(height: 74)
         }
-        .buttonStyle(TVMenuRowStyle())
+        .buttonStyle(TVReferenceButtonStyle(selected: id == selection.title, cornerRadius: 12))
         .focused($focused, equals: id)
         .prefersDefaultFocus(id == selection.title, in: menuScope)
         .accessibilityIdentifier("tv.navigation.\(id.lowercased())")
+        .accessibilityLabel(title)
+        .accessibilityValue(id == selection.title ? "Selected" : "")
+        .accessibilityHint(id == "remote" ? "Shows Apple TV Remote instructions" : "Switches to \(title)")
+        .accessibilityAddTraits(id == selection.title ? .isSelected : [])
     }
 
     private func symbol(for tab: AppTab) -> String {
@@ -61,22 +77,6 @@ struct TVMenuOverlay: View {
         case .library: return "books.vertical"
         case .settings: return "gearshape"
         case .ai: return "sparkles"
-        }
-    }
-}
-
-private struct TVMenuRowStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View { Row(configuration: configuration) }
-    private struct Row: View {
-        let configuration: Configuration
-        @Environment(\.isFocused) private var focused
-        @Environment(\.accessibilityReduceMotion) private var reduceMotion
-        var body: some View {
-            configuration.label
-                .foregroundStyle(focused ? Color(white: 0.10) : .white)
-                .background(focused ? Color(white: 0.94) : .clear, in: RoundedRectangle(cornerRadius: 10))
-                .opacity(configuration.isPressed ? 0.85 : 1)
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: focused)
         }
     }
 }

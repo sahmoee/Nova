@@ -2,9 +2,7 @@
 //  AccentManager.swift
 //  Nova
 //
-//  Keeps app chrome aligned with Nova's pale-blue streaming identity. Artwork analysis remains
-//  available for future editorial treatments, while navigation, focus rings, progress,
-//  and player controls stay on the brand accent rather than recoloring per title.
+//  Provides the standard Apple system tint to legacy environment consumers.
 //
 
 import SwiftUI
@@ -17,9 +15,13 @@ import UIKit
 final class AccentManager: ObservableObject {
     static let shared = AccentManager()
 
-    /// The brand fallback accent (matches Theme.Colors.accent). Nonisolated so it can
+    /// The system action color. Nonisolated so it can
     /// be used as an EnvironmentKey default value (which runs outside the main actor).
-    nonisolated static let fallback = Color(red: 0.69, green: 0.86, blue: 0.96)
+    #if os(tvOS)
+    nonisolated static let fallback = Color.white
+    #else
+    nonisolated static let fallback = Color.blue
+    #endif
 
     /// The current accent color, animated when it changes.
     @Published private(set) var accent: Color = AccentManager.fallback
@@ -30,12 +32,11 @@ final class AccentManager: ObservableObject {
     /// Derives an accent from a poster URL (using the already-cached, downsampled
     /// image) and publishes it. No-ops gracefully if the image isn't available.
     func deriveAccent(from url: URL?) {
-        // Keep navigation, focus rings, controls, and progress indicators on Nova's
-        // pale-blue brand accent instead of recoloring the interface from artwork.
+        // Apple TV chrome stays neutral and consistent as artwork changes.
         set(AccentManager.fallback)
     }
 
-    /// Resets to the brand accent (e.g. when leaving a detail screen).
+    /// Resets to the standard system accent.
     func reset() { set(AccentManager.fallback) }
 
     private func set(_ color: Color) {

@@ -4,8 +4,9 @@
 //
 //  The Settings home. On iOS/iPadOS it's an Apple-Settings-style directory: grouped
 //  rounded cards of rows, each with a colored icon tile, that push into a category
-//  screen. On tvOS it's a horizontal strip of category tabs with the selected
-//  category's controls filling the panel below.
+//  screen. On tvOS it is a short, native focus-driven directory. Each category
+//  pushes its own vertically scrolling screen so the Siri Remote never has to
+//  cross competing scroll regions.
 //
 
 import SwiftUI
@@ -17,9 +18,6 @@ struct SettingsView: View {
     @EnvironmentObject private var settings: SettingsStore
 
     @State private var settingsSearch = ""
-    #if os(tvOS)
-    @State private var selectedCategory: String = "icloud"
-    #endif
 
     // MARK: - Directory model
 
@@ -55,10 +53,15 @@ struct SettingsView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                    CinematicPageHeader(title: "Settings",
-                                        subtitle: "Playback, sources, accounts, and Nova",
-                                        systemImage: "gearshape.fill")
-                        .padding(.top, Theme.Spacing.md)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Settings")
+                            .font(.largeTitle.bold())
+                        Text("Playback, library, connections, and privacy")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(.isHeader)
 
                     searchField
 
@@ -130,86 +133,89 @@ struct SettingsView: View {
     }
     #endif
 
-    // MARK: - tvOS horizontal tabs + panel
+    // MARK: - tvOS remote-first directory
 
     #if os(tvOS)
     private var tvOSBody: some View {
         NavigationStack(path: $path) {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 12) {
                 TVPageHeading(title: "Settings", systemImage: "gearshape.fill")
                     .padding(.horizontal, TVReferenceStyle.edge)
                     .padding(.top, TVReferenceStyle.top)
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
+                List {
+                    Section {
                         ForEach(tvCategories) { cat in
-                            categoryTab(cat)
+                            NavigationLink {
+                                cat.destination()
+                            } label: {
+                                HStack(spacing: 24) {
+                                    Image(systemName: cat.icon)
+                                        .font(.system(size: 28, weight: .medium))
+                                        .frame(width: 44)
+                                        .accessibilityHidden(true)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(cat.title)
+                                            .font(.system(size: 28, weight: .semibold))
+                                        if let detail = cat.detail {
+                                            Text(detail)
+                                                .font(.system(size: 19))
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
+                                .contentShape(Rectangle())
+                                .accessibilityElement(children: .combine)
+                            }
+                            .accessibilityHint("Opens \(cat.title) settings")
                         }
+                    } header: {
+                        Text("Nova")
+                    } footer: {
+                        Text("Choose a category. Press Back to return here; press Back again to open Nova's navigation menu.")
                     }
-                    .padding(.horizontal, TVReferenceStyle.edge)
-                    .padding(.vertical, 6)
                 }
-
-                // The selected category screen scrolls itself, so it isn't wrapped in
-                // another ScrollView here (which would break tvOS focus scrolling).
-                selectedDestination
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .listStyle(.plain)
+                .scrollIndicators(.hidden)
+                .focusSection()
+                .padding(.horizontal, TVReferenceStyle.edge - 24)
             }
             .background(Theme.Colors.appBackground.ignoresSafeArea())
             .tvRootMenu()
         }
     }
 
-    private var selectedDestination: some View {
-        (tvCategories.first { $0.id == selectedCategory } ?? tvCategories[0]).destination()
-    }
-
-    private func categoryTab(_ cat: Category) -> some View {
-        Button { selectedCategory = cat.id } label: {
-            Text(cat.title)
-                .font(.appFont(22, weight: .semibold))
-                .padding(.horizontal, 17)
-                .frame(height: TVReferenceStyle.controlHeight)
-        }
-        .buttonStyle(TVReferenceButtonStyle(selected: selectedCategory == cat.id))
-        .accessibilityValue(selectedCategory == cat.id ? "Selected" : "")
-    }
-
     private var tvCategories: [Category] {
-        func tab(_ id: String, _ title: String, _ destination: @escaping () -> AnyView) -> Category {
-            Category(id: id, icon: "gearshape", color: Theme.Colors.accent, title: title, destination: destination)
+        func tab(_ id: String, _ title: String, _ detail: String, _ icon: String,
+                 _ destination: @escaping () -> AnyView) -> Category {
+            Category(id: id, icon: icon, color: Theme.Colors.accent, title: title,
+                     detail: detail, destination: destination)
         }
-        var tabs: [Category] = []
-        if !settings.guestMode {
-            tabs.append(tab("sources", "Sources") { AnyView(SourcesView()) })
-            if !settings.reviewSafeMode {
-                tabs.append(tab("addons", "Addons") { AnyView(AddonsView()) })
+        return [
+            tab("playback", "Playback", "Player, streams, subtitles, and Auto-Play", "play.rectangle") {
+                AnyView(TVPlayerSettingsPanel())
+            },
+            tab("sources", "Sources", "Media servers, shares, add-ons, and accounts", "externaldrive.connected.to.line.below") {
+                AnyView(TVSourcesSettingsPanel())
+            },
+            tab("library", "Library", "Downloads, folders, search, and storage", "rectangle.stack") {
+                AnyView(TVLibrarySettingsPanel())
+            },
+            tab("experience", "Experience", "Home, profiles, interface, and accessibility", "appletv") {
+                AnyView(TVInterfaceSettingsPanel())
+            },
+            tab("data", "Data & Privacy", "iCloud, snapshots, diagnostics, and legal", "hand.raised") {
+                AnyView(TVDataSettingsPanel(addonStore: env.addonStore))
             }
-        }
-        tabs.append(tab("player", "Player") { AnyView(TVPlayerSettingsPanel()) })
-        if !settings.guestMode {
-            tabs.append(tab("mdblist", "MDBList") { AnyView(TVIntegrationSettingsPanel(kind: .mdblist)) })
-            tabs.append(tab("trakt", "Trakt") { AnyView(TVIntegrationSettingsPanel(kind: .trakt)) })
-        }
-        tabs.append(tab("regex", "Regex") { AnyView(TitleCleanupRulesView()) })
-        tabs.append(tab("autoplay", "Auto-Play") { AnyView(TVAutoPlaySettingsPanel()) })
-        tabs.append(tab("cache", "Cache") { AnyView(TVCacheSettingsPanel()) })
-        tabs.append(tab("search", "Search") { AnyView(TVSearchSettingsPanel()) })
-        tabs.append(tab("ui", "UI") { AnyView(TVInterfaceSettingsPanel()) })
-        tabs.append(tab("glow", "Glow") { AnyView(TVIntegrationSettingsPanel(kind: .glow)) })
-        tabs.append(tab("legal", "Legal") { AnyView(SettingsScreen(title: "Legal") { PrivacyLegalSettingsContent() }) })
-        if !settings.guestMode {
-            tabs.append(tab("icloud", "iCloud") { AnyView(TVCloudSettingsPanel(addonStore: env.addonStore)) })
-            tabs.append(tab("web", "Web Management") { AnyView(TVWebManagementPanel()) })
-        }
-        return tabs
+        ]
     }
     #endif
 
     // MARK: - Categories
 
-    /// Every category, flat. iOS arranges these into the grouped directory; tvOS uses
-    /// them as horizontal tabs.
+    /// Every category, flat. iOS arranges these into the grouped directory.
     private var allCategories: [Category] {
         directoryGroups.flatMap(\.items)
     }

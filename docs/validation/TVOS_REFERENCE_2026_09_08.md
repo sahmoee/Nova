@@ -1,5 +1,7 @@
 # tvOS reference redesign validation — September 8, 2026
 
+Historical record. The Settings/Home interaction model was superseded by the September 9 action audit in `TVOS_ACTION_AUDIT_2026_09_09.md`.
+
 Scope: Nova's Apple TV Home, floating navigation, Library, settings panels, and the shared persistence used by manual settings transfer and scoped resets. iPhone/iPad retain their existing layout; the visible library name is Library on all platforms.
 
 ## Implemented

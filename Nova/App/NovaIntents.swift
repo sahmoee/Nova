@@ -75,10 +75,10 @@ struct OpenDiscoverIntent: AppIntent {
     }
 }
 
-/// "Ask Nova AI" — opens Search, where natural-language AI search remains available.
+/// Opens Search, where natural-language discovery is integrated as Smart Search.
 struct OpenAIIntent: AppIntent {
-    static let title: LocalizedStringResource = "Open Nova AI"
-    static let description = IntentDescription("Open Nova Search to find titles with natural-language AI.")
+    static let title: LocalizedStringResource = "Open Smart Search"
+    static let description = IntentDescription("Open Nova Search to describe what you want to watch.")
     static let openAppWhenRun = true
 
     @MainActor

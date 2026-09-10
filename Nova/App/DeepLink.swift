@@ -47,7 +47,7 @@ enum DeepLink: Equatable {
         case "home":     return .tab(.home)
         case "discover": return .tab(.discover)
         case "ai":       return .tab(.discover)
-        case "new", "new-and-hot": return .tab(.ai)
+        case "new", "new-and-hot": return .tab(.discover)
         case "library":  return .tab(.library)
         case "continue": return .continueWatching
         case "settings":

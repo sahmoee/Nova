@@ -102,11 +102,9 @@ struct MediaCard: View {
         .accessibilityHint(accessibilityHint)
         .accessibilityAddTraits(.isButton)
         .scaleEffect(focused ? Theme.CardSize.focusScale : 1.0)
-        // Apple TV style: a soft black drop plus a colored glow in the artwork's accent.
+        // Native tvOS focus uses a clean lift and white edge without branded glow.
         .shadow(color: .black.opacity(focused ? 0.65 : 0.0),
                 radius: focused ? 28 : 0, x: 0, y: 14)
-        .shadow(color: focused ? accent.opacity(0.5) : .clear,
-                radius: focused ? 30 : 0, x: 0, y: 0)
         .animation(.easeOut(duration: 0.18), value: focused)
         .zIndex(focused ? 1 : 0)
         .onChange(of: focused) { _, isFocused in
@@ -188,7 +186,7 @@ struct MediaCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .stroke(focused ? accent : Theme.Colors.separator,
+                        .stroke(focused ? Theme.Colors.focusRing : Theme.Colors.separator,
                                 lineWidth: focused ? 4 : 1)
                 )
 
@@ -202,9 +200,9 @@ struct MediaCard: View {
                     .font(.appFont(22, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(width: 54, height: 54)
-                    .background(Theme.Colors.focusedControl, in: Circle())
+                    .background(Color.white, in: Circle())
+                    .foregroundStyle(Color.black)
                     .overlay(Circle().strokeBorder(.white.opacity(0.55), lineWidth: 1.5))
-                    .shadow(color: Theme.Colors.accent.opacity(0.55), radius: 18)
                     .frame(width: width, height: height, alignment: .center)
                     .transition(.scale.combined(with: .opacity))
             }

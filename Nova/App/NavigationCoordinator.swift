@@ -13,6 +13,10 @@ import Combine
 enum AppTab: Hashable, CaseIterable {
     case home, discover, library, ai, settings
 
+    /// Primary destinations shown in app chrome. AI remains an internal destination
+    /// for older deep links and saved state, but is entered through Search.
+    static let primaryTabs: [AppTab] = [.home, .discover, .library, .settings]
+
     /// Display name used by the tvOS menu and the iOS tab bar.
     var title: String {
         switch self {
@@ -23,7 +27,7 @@ enum AppTab: Hashable, CaseIterable {
             #else
             return "New & Hot"
             #endif
-        case .ai:       return "Ask Nova"
+        case .ai:       return "Smart Search"
         case .library:  return "Library"
         case .settings: return "Settings"
         }
@@ -109,8 +113,9 @@ final class NavigationCoordinator: ObservableObject {
     func handle(_ link: DeepLink) {
         switch link {
         case .tab(let tab):
-            selection = tab
-            popToRoot(tab)
+            let destination = tab == .ai ? AppTab.discover : tab
+            selection = destination
+            popToRoot(destination)
         case .continueWatching:
             selection = .library
             popToRoot(.library)

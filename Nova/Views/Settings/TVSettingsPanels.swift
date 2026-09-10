@@ -6,17 +6,22 @@ struct TVSettingsPanel<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        ScrollView {
+        ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 14) {
-                Text(title).font(.appFont(24, weight: .semibold)).padding(.bottom, 6)
+                Text(title)
+                    .font(.appFont(42, weight: .bold))
+                    .accessibilityAddTraits(.isHeader)
+                    .padding(.bottom, 10)
                 content
             }
             .foregroundStyle(Theme.Colors.textPrimary)
             .padding(.horizontal, TVReferenceStyle.edge)
-            .padding(.top, 8)
-            .padding(.bottom, 70)
+            .padding(.top, TVReferenceStyle.top)
+            .padding(.bottom, 96)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .scrollIndicators(.hidden)
+        .focusSection()
         .background(Theme.Colors.appBackground.ignoresSafeArea())
     }
 }
@@ -30,19 +35,19 @@ private struct TVSettingLabel: View {
     var body: some View {
         HStack(spacing: 22) {
             VStack(alignment: .leading, spacing: 5) {
-                Text(title).font(.appFont(27, weight: .semibold))
+                Text(title).font(.appFont(24, weight: .semibold))
                     .foregroundStyle(destructive ? Theme.Colors.error : Theme.Colors.textPrimary)
                 if !detail.isEmpty {
-                    Text(detail).font(.appFont(21)).foregroundStyle(Theme.Colors.textSecondary)
+                    Text(detail).font(.appFont(18)).foregroundStyle(Theme.Colors.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
             Spacer(minLength: 16)
             Image(systemName: icon).font(.appFont(24, weight: .semibold))
-                .foregroundStyle(destructive ? Theme.Colors.error : Theme.Colors.accent)
+                .foregroundStyle(destructive ? Theme.Colors.error : Theme.Colors.textPrimary)
         }
-        .padding(.horizontal, 22).padding(.vertical, 18)
-        .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+        .padding(.horizontal, 22).padding(.vertical, 14)
+        .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
         .contentShape(Rectangle())
     }
 }
@@ -66,28 +71,163 @@ private struct TVSettingToggle: View {
     var detail = ""
     @Binding var isOn: Bool
     var body: some View {
-        TVSettingAction(title: title, detail: detail, icon: isOn ? "checkmark.circle.fill" : "circle") {
-            isOn.toggle()
+        Toggle(isOn: $isOn) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title)
+                    .font(.appFont(24, weight: .semibold))
+                if !detail.isEmpty {
+                    Text(detail)
+                        .font(.appFont(18))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
         }
+        .toggleStyle(.switch)
+        .padding(.horizontal, 22)
+        .background(.white.opacity(0.075),
+                    in: RoundedRectangle(cornerRadius: TVReferenceStyle.cornerRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: TVReferenceStyle.cornerRadius, style: .continuous)
+            .strokeBorder(.white.opacity(0.16), lineWidth: 1))
         .accessibilityValue(isOn ? "On" : "Off")
-        .accessibilityHint("Press to change")
+        .accessibilityHint("Press to toggle")
     }
 }
 
 struct TVPlayerSettingsPanel: View {
     @EnvironmentObject private var settings: SettingsStore
     var body: some View {
-        TVSettingsPanel(title: "Player") {
+        TVSettingsPanel(title: "Playback") {
             NavigationLink { PlayerSettingsView() } label: {
                 TVSettingLabel(title: "Player", detail: settings.builtInPlayer.title, icon: "play.rectangle")
             }.buttonStyle(TVReferenceButtonStyle())
             TVSettingToggle(title: "Resume Playback", detail: "Continue from your saved position", isOn: $settings.resumePlaybackEnabled)
+            NavigationLink { TVAutoPlaySettingsPanel() } label: {
+                TVSettingLabel(title: "Auto-Play", detail: "Next episode, intros, and automatic source selection", icon: "play.forward")
+            }.buttonStyle(TVReferenceButtonStyle())
             NavigationLink { SettingsScreen(title: "Subtitles") { SubtitleSettingsContent() } } label: {
                 TVSettingLabel(title: "Subtitles", detail: "Language, downloads, and display", icon: "captions.bubble")
             }.buttonStyle(TVReferenceButtonStyle())
             NavigationLink { SettingsScreen(title: "Streaming") { StreamingSettingsContent() } } label: {
                 TVSettingLabel(title: "Stream Selection", detail: "Quality, cached sources, and source priority", icon: "slider.horizontal.3")
             }.buttonStyle(TVReferenceButtonStyle())
+        }
+    }
+}
+
+/// tvOS exposes source operations as a short list of real destinations. Provider
+/// setup and server maintenance no longer compete for space on Home.
+struct TVSourcesSettingsPanel: View {
+    @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var settings: SettingsStore
+    @StateObject private var smbShares = SMBSharesModel()
+
+    var body: some View {
+        TVSettingsPanel(title: "Sources") {
+            if settings.guestMode {
+                Text("Source management is unavailable in Guest Mode.")
+                    .font(.appFont(22))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            } else {
+                NavigationLink { MediaServersView() } label: {
+                    TVSettingLabel(
+                        title: "Media Servers",
+                        detail: mediaServerDetail,
+                        icon: "play.tv"
+                    )
+                }
+                .buttonStyle(TVReferenceButtonStyle())
+
+                NavigationLink { SMBListView() } label: {
+                    TVSettingLabel(
+                        title: "Network Shares",
+                        detail: "\(smbShares.shares.count) SMB share\(smbShares.shares.count == 1 ? "" : "s")",
+                        icon: "externaldrive"
+                    )
+                }
+                .buttonStyle(TVReferenceButtonStyle())
+
+                NavigationLink { LiveTVSourcesView() } label: {
+                    TVSettingLabel(
+                        title: "Live TV",
+                        detail: "\(env.liveTVSources.sources.count) source\(env.liveTVSources.sources.count == 1 ? "" : "s")",
+                        icon: "dot.radiowaves.left.and.right"
+                    )
+                }
+                .buttonStyle(TVReferenceButtonStyle())
+
+                if !settings.reviewSafeMode {
+                    NavigationLink { RealDebridView() } label: {
+                        TVSettingLabel(title: "Real-Debrid", detail: "Stream cache and account", icon: "bolt.horizontal")
+                    }
+                    .buttonStyle(TVReferenceButtonStyle())
+
+                    NavigationLink { AddonsView() } label: {
+                        TVSettingLabel(
+                            title: "Add-ons",
+                            detail: "\(env.addonStore.addons.count) installed",
+                            icon: "puzzlepiece.extension"
+                        )
+                    }
+                    .buttonStyle(TVReferenceButtonStyle())
+                }
+
+                NavigationLink { AccountsView() } label: {
+                    TVSettingLabel(title: "Accounts", detail: "Tracking services available on Apple TV", icon: "person.crop.circle")
+                }
+                .buttonStyle(TVReferenceButtonStyle())
+            }
+        }
+    }
+
+    private var mediaServerDetail: String {
+        let count = env.mediaServers.connections.count
+        return count == 0 ? "Connect Jellyfin, Plex, or Emby" : "\(count) connected server\(count == 1 ? "" : "s")"
+    }
+}
+
+struct TVLibrarySettingsPanel: View {
+    @EnvironmentObject private var env: AppEnvironment
+
+    var body: some View {
+        TVSettingsPanel(title: "Library") {
+            NavigationLink { SettingsScreen(title: "Library") { LibrarySettingsContent() } } label: {
+                TVSettingLabel(title: "Library Behavior", detail: "History, indexing, and maintenance", icon: "rectangle.stack")
+            }
+            .buttonStyle(TVReferenceButtonStyle())
+
+            NavigationLink { OfflineDownloadsView() } label: {
+                TVSettingLabel(
+                    title: "Offline Downloads",
+                    detail: "\(env.downloads.downloads.count) saved transfer\(env.downloads.downloads.count == 1 ? "" : "s")",
+                    icon: "arrow.down.circle"
+                )
+            }
+            .buttonStyle(TVReferenceButtonStyle())
+
+            NavigationLink { LibraryFoldersView() } label: {
+                TVSettingLabel(
+                    title: "Network Library Folders",
+                    detail: "\(env.libraryFolders.folders.count) configured",
+                    icon: "folder"
+                )
+            }
+            .buttonStyle(TVReferenceButtonStyle())
+
+            NavigationLink { TVSearchSettingsPanel() } label: {
+                TVSettingLabel(title: "Search & Browse", detail: "Layout and search behavior", icon: "magnifyingglass")
+            }
+            .buttonStyle(TVReferenceButtonStyle())
+
+            NavigationLink { TitleCleanupRulesView() } label: {
+                TVSettingLabel(title: "Title Cleanup", detail: "Rules applied while indexing media", icon: "textformat")
+            }
+            .buttonStyle(TVReferenceButtonStyle())
+
+            NavigationLink { TVCacheSettingsPanel() } label: {
+                TVSettingLabel(title: "Storage", detail: "Artwork memory, catalog cache, and downloads", icon: "internaldrive")
+            }
+            .buttonStyle(TVReferenceButtonStyle())
         }
     }
 }
@@ -121,9 +261,6 @@ struct TVCacheSettingsPanel: View {
                 busy = true
                 Task { await env.shelfLoader.clearCache(); status = "Catalog cache cleared."; busy = false }
             }.disabled(busy)
-            NavigationLink { OfflineDownloadsView() } label: {
-                TVSettingLabel(title: "Offline Downloads", detail: "\(env.downloads.downloads.count) saved transfers", icon: "arrow.down.circle")
-            }.buttonStyle(TVReferenceButtonStyle())
             if !status.isEmpty { Text(status).font(.appFont(21)).accessibilityAddTraits(.updatesFrequently) }
         }
     }
@@ -145,68 +282,51 @@ struct TVSearchSettingsPanel: View {
 
 struct TVInterfaceSettingsPanel: View {
     var body: some View {
-        TVSettingsPanel(title: "UI") {
+        TVSettingsPanel(title: "Experience") {
+            AppearanceSettingsContent()
             NavigationLink { SettingsScreen(title: "Accessibility") { AccessibilitySettingsContent() } } label: {
-                TVSettingLabel(title: "Accessibility", detail: "Text and display preferences", icon: "accessibility")
+                TVSettingLabel(title: "Accessibility", detail: "Motion and display preferences", icon: "accessibility")
             }.buttonStyle(TVReferenceButtonStyle())
             NavigationLink { SettingsScreen(title: "Home & Profiles") { ExperienceSettingsContent() } } label: {
-                TVSettingLabel(title: "Home & Profiles", detail: "Personalize your browsing experience", icon: "house")
-            }.buttonStyle(TVReferenceButtonStyle())
-            NavigationLink { SettingsScreen(title: "Library") { LibrarySettingsContent() } } label: {
-                TVSettingLabel(title: "Library", detail: "Library tools and maintenance", icon: "books.vertical")
-            }.buttonStyle(TVReferenceButtonStyle())
-            NavigationLink { LibraryFoldersView() } label: {
-                TVSettingLabel(title: "SMB Library Folders", icon: "externaldrive")
-            }.buttonStyle(TVReferenceButtonStyle())
-            NavigationLink { SettingsScreen(title: "Advanced") { AdvancedSettingsContent() } } label: {
-                TVSettingLabel(title: "Advanced", detail: "Guest mode and diagnostics", icon: "gearshape.2")
-            }.buttonStyle(TVReferenceButtonStyle())
-            NavigationLink { UnifiedQASettingsView() } label: {
-                TVSettingLabel(title: "Quality Assurance", detail: "Off by default", icon: "checkmark.seal")
+                TVSettingLabel(title: "Home & Profiles", detail: "Shelves, profiles, and artwork motion", icon: "house")
             }.buttonStyle(TVReferenceButtonStyle())
         }
     }
 }
 
-struct TVIntegrationSettingsPanel: View {
-    enum Kind { case mdblist, trakt, glow }
-    let kind: Kind
+struct TVDataSettingsPanel: View {
+    @ObservedObject var addonStore: AddonStore
     @EnvironmentObject private var settings: SettingsStore
-    @AppStorage("nova.tvFocusGlowEnabled") private var glowEnabled = true
-    @AppStorage("nova.tvFocusGlowStrength") private var glowStrength = 0.35
-    private var title: String {
-        switch kind { case .mdblist: return "MDBList"; case .trakt: return "Trakt"; case .glow: return "Glow" }
-    }
+
     var body: some View {
-        TVSettingsPanel(title: title) {
-            switch kind {
-            case .mdblist:
-                Text("Nova uses installed catalog addons for external lists. There is no separate MDBList account connection in this app.")
-                    .font(.appFont(23)).foregroundStyle(Theme.Colors.textSecondary)
-                if !settings.reviewSafeMode {
-                    NavigationLink { AddonsView() } label: {
-                        TVSettingLabel(title: "Manage Catalog Addons", detail: "Install or configure your list provider", icon: "puzzlepiece.extension")
-                    }.buttonStyle(TVReferenceButtonStyle())
+        TVSettingsPanel(title: "Data & Privacy") {
+            if !settings.guestMode {
+                NavigationLink { TVCloudSettingsPanel(addonStore: addonStore) } label: {
+                    TVSettingLabel(title: "iCloud", detail: "Preferences, watch history, library, and add-ons", icon: "icloud")
                 }
-            case .trakt:
-                Text("Import a Trakt export ZIP using Nova on iPhone or iPad: Settings → Accounts → Nova Tracker. Nova previews the archive locally and imports only the records you confirm. Trakt is not a connected provider.")
-                    .font(.appFont(23)).foregroundStyle(Theme.Colors.textSecondary)
-                NavigationLink { AccountsView() } label: {
-                    TVSettingLabel(title: "Accounts & Nova Tracker", detail: "View the tracking services actually available on this device", icon: "person.crop.circle")
-                }.buttonStyle(TVReferenceButtonStyle())
-            case .glow:
-                TVSettingToggle(title: "Focus Glow", detail: "Highlight the currently focused control", isOn: $glowEnabled)
-                SettingsPickerRow(icon: "sun.max", color: Theme.Colors.accent, title: "Glow Strength",
-                    selection: $glowStrength, options: [0.15, 0.35, 0.6],
-                    label: { $0 < 0.2 ? "Subtle" : $0 > 0.5 ? "Bright" : "Standard" })
-                    .disabled(!glowEnabled)
-                NavigationLink { SettingsScreen(title: "Accessibility") { AccessibilitySettingsContent() } } label: {
-                    TVSettingLabel(title: "Display & Accessibility", icon: "accessibility")
-                }.buttonStyle(TVReferenceButtonStyle())
+                .buttonStyle(TVReferenceButtonStyle())
+
+                NavigationLink { TVWebManagementPanel() } label: {
+                    TVSettingLabel(title: "Snapshot Import", detail: "Preview a private setup snapshot before applying it", icon: "square.and.arrow.down")
+                }
+                .buttonStyle(TVReferenceButtonStyle())
             }
+
+            NavigationLink { SettingsScreen(title: "Advanced") { AdvancedSettingsContent() } } label: {
+                TVSettingLabel(title: "Advanced", detail: "Guest Mode and maintenance", icon: "gearshape.2")
+            }
+            .buttonStyle(TVReferenceButtonStyle())
+
+            NavigationLink { UnifiedQASettingsView() } label: {
+                TVSettingLabel(title: "Quality Assurance", detail: "Diagnostics are off by default", icon: "checkmark.seal")
+            }
+            .buttonStyle(TVReferenceButtonStyle())
+
+            NavigationLink { SettingsScreen(title: "Privacy & Legal") { PrivacyLegalSettingsContent() } } label: {
+                TVSettingLabel(title: "Privacy & Legal", detail: "Data use, licenses, and notices", icon: "hand.raised")
+            }
+            .buttonStyle(TVReferenceButtonStyle())
         }
-        .onChange(of: glowEnabled) { _, value in CloudSync.shared.setBool(value, forKey: "nova.tvFocusGlowEnabled") }
-        .onChange(of: glowStrength) { _, value in CloudSync.shared.setDouble(value, forKey: "nova.tvFocusGlowStrength") }
     }
 }
 
@@ -338,7 +458,7 @@ struct TVCloudSettingsPanel: View {
 
 struct TVWebManagementPanel: View {
     var body: some View {
-        TVSettingsPanel(title: "Web Management") {
+        TVSettingsPanel(title: "Snapshot Import") {
             Text("Manage this Apple TV's setup by importing a Nova snapshot from a private URL you control. Preview its contents before applying changes.")
                 .font(.appFont(23)).foregroundStyle(Theme.Colors.textSecondary)
             NavigationLink { TVSnapshotImportPanel() } label: {

@@ -432,6 +432,7 @@ struct AppleTVQuickAccessItem: Identifiable {
     let title: String
     let subtitle: String
     let systemImage: String
+    var artworkURLs: [URL] = []
     let action: () -> Void
 }
 
@@ -458,17 +459,10 @@ struct AppleTVQuickAccessRow: View {
 }
 
 /// Compact two-column destination tiles used under the Home screen's Discover
-/// heading. The subtle artwork-like color fields keep the image-led hierarchy of
-/// the reference without copying its assets or changing Nova's navigation.
+/// heading. Each destination uses its own live artwork so this section follows the
+/// image-led language of the rest of the app as the user's library changes.
 struct StreamingDiscoverGrid: View {
     let items: [AppleTVQuickAccessItem]
-
-    private let swatches: [[Color]] = [
-        [Color(red: 0.46, green: 0.08, blue: 0.09), Color(red: 0.14, green: 0.02, blue: 0.04)],
-        [Color(red: 0.08, green: 0.11, blue: 0.38), Color(red: 0.02, green: 0.03, blue: 0.13)],
-        [Color(red: 0.05, green: 0.31, blue: 0.31), Color(red: 0.02, green: 0.09, blue: 0.12)],
-        [Color(red: 0.31, green: 0.13, blue: 0.42), Color(red: 0.08, green: 0.03, blue: 0.14)]
-    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
@@ -476,26 +470,34 @@ struct StreamingDiscoverGrid: View {
 
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible())],
                       spacing: 14) {
-                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                ForEach(items) { item in
                     Button(action: item.action) {
                         ZStack(alignment: .bottomLeading) {
-                            LinearGradient(colors: swatches[index % swatches.count],
-                                           startPoint: .topLeading,
-                                           endPoint: .bottomTrailing)
-                            Circle()
-                                .fill(Color.white.opacity(0.08))
-                                .frame(width: 150, height: 150)
-                                .blur(radius: 12)
-                                .offset(x: 55, y: -40)
+                            QuickAccessArtwork(urls: item.artworkURLs,
+                                               systemImage: item.systemImage)
+
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .clear, location: 0.22),
+                                    .init(color: .black.opacity(0.30), location: 0.56),
+                                    .init(color: .black.opacity(0.92), location: 1)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+
                             Image(systemName: item.systemImage)
-                                .font(.appFont(54, weight: .semibold))
-                                .foregroundStyle(.white.opacity(0.14))
-                                .frame(maxWidth: .infinity, maxHeight: .infinity,
-                                       alignment: .topTrailing)
-                                .padding(16)
+                                .font(.appFont(16, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(9)
+                                .background(.black.opacity(0.42), in: Circle())
+                                .overlay(Circle().strokeBorder(.white.opacity(0.18), lineWidth: 0.5))
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                                .padding(12)
+
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(item.title)
-                                    .font(.appFont(23, weight: .bold))
+                                    .font(.appFont(22, weight: .bold))
                                     .foregroundStyle(.white)
                                     .lineLimit(1)
                                 Text(item.subtitle)
@@ -521,6 +523,55 @@ struct StreamingDiscoverGrid: View {
     }
 }
 
+private struct QuickAccessArtwork: View {
+    let urls: [URL]
+    let systemImage: String
+
+    private var visibleURLs: [URL] {
+        var seen = Set<URL>()
+        return Array(urls.filter { seen.insert($0).inserted }.prefix(3))
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            if visibleURLs.isEmpty {
+                ZStack {
+                    Color(white: 0.10)
+                    Image(systemName: systemImage)
+                        .font(.appFont(52, weight: .medium))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.white.opacity(0.22))
+                }
+            } else {
+                HStack(spacing: 2) {
+                    ForEach(Array(visibleURLs.enumerated()), id: \.element) { index, url in
+                        CachedAsyncImage(url: url, maxPixel: 800) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Color(white: 0.12)
+                        }
+                        .frame(width: artworkWidth(index: index,
+                                                   count: visibleURLs.count,
+                                                   total: geometry.size.width),
+                               height: geometry.size.height)
+                        .clipped()
+                    }
+                }
+            }
+        }
+    }
+
+    private func artworkWidth(index: Int, count: Int, total: CGFloat) -> CGFloat {
+        guard count > 1 else { return total }
+        let spacing = CGFloat(count - 1) * 2
+        let available = total - spacing
+        if count == 2 { return available / 2 }
+        return index == 0 ? available * 0.50 : available * 0.25
+    }
+}
+
 private struct AppleTVQuickAccessTile: View {
     let item: AppleTVQuickAccessItem
     @FocusState private var focused: Bool
@@ -528,22 +579,30 @@ private struct AppleTVQuickAccessTile: View {
     var body: some View {
         Button(action: item.action) {
             ZStack(alignment: .bottomLeading) {
-                LinearGradient(colors: [Theme.Colors.cardElevated, Theme.Colors.card],
-                               startPoint: .topLeading,
-                               endPoint: .bottomTrailing)
+                QuickAccessArtwork(urls: item.artworkURLs,
+                                   systemImage: item.systemImage)
+
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.24), .black.opacity(0.92)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
                 Image(systemName: item.systemImage)
-                    .font(.appFont(58, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(Theme.Colors.textPrimary.opacity(0.88))
+                    .font(.appFont(22, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(11)
+                    .background(.black.opacity(0.44), in: Circle())
+                    .overlay(Circle().strokeBorder(.white.opacity(0.20), lineWidth: 1))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     .padding(Theme.Spacing.md)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(item.title)
                         .font(.appFont(22, weight: .bold))
-                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .foregroundStyle(.white)
                     Text(item.subtitle)
                         .font(.appFont(14))
-                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .foregroundStyle(.white.opacity(0.72))
                         .lineLimit(2)
                 }
                 .padding(Theme.Spacing.md)
@@ -553,10 +612,10 @@ private struct AppleTVQuickAccessTile: View {
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous)
-                    .strokeBorder(focused ? Theme.Colors.accentSecondary : Color.white.opacity(0.10),
+                    .strokeBorder(focused ? Color.white : Color.white.opacity(0.10),
                                   lineWidth: focused ? 3 : 1)
             )
-            .shadow(color: focused ? Theme.Colors.accent.opacity(0.48) : .black.opacity(0.22),
+            .shadow(color: .black.opacity(focused ? 0.48 : 0.22),
                     radius: focused ? 24 : 10, y: 8)
         }
         .buttonStyle(.plain)
@@ -935,9 +994,9 @@ enum TVReferenceStyle {
     static let edge: CGFloat = 80
     static let top: CGFloat = 42
     static let controlHeight: CGFloat = 56
-    static let cornerRadius: CGFloat = 10
-    static let canvas = LinearGradient(colors: [Color(white: 0.085), Color(white: 0.035), .black],
-                                       startPoint: .topTrailing, endPoint: .bottomLeading)
+    static let cornerRadius: CGFloat = 14
+    static let canvas = LinearGradient(colors: [.black, .black],
+                                       startPoint: .top, endPoint: .bottom)
 }
 
 private struct TVRootVisibilityKey: EnvironmentKey {
@@ -997,36 +1056,62 @@ struct TVPageHeading: View {
 struct TVReferenceButtonStyle: ButtonStyle {
     var selected = false
     var cornerRadius: CGFloat = TVReferenceStyle.cornerRadius
+    var horizontalPadding: CGFloat = 0
+    var verticalPadding: CGFloat = 0
     func makeBody(configuration: Configuration) -> some View {
-        ReferenceButtonBody(configuration: configuration, selected: selected, cornerRadius: cornerRadius)
+        ReferenceButtonBody(configuration: configuration, selected: selected,
+                            cornerRadius: cornerRadius, horizontalPadding: horizontalPadding,
+                            verticalPadding: verticalPadding)
     }
     private struct ReferenceButtonBody: View {
         let configuration: Configuration
         let selected: Bool
         let cornerRadius: CGFloat
+        let horizontalPadding: CGFloat
+        let verticalPadding: CGFloat
         @Environment(\.isFocused) private var focused
         @Environment(\.isEnabled) private var enabled
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
-        @AppStorage("nova.tvFocusGlowEnabled") private var glowEnabled = true
-        @AppStorage("nova.tvFocusGlowStrength") private var glowStrength = 0.35
+        @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
         var body: some View {
             let active = focused && enabled
+            let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             configuration.label
+                // Semantic label colors must resolve against the focused white surface.
+                .environment(\.colorScheme, active ? .light : .dark)
                 .foregroundStyle(active ? Color.black : Color.white)
-                .colorMultiply(active ? Color(white: 0.16) : Color.white)
+                .padding(.horizontal, horizontalPadding)
+                .padding(.vertical, verticalPadding)
                 .background {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(active ? Color(white: 0.94) : .white.opacity(selected ? 0.19 : 0.075))
+                    shape.fill(active ? Color.white : Color(white: 0.16).opacity(reduceTransparency ? 1 : selected ? 0.8 : 0.35))
                 }
+                .glassEffect(.regular.interactive(), in: shape)
                 .overlay {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .strokeBorder(.white.opacity(active ? 0.85 : selected ? 0.38 : 0.16), lineWidth: 1)
+                    shape.strokeBorder(.white.opacity(active ? 1 : selected ? 0.65 : 0.16), lineWidth: active ? 2 : 1)
                 }
-                .opacity(enabled ? 1 : 0.42)
-                .shadow(color: .white.opacity(active && glowEnabled ? min(max(glowStrength, 0), 1) * 0.45 : 0), radius: 14)
-                .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: active)
+                .contentShape(shape)
+                .opacity(enabled ? 1 : 0.4)
+                .shadow(color: .black.opacity(active ? 0.36 : 0), radius: 16, y: 8)
+                .scaleEffect(reduceMotion ? 1 : configuration.isPressed ? 0.98 : active ? 1.035 : 1)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: active)
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
+        }
+    }
+}
+
+/// Artwork keeps its own colors; focus frames it rather than whitening the image.
+struct TVArtworkButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { ArtworkBody(configuration: configuration) }
+    private struct ArtworkBody: View {
+        let configuration: Configuration
+        @Environment(\.isFocused) private var focused
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        var body: some View {
+            configuration.label
+                .padding(6)
+                .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.white.opacity(focused ? 1 : 0), lineWidth: 3))
+                .scaleEffect(reduceMotion ? 1 : configuration.isPressed ? 0.98 : focused ? 1.035 : 1)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: focused)
         }
     }
 }

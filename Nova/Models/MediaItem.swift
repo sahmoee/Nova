@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct MediaItem: Identifiable, Codable, Hashable {
+struct MediaItem: Identifiable, Codable, Hashable, Sendable {
     var id: UUID
     var title: String
     var sourceType: SourceType
@@ -43,6 +43,10 @@ struct MediaItem: Identifiable, Codable, Hashable {
     var isHidden: Bool
     /// Remembered subtitle timing offset in seconds for this title (+ = later).
     var subtitleOffset: Double
+    /// Other playable copies of the same title. The primary fields above remain
+    /// backward compatible; indexing can now merge Jellyfin/Plex/SMB copies without
+    /// losing a fallback when one server goes offline or removes the title.
+    var alternateSources: [MediaSourceLocation]
 
     /// A stable identity for the *same content*, independent of the random `id`
     /// assigned per playback. Used to dedupe the library so replaying an episode
@@ -87,7 +91,8 @@ struct MediaItem: Identifiable, Codable, Hashable {
         skipSegments: [SkipSegment] = [],
         tags: [String] = [],
         isHidden: Bool = false,
-        subtitleOffset: Double = 0
+        subtitleOffset: Double = 0,
+        alternateSources: [MediaSourceLocation] = []
     ) {
         self.id = id
         self.title = title
@@ -110,6 +115,7 @@ struct MediaItem: Identifiable, Codable, Hashable {
         self.tags = tags
         self.isHidden = isHidden
         self.subtitleOffset = subtitleOffset.isFinite ? subtitleOffset : 0
+        self.alternateSources = alternateSources
     }
 
     // Backward-compatible decoding: libraries saved before Phase 3 lack the new
@@ -137,6 +143,7 @@ struct MediaItem: Identifiable, Codable, Hashable {
         tags = try c.decodeIfPresent([String].self, forKey: .tags) ?? []
         isHidden = try c.decodeIfPresent(Bool.self, forKey: .isHidden) ?? false
         subtitleOffset = try c.decodeIfPresent(Double.self, forKey: .subtitleOffset) ?? 0
+        alternateSources = try c.decodeIfPresent([MediaSourceLocation].self, forKey: .alternateSources) ?? []
         if !subtitleOffset.isFinite { subtitleOffset = 0 }
     }
 
@@ -199,7 +206,7 @@ struct MediaItem: Identifiable, Codable, Hashable {
     /// direct URL, or live channel) rather than something that needs stream resolution.
     var isDirectPlay: Bool {
         switch sourceType {
-        case .smb, .directURL, .liveTV: return true
+        case .smb, .directURL, .liveTV, .jellyfin, .plex, .emby: return true
         case .realDebrid, .addon, .trakt: return false
         }
     }
@@ -226,9 +233,21 @@ struct MediaItem: Identifiable, Codable, Hashable {
     }
 }
 
+struct MediaSourceLocation: Codable, Hashable, Sendable {
+    var sourceType: SourceType
+    var playbackURL: URL
+    var mediaServerID: UUID?
+    var mediaServerItemID: String?
+
+    var identity: String {
+        if let mediaServerID, let mediaServerItemID { return "server:\(mediaServerID):\(mediaServerItemID)" }
+        return "\(sourceType.rawValue):\(playbackURL.absoluteString)"
+    }
+}
+
 /// Lightweight reference to a specific episode, stored on a MediaItem so the
 /// player can compute "next episode" and the library can group by show.
-struct EpisodeRef: Codable, Hashable {
+struct EpisodeRef: Codable, Hashable, Sendable {
     var season: Int
     var number: Int
     var episodeTitle: String?
@@ -236,7 +255,7 @@ struct EpisodeRef: Codable, Hashable {
     var label: String { String(format: "S%02dE%02d", season, number) }
 }
 
-struct MediaMetadata: Codable, Hashable {
+struct MediaMetadata: Codable, Hashable, Sendable {
     var filename: String?
     var fileSize: Int64?
     var codec: String?
@@ -248,6 +267,10 @@ struct MediaMetadata: Codable, Hashable {
     /// whenever the app or network connection changes.
     var smbShareID: UUID?
     var smbPath: String?
+    /// Identity of a configured media server and its item. Additive fields keep
+    /// older library files readable and let a rescan update/remove only its own rows.
+    var mediaServerID: UUID?
+    var mediaServerItemID: String?
 
     init(
         filename: String? = nil,
@@ -258,7 +281,9 @@ struct MediaMetadata: Codable, Hashable {
         episode: Int? = nil,
         year: Int? = nil,
         smbShareID: UUID? = nil,
-        smbPath: String? = nil
+        smbPath: String? = nil,
+        mediaServerID: UUID? = nil,
+        mediaServerItemID: String? = nil
     ) {
         self.filename = filename
         self.fileSize = fileSize
@@ -269,5 +294,7 @@ struct MediaMetadata: Codable, Hashable {
         self.year = year
         self.smbShareID = smbShareID
         self.smbPath = smbPath
+        self.mediaServerID = mediaServerID
+        self.mediaServerItemID = mediaServerItemID
     }
 }

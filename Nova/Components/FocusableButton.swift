@@ -45,8 +45,7 @@ struct FocusableButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         #if os(tvOS)
-        TVReferenceButtonStyle(selected: prominent).makeBody(configuration: configuration)
-            .padding(.horizontal, 16).padding(.vertical, 8)
+        TVReferenceButtonStyle(selected: prominent, horizontalPadding: 22, verticalPadding: 10).makeBody(configuration: configuration)
         #else
         FocusableButtonBody(configuration: configuration, prominent: prominent)
         #endif
@@ -87,14 +86,9 @@ struct FocusableButtonStyle: ButtonStyle {
                 .background(background)
                 .foregroundStyle(foreground)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
-                        .stroke(active ? Theme.Colors.accentSecondary : Color.white.opacity(0.14),
-                                lineWidth: active ? 2.5 : 1)
-                )
-                .shadow(color: active ? Theme.Colors.accent.opacity(0.50) : .black.opacity(prominent ? 0.25 : 0),
-                        radius: active ? 22 : 10,
-                        y: active ? 9 : 4)
+                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
+                    .stroke(Color.white.opacity(active ? 0.45 : 0.14), lineWidth: 1))
                 .scaleEffect(active && !Theme.isReduceMotion ? 1.06 : 1.0)
                 .opacity(isEnabled ? 1 : 0.45)
                 .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18), value: active)

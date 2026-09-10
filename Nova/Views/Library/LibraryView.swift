@@ -992,6 +992,9 @@ struct LibraryView: View {
             Toggle(isOn: $settings.showSMBSeparately) {
                 Label("Show SMB Separately", systemImage: "externaldrive.connected.to.line.below")
             }
+            NavigationLink { MediaServersView() } label: {
+                Label("Media Servers", systemImage: "play.tv")
+            }
             NavigationLink { LibraryEnrichView() } label: {
                 Label("Clean Up Library (AI)", systemImage: "wand.and.stars")
             }
@@ -1179,6 +1182,7 @@ struct LibraryView: View {
         case .favorites:        return "star"
         case .continueWatching: return "play.circle"
         case .smb:              return "externaldrive.connected.to.line.below"
+        case .mediaServers:     return "play.tv"
         case .traktWatchlist:   return "text.badge.star"
         case .traktTrending:    return "flame"
         case .collection:       return "rectangle.stack"
@@ -1220,6 +1224,7 @@ struct LibraryView: View {
     private var activeFilters: [LibraryFilter] {
         var f = categoryStore.visibleFilters
         if settings.showSMBSeparately && !authenticatedSMBShareIDs.isEmpty { f.append(.smb) }
+        if !env.mediaServers.connections.isEmpty { f.append(.mediaServers) }
         for idString in settings.pinnedCollections {
             if let id = UUID(uuidString: idString),
                library.collections.contains(where: { $0.id == id }) {
@@ -1321,6 +1326,7 @@ struct LibraryView: View {
         case .favorites:         base = library.favorites
         case .continueWatching:  base = library.continueWatching
         case .smb:               base = library.libraryEntries.filter { $0.sourceType == .smb }
+        case .mediaServers:      base = library.libraryEntries.filter { $0.metadata.mediaServerID != nil }
         case .traktWatchlist, .traktTrending:
             base = []   // Trakt tabs render their own catalog grid
         case .collection(let id):
@@ -1826,6 +1832,7 @@ enum LibraryFilter: Hashable, Identifiable, CaseIterable {
     case favorites
     case continueWatching
     case smb
+    case mediaServers
     case traktWatchlist
     case traktTrending
     case collection(UUID)
@@ -1840,6 +1847,7 @@ enum LibraryFilter: Hashable, Identifiable, CaseIterable {
         case .favorites:          return "fav"
         case .continueWatching:   return "continue"
         case .smb:                return "smb"
+        case .mediaServers:       return "media-servers"
         case .traktWatchlist:     return "trakt-watchlist"
         case .traktTrending:      return "trakt-trending"
         case .collection(let id): return "collection-\(id.uuidString)"
@@ -1852,6 +1860,7 @@ enum LibraryFilter: Hashable, Identifiable, CaseIterable {
         case "fav": self = .favorites
         case "continue": self = .continueWatching
         case "smb": self = .smb
+        case "media-servers": self = .mediaServers
         default: return nil
         }
     }
@@ -1862,6 +1871,7 @@ enum LibraryFilter: Hashable, Identifiable, CaseIterable {
         case .favorites:         return "Favorites"
         case .continueWatching:  return "Continue Watching"
         case .smb:               return "Network (SMB)"
+        case .mediaServers:      return "Media Servers"
         case .traktWatchlist:    return "Trakt Watchlist"
         case .traktTrending:     return "Trakt Trending"
         case .collection:        return "Collection"

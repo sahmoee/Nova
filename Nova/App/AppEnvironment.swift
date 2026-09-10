@@ -28,6 +28,7 @@ final class AppEnvironment: ObservableObject {
     let liveTVSources = LiveTVSourceStore()
     let mediaIntegrations: MediaIntegrationStore
     let libraryFolders = LibraryFolderStore()
+    let mediaServers: MediaServerStore
     let libraryEnricher = LibraryEnricher()
     let tmdb: TMDBClient
     let omdb: OMDbClient
@@ -83,6 +84,7 @@ final class AppEnvironment: ObservableObject {
     init() {
         let lib = LibraryStore()
         self.library = lib
+        self.mediaServers = MediaServerStore(library: lib)
         self.progress = PlaybackProgressStore(library: lib)
         self.settings = SettingsStore()
         self.showSettings = ShowSettingsStore()
@@ -148,13 +150,17 @@ final class AppEnvironment: ObservableObject {
 
         // Seed default addons (Cinemeta + any from config) in the background.
         Task { await store.seedDefaultsIfNeeded() }
+        mediaServers.syncAll()
 
         // Refresh connected tracking providers after a backup restore. Live TV,
         // addons, and SMB reload via their own observers of the same notification.
         NotificationCenter.default.addObserver(
             forName: .novaBackupRestored, object: nil, queue: nil
-        ) { [trackers] _ in
-            Task { await trackers.refreshAll() }
+        ) { [trackers, mediaServers] _ in
+            Task {
+                await trackers.refreshAll()
+                await MainActor.run { mediaServers.syncAll() }
+            }
         }
     }
 }

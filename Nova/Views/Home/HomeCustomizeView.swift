@@ -39,8 +39,13 @@ struct HomeCustomizeView: View {
                 } header: {
                     Text("Shelves").foregroundStyle(Theme.Colors.textSecondary)
                 } footer: {
+                    #if os(tvOS)
+                    Text("Turn shelves on or off. Use Nova on iPhone or iPad when you want to reorder or remove custom shelves.")
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                    #else
                     Text("Toggle shelves on or off, drag to reorder, or swipe to remove. These appear on Home and Discover.")
                         .foregroundStyle(Theme.Colors.textTertiary)
+                    #endif
                 }
 
                 Section {

@@ -62,7 +62,7 @@ struct MenuOverlay: View {
                 .padding(.top, Theme.Spacing.md)
                 .padding(.bottom, Theme.Spacing.sm)
 
-            ForEach(AppTab.allCases, id: \.self) { tab in
+            ForEach(AppTab.primaryTabs, id: \.self) { tab in
                 menuRow(tab)
             }
         }
@@ -105,6 +105,10 @@ struct MenuOverlay: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(MenuRowStyle(isSelected: tab == selection, accent: accent))
+        .accessibilityLabel(tab.title)
+        .accessibilityValue(tab == selection ? "Selected" : "")
+        .accessibilityHint("Switches to \(tab.title)")
+        .accessibilityAddTraits(tab == selection ? .isSelected : [])
         #if os(tvOS)
         .focused($focusedTab, equals: tab)
         #endif

@@ -29,10 +29,15 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var mountedPhoneTabs: Set<AppTab> = [.home]
     #endif
 
     var body: some View {
         rootContent
+            #if os(tvOS)
+            .buttonStyle(.glass)
+            .buttonBorderShape(.roundedRectangle(radius: 14))
+            #endif
             .environmentObject(nav)
             .environment(\.dynamicAccent, accentManager.accent)
             .tint(accentManager.accent)
@@ -107,11 +112,27 @@ struct RootView: View {
     /// iPhone mirrors the Apple TV app's familiar bottom navigation and leaves each
     /// section mounted, preserving scroll position and navigation history.
     private var iPhoneTabRoot: some View {
-        tabView
-            .safeAreaInset(edge: .bottom, spacing: 0) { nowPlayingBar }
-            .toolbarBackground(Theme.Colors.appBackground.opacity(0.98), for: .tabBar)
-            .toolbarBackground(.visible, for: .tabBar)
-            .toolbarColorScheme(.dark, for: .tabBar)
+        ZStack {
+            Theme.Colors.appBackground.ignoresSafeArea()
+            ForEach(AppTab.primaryTabs.filter { mountedPhoneTabs.contains($0) }, id: \.self) { tab in
+                screen(for: tab)
+                    .opacity(nav.selection == tab ? 1 : 0)
+                    .disabled(nav.selection != tab)
+                    .allowsHitTesting(nav.selection == tab)
+                    .accessibilityHidden(nav.selection != tab)
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 6) {
+                nowPlayingBar
+                NovaHomeBar(selection: nav.selectionBinding)
+            }
+        }
+        .onChange(of: nav.selection) { _, tab in
+            let visibleTab = tab == .ai ? AppTab.discover : tab
+            if tab == .ai { nav.selection = .discover }
+            mountedPhoneTabs.insert(visibleTab)
+        }
     }
     #endif
 
@@ -165,41 +186,13 @@ struct RootView: View {
     }
     #endif
 
-    private var tabView: some View {
-        TabView(selection: nav.selectionBinding) {
-            HomeView(path: $nav.homePath)
-                .tabItem { Label(AppTab.home.title, systemImage: AppTab.home.systemImage) }
-                .tag(AppTab.home)
-
-            DiscoverView(path: $nav.discoverPath)
-                .tabItem { Label(AppTab.discover.title, systemImage: AppTab.discover.systemImage) }
-                .tag(AppTab.discover)
-
-            LibraryView(path: $nav.libraryPath)
-                .tabItem { Label(AppTab.library.title, systemImage: AppTab.library.systemImage) }
-                .tag(AppTab.library)
-
-            AIView(path: $nav.aiPath)
-                .tabItem { Label(AppTab.ai.title, systemImage: AppTab.ai.systemImage) }
-                .tag(AppTab.ai)
-
-            SettingsView(path: $nav.settingsPath)
-                .tabItem { Label(AppTab.settings.title, systemImage: AppTab.settings.systemImage) }
-                .tag(AppTab.settings)
-        }
-        .environmentObject(env)
-        .environmentObject(env.library)
-        .environmentObject(env.progress)
-        .environmentObject(settings)
-    }
-
     #if os(iOS)
     /// iPad uses the Apple TV / Music-style persistent sidebar with the active
     /// section filling the detail column. The mini-player remains pinned above the
     /// bottom safe area and never replaces the sidebar.
     private var iPadSidebarRoot: some View {
         NavigationSplitView {
-            List(AppTab.allCases, id: \.self, selection: sidebarSelection) { tab in
+            List(AppTab.primaryTabs, id: \.self, selection: sidebarSelection) { tab in
                 Label(tab.title, systemImage: tab.systemImage)
                     .font(.appFont(18, weight: .medium))
                     .tag(tab)
@@ -404,6 +397,52 @@ struct RootView: View {
         }
     }
 }
+
+#if os(iOS)
+private struct NovaHomeBar: View {
+    @Binding var selection: AppTab
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(AppTab.primaryTabs, id: \.self) { tab in
+                Button {
+                    Haptics.selection()
+                    selection = tab
+                } label: {
+                    VStack(spacing: 3) {
+                        Image(systemName: tab.systemImage)
+                            .font(.system(size: 19, weight: .semibold))
+                            .symbolVariant(selection == tab ? .fill : .none)
+                        Text(tab.title)
+                            .font(.caption2.weight(.semibold))
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(selection == tab ? Color.accentColor : Color.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 49)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(tab.title)
+                .accessibilityValue(selection == tab ? "Selected" : "")
+                .accessibilityHint(selection == tab ? "Returns to the top of (tab.title)" : "Opens (tab.title)")
+                .accessibilityAddTraits(selection == tab ? .isSelected : [])
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(reduceTransparency ? AnyShapeStyle(Color(white: 0.08)) : AnyShapeStyle(.ultraThinMaterial),
+                    in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous)
+            .strokeBorder(Color.white.opacity(0.13), lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.30), radius: 18, y: 7)
+        .padding(.horizontal, 10)
+        .padding(.bottom, 5)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Main navigation")
+    }
+}
+#endif
 
 
 // MARK: - Anime tab (boxd feature #3)

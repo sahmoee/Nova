@@ -340,6 +340,43 @@ final class LibraryStore: ObservableObject {
         persist()
     }
 
+    /// Atomically replaces the portion of the index owned by one media server.
+    /// User state survives through `merge`, while titles removed from that server
+    /// disappear without touching SMB, direct-link, addon, or other-server rows.
+    func reconcileMediaServer(_ newItems: [MediaItem], connectionID: UUID) {
+        let liveIDs = Set(newItems.compactMap(\.metadata.mediaServerItemID))
+        items = items.compactMap { item in
+            var item = item
+            item.alternateSources.removeAll {
+                $0.mediaServerID == connectionID
+                    && $0.mediaServerItemID.map { !liveIDs.contains($0) } == true
+            }
+            guard item.metadata.mediaServerID == connectionID,
+                  item.metadata.mediaServerItemID.map({ !liveIDs.contains($0) }) == true else { return item }
+            guard let fallback = item.alternateSources.first else { return nil }
+            item.alternateSources.removeFirst()
+            item.sourceType = fallback.sourceType
+            item.playbackURL = fallback.playbackURL
+            item.metadata.mediaServerID = fallback.mediaServerID
+            item.metadata.mediaServerItemID = fallback.mediaServerItemID
+            return item
+        }
+        var positions: [String: Int] = [:]
+        for (index, item) in items.enumerated() where positions[item.contentKey] == nil {
+            positions[item.contentKey] = index
+        }
+        for item in newItems {
+            if let index = positions[item.contentKey] {
+                items[index] = merged(item, preserving: items[index])
+            } else {
+                items.append(item)
+                positions[item.contentKey] = items.count - 1
+            }
+        }
+        items.sort { $0.addedDate > $1.addedDate }
+        persist()
+    }
+
     private func merge(_ item: MediaItem) {
         // Dedupe by stable content identity, not the per-playback random id, so
         // replaying the same episode updates its entry instead of adding a copy.
@@ -347,22 +384,36 @@ final class LibraryStore: ObservableObject {
             // Preserve durable user/watch state while refreshing the playable URL and
             // metadata. Stream resolution creates a fresh transient MediaItem, and
             // replacing the record wholesale used to erase the exact resume point.
-            let existing = items[idx]
-            var updated = item
-            updated.id = existing.id
-            updated.isFavorite = existing.isFavorite
-            updated.addedDate = existing.addedDate
-            updated.lastPlayedPosition = existing.lastPlayedPosition
-            updated.lastPlayedDate = existing.lastPlayedDate
-            updated.duration = item.duration ?? existing.duration
-            updated.subtitleOffset = existing.subtitleOffset
-            updated.tags = existing.tags
-            updated.isHidden = existing.isHidden
-            if updated.subtitles.isEmpty { updated.subtitles = existing.subtitles }
-            items[idx] = updated
+            items[idx] = merged(item, preserving: items[idx])
         } else {
             items.insert(item, at: 0)
         }
+    }
+
+    private func merged(_ incoming: MediaItem, preserving existing: MediaItem) -> MediaItem {
+        var updated = incoming
+        updated.id = existing.id
+        updated.isFavorite = existing.isFavorite
+        updated.addedDate = existing.addedDate
+        updated.lastPlayedPosition = existing.lastPlayedPosition
+        updated.lastPlayedDate = existing.lastPlayedDate
+        updated.duration = incoming.duration ?? existing.duration
+        updated.subtitleOffset = existing.subtitleOffset
+        updated.tags = existing.tags
+        updated.isHidden = existing.isHidden
+        if updated.subtitles.isEmpty { updated.subtitles = existing.subtitles }
+
+        let previous = MediaSourceLocation(sourceType: existing.sourceType,
+            playbackURL: existing.playbackURL, mediaServerID: existing.metadata.mediaServerID,
+            mediaServerItemID: existing.metadata.mediaServerItemID)
+        var sources = existing.alternateSources + incoming.alternateSources
+        let incomingIdentity = MediaSourceLocation(sourceType: incoming.sourceType,
+            playbackURL: incoming.playbackURL, mediaServerID: incoming.metadata.mediaServerID,
+            mediaServerItemID: incoming.metadata.mediaServerItemID).identity
+        if previous.identity != incomingIdentity { sources.append(previous) }
+        var seen = Set<String>()
+        updated.alternateSources = sources.filter { $0.identity != incomingIdentity && seen.insert($0.identity).inserted }
+        return updated
     }
 
     func update(_ item: MediaItem) {

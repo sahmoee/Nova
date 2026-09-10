@@ -3,10 +3,8 @@
 //  Nova
 //
 //  On tvOS, wrapping content in a Button or NavigationLink applies the system's
-//  default focus effect, which lifts the row onto a bright white card. That looks out
-//  of place in a dark, cinematic UI. This file provides a single, reusable style that
-//  gives rows an elegant accent-tinted highlight with a subtle lift instead, matching
-//  the rest of Nova. On iOS it falls back to a simple pressed/selected state.
+//  default Apple TV focus lift. These shared styles keep that neutral system
+//  language consistent for custom rows and controls.
 //
 
 import SwiftUI
@@ -29,8 +27,7 @@ extension EnvironmentValues {
 struct NovaRowButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         #if os(tvOS)
-        TVReferenceButtonStyle(cornerRadius: 10).makeBody(configuration: configuration)
-            .padding(.horizontal, 16).padding(.vertical, 12)
+        TVReferenceButtonStyle(cornerRadius: 14, horizontalPadding: 16, verticalPadding: 12).makeBody(configuration: configuration)
         #else
         NovaRowBody(configuration: configuration)
         #endif
@@ -39,7 +36,6 @@ struct NovaRowButtonStyle: ButtonStyle {
     private struct NovaRowBody: View {
         let configuration: Configuration
         @Environment(\.isFocused) private var isFocused
-        @Environment(\.dynamicAccent) private var accent
         @Environment(\.isEnabled) private var isEnabled
 
         private var active: Bool {
@@ -57,17 +53,14 @@ struct NovaRowButtonStyle: ButtonStyle {
                 .padding(.vertical, Theme.Spacing.sm)
                 .background(
                     RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .fill(active ? AnyShapeStyle(Theme.Colors.focusedControl)
+                        .fill(active ? AnyShapeStyle(Color.white)
                                      : AnyShapeStyle(Theme.Colors.controlGlass))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .strokeBorder(active ? Theme.Colors.accentSecondary : Color.white.opacity(0.15),
-                                      lineWidth: active ? 2.5 : 0.8)
+                        .strokeBorder(Color.white.opacity(active ? 0.9 : 0.15), lineWidth: 0.8)
                 )
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .shadow(color: active ? Theme.Colors.accent.opacity(0.50) : Color.black.opacity(0.18),
-                        radius: active ? 26 : 10, y: active ? 10 : 5)
+                .foregroundStyle(active ? Color.black : Theme.Colors.textPrimary)
                 .scaleEffect(active && !Theme.isReduceMotion ? 1.06 : 1.0)
                 .opacity(isEnabled ? 1 : 0.45)
                 .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.2), value: active)
@@ -98,7 +91,6 @@ struct NovaChipButtonStyle: ButtonStyle {
     private struct NovaChipBody: View {
         let configuration: Configuration
         @Environment(\.isFocused) private var isFocused
-        @Environment(\.dynamicAccent) private var accent
         @Environment(\.isEnabled) private var isEnabled
 
         private var active: Bool {
@@ -113,14 +105,11 @@ struct NovaChipButtonStyle: ButtonStyle {
         var body: some View {
             configuration.label
                 .background(
-                    Capsule().fill(active ? AnyShapeStyle(Theme.Colors.focusedControl)
+                    Capsule().fill(active ? AnyShapeStyle(Color.white)
                                           : AnyShapeStyle(Theme.Colors.controlGlass))
                 )
-                .overlay(Capsule().strokeBorder(active ? Theme.Colors.accentSecondary : Color.white.opacity(0.14),
-                                                lineWidth: active ? 2 : 0.75))
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .shadow(color: active ? Theme.Colors.accent.opacity(0.48) : .clear,
-                        radius: active ? 20 : 0, y: active ? 8 : 0)
+                .overlay(Capsule().strokeBorder(Color.white.opacity(active ? 0.9 : 0.14), lineWidth: 0.75))
+                .foregroundStyle(active ? Color.black : Theme.Colors.textPrimary)
                 .scaleEffect(active && !Theme.isReduceMotion ? 1.08 : 1.0)
                 .opacity(isEnabled ? 1 : 0.45)
                 .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18), value: active)
@@ -133,7 +122,6 @@ struct NovaChipButtonStyle: ButtonStyle {
 struct FocusHighlight: ViewModifier {
     var cornerRadius: CGFloat = Theme.Radius.card
     @Environment(\.isFocused) private var isFocused
-    @Environment(\.dynamicAccent) private var accent
     @Environment(\.isEnabled) private var isEnabled
 
     func body(content: Content) -> some View {
@@ -141,10 +129,8 @@ struct FocusHighlight: ViewModifier {
         content
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(active ? Theme.Colors.accentSecondary : .clear, lineWidth: 3)
+                    .strokeBorder(active ? Theme.Colors.focusRing : .clear, lineWidth: 3)
             )
-            .shadow(color: active ? Theme.Colors.accent.opacity(0.52) : .clear,
-                    radius: active ? 30 : 0, y: active ? 14 : 0)
             .scaleEffect(active && !Theme.isReduceMotion ? 1.075 : 1.0)
             .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.2), value: active)
     }
@@ -162,8 +148,7 @@ extension View {
 struct NovaIconButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         #if os(tvOS)
-        TVReferenceButtonStyle(cornerRadius: 28).makeBody(configuration: configuration)
-            .padding(8)
+        TVReferenceButtonStyle(cornerRadius: 28, horizontalPadding: 8, verticalPadding: 8).makeBody(configuration: configuration)
         #else
         NovaIconBody(configuration: configuration)
         #endif
@@ -172,7 +157,6 @@ struct NovaIconButtonStyle: ButtonStyle {
     private struct NovaIconBody: View {
         let configuration: Configuration
         @Environment(\.isFocused) private var isFocused
-        @Environment(\.dynamicAccent) private var accent
         @Environment(\.isEnabled) private var isEnabled
 
         private var active: Bool {
@@ -188,14 +172,13 @@ struct NovaIconButtonStyle: ButtonStyle {
             configuration.label
                 .padding(Theme.Spacing.xs)
                 .background(
-                    Circle().fill(active ? AnyShapeStyle(Theme.Colors.focusedControl)
+                    Circle().fill(active ? AnyShapeStyle(Color.white)
                                          : AnyShapeStyle(Theme.Colors.controlGlass))
                 )
                 .overlay(
-                    Circle().strokeBorder(active ? Theme.Colors.accentSecondary : Color.white.opacity(0.14),
-                                          lineWidth: active ? 1.5 : 0.75)
+                    Circle().strokeBorder(Color.white.opacity(active ? 0.9 : 0.14), lineWidth: 0.75)
                 )
-                .foregroundStyle(Theme.Colors.textPrimary)
+                .foregroundStyle(active ? Color.black : Theme.Colors.textPrimary)
                 .scaleEffect(active && !Theme.isReduceMotion ? 1.12 : 1.0)
                 .opacity(isEnabled ? 1 : 0.45)
                 .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18), value: active)
@@ -225,7 +208,6 @@ struct NovaListRowStyle: ButtonStyle {
     private struct NovaListRowBody: View {
         let configuration: Configuration
         @Environment(\.isFocused) private var isFocused
-        @Environment(\.dynamicAccent) private var accent
         @Environment(\.isEnabled) private var isEnabled
 
         private var active: Bool {
@@ -241,15 +223,14 @@ struct NovaListRowStyle: ButtonStyle {
             configuration.label
                 .background(
                     RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
-                        .fill(active ? AnyShapeStyle(Theme.Colors.focusedControl)
+                        .fill(active ? AnyShapeStyle(Color.white)
                                      : AnyShapeStyle(Color.white.opacity(0.045)))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
-                        .strokeBorder(active ? Theme.Colors.accentSecondary : Color.white.opacity(0.10),
-                                      lineWidth: active ? 1.5 : 0.75)
+                        .strokeBorder(Color.white.opacity(active ? 0.9 : 0.10), lineWidth: 0.75)
                 )
-                .foregroundStyle(Theme.Colors.textPrimary)
+                .foregroundStyle(active ? Color.black : Theme.Colors.textPrimary)
                 .scaleEffect(active && !Theme.isReduceMotion ? 1.01 : 1.0)
                 .opacity(isEnabled ? 1 : 0.45)
                 .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18), value: active)

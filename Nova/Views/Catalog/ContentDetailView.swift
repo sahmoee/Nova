@@ -139,6 +139,9 @@ struct ContentDetailView: View {
     }
 
     private func heroHeader(width: CGFloat, screenHeight: CGFloat) -> some View {
+        #if os(tvOS)
+        televisionHero(width: width, height: screenHeight)
+        #else
         ZStack(alignment: .bottomLeading) {
             CachedAsyncImage(url: item.backdropURL ?? item.posterURL, maxPixel: 1600) { image in
                 ZStack {
@@ -200,7 +203,80 @@ struct ContentDetailView: View {
         }
         .frame(width: width, height: heroHeight(screenHeight: screenHeight))
         .clipped()
+        #endif
     }
+
+
+    #if os(tvOS)
+    private func televisionHero(width: CGFloat, height: CGFloat) -> some View {
+        ZStack(alignment: .bottomLeading) {
+            CachedAsyncImage(url: item.backdropURL ?? item.posterURL, maxPixel: 1920) { image in
+                ZStack {
+                    image.resizable().aspectRatio(contentMode: .fill).blur(radius: 24)
+                    image.resizable().aspectRatio(contentMode: .fit)
+                }
+            } placeholder: { Color(white: 0.08) }
+            .frame(width: width, height: 760).clipped()
+            LinearGradient(stops: [.init(color: .black.opacity(0.82), location: 0),
+                                   .init(color: .black.opacity(0.38), location: 0.42),
+                                   .init(color: .clear, location: 0.8)],
+                           startPoint: .leading, endPoint: .trailing)
+            LinearGradient(colors: [.clear, .black], startPoint: .center, endPoint: .bottom)
+            VStack(alignment: .leading, spacing: 18) {
+                Text(item.title).font(.system(size: 64, weight: .bold)).lineLimit(2)
+                Text(metaLine).font(.system(size: 22, weight: .semibold)).foregroundStyle(.white.opacity(0.82))
+                if let overview = item.overview, !overview.isEmpty {
+                    Text(overview).font(.system(size: 23)).lineLimit(3)
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+                HStack(spacing: 18) {
+                    Button {
+                        streamTarget = StreamTarget(catalog: item, episode: item.isSeries ? nextUnwatchedEpisode() : nil)
+                    } label: {
+                        Label(item.isSeries ? "Watch Now" : playButtonTitle, systemImage: "play.fill")
+                            .font(.system(size: 23, weight: .semibold))
+                            .padding(.horizontal, 24).frame(height: 60)
+                    }
+                    .buttonStyle(TVReferenceButtonStyle(cornerRadius: 30))
+                    Button { toggleWatched() } label: {
+                        Image(systemName: isWatched ? "checkmark.circle.fill" : "checkmark")
+                            .font(.system(size: 25, weight: .semibold)).frame(width: 60, height: 60)
+                    }
+                    .buttonStyle(TVReferenceButtonStyle(selected: isWatched, cornerRadius: 30))
+                    .accessibilityLabel(isWatched ? "Mark as unwatched" : "Mark as watched")
+                    Menu {
+                        Button { streamTarget = StreamTarget(catalog: item, episode: item.isSeries ? nextUnwatchedEpisode() : nil, forceManual: true) } label: {
+                            Label("Choose Stream", systemImage: "list.bullet")
+                        }
+                        Button { toggleFavorite() } label: { Label(isFavorited ? "Remove Favorite" : "Favorite", systemImage: isFavorited ? "star.fill" : "star") }
+                        Button { showCollectionPicker = true } label: { Label("Add to Collection", systemImage: "rectangle.stack.badge.plus") }
+                        Button {
+                            RecommendationFeedbackStore.shared.moreLikeThis(genres: item.genres)
+                            ToastCenter.shared.show("We'll show more like this", systemImage: "hand.thumbsup.fill")
+                        } label: { Label("More Like This", systemImage: "hand.thumbsup") }
+                        Button {
+                            RecommendationFeedbackStore.shared.notInterested(key: item.contentID.stableKey, genres: item.genres)
+                            ToastCenter.shared.show("We'll show this less", systemImage: "hand.thumbsdown.fill")
+                        } label: { Label("Not Interested", systemImage: "hand.thumbsdown") }
+                        Button {
+                            RecommendationFeedbackStore.shared.alreadyWatched(key: item.contentID.stableKey)
+                            ToastCenter.shared.show("Hidden from recommendations", systemImage: "eye.slash")
+                        } label: { Label("Already Watched", systemImage: "eye") }
+                    } label: {
+                        Image(systemName: "ellipsis").font(.system(size: 25, weight: .semibold)).frame(width: 60, height: 60)
+                    }
+                    .buttonStyle(.glass).buttonBorderShape(.circle)
+                    .accessibilityLabel("More actions for \(item.title)")
+                }
+                .padding(.top, 10)
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: min(width - 160, 760), alignment: .leading)
+            .padding(.horizontal, TVReferenceStyle.edge).padding(.bottom, 54)
+        }
+        .frame(width: width, height: 760).clipped()
+    }
+    #endif
 
     /// iPhone-only: the overview and both action rails render here, full width and
     /// below the backdrop, so the secondary action tiles wrap several per row instead
@@ -274,21 +350,29 @@ struct ContentDetailView: View {
                              active: novaRating != nil)
                 }
             }
+            .buttonStyle(.glass)
+            .buttonBorderShape(.roundedRectangle(radius: 14))
         }
         .padding(.horizontal, Theme.Spacing.edge)
         .task { await loadNovaState() }
     }
 
     private func novaChip(icon: String, text: String, active: Bool) -> some View {
+        #if os(tvOS)
+        Label(text, systemImage: icon)
+            .font(.system(size: 21, weight: .semibold))
+            .padding(.horizontal, 8).frame(minHeight: 44)
+            .accessibilityValue(active ? "Selected" : "")
+        #else
         HStack(spacing: 6) {
             Image(systemName: icon).font(.appFont(13, weight: .semibold))
             Text(text).font(.appFont(15, weight: .semibold)).lineLimit(1)
         }
-        .foregroundStyle(active ? Theme.Colors.background : Theme.Colors.textPrimary)
-        .padding(.horizontal, Theme.Spacing.md)
+        .foregroundStyle(Theme.Colors.textPrimary)
+        .padding(.horizontal, 8)
         .frame(minHeight: Theme.minTouchTarget)
-        .background(active ? Theme.Colors.accent : Color.white.opacity(0.10), in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+        .accessibilityValue(active ? "Selected" : "")
+        #endif
     }
 
     private func loadNovaState() async {
@@ -543,40 +627,12 @@ struct ContentDetailView: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// One compact secondary action: icon over a short label in a fixed-width pill.
+    /// One compact secondary action behind a concrete SwiftUI type boundary.
     private func detailAction(_ title: String, systemImage: String,
                               active: Bool = false,
-                              action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                Image(systemName: systemImage)
-                    .font(.appFont(22, weight: .semibold))
-                Text(title)
-                    .font(.appFont(14, weight: .semibold))
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-            }
-            .foregroundStyle(active ? accent : Theme.Colors.textPrimary)
-            // Grow to fit the label instead of a fixed width, so "Choose Stream" and
-            // "Mark Watched" show in full. A min width keeps short labels ("Trailer")
-            // from looking cramped, and generous horizontal padding keeps all tiles
-            // visually consistent. Uniform height keeps them aligned in the row.
-            .padding(.horizontal, Theme.Spacing.md)
-            .frame(minWidth: Theme.scaled(96, min: 84),
-                   minHeight: Theme.scaled(84, min: 74),
-                   maxHeight: Theme.scaled(84, min: 74))
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                    .fill(Theme.Colors.cardGradient)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                    .strokeBorder(active ? accent.opacity(0.6) : Color.white.opacity(0.07), lineWidth: 1)
-            )
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-        }
-        .buttonStyle(NovaListRowStyle())
+                              action: @escaping () -> Void) -> ContentDetailActionButton {
+        ContentDetailActionButton(title: title, systemImage: systemImage,
+                                  active: active, accent: accent, action: action)
     }
 
     // MARK: - Collection picker
@@ -751,6 +807,25 @@ struct ContentDetailView: View {
             let activeSeason = selectedSeason ?? seasons.first?.number ?? 1
 
             VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                #if os(tvOS)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(seasons) { season in
+                            Button { selectedSeason = season.number } label: {
+                                HStack(spacing: 8) {
+                                    Text(season.displayName)
+                                    if season.number == activeSeason { Image(systemName: "checkmark").font(.system(size: 17, weight: .bold)) }
+                                }
+                                .font(.system(size: 25, weight: .semibold))
+                                .padding(.horizontal, 20).frame(height: 56)
+                            }
+                            .buttonStyle(TVReferenceButtonStyle(selected: season.number == activeSeason))
+                            .accessibilityAddTraits(season.number == activeSeason ? .isSelected : [])
+                        }
+                    }
+                    .padding(.horizontal, Theme.Spacing.edge).padding(.vertical, 10)
+                }
+                #else
                 // Season picker as a menu (tap to choose), matching the reference's
                 // "Season 1 ⌄" control.
                 Menu {
@@ -779,6 +854,7 @@ struct ContentDetailView: View {
                 .buttonStyle(NovaChipButtonStyle())
                 .padding(.horizontal, Theme.Spacing.edge)
 
+                #endif
                 // Episode rail: wide 16:9 cards with the episode info overlaid on the
                 // still (title, number, synopsis), matching the reference.
                 if let season = seasons.first(where: { $0.number == activeSeason }) {
@@ -822,6 +898,9 @@ struct ContentDetailView: View {
     /// A wide episode card: the still fills it with the episode number, title, and
     /// synopsis overlaid on a gradient at the bottom, matching the reference layout.
     private func episodeCard(_ ep: EpisodeInfo) -> some View {
+        #if os(tvOS)
+        televisionEpisodeCard(ep)
+        #else
         let watched = env.library.isEpisodeWatched(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
                                                    season: ep.season, number: ep.number)
         let inProgress = env.library.isEpisodeInProgress(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb,
@@ -899,6 +978,7 @@ struct ContentDetailView: View {
         .contextMenu {
             episodeActions(ep, watched: watched)
         }
+        #endif
     }
 
     private func episodeRow(_ ep: EpisodeInfo) -> some View {
@@ -1000,6 +1080,32 @@ struct ContentDetailView: View {
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
+
+
+    #if os(tvOS)
+    private func televisionEpisodeCard(_ ep: EpisodeInfo) -> some View {
+        let watched = env.library.isEpisodeWatched(imdb: item.contentID.imdb, tmdb: item.contentID.tmdb, season: ep.season, number: ep.number)
+        return Button { streamTarget = StreamTarget(catalog: item, episode: ep) } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                CachedAsyncImage(url: ep.stillURL ?? item.backdropURL ?? item.posterURL, maxPixel: 780) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: { Rectangle().fill(Theme.Colors.card) }
+                .frame(width: 350, height: 197).clipped()
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(alignment: .bottomTrailing) {
+                    if watched { Image(systemName: "checkmark.circle.fill").font(.system(size: 25)).padding(12).shadow(radius: 4) }
+                }
+                Text("EPISODE \(ep.number)").font(.system(size: 17, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+                Text(ep.displayTitle).font(.system(size: 22, weight: .semibold)).lineLimit(1)
+                Text(ep.overview ?? "").font(.system(size: 20)).foregroundStyle(.white.opacity(0.78)).lineLimit(3)
+                    .frame(height: 74, alignment: .topLeading)
+            }
+            .foregroundStyle(.white).multilineTextAlignment(.leading).frame(width: 350, alignment: .leading)
+        }
+        .buttonStyle(TVArtworkButtonStyle())
+        .contextMenu { episodeActions(ep, watched: watched) }
+    }
+    #endif
 
     // MARK: - Hydration
 
@@ -1345,5 +1451,32 @@ struct WatchProgressBar: View {
             .allowsHitTesting(false)
             .accessibilityLabel(clamped != nil ? "Watched \(Int((clamped ?? 0).rounded())) percent" : "In progress")
         }
+    }
+}
+
+// A concrete View boundary keeps repeated action types out of the hero's
+// deeply nested generic metadata on the tvOS runtime.
+private struct ContentDetailActionButton: View {
+    let title: String
+    let systemImage: String
+    let active: Bool
+    let accent: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.appFont(16, weight: .semibold))
+                .lineLimit(1)
+                .padding(.horizontal, 12)
+                .frame(minHeight: Theme.minTouchTarget)
+        }
+        #if os(tvOS)
+        .buttonStyle(TVReferenceButtonStyle(selected: active))
+        #else
+        .buttonStyle(.glass)
+        .tint(active ? accent : .primary)
+        #endif
+        .accessibilityAddTraits(active ? .isSelected : [])
     }
 }

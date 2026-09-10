@@ -20,6 +20,9 @@ private actor AddonDiskPersistence {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(addons)
+        // tvOS may purge Application Support after initialization.
+        try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(),
+                                                withIntermediateDirectories: true)
         try data.write(to: fileURL, options: [.atomic])
         return data
     }

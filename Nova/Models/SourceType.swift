@@ -7,13 +7,16 @@
 
 import Foundation
 
-enum SourceType: String, Codable, CaseIterable, Identifiable {
+enum SourceType: String, Codable, CaseIterable, Identifiable, Sendable {
     case smb
     case realDebrid
     case directURL
     case addon          // Stremio-protocol addons (Stremio, AIOStreams, Comet)
     case trakt          // content surfaced from a Trakt list / watchlist
     case liveTV         // live channel from an addon's tv catalog
+    case jellyfin       // a user-configured Jellyfin server
+    case plex           // a user-configured Plex server
+    case emby           // a user-configured Emby server
 
     var id: String { rawValue }
 
@@ -26,6 +29,9 @@ enum SourceType: String, Codable, CaseIterable, Identifiable {
         case .addon:        return "Addon"
         case .trakt:        return "Trakt"
         case .liveTV:       return "Live TV"
+        case .jellyfin:     return "Jellyfin"
+        case .plex:         return "Plex"
+        case .emby:         return "Emby"
         }
     }
 
@@ -38,6 +44,9 @@ enum SourceType: String, Codable, CaseIterable, Identifiable {
         case .addon:        return "puzzlepiece.extension"
         case .liveTV:       return "dot.radiowaves.left.and.right"
         case .trakt:        return "checkmark.seal"
+        case .jellyfin:     return "play.tv"
+        case .plex:         return "play.square.stack"
+        case .emby:         return "rectangle.stack.badge.play"
         }
     }
 }

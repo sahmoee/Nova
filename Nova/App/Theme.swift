@@ -2,9 +2,8 @@
 //  Theme.swift
 //  Nova
 //
-//  Centralized design tokens: colors, corner radii, spacing, card sizes, and
-//  typography. Values are tuned for a dark, cinematic Apple TV look and scale
-//  down responsively on iPhone/iPad so the same screens read well on a handheld.
+//  Shared Apple platform design tokens. Nova uses system typography, neutral
+//  Apple TV surfaces, standard semantic colors, and native focus behavior.
 //
 
 import SwiftUI
@@ -106,11 +105,8 @@ enum Theme {
 
     // MARK: - Component style (app-wide look)
 
-    /// The app-wide component look. `.refined` (default) gives buttons, cards, and rows
-    /// softer fills, cleaner hairline borders, and gentle gradients; `.classic` keeps
-    /// the original flatter look. Read by the shared ButtonStyles, which can't observe
-    /// objects, so it lives here as a static set from SettingsStore at launch. Applies
-    /// on both iOS and tvOS.
+    /// Retained for preference-file compatibility. Both stored values now render
+    /// with the same system appearance.
     nonisolated(unsafe) static var uiStyle: UIComponentStyle = .refined
 
     /// Returns a body-relative font metric-scaled point size on iOS (respecting the
@@ -154,60 +150,56 @@ enum Theme {
     // MARK: - Colors
 
     enum Colors {
-        // Midnight-indigo canvas: still quiet enough for artwork to lead, but with
-        // enough cool chroma to keep black screens and modal surfaces from feeling
-        // flat. Every screen consumes these semantic tokens rather than owning a
-        // local palette.
-        static let background = Color(red: 0.012, green: 0.014, blue: 0.026)
-        static let backgroundElevated = Color(red: 0.047, green: 0.052, blue: 0.083)
+        static let background = Color.black
+        static let backgroundElevated = Color(white: 0.075)
 
-        static let card = Color.white.opacity(0.075)
-        static let cardElevated = Color(red: 0.078, green: 0.084, blue: 0.128).opacity(0.96)
+        static let card = Color.white.opacity(0.08)
+        static let cardElevated = Color(white: 0.12)
 
-        // Aurora indigo identifies interaction throughout Nova. It is deliberately
-        // less generic than system blue while retaining strong dark-mode contrast.
-        static let accent = Color(red: 0.40, green: 0.42, blue: 1.00)
-        static let accentSecondary = Color(red: 0.31, green: 0.78, blue: 0.94)
-        static let iconRed = accent
-        static let iconGraphite = Color(white: 0.26)
-        static let iconSilver = Color(white: 0.58)
+        #if os(tvOS)
+        static let accent = Color.white
+        static let accentSecondary = Color.white
+        #else
+        static let accent = Color.blue
+        static let accentSecondary = Color.blue
+        #endif
+        static let iconRed = Color.red
+        static let iconGraphite = Color.secondary
+        static let iconSilver = Color.secondary
 
-        static let textPrimary = Color(red: 0.96, green: 0.965, blue: 0.978)
-        static let textSecondary = Color(red: 0.76, green: 0.78, blue: 0.86)
-        static let textTertiary = Color(red: 0.58, green: 0.61, blue: 0.71)
-        static let textQuaternary = Color(red: 0.45, green: 0.48, blue: 0.58)
+        static let textPrimary = Color.primary
+        static let textSecondary = Color.secondary
+        static let textTertiary = Color.secondary.opacity(0.78)
+        static let textQuaternary = Color.secondary.opacity(0.58)
 
-        static let success = Color(red: 0.52, green: 0.78, blue: 0.68)   // muted sage
-        static let warning = Color(red: 0.90, green: 0.82, blue: 0.62)   // soft gold
-        static let error = Color(red: 0.88, green: 0.55, blue: 0.55)     // muted rose
+        static let success = Color.green
+        static let warning = Color.orange
+        static let error = Color.red
 
-        static let separator = Color(red: 0.78, green: 0.82, blue: 0.90).opacity(0.12)
-        static let hairlineStrong = Color(red: 0.78, green: 0.82, blue: 0.90).opacity(0.22)
-        static let focusRing = Color(red: 0.96, green: 0.97, blue: 0.99).opacity(0.92)
+        static let separator = Color.white.opacity(0.12)
+        static let hairlineStrong = Color.white.opacity(0.22)
+        static let focusRing = Color.white
 
         // Quiet quality-mark accents (Vision / HDR / Atmos chips) + progress + watched.
-        static let recommended = Color(red: 0.78, green: 0.84, blue: 0.94)
-        static let markNeutral = Color(red: 0.82, green: 0.84, blue: 0.90)
-        static let markVision = Color(red: 0.78, green: 0.72, blue: 0.92)
-        static let markHDR = Color(red: 0.90, green: 0.82, blue: 0.62)
-        static let markAudio = Color(red: 0.70, green: 0.82, blue: 0.94)
-        static let progressTrack = Color(red: 0.78, green: 0.82, blue: 0.90).opacity(0.22)
-        static let progressFill = Color(red: 0.92, green: 0.72, blue: 0.38)   // amber
-        static let watched = Color(red: 0.52, green: 0.78, blue: 0.68)        // sage
+        static let recommended = Color.secondary
+        static let markNeutral = Color.secondary
+        static let markVision = Color.purple
+        static let markHDR = Color.orange
+        static let markAudio = Color.blue
+        static let progressTrack = Color.white.opacity(0.22)
+        static let progressFill = Color.white
+        static let watched = Color.green
 
         #if os(tvOS)
         static let appBackground = TVReferenceStyle.canvas
         #else
-        static let appBackground = LinearGradient(
-            colors: [Color(red: 0.055, green: 0.060, blue: 0.105), background, Color.black],
-            startPoint: .top,
-            endPoint: .bottom
-        )
+        static let appBackground = LinearGradient(colors: [Color.black, Color.black],
+                                                  startPoint: .top, endPoint: .bottom)
 
         #endif
 
         static let cardGradient = LinearGradient(
-            colors: [Color.white.opacity(0.115), Color.white.opacity(0.045)],
+            colors: [Color.white.opacity(0.10), Color.white.opacity(0.10)],
             startPoint: .top,
             endPoint: .bottom
         )
@@ -223,19 +215,19 @@ enum Theme {
         )
 
         static let accentWash = LinearGradient(
-            colors: [accent, accentSecondary],
+            colors: [accent, accent],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
 
         static let controlGlass = LinearGradient(
-            colors: [Color.white.opacity(0.16), Color.white.opacity(0.07)],
+            colors: [Color.white.opacity(0.12), Color.white.opacity(0.12)],
             startPoint: .top,
             endPoint: .bottom
         )
 
         static let focusedControl = LinearGradient(
-            colors: [accentSecondary, accent],
+            colors: [accent, accent],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
@@ -336,12 +328,12 @@ enum Theme {
     // MARK: - Typography helpers
 
     enum Font {
-        static func heroTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(60), weight: .black, design: .rounded) }
-        static func sectionTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(30), weight: .bold, design: .rounded) }
-        static func cardTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(22), weight: .semibold, design: .rounded) }
+        static func heroTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(60), weight: .bold) }
+        static func sectionTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(30), weight: .bold) }
+        static func cardTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(22), weight: .semibold) }
         static func cardSubtitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(18), weight: .regular) }
-        static func screenTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(56), weight: .heavy, design: .rounded) }
-        static func eyebrow() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(13), weight: .bold, design: .rounded) }
+        static func screenTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(56), weight: .bold) }
+        static func eyebrow() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(13), weight: .semibold) }
     }
 }
 
@@ -378,7 +370,7 @@ extension View {
             .foregroundStyle(Theme.Colors.textPrimary)
             .tint(Theme.Colors.accent)
             .background(Theme.Colors.appBackground.ignoresSafeArea())
-            .presentationBackground(Theme.Colors.backgroundElevated)
+            .presentationBackground(.regularMaterial)
     }
 
     /// Applies Nova's theme at a scene or presentation boundary. This catches
@@ -406,7 +398,6 @@ extension View {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
                     .strokeBorder(Color.white.opacity(0.06), lineWidth: 0.5)
             )
-            .shadow(color: Theme.Shadow.color, radius: Theme.Shadow.radius, x: 0, y: Theme.Shadow.y)
     }
 }
 
@@ -537,7 +528,8 @@ struct PasteButton: View {
 
 // MARK: - Component style enum
 
-/// The app-wide component look, applied across every shared button, card, and row.
+/// Legacy preference values kept so older backups continue to decode. Nova now
+/// renders a single system appearance regardless of the stored value.
 enum UIComponentStyle: String, CaseIterable, Identifiable {
     /// Softer fills, hairline borders, gentle gradients on filled buttons (default).
     case refined
@@ -548,8 +540,7 @@ enum UIComponentStyle: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .refined: return "Refined"
-        case .classic: return "Classic"
+        case .refined, .classic: return "System"
         }
     }
 }
@@ -557,7 +548,7 @@ enum UIComponentStyle: String, CaseIterable, Identifiable {
 // MARK: - Refined card background
 
 extension View {
-    /// Nova's single card surface: a subtle gradient and cool hairline edge.
+    /// Standard neutral grouped surface used across Apple platforms.
     func refinedCardBackground(cornerRadius: CGFloat = Theme.Radius.card) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         return self
@@ -566,7 +557,7 @@ extension View {
                 in: shape
             )
             .overlay(
-                shape.strokeBorder(Color.white.opacity(0.07), lineWidth: 1)
+                shape.strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5)
             )
     }
 }

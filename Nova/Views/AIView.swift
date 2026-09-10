@@ -2,7 +2,7 @@
 //  AIView.swift
 //  Nova
 //
-//  The AI tab. Opens on a browsable menu of every AI feature, organized into
+//  Smart Search. Opens from Search as a browsable menu of assisted discovery tools,
 //  groups, so everything AI can do is visible at a glance — no typing required to
 //  get started. Tap a feature, tap a ready-made suggestion (or write your own
 //  prompt), and the results can be saved as a Home shelf, a collection, library

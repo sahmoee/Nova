@@ -7,6 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000001 /* MediaServerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* MediaServerModels.swift */; };
+		A10000000000000000000002 /* MediaServerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* MediaServerModels.swift */; };
+		A10000000000000000000003 /* MediaServerClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* MediaServerClient.swift */; };
+		A10000000000000000000004 /* MediaServerClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* MediaServerClient.swift */; };
+		A10000000000000000000005 /* MediaServerStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000013 /* MediaServerStore.swift */; };
+		A10000000000000000000006 /* MediaServerStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000013 /* MediaServerStore.swift */; };
+		A10000000000000000000007 /* MediaServersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000014 /* MediaServersView.swift */; };
+		A10000000000000000000008 /* MediaServersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000014 /* MediaServersView.swift */; };
 		0144A47C7E7A4177992C406E /* ../Views/Settings/GuestModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2835FF8A9D0C4E3295CF4244 /* ../Views/Settings/GuestModeView.swift */; };
 		016D44CEC3A625BC31EC4D33 /* CollectionPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0CB13C2E1D3A27BA21C7FB5 /* CollectionPickerSheet.swift */; };
 		01C7A4EA1C34CC9696E7DB84 /* DuplicatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4974EDA4C5B58142AA007C8D /* DuplicatesView.swift */; };
@@ -453,6 +461,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A10000000000000000000011 /* MediaServerModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaServerModels.swift; sourceTree = "<group>"; };
+		A10000000000000000000012 /* MediaServerClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaServerClient.swift; sourceTree = "<group>"; };
+		A10000000000000000000013 /* MediaServerStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaServerStore.swift; sourceTree = "<group>"; };
+		A10000000000000000000014 /* MediaServersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaServersView.swift; sourceTree = "<group>"; };
 		0018B4468D814440B24504E5 /* ../Views/Library/FixMatchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../Views/Library/FixMatchView.swift; sourceTree = "<group>"; };
 		01343E017C42B6492DAB5600 /* SubtitlePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitlePickerView.swift; sourceTree = "<group>"; };
 		02CE2BC66986B738CE05444C /* StreamResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamResolver.swift; sourceTree = "<group>"; };
@@ -757,6 +769,7 @@
 				D8F5C8D6D9A7FBACD7D3D9D6 /* CatalogModels.swift */,
 				44483A3741A3146721D8B9CC /* HomeShelf.swift */,
 				E501EBDA1415CB797D128711 /* MediaItem.swift */,
+				A10000000000000000000011 /* MediaServerModels.swift */,
 				8D8791D2C0BB4A9D0FE60D1F /* SmartCollection.swift */,
 				30C308E6D55B3F1AE4525CB6 /* MediaCollection.swift */,
 				9B0DD290C7440A9826D9500C /* MetadataModels.swift */,
@@ -908,6 +921,8 @@
 				5CA6E8C823A1C1FC2E0645D9 /* ImageCache.swift */,
 				BA1D9DD1BBA3B208010F23C0 /* KeychainStore.swift */,
 				FC594B0BAEC0D365B05066C1 /* LibraryStore.swift */,
+				A10000000000000000000012 /* MediaServerClient.swift */,
+				A10000000000000000000013 /* MediaServerStore.swift */,
 				A808984C8E8A47A1B4089ABB /* NovaWorkerConfiguration.swift */,
 				10B410201CA344CA8AA70DBA /* NovaOnDeviceAI.swift */,
 				3FB7043F452A4FB38A84C394 /* DownloadManager.swift */,
@@ -1066,6 +1081,7 @@
 				47AF75A65907D488E68308EB /* TVSettingsPanels.swift */,
 				C5648ECDF32142A4AB7A313C /* OfflineDownloadsView.swift */,
 				6206D6A6B20150D04B288F1D /* SettingsCategoryViews.swift */,
+				A10000000000000000000014 /* MediaServersView.swift */,
 				F57A74FE5A8C29D2E9025A06 /* PlayFromLinkView.swift */,
 				B947EBA6614E226BEED803F7 /* LibraryHealthView.swift */,
 				CB06B9BFD55EBC9B683B9709 /* SetupChecklistView.swift */,
@@ -1393,6 +1409,7 @@
 				C0716E580285CCA516460A38 /* CatalogModels.swift in Sources */,
 				7EF2C1B421BC895D8C00EC4B /* HomeShelf.swift in Sources */,
 				D01F610D15B2D2990D059FBE /* MediaItem.swift in Sources */,
+				A10000000000000000000001 /* MediaServerModels.swift in Sources */,
 				0DC83E057E0F8E087E82CA79 /* MetadataModels.swift in Sources */,
 				860A3EB2EF85C7F98075F76D /* PlayerOptions.swift in Sources */,
 				994709B6CC0249D05165FFD7 /* RealDebridModels.swift in Sources */,
@@ -1417,6 +1434,9 @@
 				A741C8D63812CAB7D3E8BDF5 /* ImageCache.swift in Sources */,
 				EC288FE006CA13CA3FFD43DE /* KeychainStore.swift in Sources */,
 				733996133FD05831A6CBE002 /* LibraryStore.swift in Sources */,
+				A10000000000000000000003 /* MediaServerClient.swift in Sources */,
+				A10000000000000000000005 /* MediaServerStore.swift in Sources */,
+				A10000000000000000000007 /* MediaServersView.swift in Sources */,
 				043655105A7C4D6E87AD0775 /* NovaWorkerConfiguration.swift in Sources */,
 				16C419939B1547BCA1992CED /* NovaOnDeviceAI.swift in Sources */,
 				A87C18340811447D91922746 /* DownloadManager.swift in Sources */,
@@ -1588,6 +1608,7 @@
 				099D4E40704095124E40AADF /* CatalogModels.swift in Sources */,
 				B4525BEFCBD56B13A3FE6472 /* HomeShelf.swift in Sources */,
 				8E01AF5B09F5787B5E3A6E88 /* MediaItem.swift in Sources */,
+				A10000000000000000000002 /* MediaServerModels.swift in Sources */,
 				8CA4F94C172DE8E12EF9E4CE /* MetadataModels.swift in Sources */,
 				85257439153140EEC7ACDEE0 /* PlayerOptions.swift in Sources */,
 				D6376CA8AE6A8EBB2DAE049C /* RealDebridModels.swift in Sources */,
@@ -1612,6 +1633,9 @@
 				C7682B40FC2C1D820802FD98 /* ImageCache.swift in Sources */,
 				3D109425BA9E2F2927679CC1 /* KeychainStore.swift in Sources */,
 				3167C2EAE91670A5FF46D71E /* LibraryStore.swift in Sources */,
+				A10000000000000000000004 /* MediaServerClient.swift in Sources */,
+				A10000000000000000000006 /* MediaServerStore.swift in Sources */,
+				A10000000000000000000008 /* MediaServersView.swift in Sources */,
 				3FC5B6DE0E0C46C5B814D877 /* NovaWorkerConfiguration.swift in Sources */,
 				A36DBD8966684FDB9CE9EAF6 /* NovaOnDeviceAI.swift in Sources */,
 				AF4059575E0747BE8C32C995 /* DownloadManager.swift in Sources */,

@@ -56,13 +56,13 @@ struct DiscoverView: View {
         }
     }
 
-    enum DiscoverRoute: Hashable { case newAndHot, liveTV, anime }
+    enum DiscoverRoute: Hashable { case newAndHot, liveTV, anime, smartSearch }
 
     private var browseMenu: some View {
         Menu {
-            #if os(tvOS)
-            Button { nav.selection = .ai } label: { Label("Ask Nova", systemImage: "sparkles") }
-            #endif
+            Button { path.append(DiscoverRoute.smartSearch) } label: {
+                Label("Smart Search", systemImage: "sparkles")
+            }
             Button { path.append(DiscoverRoute.newAndHot) } label: {
                 Label("New & Hot", systemImage: "play.rectangle.on.rectangle.fill")
             }
@@ -79,7 +79,7 @@ struct DiscoverView: View {
                 .frame(minHeight: Theme.minTouchTarget)
         }
         .buttonStyle(NovaChipButtonStyle())
-        .accessibilityHint("Open New and Hot, Live TV, or Anime")
+        .accessibilityHint("Open Smart Search, New and Hot, Live TV, or Anime")
     }
 
     private var recentSearches: [String] {
@@ -159,6 +159,7 @@ struct DiscoverView: View {
                 case .newAndHot: NewAndHotView(path: $newAndHotPath)
                 case .liveTV: LiveTVView()
                 case .anime: AnimeView()
+                case .smartSearch: AIView(path: $nav.aiPath)
                 }
             }
             .alert("AI Search", isPresented: .constant(aiError != nil)) {

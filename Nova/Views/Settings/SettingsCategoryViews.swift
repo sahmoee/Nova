@@ -309,29 +309,42 @@ struct ExperienceSettingsContent: View {
                         SettingsRow(icon: "person.2.circle", color: Theme.Colors.iconSilver, title: "Viewing Profiles",
                                     detail: profiles.activeProfile.name)
                     }.buttonStyle(.plain)
-                )
+                ),
+                AnyView(
+                    NavigationLink { HomeCustomizeView() } label: {
+                        SettingsRow(icon: "rectangle.3.group", color: Theme.Colors.iconGraphite,
+                                    title: "Home Rows", detail: "Choose editorial shelves")
+                    }.buttonStyle(.plain)
+                ),
             ])
-            SettingsGroup(header: "Home Rows", rows: [
-                AnyView(SettingsToggleRow(icon: "rectangle.on.rectangle.angled", color: Theme.Colors.iconRed,
-                                          title: "Auto-Advance Featured", isOn: experienceBinding(\.autoAdvanceHero))),
-                AnyView(SettingsToggleRow(icon: "square.grid.2x2", color: Theme.Colors.iconGraphite,
-                                          title: "Quick Access Row", isOn: experienceBinding(\.showQuickAccess))),
-                AnyView(SettingsToggleRow(icon: "point.3.connected.trianglepath.dotted", color: Theme.Colors.iconSilver,
-                                          title: "Source Health on Home", isOn: experienceBinding(\.showSourceHub))),
-                AnyView(SettingsToggleRow(icon: "sparkles.rectangle.stack", color: Theme.Colors.iconRed,
-                                          title: "Smart Collections", isOn: experienceBinding(\.showSmartCollections))),
-                AnyView(SettingsToggleRow(icon: "clock.arrow.circlepath", color: Theme.Colors.iconRed,
-                                          title: "Watch History Rail", isOn: experienceBinding(\.showWatchHistory))),
-                AnyView(SettingsToggleRow(icon: "wand.and.stars", color: Theme.Colors.iconRed,
-                                          title: "Because You Watched", isOn: experienceBinding(\.showBecauseYouWatched))),
-                AnyView(SettingsToggleRow(icon: "figure.walk.motion", color: Theme.Colors.iconSilver,
-                                          title: "Reduce Artwork Motion", isOn: experienceBinding(\.reduceArtworkMotion))),
-            ])
+            SettingsGroup(header: "Home", rows: homeRows)
             SettingsGroup(rows: [
                 AnyView(SettingsRow(icon: platformSymbol, color: Theme.Colors.iconGraphite, title: "This Device",
                                     detail: PlatformCapabilities.platform.displayName, showsChevron: false)),
             ])
         }
+    }
+
+    private var homeRows: [AnyView] {
+        var rows: [AnyView] = [
+            AnyView(SettingsToggleRow(icon: "rectangle.on.rectangle.angled", color: Theme.Colors.iconRed,
+                                      title: "Auto-Advance Featured", isOn: experienceBinding(\.autoAdvanceHero))),
+        ]
+        #if os(iOS)
+        rows.append(AnyView(SettingsToggleRow(icon: "square.grid.2x2", color: Theme.Colors.iconGraphite,
+                                              title: "Quick Access Row", isOn: experienceBinding(\.showQuickAccess))))
+        rows.append(AnyView(SettingsToggleRow(icon: "point.3.connected.trianglepath.dotted", color: Theme.Colors.iconSilver,
+                                              title: "Source Health on Home", isOn: experienceBinding(\.showSourceHub))))
+        rows.append(AnyView(SettingsToggleRow(icon: "sparkles.rectangle.stack", color: Theme.Colors.iconRed,
+                                              title: "Smart Collections", isOn: experienceBinding(\.showSmartCollections))))
+        #endif
+        rows.append(AnyView(SettingsToggleRow(icon: "clock.arrow.circlepath", color: Theme.Colors.iconRed,
+                                              title: "Watch History Rail", isOn: experienceBinding(\.showWatchHistory))))
+        rows.append(AnyView(SettingsToggleRow(icon: "wand.and.stars", color: Theme.Colors.iconRed,
+                                              title: "Because You Watched", isOn: experienceBinding(\.showBecauseYouWatched))))
+        rows.append(AnyView(SettingsToggleRow(icon: "figure.walk.motion", color: Theme.Colors.iconSilver,
+                                              title: "Reduce Artwork Motion", isOn: experienceBinding(\.reduceArtworkMotion))))
+        return rows
     }
 }
 
@@ -351,6 +364,12 @@ struct LibrarySettingsContent: View {
     var body: some View {
         Group {
             SettingsGroup(rows: [
+                AnyView(
+                    NavigationLink { MediaServersView() } label: {
+                        SettingsRow(icon: "play.tv", color: Theme.Colors.accent,
+                                    title: "Media Servers", detail: "Jellyfin, Plex & Emby")
+                    }.buttonStyle(.plain)
+                ),
                 AnyView(
                     NavigationLink { LibraryHealthView() } label: {
                         SettingsRow(icon: "checkmark.seal", color: Theme.Colors.iconSilver, title: "Library Health",

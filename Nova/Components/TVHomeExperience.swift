@@ -31,7 +31,7 @@ struct TVHomeHeroCarousel: View {
     @State private var titleLogoURL: URL?
     @State private var logoContentKey: String?
 
-    private enum Action: Hashable { case play, queue, info, next }
+    private enum Action: Hashable { case play, queue, info }
 
     // Selection follows media identity when history or queue ordering changes.
     private var currentItem: MediaItem? {
@@ -188,7 +188,7 @@ struct TVHomeHeroCarousel: View {
             .accessibilityIdentifier("home.hero.summary")
 
             // These controls retain identity as the selected title changes, keeping
-            // remote focus on the same action when Next is pressed.
+            // remote focus on the same action while the hero rotates.
             HStack(spacing: 14) {
                 Button { onPlay(item) } label: {
                     Label(item.hasResumePoint ? "Resume" : "Play", systemImage: "play.fill")
@@ -200,37 +200,28 @@ struct TVHomeHeroCarousel: View {
                 .focused($focusedAction, equals: .play)
                 .prefersDefaultFocus(true, in: playFocusNamespace)
                 .accessibilityLabel("\(item.hasResumePoint ? "Resume" : "Play") \(item.displayTitle)")
+                .buttonStyle(TVReferenceButtonStyle(selected: true, cornerRadius: 28))
 
                 Button { toggleQueue(item) } label: {
                     Image(systemName: library.isQueued(item) ? "checkmark" : "plus")
                         .font(.appFont(27, weight: .medium))
-                        .frame(width: 64, height: TVReferenceStyle.controlHeight)
+                        .frame(width: TVReferenceStyle.controlHeight, height: TVReferenceStyle.controlHeight)
                 }
                 .accessibilityIdentifier("home.hero.queue")
                 .focused($focusedAction, equals: .queue)
                 .accessibilityLabel(library.isQueued(item) ? "Remove from Up Next" : "Add to Up Next")
+                .buttonStyle(TVReferenceButtonStyle(cornerRadius: 28))
 
                 Button { onOpen(item) } label: {
                     Image(systemName: "info.circle")
                         .font(.appFont(28, weight: .medium))
-                        .frame(width: 64, height: TVReferenceStyle.controlHeight)
+                        .frame(width: TVReferenceStyle.controlHeight, height: TVReferenceStyle.controlHeight)
                 }
                 .accessibilityIdentifier("home.hero.info")
                 .focused($focusedAction, equals: .info)
                 .accessibilityLabel("More information about \(item.displayTitle)")
-
-                if items.count > 1 {
-                    Button(action: advance) {
-                        Image(systemName: "chevron.right")
-                            .font(.appFont(27, weight: .medium))
-                            .frame(width: 64, height: TVReferenceStyle.controlHeight)
-                    }
-                    .accessibilityIdentifier("home.hero.next")
-                    .focused($focusedAction, equals: .next)
-                    .accessibilityLabel("Next featured title")
-                }
+                .buttonStyle(TVReferenceButtonStyle(cornerRadius: 28))
             }
-            .buttonStyle(TVReferenceButtonStyle())
             .padding(.top, 8)
         }
         .frame(maxWidth: copyWidth, alignment: .leading)
@@ -322,7 +313,6 @@ struct TVContinueWatchingRail: View {
     var onPlay: (MediaItem) -> Void
     var onRestart: (MediaItem) -> Void
     var onRemove: (MediaItem) -> Void
-    var onManage: () -> Void
 
     // Four complete landscape cards and a glimpse of the next match the TV reference.
     private var cardWidth: CGFloat {
@@ -346,17 +336,6 @@ struct TVContinueWatchingRail: View {
                                                    onRestart: { onRestart(item) },
                                                    onRemove: { onRemove(item) })
                         }
-                        Button(action: onManage) {
-                            VStack(spacing: 12) {
-                                Image(systemName: "text.badge.plus")
-                                    .font(.appFont(34, weight: .medium))
-                                Text("Manage Up Next")
-                                    .font(.appFont(22, weight: .medium))
-                            }
-                            .frame(width: cardWidth, height: cardWidth * 9 / 16)
-                        }
-                        .buttonStyle(TVReferenceButtonStyle())
-                        .accessibilityIdentifier("home.continue-watching.manage")
                     }
                     .padding(.horizontal, TVReferenceStyle.edge)
                     .padding(.vertical, 8)

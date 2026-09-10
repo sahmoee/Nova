@@ -21,6 +21,8 @@ struct HomeView: View {
     @StateObject private var smbShares = SMBSharesModel()
 
     @State private var selectedItem: MediaItem?
+    // These are referenced only by the iOS Home composition; keeping the simple
+    // state declarations shared avoids duplicating otherwise shared menu helpers.
     @State private var showCustomize = false
     @State private var showQueue = false
     @State private var showProfiles = false
@@ -63,6 +65,7 @@ struct HomeView: View {
             .navigationDestination(for: HomeRoute.self) { route in
                 destination(for: route)
             }
+            #if os(iOS)
             .sheet(isPresented: $showCustomize) {
                 HomeCustomizeView()
             }
@@ -72,6 +75,7 @@ struct HomeView: View {
             .sheet(isPresented: $showProfiles) {
                 ViewingProfileSwitcherView(store: profiles)
             }
+            #endif
         }
     }
 
@@ -118,7 +122,7 @@ struct HomeView: View {
                         height: max(620, geometry.size.height * 0.74),
                         autoAdvance: profiles.preferences.autoAdvanceHero,
                         isActive: nav.selection == .home && path.isEmpty && selectedItem == nil
-                            && !showCustomize && !showQueue && !showProfiles,
+                            && scenePhase == .active,
                         reduceArtworkMotion: profiles.preferences.reduceArtworkMotion,
                         playFocusNamespace: heroFocusNS,
                         onPlay: play,
@@ -136,13 +140,10 @@ struct HomeView: View {
                         availableWidth: geometry.size.width,
                         onPlay: play,
                         onRestart: restart,
-                        onRemove: removeFromUpNext,
-                        onManage: { showQueue = true }
+                        onRemove: removeFromUpNext
                     )
 
-                    if !env.tmdb.hasKey { setupBanner }
                     additionalHomeSections
-                    tvHomeOptions
                 }
                 .padding(.bottom, 64)
             }
@@ -152,33 +153,33 @@ struct HomeView: View {
         .ignoresSafeArea()
     }
 
-    private var tvHomeOptions: some View {
-        HStack(spacing: 20) {
-            Button { showCustomize = true } label: {
-                Label("Customize Home", systemImage: "slider.horizontal.3")
-                    .padding(.horizontal, 24)
-                    .frame(height: TVReferenceStyle.controlHeight)
-            }
-            Button { showProfiles = true } label: {
-                Label("Switch Profile", systemImage: "person.crop.circle")
-                    .padding(.horizontal, 24)
-                    .frame(height: TVReferenceStyle.controlHeight)
-            }
-        }
-        .font(.appFont(21, weight: .medium))
-        .buttonStyle(TVReferenceButtonStyle())
-        .padding(.horizontal, TVReferenceStyle.edge)
-    }
     #endif
 
     @ViewBuilder
     private var additionalHomeSections: some View {
+        #if os(tvOS)
+        // Home is a viewing surface on television, not a setup dashboard. Source
+        // health, profile editing, and shelf configuration live in Settings.
+        if profiles.preferences.showBecauseYouWatched,
+           let anchor = library.recentlyWatched.first {
+            BecauseYouWatchedCatalogRail(anchor: anchor) { catalog in
+                path.append(catalog)
+            }
+        }
+
+        ForEach(Array(primarySmartRails.prefix(4))) { rail in
+            AppleTVSmartRailView(rail: rail, onSelect: openDetail)
+        }
+
+        Group {
+            ForEach(Array(shelfStore.enabledShelves.prefix(6))) { shelf in
+                CatalogShelfRow(shelf: shelf, showSourceLabel: false)
+            }
+        }
+        .id(shelfRefreshToken)
+        #else
         if profiles.preferences.showQuickAccess {
-            #if os(iOS)
             StreamingDiscoverGrid(items: Array(quickAccessItems.prefix(4)))
-            #else
-            AppleTVQuickAccessRow(items: quickAccessItems)
-            #endif
         }
 
         if profiles.preferences.showBecauseYouWatched,
@@ -210,6 +211,7 @@ struct HomeView: View {
         if profiles.preferences.showSmartCollections {
             smartCollectionsFooter
         }
+        #endif
     }
 
     private var topBar: some View {
@@ -380,25 +382,43 @@ struct HomeView: View {
 
     private var quickAccessItems: [AppleTVQuickAccessItem] {
         [
-            AppleTVQuickAccessItem(id: "library", title: "Library", subtitle: "Everything you saved", systemImage: "rectangle.stack.fill") {
+            AppleTVQuickAccessItem(id: "library", title: "Library", subtitle: "Everything you saved", systemImage: "rectangle.stack.fill",
+                                   artworkURLs: artworkURLs(from: library.items.sorted { $0.addedDate > $1.addedDate })) {
                 nav.selection = .library
             },
-            AppleTVQuickAccessItem(id: "live", title: "Live TV", subtitle: "Channels and guide", systemImage: "dot.radiowaves.left.and.right") {
+            AppleTVQuickAccessItem(id: "live", title: "Live TV", subtitle: "Channels and guide", systemImage: "dot.radiowaves.left.and.right",
+                                   artworkURLs: Array(env.liveTVSources.allChannels.compactMap(\.logoURL).prefix(3))) {
                 path.append(HomeRoute.liveTV)
             },
-            AppleTVQuickAccessItem(id: "collections", title: "Collections", subtitle: "Your custom lists", systemImage: "rectangle.stack.badge.plus") {
+            AppleTVQuickAccessItem(id: "collections", title: "Collections", subtitle: "Your custom lists", systemImage: "rectangle.stack.badge.plus",
+                                   artworkURLs: collectionArtworkURLs) {
                 path.append(HomeRoute.collections)
             },
-            AppleTVQuickAccessItem(id: "history", title: "Watch History", subtitle: "Recently played titles", systemImage: "clock.arrow.circlepath") {
+            AppleTVQuickAccessItem(id: "history", title: "Watch History", subtitle: "Recently played titles", systemImage: "clock.arrow.circlepath",
+                                   artworkURLs: artworkURLs(from: library.recentlyWatched)) {
                 path.append(HomeRoute.history)
             },
-            AppleTVQuickAccessItem(id: "smart", title: "Smart Collections", subtitle: "Automatic viewing lanes", systemImage: "sparkles.rectangle.stack") {
+            AppleTVQuickAccessItem(id: "smart", title: "Smart Collections", subtitle: "Automatic viewing lanes", systemImage: "sparkles.rectangle.stack",
+                                   artworkURLs: artworkURLs(from: library.favorites)) {
                 path.append(HomeRoute.smartCollections)
             },
-            AppleTVQuickAccessItem(id: "sources", title: "Sources", subtitle: "Accounts, addons, and shares", systemImage: "point.3.connected.trianglepath.dotted") {
+            AppleTVQuickAccessItem(id: "sources", title: "Sources", subtitle: "Accounts, addons, and shares", systemImage: "point.3.connected.trianglepath.dotted",
+                                   artworkURLs: artworkURLs(from: library.items)) {
                 path.append(HomeRoute.sources)
             }
         ]
+    }
+
+    private var collectionArtworkURLs: [URL] {
+        let items = library.collections.flatMap { library.items(in: $0) }
+        return artworkURLs(from: items)
+    }
+
+    private func artworkURLs(from items: [MediaItem]) -> [URL] {
+        var seen = Set<URL>()
+        return Array(items.compactMap { $0.backdropURL ?? $0.posterURL }
+            .filter { seen.insert($0).inserted }
+            .prefix(3))
     }
 
     private var sourceHealthItems: [SourceHealthItem] {
@@ -458,6 +478,49 @@ struct HomeView: View {
     // MARK: - Setup / empty states
 
     private var welcomeState: some View {
+        #if os(tvOS)
+        GeometryReader { geometry in
+            ZStack(alignment: .bottomLeading) {
+                Color.black
+                RadialGradient(
+                    colors: [.white.opacity(0.08), .clear],
+                    center: .topTrailing,
+                    startRadius: 20,
+                    endRadius: geometry.size.width * 0.72
+                )
+
+                VStack(alignment: .leading, spacing: 18) {
+                    Text("All your entertainment.\nOne place.")
+                        .font(.appFont(64, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                    Text("Connect a media source, then Nova will place your library, progress, and recommendations here.")
+                        .font(.appFont(25))
+                        .foregroundStyle(.white.opacity(0.70))
+                        .frame(maxWidth: 760, alignment: .leading)
+                    Button {
+                        nav.selection = .settings
+                    } label: {
+                        Label("Open Settings", systemImage: "gearshape")
+                            .font(.appFont(25, weight: .semibold))
+                            .padding(.horizontal, 26)
+                            .frame(height: 58)
+                    }
+                    .buttonStyle(TVReferenceButtonStyle(selected: true))
+                    .padding(.top, 10)
+                }
+                .padding(.leading, TVReferenceStyle.edge)
+                .padding(.bottom, 130)
+
+                TVPageHeading(title: "Home", systemImage: "house")
+                    .padding(.leading, TVReferenceStyle.edge)
+                    .padding(.top, TVReferenceStyle.top)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+        }
+        .ignoresSafeArea()
+        #else
         VStack(spacing: Theme.Spacing.lg) {
             EmptyStateView(
                 systemImage: "play.tv.fill",
@@ -468,6 +531,7 @@ struct HomeView: View {
             )
             AppleTVProfileButton(store: profiles) { showProfiles = true }
         }
+        #endif
     }
 
     private var setupBanner: some View {
