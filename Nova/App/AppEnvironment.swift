@@ -29,6 +29,7 @@ final class AppEnvironment: ObservableObject {
     let mediaIntegrations: MediaIntegrationStore
     let libraryFolders = LibraryFolderStore()
     let mediaServers: MediaServerStore
+    let sonarr = SonarrStore()
     let libraryEnricher = LibraryEnricher()
     let tmdb: TMDBClient
     let omdb: OMDbClient

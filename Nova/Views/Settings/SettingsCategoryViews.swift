@@ -371,6 +371,12 @@ struct LibrarySettingsContent: View {
                     }.buttonStyle(.plain)
                 ),
                 AnyView(
+                    NavigationLink { SonarrView() } label: {
+                        SettingsRow(icon: "calendar.badge.clock", color: Theme.Colors.iconSilver,
+                                    title: "Sonarr", detail: "Upcoming, missing & queue")
+                    }.buttonStyle(.plain)
+                ),
+                AnyView(
                     NavigationLink { LibraryHealthView() } label: {
                         SettingsRow(icon: "checkmark.seal", color: Theme.Colors.iconSilver, title: "Library Health",
                                     detail: duplicateCountDetail)

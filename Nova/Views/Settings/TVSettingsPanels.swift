@@ -138,6 +138,15 @@ struct TVSourcesSettingsPanel: View {
                 }
                 .buttonStyle(TVReferenceButtonStyle())
 
+                NavigationLink { SonarrView() } label: {
+                    TVSettingLabel(
+                        title: "Sonarr",
+                        detail: env.sonarr.isConfigured ? "Upcoming, missing & queue" : "Not configured",
+                        icon: "calendar.badge.clock"
+                    )
+                }
+                .buttonStyle(TVReferenceButtonStyle())
+
                 NavigationLink { SMBListView() } label: {
                     TVSettingLabel(
                         title: "Network Shares",

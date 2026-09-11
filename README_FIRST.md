@@ -50,6 +50,12 @@ Media integrations are data-only. On iOS, Addons → Media Tools can discover
 UPnP devices, exchange NFO sidecars, evaluate smart playlists, import portable
 M3U/M3U8 playlists, and install signed/checksummed declarative providers. Never
 execute third-party modules or binaries in Nova.
+
+Sonarr is an optional read-only Sources integration on iOS, iPadOS, and tvOS. Nova reads the
+Sonarr v3 status, series statistics, 30-day calendar, and activity queue to show monitored,
+missing, upcoming, and warning summaries. Sonarr remains authoritative for acquisition and
+quality upgrades. The server address is stored in app preferences, the API key stays in Keychain,
+and Nova does not copy Sonarr's database or issue download-management commands.
 ## Nova Tracker service
 
 Nova Tracker is first-party and zero-configuration at `https://api.sowensstudios.com/tracker`.
