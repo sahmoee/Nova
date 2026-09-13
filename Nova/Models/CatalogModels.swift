@@ -63,6 +63,19 @@ struct ContentID: Codable, Hashable, Sendable {
         if let addonItemID { return "addon:\(type.rawValue):\(addonItemID)" }
         return "unknown:\(type.rawValue)"
     }
+
+    /// Internal, non-playable URL used by library records that still need source
+    /// resolution. Add-on identifiers are provider-controlled and can contain URL
+    /// delimiters, Unicode, or whitespace, so build this with URLComponents instead
+    /// of interpolating into URL(string:) and force-unwrapping on title navigation.
+    var catalogPlaceholderURL: URL {
+        var components = URLComponents()
+        components.scheme = "nova"
+        components.host = "catalog"
+        components.path = "/item"
+        components.queryItems = [URLQueryItem(name: "id", value: stableKey)]
+        return components.url ?? URL(fileURLWithPath: "/nova-catalog-placeholder")
+    }
 }
 
 // MARK: - Catalog item (a movie or a series shell)
@@ -181,13 +194,12 @@ extension CatalogItem {
     /// contentID carries the real identity so the detail screen and stream picker can
     /// resolve a playable source on demand.
     func asLibraryItem() -> MediaItem {
-        let placeholder = URL(string: "nova://catalog/\(contentID.stableKey)")!
         var meta = MediaMetadata()
         meta.year = year
         return MediaItem(
             title: title,
             sourceType: .trakt,
-            playbackURL: placeholder,
+            playbackURL: contentID.catalogPlaceholderURL,
             posterURL: posterURL,
             backdropURL: backdropURL ?? posterURL,
             metadata: meta,
@@ -196,4 +208,3 @@ extension CatalogItem {
         )
     }
 }
-

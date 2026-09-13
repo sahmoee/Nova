@@ -738,7 +738,7 @@ struct ContentDetailView: View {
         MediaItem(
             title: item.title,
             sourceType: item.isSeries ? .addon : .addon,
-            playbackURL: URL(string: "nova://catalog/\(item.contentID.stableKey)")!,
+            playbackURL: item.contentID.catalogPlaceholderURL,
             posterURL: item.posterURL,
             backdropURL: item.backdropURL,
             legalAccessConfirmed: true,

@@ -76,6 +76,10 @@ Nova legacy sharing: UnifiedWorker owns the routing-only `frametv-ai-worker` shi
 
 Title-detail secondary actions use a concrete ContentDetailActionButton boundary to reduce nested SwiftUI metadata expansion on tvOS. AddonDiskPersistence recreates its parent directory before atomic writes, including after purge/restore. No backup format or Worker changes. Native missing-directory recovery fixture passed; verify the title-detail crash on physical Apple TV before calling it resolved.
 
+Catalog placeholder URLs must be created through `ContentID.catalogPlaceholderURL`. Add-on IDs are
+provider-controlled and may contain URL delimiters or Unicode; never interpolate them into
+`URL(string:)` and force unwrap while opening an iOS title detail.
+
 
 ### Apple TV glass controls (2026-09-10)
 TVReferenceButtonStyle owns control padding, neutral glass surfaces, a bright focused surface with dark semantic foregrounds, and persistent selected outlines. Do not wrap these controls in a second decorative button background. Artwork uses TVArtworkButtonStyle to retain its image colors while showing a white focus frame. Respect Reduce Motion and Reduce Transparency. The floating TV navigation panel uses native glass; native menus inherit glass button styling. Title details use an artwork-first TV hero with Play, watched status, and a More menu retaining the secondary actions, plus a horizontal season selector. Keep the concrete ContentDetailActionButton boundary. Physical Apple TV review is still required for visual fidelity; a device-target build does not prove a pixel match.

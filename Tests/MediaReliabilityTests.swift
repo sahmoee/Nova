@@ -70,4 +70,18 @@ final class MediaReliabilityTests: XCTestCase {
         XCTAssertEqual(repaired.id, item.id)
         XCTAssertEqual(repaired.contentKey, item.contentKey)
     }
+
+    func testCatalogPlaceholderAcceptsProviderControlledIdentifiers() {
+        let contentID = ContentID(addonItemID: "series / 日本語?#%[]", type: .series)
+        let url = contentID.catalogPlaceholderURL
+        XCTAssertEqual(url.scheme, "nova")
+        XCTAssertEqual(url.host, "catalog")
+        XCTAssertEqual(URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?.first(where: { $0.name == "id" })?.value,
+                       contentID.stableKey)
+
+        let item = CatalogItem(contentID: contentID, title: "Fixture Show").asLibraryItem()
+        XCTAssertEqual(item.contentID, contentID)
+        XCTAssertEqual(item.playbackURL, url)
+    }
 }
