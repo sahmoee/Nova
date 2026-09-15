@@ -54,16 +54,15 @@ final class CatalogService: ObservableObject {
 
     func search(_ query: String) async -> [CatalogItem] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return [] }
+        guard !Task.isCancelled, !trimmed.isEmpty else { return [] }
         if tmdb.hasKey {
             let key = trimmed.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
             if let cached = await searchCache.value(for: key) { return cached }
             let client = tmdb
-            let found = await searchCache.coalesced(for: key) {
+            let found = await searchCache.coalesced(for: key, shouldCache: { !$0.isEmpty }) {
                 (try? await client.search(trimmed)) ?? []
             }
-            if !found.isEmpty { await searchCache.set(found, for: key) }
-            return found
+            return Task.isCancelled ? [] : found
         }
         // Without a TMDB key we can't search by text reliably; return empty so the
         // UI can prompt to add a key. (Addons key on ids, not free text.)
@@ -89,6 +88,7 @@ final class CatalogService: ObservableObject {
         } else {
             hydrated = (try? await tmdb.hydrateMovie(item)) ?? item
         }
+        guard !Task.isCancelled else { return item }
         // Cache only meaningful results.
         if hydrated.contentID.imdb != nil || !hydrated.seasons.isEmpty {
             await CatalogCaches.metadata.set(hydrated, for: key)
@@ -119,14 +119,17 @@ final class CatalogService: ObservableObject {
                 }
                 do {
                     let final = try await tmdb.hydrateSeries(item) { partial in
+                        guard !Task.isCancelled else { return }
                         continuation.yield(partial)
                     }
+                    try Task.checkCancellation()
                     if !final.seasons.isEmpty || final.contentID.imdb != nil {
                         await CatalogCaches.metadata.set(final, for: key)
                         await OfflineMetadataCache.shared.store(final, for: key)
                     }
                     continuation.yield(final)
                 } catch {
+                    guard !Task.isCancelled else { continuation.finish(); return }
                     if let offline = await OfflineMetadataCache.shared.item(for: key) {
                         continuation.yield(offline)
                     } else {
@@ -163,6 +166,7 @@ final class CatalogService: ObservableObject {
 
         let addons = addonStore.streamAddons
         let raw = await addonClient.allStreams(from: addons, type: content.type, stremioID: id)
+        guard !Task.isCancelled else { return [] }
         if !raw.isEmpty {
             await CatalogCaches.streams.set(raw, for: id)
         }
@@ -190,11 +194,13 @@ final class CatalogService: ObservableObject {
         // The stream is consumed here on CatalogService's (main) actor, so it is
         // safe for onPartial to drive UI state.
         for await progress in addonClient.streamProgress(from: addons, type: content.type, stremioID: id) {
+            guard !Task.isCancelled else { return [] }
             onStatus?(progress)
             merged.append(contentsOf: progress.streams)
             let ranked = StreamRanker.rank(merged, preferredQuality: preferredQuality)
             onPartial(ranked)
         }
+        guard !Task.isCancelled else { return [] }
         if !merged.isEmpty {
             await CatalogCaches.streams.set(merged, for: id)
         }

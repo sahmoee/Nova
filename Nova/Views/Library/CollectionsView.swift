@@ -49,7 +49,7 @@ struct CollectionsView: View {
                                     } label: {
                                         collectionTile(collection)
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(NovaArtworkButtonStyle(cornerRadius: Theme.Radius.card + 6))
                                 }
                             }
                         }
@@ -80,7 +80,9 @@ struct CollectionsView: View {
                              message: "Name your collection, like Halloween or Comfort Shows.",
                              placeholder: "Name",
                              confirmTitle: "Create") { entered in
-                library.createCollection(name: entered)
+                if library.createCollection(name: entered) == nil {
+                    ToastCenter.shared.show(library.lastPersistenceError ?? "Could not save collection")
+                }
             }
         }
         .alert("Delete Collection?",
@@ -493,7 +495,7 @@ struct TraktWatchlistCollectionView: View {
                             } label: {
                                 CatalogPosterCard(item: item)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(NovaArtworkButtonStyle())
                         }
                     }
                     .padding(Theme.Spacing.edge)

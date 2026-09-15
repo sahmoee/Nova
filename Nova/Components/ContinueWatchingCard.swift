@@ -20,9 +20,10 @@ struct ContinueWatchingCard: View {
     private var progressBadge: String? {
         guard item.progressFraction > 0 else { return nil }
         var text = "\(Int((item.progressFraction * 100).rounded()))%"
-        if let duration = item.duration, duration > 0 {
+        if let duration = item.duration, duration.isFinite, duration > 0 {
             let remaining = max(duration - item.lastPlayedPosition, 0)
-            let mins = max(1, Int((remaining / 60).rounded()))
+            guard remaining.isFinite, remaining / 60 < Double(Int.max) else { return text }
+            let mins = max(1, Int(ceil(remaining / 60)))
             text += mins >= 60
                 ? " · \(mins / 60)h \(mins % 60)m left"
                 : " · \(mins) min left"
@@ -39,11 +40,8 @@ struct ContinueWatchingCard: View {
     }
 
     private var cardHeight: CGFloat {
-        #if os(tvOS)
-        return Theme.scaled(300, min: 200)
-        #else
-        return UIDevice.current.userInterfaceIdiom == .pad ? 204 : 142
-        #endif
+        // Match the Apple TV landscape artwork family without stretching to 3:2.
+        cardWidth * 9 / 16
     }
 
     var body: some View {
@@ -51,17 +49,9 @@ struct ContinueWatchingCard: View {
                   wide: true,
                   widthOverride: cardWidth,
                   heightOverride: cardHeight,
+                  opensPlayback: true,
+                  topLeadingBadge: progressBadge,
                   action: onPlay)
-            .overlay(alignment: .topLeading) {
-                if let badge = progressBadge {
-                    Text(badge)
-                        .font(.appFont(13, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(.black.opacity(0.6), in: Capsule())
-                        .padding(Theme.Spacing.sm)
-                }
-            }
             .contextMenu {
                 Button(action: onPlay) {
                     Label(item.hasResumePoint ? "Resume" : "Play", systemImage: "play.fill")

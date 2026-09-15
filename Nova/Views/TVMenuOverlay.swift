@@ -9,6 +9,8 @@ struct TVMenuOverlay: View {
     var onRemote: () -> Void
     @Namespace private var menuScope
     @FocusState private var focused: String?
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
     private let tabs = AppTab.primaryTabs
 
     var body: some View {
@@ -38,8 +40,14 @@ struct TVMenuOverlay: View {
             .padding(12)
             .frame(width: 350)
             .frame(maxHeight: .infinity, alignment: .top)
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 28).strokeBorder(.white.opacity(0.18), lineWidth: 1))
+            .background {
+                if reduceTransparency {
+                    RoundedRectangle(cornerRadius: Theme.Radius.navigationPanel, style: .continuous).fill(Color(white: 0.12))
+                }
+            }
+            .glassEffect(reduceTransparency ? .identity : .regular, in: RoundedRectangle(cornerRadius: Theme.Radius.navigationPanel, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.navigationPanel, style: .continuous)
+                .strokeBorder(.white.opacity(contrast == .increased ? 0.6 : 0.18), lineWidth: 1))
             .shadow(color: .black.opacity(0.45), radius: 30, y: 12)
             .padding(.leading, 36).padding(.vertical, 32)
             .focusSection()
@@ -57,10 +65,13 @@ struct TVMenuOverlay: View {
                 Image(systemName: symbol).font(.system(size: 28, weight: .medium)).frame(width: 36)
                 Text(title).font(.system(size: 26, weight: .semibold))
                 Spacer(minLength: 0)
+                if id == selection.title {
+                    Image(systemName: "checkmark").font(.system(size: 19, weight: .semibold)).accessibilityHidden(true)
+                }
             }
             .padding(.horizontal, 20).frame(height: 74)
         }
-        .buttonStyle(TVReferenceButtonStyle(selected: id == selection.title, cornerRadius: 12))
+        .buttonStyle(TVReferenceButtonStyle(selected: id == selection.title, cornerRadius: Theme.Radius.navigationItem))
         .focused($focused, equals: id)
         .prefersDefaultFocus(id == selection.title, in: menuScope)
         .accessibilityIdentifier("tv.navigation.\(id.lowercased())")

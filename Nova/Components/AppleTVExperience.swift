@@ -509,13 +509,13 @@ struct StreamingDiscoverGrid: View {
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: PlatformCapabilities.platform == .iPad ? 190 : 144)
-                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous))
                         .overlay {
-                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous)
                                 .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.8)
                         }
                     }
-                    .buttonStyle(NovaListRowStyle())
+                    .buttonStyle(NovaArtworkButtonStyle(cornerRadius: Theme.Radius.largeCard + 6))
                 }
             }
             .padding(.horizontal, Theme.Spacing.edge)
@@ -574,7 +574,6 @@ private struct QuickAccessArtwork: View {
 
 private struct AppleTVQuickAccessTile: View {
     let item: AppleTVQuickAccessItem
-    @FocusState private var focused: Bool
 
     var body: some View {
         Button(action: item.action) {
@@ -612,16 +611,11 @@ private struct AppleTVQuickAccessTile: View {
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous)
-                    .strokeBorder(focused ? Color.white : Color.white.opacity(0.10),
-                                  lineWidth: focused ? 3 : 1)
+                    .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(focused ? 0.48 : 0.22),
-                    radius: focused ? 24 : 10, y: 8)
+            .shadow(color: .black.opacity(0.22), radius: 10, y: 8)
         }
-        .buttonStyle(.plain)
-        .focused($focused)
-        .scaleEffect(focused ? Theme.CardSize.focusScale : 1)
-        .animation(.easeOut(duration: 0.16), value: focused)
+        .buttonStyle(NovaArtworkButtonStyle(cornerRadius: Theme.Radius.largeCard + 6))
     }
 }
 
@@ -876,12 +870,13 @@ struct BecauseYouWatchedCatalogRail: View {
                                 Button { onSelect(item) } label: {
                                     CatalogPosterCard(item: item, scale: PlatformCapabilities.railPosterScale * 0.82)
                                 }
-                                .buttonStyle(NovaListRowStyle())
+                                .buttonStyle(NovaArtworkButtonStyle())
                             }
                         }
                         .padding(.horizontal, Theme.Spacing.edge)
                         .padding(.vertical, PlatformCapabilities.platform == .appleTV ? 12 : 2)
                     }
+                    .scrollClipDisabled()
                 }
             } else if !loaded {
                 EmptyView()
@@ -994,7 +989,7 @@ enum TVReferenceStyle {
     static let edge: CGFloat = 80
     static let top: CGFloat = 42
     static let controlHeight: CGFloat = 56
-    static let cornerRadius: CGFloat = 14
+    static let cornerRadius: CGFloat = Theme.Radius.button
     static let canvas = LinearGradient(colors: [.black, .black],
                                        startPoint: .top, endPoint: .bottom)
 }
@@ -1055,64 +1050,95 @@ struct TVPageHeading: View {
 
 struct TVReferenceButtonStyle: ButtonStyle {
     var selected = false
+    var prominent = false
     var cornerRadius: CGFloat = TVReferenceStyle.cornerRadius
     var horizontalPadding: CGFloat = 0
     var verticalPadding: CGFloat = 0
+    var minimumWidth: CGFloat? = nil
     func makeBody(configuration: Configuration) -> some View {
-        ReferenceButtonBody(configuration: configuration, selected: selected,
+        ReferenceButtonBody(configuration: configuration, selected: selected, prominent: prominent,
                             cornerRadius: cornerRadius, horizontalPadding: horizontalPadding,
-                            verticalPadding: verticalPadding)
+                            verticalPadding: verticalPadding, minimumWidth: minimumWidth)
     }
     private struct ReferenceButtonBody: View {
         let configuration: Configuration
         let selected: Bool
+        let prominent: Bool
         let cornerRadius: CGFloat
         let horizontalPadding: CGFloat
         let verticalPadding: CGFloat
+        let minimumWidth: CGFloat?
         @Environment(\.isFocused) private var focused
         @Environment(\.isEnabled) private var enabled
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
         @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+        @Environment(\.colorSchemeContrast) private var contrast
         var body: some View {
             let active = focused && enabled
             let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            let opaque = reduceTransparency || contrast == .increased
+            let background = active ? Color.white : Color(white: selected || prominent ? 0.23 : 0.16)
             configuration.label
-                // Semantic label colors must resolve against the focused white surface.
+                // Child labels should use semantic primary/secondary, not literal white.
                 .environment(\.colorScheme, active ? .light : .dark)
                 .foregroundStyle(active ? Color.black : Color.white)
                 .padding(.horizontal, horizontalPadding)
                 .padding(.vertical, verticalPadding)
+                .frame(minWidth: minimumWidth, minHeight: TVReferenceStyle.controlHeight)
                 .background {
-                    shape.fill(active ? Color.white : Color(white: 0.16).opacity(reduceTransparency ? 1 : selected ? 0.8 : 0.35))
+                    if opaque || active {
+                        shape.fill(background)
+                    } else {
+                        shape.fill(background.opacity(selected || prominent ? 0.8 : 0.45))
+                            .glassEffect(.regular.interactive(), in: shape)
+                    }
                 }
-                .glassEffect(.regular.interactive(), in: shape)
                 .overlay {
-                    shape.strokeBorder(.white.opacity(active ? 1 : selected ? 0.65 : 0.16), lineWidth: active ? 2 : 1)
+                    shape.strokeBorder(.white.opacity(active ? 1 : selected ? 0.85 : contrast == .increased ? 0.65 : prominent ? 0.35 : 0.16),
+                                       lineWidth: active ? Theme.Control.focusLineWidth : selected || contrast == .increased ? 2 : 1)
+                        .allowsHitTesting(false)
                 }
                 .contentShape(shape)
-                .opacity(enabled ? 1 : 0.4)
-                .shadow(color: .black.opacity(active ? 0.36 : 0), radius: 16, y: 8)
-                .scaleEffect(reduceMotion ? 1 : configuration.isPressed ? 0.98 : active ? 1.035 : 1)
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: active)
+                .opacity(enabled ? 1 : Theme.Control.disabledOpacity)
+                .shadow(color: .black.opacity(active ? 0.3 : 0), radius: 16, y: 8)
+                .scaleEffect(reduceMotion || !enabled ? 1 : configuration.isPressed ? Theme.Control.pressedScale : active ? Theme.Control.focusScale : 1)
+                .animation(reduceMotion ? nil : Theme.Motion.quick, value: active)
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
+                .accessibilityAddTraits(selected ? .isSelected : [])
         }
     }
 }
 
-/// Artwork keeps its own colors; focus frames it rather than whitening the image.
+/// Artwork keeps its own colors; one focus owner frames it without whitening it.
 struct TVArtworkButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View { ArtworkBody(configuration: configuration) }
+    var selected = false
+    var cornerRadius: CGFloat = Theme.Radius.poster + 6
+    func makeBody(configuration: Configuration) -> some View {
+        ArtworkBody(configuration: configuration, selected: selected, cornerRadius: cornerRadius)
+    }
     private struct ArtworkBody: View {
         let configuration: Configuration
+        let selected: Bool
+        let cornerRadius: CGFloat
         @Environment(\.isFocused) private var focused
+        @Environment(\.isEnabled) private var enabled
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @Environment(\.colorSchemeContrast) private var contrast
         var body: some View {
+            let active = focused && enabled
             configuration.label
                 .padding(6)
-                .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.white.opacity(focused ? 1 : 0), lineWidth: 3))
-                .scaleEffect(reduceMotion ? 1 : configuration.isPressed ? 0.98 : focused ? 1.035 : 1)
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: focused)
+                .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(.white.opacity(active ? 1 : selected ? 0.65 : contrast == .increased ? 0.3 : 0),
+                                  lineWidth: active ? Theme.Control.focusLineWidth : 2)
+                    .allowsHitTesting(false))
+                .scaleEffect(reduceMotion || !enabled ? 1 : configuration.isPressed ? Theme.Control.pressedScale : active ? Theme.Control.focusScale : 1)
+                .opacity(enabled ? 1 : Theme.Control.disabledOpacity)
+                .animation(reduceMotion ? nil : Theme.Motion.quick, value: active)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
+                .accessibilityAddTraits(selected ? .isSelected : [])
         }
     }
 }
+
 #endif

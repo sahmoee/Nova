@@ -146,6 +146,10 @@ final class AppEnvironment: ObservableObject {
             return (try? await aiSearch.run(.buildShelf, userText: prompt)) ?? []
         }
 
+        #if os(iOS)
+        NovaPhoneWatchBridge.shared.configure(environment: self)
+        #endif
+
         // Library intentionally starts empty — it fills as the user plays or
         // favorites content. No sample/placeholder items are seeded.
 

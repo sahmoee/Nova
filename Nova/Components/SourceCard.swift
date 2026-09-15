@@ -51,6 +51,20 @@ struct SourceCard: View {
     let action: () -> Void
 
     @FocusState private var focused: Bool
+    @Environment(\.isFocused) private var inheritedFocus
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    @State private var hovered = false
+    private var active: Bool { enabled && (focused || inheritedFocus || hovered) }
+    private var brightFocus: Bool {
+        #if os(tvOS)
+        active
+        #else
+        false
+        #endif
+    }
 
     var body: some View {
         Group {
@@ -65,11 +79,19 @@ struct SourceCard: View {
         // Accessibility: speak the card as one element — name plus connection status.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(title), \(statusLine)")
-        .accessibilityAddTraits(.isButton)
-        .scaleEffect(focused ? Theme.CardSize.focusScale : 1.0)
-        .shadow(color: focused ? Theme.Colors.accent.opacity(0.48) : .black.opacity(0.20),
-                radius: focused ? 26 : 10, y: focused ? 10 : 5)
-        .animation(Theme.Motion.quick, value: focused)
+        .accessibilityAddTraits(isInteractive ? .isButton : [])
+        .accessibilityHint(isInteractive ? "Open source settings" : "")
+        .environment(\.colorScheme, brightFocus ? .light : .dark)
+        .scaleEffect(enabled && (focused || inheritedFocus) && !reduceMotion ? Theme.CardSize.focusScale : 1.0)
+        .shadow(color: .black.opacity(active ? 0.3 : 0.16), radius: active ? 16 : 8, y: active ? 8 : 4)
+        // Interactive cards already dim through PressableButtonStyle. Passive
+        // NavigationLink labels need the same treatment here, exactly once.
+        .opacity(isInteractive || enabled ? 1 : Theme.Control.disabledOpacity)
+        .animation(reduceMotion ? nil : Theme.Motion.quick, value: active)
+        #if !os(tvOS)
+        .onHover { hovered = $0 }
+        #endif
+        .zIndex(active ? 1 : 0)
     }
 
     private var cardContent: some View {
@@ -78,10 +100,10 @@ struct SourceCard: View {
                     Image(systemName: systemImage)
                         .font(.appFont(34, weight: .semibold))
                         .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(Theme.Colors.accent)
+                        .foregroundStyle(brightFocus ? Color.black : Theme.Colors.accent)
                     Spacer()
                     Image(systemName: status.systemImage)
-                        .foregroundStyle(status.color)
+                        .foregroundStyle(brightFocus ? Color.black : status.color)
                         .font(.appFont(24))
                 }
 
@@ -90,26 +112,35 @@ struct SourceCard: View {
                 Text(title)
                     .font(Theme.Font.cardTitle())
                     .foregroundStyle(Theme.Colors.textPrimary)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 6) {
                     Circle()
-                        .fill(status.color)
+                        .fill(brightFocus ? Color.black : status.color)
                         .frame(width: 8, height: 8)
                     Text(statusLine)
                         .font(.appFont(15))
                         .foregroundStyle(Theme.Colors.textSecondary)
-                        .lineLimit(1)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
         }
         .padding(Theme.Spacing.lg)
         .frame(maxWidth: .infinity, minHeight: Theme.CardSize.sourceHeight,
                alignment: .topLeading)
-        .background(Theme.Colors.controlGlass, in: RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous))
+        .background {
+            let shape = RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+            if brightFocus || reduceTransparency || contrast == .increased {
+                shape.fill(brightFocus ? Color.white : Color(white: 0.16))
+            } else {
+                shape.fill(Color(white: active ? 0.2 : 0.14).opacity(0.75))
+                    .glassEffect(.regular.interactive(), in: shape)
+            }
+        }
         .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous)
-                .stroke(focused ? Theme.Colors.accentSecondary : Theme.Colors.separator,
-                        lineWidth: focused ? 4 : 1)
+            RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                .strokeBorder(active ? Theme.Colors.focusRing : .white.opacity(contrast == .increased ? 0.6 : 0.16),
+                              lineWidth: active ? Theme.Control.focusLineWidth : 1)
+                .allowsHitTesting(false)
         )
     }
 

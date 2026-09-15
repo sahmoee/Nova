@@ -83,14 +83,26 @@ private struct TVSettingToggle: View {
             }
             .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
         }
-        .toggleStyle(.switch)
-        .padding(.horizontal, 22)
-        .background(.white.opacity(0.075),
-                    in: RoundedRectangle(cornerRadius: TVReferenceStyle.cornerRadius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: TVReferenceStyle.cornerRadius, style: .continuous)
-            .strokeBorder(.white.opacity(0.16), lineWidth: 1))
+        .toggleStyle(TVReferenceSettingToggleStyle())
         .accessibilityValue(isOn ? "On" : "Off")
         .accessibilityHint("Press to toggle")
+    }
+}
+
+/// Keep the whole setting row focusable, with both text and shape indicating state.
+private struct TVReferenceSettingToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button { configuration.isOn.toggle() } label: {
+            HStack(spacing: 20) {
+                configuration.label
+                Text(configuration.isOn ? "On" : "Off").font(.appFont(21, weight: .medium))
+                Image(systemName: configuration.isOn ? "checkmark.circle.fill" : "circle")
+                    .font(.appFont(27)).accessibilityHidden(true)
+            }
+            .padding(.horizontal, 22).padding(.vertical, 8)
+        }
+        .buttonStyle(TVReferenceButtonStyle(selected: configuration.isOn))
+        .accessibilityValue(configuration.isOn ? "On" : "Off")
     }
 }
 
@@ -350,6 +362,7 @@ struct TVCloudSettingsPanel: View {
     @State private var confirmDeletion = false
     @State private var confirmPull = false
     @State private var message = ""
+    @State private var isDeleting = false
 
     var body: some View {
         TVSettingsPanel(title: "iCloud") {
@@ -395,7 +408,9 @@ struct TVCloudSettingsPanel: View {
                     }
             }
             if !message.isEmpty { Text(message).font(.appFont(21)).accessibilityAddTraits(.updatesFrequently) }
+            if isDeleting { ProgressView("Removing local data…") }
         }
+        .disabled(isDeleting)
         .confirmationDialog("Delete \(deletion?.title ?? "Data")?", isPresented: $confirmDeletion,
                             titleVisibility: .visible) {
             Button("Delete on This Device", role: .destructive) { if let deletion { erase(deletion, includingCloud: false) } }
@@ -404,7 +419,7 @@ struct TVCloudSettingsPanel: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This cannot be undone. Device-only deletion pauses this category's sync here until you choose Push or Pull. Cloud deletion also removes it from setup backups; older app versions may not honor deletion markers. Media files and account credentials are kept.")
+            Text("This cannot be undone. Device-only deletion pauses this category's sync here until you choose Push or Pull. Cloud deletion also removes it from setup backups; older app versions may not honor deletion markers. Library deletion also removes this device’s Watch Night plans and private notes. Media files and account credentials are kept.")
         }
         .confirmationDialog("Pull Settings from iCloud?", isPresented: $confirmPull, titleVisibility: .visible) {
             Button("Pull Available Settings") {
@@ -447,6 +462,19 @@ struct TVCloudSettingsPanel: View {
     }
 
     private func erase(_ domain: SettingsDataDomain, includingCloud: Bool) {
+        guard !isDeleting else { return }
+        isDeleting = true
+        Task {
+            defer { isDeleting = false }
+            if domain == .library, !(await WatchNightStore.shared.deleteAllLocalData()) {
+                message = WatchNightStore.shared.error ?? "Watch Night data could not be removed. Library deletion was not started."
+                return
+            }
+            finishErase(domain, includingCloud: includingCloud)
+        }
+    }
+
+    private func finishErase(_ domain: SettingsDataDomain, includingCloud: Bool) {
         cloud.beginDeletion(domain, includingCloud: includingCloud)
         switch domain {
         case .history:

@@ -25,6 +25,8 @@ struct MenuOverlay: View {
     var onSelect: ((AppTab) -> Void)? = nil
 
     @Environment(\.dynamicAccent) private var accent
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if os(tvOS)
     @FocusState private var focusedTab: AppTab?
     #endif
@@ -68,15 +70,15 @@ struct MenuOverlay: View {
         }
         .padding(.vertical, Theme.Spacing.sm)
         .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(.ultraThinMaterial)
+            RoundedRectangle(cornerRadius: Theme.Radius.navigationPanel, style: .continuous)
+                .fill(reduceTransparency ? AnyShapeStyle(Color(white: 0.12)) : AnyShapeStyle(.ultraThinMaterial))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    RoundedRectangle(cornerRadius: Theme.Radius.navigationPanel, style: .continuous)
                         .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
                 )
                 .shadow(color: .black.opacity(0.5), radius: 30, x: 8, y: 14)
         )
-        .transition(.move(edge: .leading).combined(with: .opacity))
+        .transition(reduceMotion ? .opacity : .move(edge: .leading).combined(with: .opacity))
     }
 
     private func menuRow(_ tab: AppTab) -> some View {
@@ -98,6 +100,9 @@ struct MenuOverlay: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                if tab == selection {
+                    Image(systemName: "checkmark").font(.body.weight(.semibold)).accessibilityHidden(true)
+                }
             }
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, Theme.Spacing.md)
@@ -140,7 +145,11 @@ private struct MenuRowStyle: ButtonStyle {
     var accent: Color
 
     func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        #if os(tvOS)
+        TVReferenceButtonStyle(selected: isSelected, cornerRadius: Theme.Radius.navigationItem).makeBody(configuration: configuration)
+        #else
         MenuRowBody(configuration: configuration, isSelected: isSelected, accent: accent)
+        #endif
     }
 }
 
@@ -148,32 +157,20 @@ private struct MenuRowBody: View {
     let configuration: ButtonStyleConfiguration
     let isSelected: Bool
     let accent: Color
-    #if os(tvOS)
-    @Environment(\.isFocused) private var isFocused
-    #endif
+    @State private var hovering = false
 
     var body: some View {
-        #if os(tvOS)
-        configuration.label
-            .foregroundStyle(isFocused ? .black : (isSelected ? .white : Color.white.opacity(0.7)))
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(isFocused ? Color.white
-                          : (isSelected ? accent.opacity(0.22) : Color.clear))
-                    .padding(.horizontal, Theme.Spacing.sm)
-            )
-            .scaleEffect(isFocused ? 1.03 : 1.0)
-            .animation(.easeOut(duration: 0.16), value: isFocused)
-        #else
         configuration.label
             .foregroundStyle(isSelected ? accent : Theme.Colors.textPrimary)
             .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(isSelected ? accent.opacity(0.14) : Color.clear)
+                RoundedRectangle(cornerRadius: Theme.Radius.navigationItem, style: .continuous)
+                    .fill(isSelected ? accent.opacity(0.14) : Color.primary.opacity(hovering ? 0.07 : 0))
                     .padding(.horizontal, Theme.Spacing.sm)
             )
             .opacity(configuration.isPressed ? 0.6 : 1.0)
-        #endif
+            #if os(iOS)
+            .onHover { hovering = $0 }
+            #endif
     }
 }
 

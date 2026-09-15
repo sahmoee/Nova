@@ -114,12 +114,12 @@ private struct LibraryFoldersContent: View {
                         lastResult = "Added \(n) item\(n == 1 ? "" : "s") from \(folder.displayName)."
                     }
                 } label: { Label("Rescan", systemImage: "arrow.clockwise").font(.appFont(15, weight: .semibold)) }
-                .buttonStyle(NovaChipButtonStyle()).disabled(scanning)
+                .buttonStyle(NovaChipButtonStyle(providesSurface: true)).disabled(scanning)
                 // Ask before removing instead of deleting immediately.
                 Button(role: .destructive) { pendingDelete = folder } label: {
-                    Label("Remove", systemImage: "trash").font(.appFont(15, weight: .semibold)).foregroundStyle(Theme.Colors.error)
+                    Label("Remove", systemImage: "trash").font(.appFont(15, weight: .semibold))
                 }
-                .buttonStyle(NovaChipButtonStyle()).disabled(scanning)
+                .buttonStyle(NovaChipButtonStyle(providesSurface: true)).disabled(scanning)
             }
         }
         .padding(Theme.Spacing.md).refinedCardBackground()
@@ -199,7 +199,7 @@ private struct SMBFolderPickerView: View {
                         } label: {
                             HStack {
                                 Image(systemName: "externaldrive.connected.to.line.below")
-                                    .foregroundStyle(Theme.Colors.accent)
+                                    .foregroundStyle(Theme.Colors.textPrimary)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(share.displayName).font(.appFont(16, weight: .medium)).foregroundStyle(Theme.Colors.textPrimary)
                                     Text("\(share.host)/\(share.shareName)").font(.appFont(13)).foregroundStyle(Theme.Colors.textTertiary)
@@ -209,7 +209,7 @@ private struct SMBFolderPickerView: View {
                             }
                             .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain).padding(Theme.Spacing.md).refinedCardBackground()
+                        .buttonStyle(NovaRowButtonStyle())
                     }
                 }
             }
@@ -234,9 +234,9 @@ private struct SMBFolderPickerView: View {
                         Task { await browse(selectedShare!, parent.isEmpty ? "/" : parent) }
                     } label: {
                         Label("Up one level", systemImage: "arrow.up.left")
-                            .font(.appFont(15)).foregroundStyle(Theme.Colors.accent)
+                            .font(.appFont(15)).foregroundStyle(Theme.Colors.textPrimary)
                     }
-                    .buttonStyle(.plain).padding(Theme.Spacing.md).refinedCardBackground()
+                    .buttonStyle(NovaRowButtonStyle())
                 }
 
                 if loading {
@@ -251,14 +251,14 @@ private struct SMBFolderPickerView: View {
                             Task { await browse(selectedShare!, folder.path) }
                         } label: {
                             HStack {
-                                Image(systemName: "folder.fill").foregroundStyle(Theme.Colors.accent)
+                                Image(systemName: "folder.fill").foregroundStyle(Theme.Colors.textPrimary)
                                 Text(folder.name).font(.appFont(16)).foregroundStyle(Theme.Colors.textPrimary)
                                 Spacer()
                                 Image(systemName: "chevron.right").foregroundStyle(Theme.Colors.textTertiary)
                             }
                             .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain).padding(Theme.Spacing.md).refinedCardBackground()
+                        .buttonStyle(NovaRowButtonStyle())
                     }
                 }
 

@@ -33,7 +33,7 @@ struct SettingsView: View {
     }
 
     private struct CategoryGroup: Identifiable {
-        let id = UUID()
+        var id: String { header ?? items.map(\.id).joined(separator: "|") }
         var header: String? = nil
         let items: [Category]
     }
@@ -83,6 +83,7 @@ struct SettingsView: View {
                 .frame(maxWidth: 900, alignment: .leading)
                 .frame(maxWidth: .infinity)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(Theme.Colors.appBackground.ignoresSafeArea())
         }
     }
@@ -91,7 +92,7 @@ struct SettingsView: View {
         HStack(spacing: Theme.Spacing.sm) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(Theme.Colors.textTertiary)
-            TextField("Search", text: $settingsSearch)
+            TextField("Search settings", text: $settingsSearch)
                 .textFieldStyle(.plain)
                 .font(.appFont(SettingsMetrics.title))
                 .foregroundStyle(Theme.Colors.textPrimary)
@@ -99,13 +100,15 @@ struct SettingsView: View {
             if !settingsSearch.isEmpty {
                 Button { settingsSearch = "" } label: {
                     Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.Colors.textTertiary)
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear settings search")
             }
         }
         .padding(.horizontal, SettingsMetrics.rowSpacing + 2)
-        .padding(.vertical, SettingsMetrics.rowVPad)
+        .frame(minHeight: 44)
+        .padding(.vertical, 4)
         .cinematicGlass(radius: SettingsMetrics.groupRadius)
     }
 
@@ -115,7 +118,7 @@ struct SettingsView: View {
                 SettingsRow(icon: cat.icon, color: cat.color, title: cat.title,
                             detail: cat.detail, status: cat.status)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SettingsRowButtonStyle())
         )
     }
 
@@ -205,6 +208,9 @@ struct SettingsView: View {
             },
             tab("experience", "Experience", "Home, profiles, interface, and accessibility", "appletv") {
                 AnyView(TVInterfaceSettingsPanel())
+            },
+            tab("accessibility", "Accessibility", "Text, motion, contrast, and transparency", "accessibility") {
+                AnyView(SettingsScreen(title: "Accessibility") { AccessibilitySettingsContent() })
             },
             tab("data", "Data & Privacy", "iCloud, snapshots, diagnostics, and legal", "hand.raised") {
                 AnyView(TVDataSettingsPanel(addonStore: env.addonStore))

@@ -19,6 +19,7 @@ final class ShelfLoader {
     var aiResolver: ((String) async -> [CatalogItem])?
 
     // Short-lived cache so Home and Discover share results within a session.
+    private var cacheGeneration = UUID()
     private let cache = TTLCache<String, [CatalogItem]>(ttl: 60 * 10)   // 10 min
 
     init(tmdb: TMDBClient,
@@ -31,6 +32,7 @@ final class ShelfLoader {
     /// Drops the in-memory shelf cache so the next load hits the network (used by
     /// pull-to-refresh). The offline disk cache is kept as a fallback.
     func clearCache() async {
+        cacheGeneration = UUID()
         await cache.removeAll()
     }
 
@@ -44,6 +46,8 @@ final class ShelfLoader {
     enum Variant { case home, discover }
 
     func items(for shelf: ShelfConfig, variant: Variant) async -> [CatalogItem] {
+        guard !Task.isCancelled else { return [] }
+        let generation = cacheGeneration
         let key = cacheKey(for: shelf.kind)
         let pool: [CatalogItem]
         if let cached = await cache.value(for: key) {
@@ -51,16 +55,20 @@ final class ShelfLoader {
         } else {
             // Signposted so shelf load latency is visible in Instruments per shelf.
             let kind = shelf.kind
-            let result = await cache.coalesced(for: key) { [weak self] in
-                guard let self else { return [] }
-                return await Signposts.measure(Signposts.shelf, "shelf.load") {
+            let result = await cache.coalesced(for: key, shouldCache: { !$0.isEmpty }) { [weak self] in
+                guard let self, !Task.isCancelled, await self.cacheGeneration == generation else { return [] }
+                let loaded = await Signposts.measure(Signposts.shelf, "shelf.load") {
                     await self.load(kind)
                 }
+                // Run disk publication in the cache-owned producer, so reset cancels
+                // it even when the provider ignores cancellation. DiskJSONCache also
+                // checks this same task before its synchronous atomic write.
+                guard !Task.isCancelled, await self.cacheGeneration == generation else { return [] }
+                if !loaded.isEmpty { await OfflineCatalogCache.shared.store(loaded, for: key) }
+                return Task.isCancelled ? [] : loaded
             }
+            guard !Task.isCancelled, cacheGeneration == generation else { return [] }
             if !result.isEmpty {
-                await cache.set(result, for: key)
-                // Persist to disk so this shelf survives a restart and shows offline.
-                await OfflineCatalogCache.shared.store(result, for: key)
                 pool = result
             } else if let offline = await OfflineCatalogCache.shared.items(for: key) {
                 // Network/source returned nothing (slow or offline) — fall back to the
@@ -71,6 +79,7 @@ final class ShelfLoader {
             }
         }
 
+        guard !Task.isCancelled, cacheGeneration == generation else { return [] }
         switch variant {
         case .home:
             return pool

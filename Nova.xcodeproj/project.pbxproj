@@ -405,6 +405,38 @@
 		FF1AB243EE72928AE5F74A54 /* ContinueWatchingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B505409D19B9BAFC48A9DC7 /* ContinueWatchingCard.swift */; };
 		FF7F98269167CC82A62C99CE /* SourceHealth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F96447C15101D418D7A3D4D /* SourceHealth.swift */; };
 		FFB4E4E136A90C784BA56D03 /* NovaIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D69187B2E8B1C20FF0E81 /* NovaIntents.swift */; };
+		D0D35EE58A277AA84F906698 /* WatchNight.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5230C815F48C3C939BE774A /* WatchNight.swift */; };
+		23EA7202CF22FE4E060C372D /* WatchNight.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5230C815F48C3C939BE774A /* WatchNight.swift */; };
+		3361E130492C34A8E6EAEBED /* WatchNightStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6122BA970E51E538E4BDEAAD /* WatchNightStore.swift */; };
+		B714E7DC7D00AEE1BE8FE0B9 /* WatchNightStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6122BA970E51E538E4BDEAAD /* WatchNightStore.swift */; };
+		48E243944EEDDF2630BEAFA7 /* WatchNightView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCE4AF41CA86C1F528D7743E /* WatchNightView.swift */; };
+		CC438E56B585310BD15270DD /* WatchNightView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCE4AF41CA86C1F528D7743E /* WatchNightView.swift */; };
+		D0A17214242F8E8A3AE7E5D0 /* SonarrDashboardPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22F237D5ED29C492E2C13335 /* SonarrDashboardPolicy.swift */; };
+		098D1D29BF934B288B1348D8 /* SonarrDashboardPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22F237D5ED29C492E2C13335 /* SonarrDashboardPolicy.swift */; };
+		C2957F5527C03E76772E505F /* SubtitleSelectionPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58E7F1D308126EADE89284D3 /* SubtitleSelectionPolicy.swift */; };
+		D67373BF0122CA030C77CA7A /* SubtitleSelectionPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58E7F1D308126EADE89284D3 /* SubtitleSelectionPolicy.swift */; };
+		650B24C518F280B14B9D4C9F /* TTLCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1658BB4266DE226FCBB8EE72 /* TTLCache.swift */; };
+		584B71C39655EE3B4DAD0B37 /* TTLCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1658BB4266DE226FCBB8EE72 /* TTLCache.swift */; };
+		7A6FEC91C860C5975A48F114 /* ArtworkCachePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1820C4156ED3903D1DAEBC8F /* ArtworkCachePolicy.swift */; };
+		34A9C02FCE910B3225FA6ADB /* ArtworkCachePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1820C4156ED3903D1DAEBC8F /* ArtworkCachePolicy.swift */; };
+		69EE5B85E92744D9886EFA7D /* LibraryMutationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62D13076AC9A479393DAFB28 /* LibraryMutationPolicy.swift */; };
+		6E899B49135D40B8AEF51563 /* LibraryMutationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62D13076AC9A479393DAFB28 /* LibraryMutationPolicy.swift */; };
+		7D1A093FC8734566878C5662 /* LibraryFilePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B13F4E582C8846D48A8AA97F /* LibraryFilePolicy.swift */; };
+		F1CC15D4E3BB41DAABE02A0E /* LibraryFilePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B13F4E582C8846D48A8AA97F /* LibraryFilePolicy.swift */; };
+		B7DA861133914B83AA3C88E7 /* MediaServerIndexPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A404FE7EF0374923B862BE62 /* MediaServerIndexPolicy.swift */; };
+		F84F6F599C73461F9390FD38 /* MediaServerIndexPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A404FE7EF0374923B862BE62 /* MediaServerIndexPolicy.swift */; };
+		B140000000000000000000C9 /* NovaWatchProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14000000000000000000064; };
+		B140000000000000000000CA /* NovaWatchProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14000000000000000000064; };
+		B140000000000000000000CB /* NovaWatchConnectivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14000000000000000000065; };
+		B140000000000000000000CC /* NovaWatchConnectivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14000000000000000000065; };
+		B140000000000000000000CD /* NovaPhoneWatchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14000000000000000000066; };
+		B140000000000000000000CF /* NovaWatchRemotePlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14000000000000000000067; };
+		B140000000000000000000D2 /* NovaWatchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14000000000000000000068; };
+		B140000000000000000000D4 /* NovaWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14000000000000000000069; };
+		B140000000000000000000D6 /* WatchNight.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1400000000000000000006A; };
+		B140000000000000000000DC = {isa = PBXBuildFile; fileRef = B1400000000000000000006E; };
+		B140000000000000000000DD = {isa = PBXBuildFile; fileRef = B1400000000000000000006F; };
+		B14000000000000000000006 /* Nova Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B14000000000000000000001; settings = {ATTRIBUTES = (RemoveHeadersOnCopy,); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -422,6 +454,7 @@
 			remoteGlobalIDString = 97119EBDC41CCAA9F66844E0;
 			remoteInfo = "Nova-iOS";
 		};
+		B14000000000000000000008 = {isa = PBXContainerItemProxy; containerPortal = 174A093B2797EF63BBAFD724; proxyType = 1; remoteGlobalIDString = B1400000000000000000000A; remoteInfo = "Nova-watchOS"; };
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -458,6 +491,7 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B14000000000000000000007 /* Embed Watch Content */ = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = "$(CONTENTS_FOLDER_PATH)/Watch"; dstSubfolderSpec = 16; files = (B14000000000000000000006,); name = "Embed Watch Content"; runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -665,6 +699,26 @@
 		FEEDFACE000000000000A003 /* Tracking/TrackingProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tracking/TrackingProvider.swift; sourceTree = "<group>"; };
 		FEEDFACE000000000000A101 /* SimklConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimklConnectView.swift; sourceTree = "<group>"; };
 		FEEDFACE000000000000A102 /* TMDBAccountConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TMDBAccountConnectView.swift; sourceTree = "<group>"; };
+		D5230C815F48C3C939BE774A /* WatchNight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchNight.swift; sourceTree = "<group>"; };
+		6122BA970E51E538E4BDEAAD /* WatchNightStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchNightStore.swift; sourceTree = "<group>"; };
+		CCE4AF41CA86C1F528D7743E /* WatchNightView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchNightView.swift; sourceTree = "<group>"; };
+		22F237D5ED29C492E2C13335 /* SonarrDashboardPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonarrDashboardPolicy.swift; sourceTree = "<group>"; };
+		58E7F1D308126EADE89284D3 /* SubtitleSelectionPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleSelectionPolicy.swift; sourceTree = "<group>"; };
+		1658BB4266DE226FCBB8EE72 /* TTLCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTLCache.swift; sourceTree = "<group>"; };
+		1820C4156ED3903D1DAEBC8F /* ArtworkCachePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkCachePolicy.swift; sourceTree = "<group>"; };
+		62D13076AC9A479393DAFB28 /* LibraryMutationPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryMutationPolicy.swift; sourceTree = "<group>"; };
+		B13F4E582C8846D48A8AA97F /* LibraryFilePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryFilePolicy.swift; sourceTree = "<group>"; };
+		A404FE7EF0374923B862BE62 /* MediaServerIndexPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaServerIndexPolicy.swift; sourceTree = "<group>"; };
+		B14000000000000000000064 /* NovaWatchProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NovaWatchShared/NovaWatchProtocol.swift"; sourceTree = SOURCE_ROOT; };
+		B14000000000000000000065 /* NovaWatchConnectivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NovaWatchShared/NovaWatchConnectivity.swift"; sourceTree = SOURCE_ROOT; };
+		B14000000000000000000066 /* NovaPhoneWatchBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Nova/Services/Watch/NovaPhoneWatchBridge.swift"; sourceTree = SOURCE_ROOT; };
+		B14000000000000000000067 /* NovaWatchRemotePlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Nova/Services/Watch/NovaWatchRemotePlayer.swift"; sourceTree = SOURCE_ROOT; };
+		B14000000000000000000068 /* NovaWatchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NovaWatch/NovaWatchStore.swift"; sourceTree = SOURCE_ROOT; };
+		B14000000000000000000069 /* NovaWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NovaWatch/NovaWatchApp.swift"; sourceTree = SOURCE_ROOT; };
+		B1400000000000000000006A /* WatchNight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Nova/Models/WatchNight.swift"; sourceTree = SOURCE_ROOT; };
+		B1400000000000000000006E = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "NovaWatch/Assets.xcassets"; sourceTree = SOURCE_ROOT; };
+		B1400000000000000000006F = {isa = PBXFileReference; lastKnownFileType = text.xml; path = "Nova/Resources/PrivacyInfo.xcprivacy"; sourceTree = SOURCE_ROOT; };
+		B14000000000000000000001 /* Nova Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Nova Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -717,6 +771,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B14000000000000000000005 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -765,6 +820,7 @@
 		14D6D1457E25EC9C5B470BDB /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				D5230C815F48C3C939BE774A /* WatchNight.swift */,
 				CE6A4FDCD25B45BA32E3775D /* AddonModels.swift */,
 				D8F5C8D6D9A7FBACD7D3D9D6 /* CatalogModels.swift */,
 				44483A3741A3146721D8B9CC /* HomeShelf.swift */,
@@ -865,6 +921,7 @@
 		91BC47345339F429878D36A4 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				B14000000000000000000001 /* Nova Watch.app */,
 				2D9D32517F4A99A04FA76A0E /* Nova-tvOS.app */,
 				47F79402BB28EE3F82626E35 /* Nova.app */,
 				7B36E4AC2FF4425300D796FA /* NovaWidgetsExtension.appex */,
@@ -876,6 +933,7 @@
 		9C4F9C66D6779D897C7B75A8 = {
 			isa = PBXGroup;
 			children = (
+				B14000000000000000000002 /* Nova Watch */,
 				7B36E4C12FF443C000D796FA /* NovaWidgetsExtension.entitlements */,
 				F916426229C31403C0DE7849 /* Nova */,
 				A57A00000000000000000001 /* Tests */,
@@ -903,6 +961,14 @@
 		CA29AAA3CEF0A0E92D0DC705 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				58E7F1D308126EADE89284D3 /* SubtitleSelectionPolicy.swift */,
+				1820C4156ED3903D1DAEBC8F /* ArtworkCachePolicy.swift */,
+				62D13076AC9A479393DAFB28 /* LibraryMutationPolicy.swift */,
+				B13F4E582C8846D48A8AA97F /* LibraryFilePolicy.swift */,
+				A404FE7EF0374923B862BE62 /* MediaServerIndexPolicy.swift */,
+				1658BB4266DE226FCBB8EE72 /* TTLCache.swift */,
+				22F237D5ED29C492E2C13335 /* SonarrDashboardPolicy.swift */,
+				6122BA970E51E538E4BDEAAD /* WatchNightStore.swift */,
 				7BDF1BE62FF90387009C7888 /* LibraryEnricher.swift */,
 				6FD4EF5722F87AAD4A2BB4BC /* AISearchService.swift */,
 				744ED6AB3E35952BC5C636AA /* AccentManager.swift */,
@@ -995,6 +1061,7 @@
 		E6791EDF17521B8CF106D159 /* Library */ = {
 			isa = PBXGroup;
 			children = (
+				CCE4AF41CA86C1F528D7743E /* WatchNightView.swift */,
 				F0CB13C2E1D3A27BA21C7FB5 /* CollectionPickerSheet.swift */,
 				48C23B60F65D2B45B9C58BB8 /* LibraryView.swift */,
 				4974EDA4C5B58142AA007C8D /* DuplicatesView.swift */,
@@ -1092,6 +1159,7 @@
 			path = Settings;
 			sourceTree = "<group>";
 		};
+		B14000000000000000000002 /* Nova Watch */ = {isa = PBXGroup; children = (B14000000000000000000064, B14000000000000000000065, B14000000000000000000066, B14000000000000000000067, B14000000000000000000068, B14000000000000000000069, B1400000000000000000006A, B1400000000000000000006E, B1400000000000000000006F,); name = "Nova Watch"; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -1145,6 +1213,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 5FC7ECFFD1FCCAAF27E35DD8 /* Build configuration list for PBXNativeTarget "Nova-iOS" */;
 			buildPhases = (
+				B14000000000000000000007 /* Embed Watch Content */,
 				DD00A89AD54A47F4A73BB057 /* Sources */,
 				30064AD8CC7528687FF78ECF /* Frameworks */,
 				4CDD5F6FBD6C73265BC9B997 /* Resources */,
@@ -1155,6 +1224,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				B14000000000000000000009,
 				7B36E4BA2FF4425500D796FA /* PBXTargetDependency */,
 			);
 			name = "Nova-iOS";
@@ -1191,6 +1261,7 @@
 			productReference = A57A00000000000000000002 /* NovaTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		B1400000000000000000000A /* Nova-watchOS */ = {isa = PBXNativeTarget; buildConfigurationList = B1400000000000000000000B; buildPhases = (B14000000000000000000003, B14000000000000000000005, B14000000000000000000004, B1400000000000000000000E,); buildRules = (); dependencies = (); name = "Nova-watchOS"; productName = "Nova Watch"; productReference = B14000000000000000000001; productType = "com.apple.product-type.application"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -1234,6 +1305,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				B1400000000000000000000A /* Nova-watchOS */,
 				4DCF8737B17BB9BA373F67F4 /* Nova-tvOS */,
 				97119EBDC41CCAA9F66844E0 /* Nova-iOS */,
 				7B36E4AB2FF4425300D796FA /* NovaWidgetsExtension */,
@@ -1275,6 +1347,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B14000000000000000000004 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (B140000000000000000000DC, B140000000000000000000DD,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
@@ -1354,6 +1427,25 @@
 			shellScript = "set -eu\n/usr/bin/python3 \"$SRCROOT/scripts/qa_build_number.py\" --stamp-product \"$TARGET_BUILD_DIR/$INFOPLIST_PATH\" --reservation-dir \"$PROJECT_TEMP_DIR\"\n";
 			showEnvVarsInLog = 0;
 		};
+		B1400000000000000000000E /* Stamp QA build number */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+				"$(PROJECT_TEMP_DIR)/qa-build-number",
+				"$(SRCROOT)/scripts/qa_build_number.py",
+			);
+			name = "Stamp QA build number";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\n/usr/bin/python3 \"$SRCROOT/scripts/qa_build_number.py\" --stamp-product \"$TARGET_BUILD_DIR/$INFOPLIST_PATH\" --reservation-dir \"$PROJECT_TEMP_DIR\"\n";
+			showEnvVarsInLog = 0;
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -1376,6 +1468,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C2957F5527C03E76772E505F /* SubtitleSelectionPolicy.swift in Sources */,
+				7A6FEC91C860C5975A48F114 /* ArtworkCachePolicy.swift in Sources */,
+				69EE5B85E92744D9886EFA7D /* LibraryMutationPolicy.swift in Sources */,
+				7D1A093FC8734566878C5662 /* LibraryFilePolicy.swift in Sources */,
+				B7DA861133914B83AA3C88E7 /* MediaServerIndexPolicy.swift in Sources */,
+				650B24C518F280B14B9D4C9F /* TTLCache.swift in Sources */,
+				D0A17214242F8E8A3AE7E5D0 /* SonarrDashboardPolicy.swift in Sources */,
+				48E243944EEDDF2630BEAFA7 /* WatchNightView.swift in Sources */,
+				3361E130492C34A8E6EAEBED /* WatchNightStore.swift in Sources */,
+				D0D35EE58A277AA84F906698 /* WatchNight.swift in Sources */,
 				3D84ECB6A38540BD51967603 /* AppEnvironment.swift in Sources */,
 				3A7A3E5E61F64A8ED8F47ECA /* NovaApp.swift in Sources */,
 				7CFA98D16D47B054450C3323 /* NavigationCoordinator.swift in Sources */,
@@ -1575,6 +1677,20 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B140000000000000000000CF,
+				B140000000000000000000CD,
+				B140000000000000000000CB,
+				B140000000000000000000C9,
+				D67373BF0122CA030C77CA7A /* SubtitleSelectionPolicy.swift in Sources */,
+				34A9C02FCE910B3225FA6ADB /* ArtworkCachePolicy.swift in Sources */,
+				6E899B49135D40B8AEF51563 /* LibraryMutationPolicy.swift in Sources */,
+				F1CC15D4E3BB41DAABE02A0E /* LibraryFilePolicy.swift in Sources */,
+				F84F6F599C73461F9390FD38 /* MediaServerIndexPolicy.swift in Sources */,
+				584B71C39655EE3B4DAD0B37 /* TTLCache.swift in Sources */,
+				098D1D29BF934B288B1348D8 /* SonarrDashboardPolicy.swift in Sources */,
+				CC438E56B585310BD15270DD /* WatchNightView.swift in Sources */,
+				B714E7DC7D00AEE1BE8FE0B9 /* WatchNightStore.swift in Sources */,
+				23EA7202CF22FE4E060C372D /* WatchNight.swift in Sources */,
 				FADF65A33C26384FF3C5D404 /* AppEnvironment.swift in Sources */,
 				40719331806AC1552AD0AE7B /* NovaApp.swift in Sources */,
 				194E0E479EB3A48E90A0D298 /* NavigationCoordinator.swift in Sources */,
@@ -1770,6 +1886,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B14000000000000000000003 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B140000000000000000000CA, B140000000000000000000CC, B140000000000000000000D2, B140000000000000000000D4, B140000000000000000000D6,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -1783,6 +1900,7 @@
 			target = 97119EBDC41CCAA9F66844E0 /* Nova-iOS */;
 			targetProxy = A57A0000000000000000000A /* PBXContainerItemProxy */;
 		};
+		B14000000000000000000009 = {isa = PBXTargetDependency; target = B1400000000000000000000A; targetProxy = B14000000000000000000008; };
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -2151,6 +2269,8 @@
 			};
 			name = Debug;
 		};
+		B1400000000000000000000C /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 43; DEVELOPMENT_TEAM = 5DV5N49VG8; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = NovaWatch/Info.plist; LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks"; MARKETING_VERSION = 1.7; PRODUCT_BUNDLE_IDENTIFIER = com.nova.app.ios.watchkitapp; PRODUCT_NAME = "Nova Watch"; SDKROOT = watchos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "watchos watchsimulator"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 4; WATCHOS_DEPLOYMENT_TARGET = 26.0; ENABLE_USER_SCRIPT_SANDBOXING = NO; SWIFT_EMIT_LOC_STRINGS = YES;}; name = Debug; };
+		B1400000000000000000000D /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 43; DEVELOPMENT_TEAM = 5DV5N49VG8; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = NovaWatch/Info.plist; LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks"; MARKETING_VERSION = 1.7; PRODUCT_BUNDLE_IDENTIFIER = com.nova.app.ios.watchkitapp; PRODUCT_NAME = "Nova Watch"; SDKROOT = watchos; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "watchos watchsimulator"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 4; WATCHOS_DEPLOYMENT_TARGET = 26.0; ENABLE_USER_SCRIPT_SANDBOXING = NO; SWIFT_EMIT_LOC_STRINGS = YES;}; name = Release; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -2199,6 +2319,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		B1400000000000000000000B = {isa = XCConfigurationList; buildConfigurations = (B1400000000000000000000C, B1400000000000000000000D,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */

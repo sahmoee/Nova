@@ -821,6 +821,14 @@ struct UnifiedQAProfile {
     }
 
     static let nova = [
+        item("watch-pair-sync", "Apple Watch", "Pair, launch, and sync", "On a physical paired watch and iPhone, first sync, cached relaunch, and current last-sync status work. Device verification pending."),
+        item("watch-background-ack", "Apple Watch", "Offline edit and background receipt", "Queue two explicit favorite/Up Next changes offline; iPhone background delivery applies them serially once and both receipts survive relaunch. Device verification pending."),
+        item("watch-reset-epoch", "Apple Watch", "Reset and delayed old requests", "An explicit library/history reset or snapshot restore rejects old watch edits; delayed old contexts cannot replace the new epoch. Device verification pending."),
+        item("watch-full-library", "Apple Watch", "Full library pages and uncached title", "Search and filtered pages reach titles beyond the first 120; favorite/queue/watched edits retain confirmed state after ACK and repeated refresh. Device verification pending."),
+        item("watch-plans", "Apple Watch", "Watch Night plan lifecycle", "Create, rename, schedule, add/remove a title, load a plan outside the snapshot, and delete persist on the iPhone without private-note transfer. Device verification pending."),
+        item("watch-remote-expiry", "Apple Watch", "Actual player remote and expiry", "AVPlayer/VLC pause, resume, supported seek/volume operate only the active foreground phone player; background, replacement session, and expired requests never replay. Device verification pending."),
+        item("watch-handoff", "Apple Watch", "Phone handoff", "Open on iPhone requests the correct saved title; unavailable phone or obstructing presentation shows a truthful error and never claims watch playback. Device verification pending."),
+        item("watch-accessibility", "Apple Watch", "Watch accessibility", "Small and large watch displays, VoiceOver, text size, Crown text entry, selected states, and destructive confirmations remain usable. Device verification pending."),
         item("launch", "App", "Cold launch and resume", "Launches without a blank screen and restores the correct tab."),
         item("browse", "Browse", "Browse shelves", "Shelves load, scroll smoothly, and do not duplicate individual episodes."),
         item("search", "Browse", "Search and filters", "Movies and series resolve accurately and filters remain responsive."),

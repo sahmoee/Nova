@@ -29,7 +29,7 @@ struct PlaybackSettingsContent: View {
                     NavigationLink { PlayerSettingsView() } label: {
                         SettingsRow(icon: "play.rectangle.on.rectangle", color: Theme.Colors.iconRed,
                                     title: "Player", detail: playerDetail)
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(SettingsRowButtonStyle())
                 )
             ])
             SettingsGroup(header: "Playback", rows: [
@@ -136,15 +136,17 @@ struct StreamingSettingsContent: View {
                 .foregroundStyle(Theme.Colors.textPrimary)
             Spacer(minLength: 8)
             Button { move(kind, up: true, in: ordered) } label: {
-                Image(systemName: "chevron.up").font(.system(size: SettingsMetrics.chevron, weight: .semibold))
+                Image(systemName: "chevron.up").font(.system(size: SettingsMetrics.chevron, weight: .semibold)).frame(width: 44, height: 44)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(NovaIconButtonStyle())
+            .accessibilityLabel("Move \(sourceKindLabel(kind)) earlier")
             .foregroundStyle(index == 0 ? Theme.Colors.textTertiary : Theme.Colors.accent)
             .disabled(index == 0)
             Button { move(kind, up: false, in: ordered) } label: {
-                Image(systemName: "chevron.down").font(.system(size: SettingsMetrics.chevron, weight: .semibold))
+                Image(systemName: "chevron.down").font(.system(size: SettingsMetrics.chevron, weight: .semibold)).frame(width: 44, height: 44)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(NovaIconButtonStyle())
+            .accessibilityLabel("Move \(sourceKindLabel(kind)) later")
             .foregroundStyle(index == count - 1 ? Theme.Colors.textTertiary : Theme.Colors.accent)
             .disabled(index == count - 1)
         }
@@ -232,6 +234,9 @@ struct SubtitleSettingsContent: View {
 
 struct AccessibilitySettingsContent: View {
     @EnvironmentObject private var settings: SettingsStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
         Group {
@@ -248,6 +253,11 @@ struct AccessibilitySettingsContent: View {
                                      tint: Theme.Colors.textSecondary)),
             ])
             #endif
+            SettingsGroup(header: "System Appearance", footer: "Nova follows these device accessibility settings. Change them in the device’s Settings → Accessibility.", rows: [
+                AnyView(SettingsRow(icon: "figure.walk", color: Theme.Colors.iconSilver, title: "Reduce Motion", detail: reduceMotion ? "On" : "Off", showsChevron: false)),
+                AnyView(SettingsRow(icon: "square.on.square", color: Theme.Colors.iconSilver, title: "Reduce Transparency", detail: reduceTransparency ? "On" : "Off", showsChevron: false)),
+                AnyView(SettingsRow(icon: "circle.lefthalf.filled", color: Theme.Colors.iconSilver, title: "Contrast", detail: contrast == .increased ? "Increased" : "Standard", showsChevron: false)),
+            ])
         }
     }
 
@@ -267,6 +277,8 @@ struct AccessibilitySettingsContent: View {
             HStack(spacing: SettingsMetrics.rowSpacing) {
                 Image(systemName: "textformat.size.smaller").foregroundStyle(Theme.Colors.textSecondary)
                 Slider(value: $settings.textSizeBoost, in: 0.65...1.25, step: 0.05).tint(Theme.Colors.accent)
+                    .accessibilityLabel("Nova text size")
+                    .accessibilityValue("\(Int(settings.textSizeBoost * 100)) percent")
                 Image(systemName: "textformat.size.larger").foregroundStyle(Theme.Colors.textSecondary)
             }
             if settings.textSizeBoost != 1.0 {
@@ -308,13 +320,13 @@ struct ExperienceSettingsContent: View {
                     NavigationLink { ViewingProfileSwitcherView(store: profiles) } label: {
                         SettingsRow(icon: "person.2.circle", color: Theme.Colors.iconSilver, title: "Viewing Profiles",
                                     detail: profiles.activeProfile.name)
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(SettingsRowButtonStyle())
                 ),
                 AnyView(
                     NavigationLink { HomeCustomizeView() } label: {
                         SettingsRow(icon: "rectangle.3.group", color: Theme.Colors.iconGraphite,
                                     title: "Home Rows", detail: "Choose editorial shelves")
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(SettingsRowButtonStyle())
                 ),
             ])
             SettingsGroup(header: "Home", rows: homeRows)
@@ -355,6 +367,8 @@ struct LibrarySettingsContent: View {
     @EnvironmentObject private var library: LibraryStore
     @State private var confirmClearLibrary = false
     @State private var confirmClearHistory = false
+    @State private var clearingLibrary = false
+    @State private var clearLibraryError: String?
 
     private var duplicateCountDetail: String {
         let n = library.duplicateGroups().count
@@ -368,24 +382,24 @@ struct LibrarySettingsContent: View {
                     NavigationLink { MediaServersView() } label: {
                         SettingsRow(icon: "play.tv", color: Theme.Colors.accent,
                                     title: "Media Servers", detail: "Jellyfin, Plex & Emby")
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(SettingsRowButtonStyle())
                 ),
                 AnyView(
                     NavigationLink { SonarrView() } label: {
                         SettingsRow(icon: "calendar.badge.clock", color: Theme.Colors.iconSilver,
                                     title: "Sonarr", detail: "Upcoming, missing & queue")
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(SettingsRowButtonStyle())
                 ),
                 AnyView(
                     NavigationLink { LibraryHealthView() } label: {
                         SettingsRow(icon: "checkmark.seal", color: Theme.Colors.iconSilver, title: "Library Health",
                                     detail: duplicateCountDetail)
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(SettingsRowButtonStyle())
                 ),
                 AnyView(
                     NavigationLink { LibraryEnrichView() } label: {
                         SettingsRow(icon: "wand.and.stars", color: Theme.Colors.iconRed, title: "Clean Up Library (AI)")
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(SettingsRowButtonStyle())
                 ),
             ])
             SettingsGroup(rows: safeModeRows)
@@ -394,22 +408,34 @@ struct LibrarySettingsContent: View {
                     Button { confirmClearHistory = true } label: {
                         SettingsRow(icon: "clock.arrow.circlepath", color: Theme.Colors.iconRed,
                                     title: "Clear Watch History", showsChevron: false, tint: Theme.Colors.warning)
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(SettingsRowButtonStyle())
                 ),
                 AnyView(
                     Button { confirmClearLibrary = true } label: {
                         SettingsRow(icon: "trash", color: Theme.Colors.iconRed, title: "Clear Library",
                                     showsChevron: false, tint: Theme.Colors.error)
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(SettingsRowButtonStyle())
                 ),
             ])
         }
         .alert("Clear entire library?", isPresented: $confirmClearLibrary) {
-            Button("Clear", role: .destructive) { library.clearAll() }
+            Button("Clear", role: .destructive) {
+                guard !clearingLibrary else { return }
+                clearingLibrary = true
+                Task {
+                    if await WatchNightStore.shared.deleteAllLocalData() { library.clearAll() }
+                    else { clearLibraryError = WatchNightStore.shared.error ?? "Watch Night data could not be removed. Your library was kept." }
+                    clearingLibrary = false
+                }
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This removes all saved items. Your sources and credentials stay.")
+            Text("This removes all saved items, this device’s Watch Night plans, and private viewing notes. Your sources and credentials stay.")
         }
+        .disabled(clearingLibrary)
+        .alert("Library could not be cleared", isPresented: Binding(get: { clearLibraryError != nil }, set: { if !$0 { clearLibraryError = nil } })) {
+            Button("OK") { clearLibraryError = nil }
+        } message: { Text(clearLibraryError ?? "") }
         .alert("Clear watch history?", isPresented: $confirmClearHistory) {
             Button("Clear", role: .destructive) { library.clearWatchHistory() }
             Button("Cancel", role: .cancel) {}
@@ -448,14 +474,14 @@ struct AdvancedSettingsContent: View {
                 NavigationLink { GuestModeView() } label: {
                     SettingsRow(icon: "person.2", color: Theme.Colors.iconGraphite, title: "Guest Mode",
                                 detail: settings.guestMode ? "On" : "Off")
-                }.buttonStyle(.plain)
+                }.buttonStyle(SettingsRowButtonStyle())
             ),
         ]
         if !settings.guestMode {
             rows.append(AnyView(
                 NavigationLink { DebugReportView() } label: {
                     SettingsRow(icon: "ladybug", color: Theme.Colors.iconRed, title: "Debug Report", detail: "Export")
-                }.buttonStyle(.plain)
+                }.buttonStyle(SettingsRowButtonStyle())
             ))
         }
         return rows
@@ -476,7 +502,7 @@ struct PrivacyLegalSettingsContent: View {
                     } label: {
                         SettingsRow(icon: "sparkles", color: Theme.Colors.iconSilver, title: "What's New",
                                     detail: "v\(WhatsNewTracker.shared.currentVersion)")
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(SettingsRowButtonStyle())
                 ),
                 AnyView(SettingsToggleRow(icon: "checkmark.shield", color: Theme.Colors.iconSilver,
                                           title: "Require Legal Confirmation",
@@ -484,7 +510,7 @@ struct PrivacyLegalSettingsContent: View {
                 AnyView(
                     NavigationLink { PrivacyLegalView() } label: {
                         SettingsRow(icon: "hand.raised", color: Theme.Colors.iconGraphite, title: "Privacy & Legal Info")
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(SettingsRowButtonStyle())
                 ),
             ])
         }

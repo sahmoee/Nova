@@ -26,24 +26,40 @@ final class PlaybackCoordinator {
 
     /// The currently active player, held weakly so it can deallocate normally.
     private weak var active: StoppablePlayer?
+    private(set) var watchSessionID = UUID()
+    #if os(iOS)
+    var watchRemotePlayer: (any NovaWatchRemotePlayer)? { active as? any NovaWatchRemotePlayer }
+    #endif
 
     /// Registers `player` as the active one, stopping any previous player first.
     func activate(_ player: StoppablePlayer) {
         if let previous = active, previous !== player {
             previous.stopAndSave()
         }
+        if active !== player { watchSessionID = UUID() }
         active = player
+        #if os(iOS)
+        NovaPhoneWatchBridge.shared.sceneChanged()
+        #endif
     }
 
     /// Clears the active player if it is the one passed in.
     func resign(_ player: StoppablePlayer) {
-        if active === player { active = nil }
+        if active === player {
+            active = nil
+            #if os(iOS)
+            NovaPhoneWatchBridge.shared.sceneChanged()
+            #endif
+        }
     }
 
     /// Stops whatever is currently playing, if anything. Used by a global Stop control.
     func stopAll() {
         active?.stopAndSave()
         active = nil
+        #if os(iOS)
+        NovaPhoneWatchBridge.shared.sceneChanged()
+        #endif
     }
 
     /// Whether something is currently active.

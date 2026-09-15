@@ -244,6 +244,8 @@ struct ContentDetailView: View {
                     }
                     .buttonStyle(TVReferenceButtonStyle(selected: isWatched, cornerRadius: 30))
                     .accessibilityLabel(isWatched ? "Mark as unwatched" : "Mark as watched")
+                    .accessibilityValue(isWatched ? "Watched" : "Not watched")
+                    .accessibilityAddTraits(isWatched ? .isSelected : [])
                     Menu {
                         Button { streamTarget = StreamTarget(catalog: item, episode: item.isSeries ? nextUnwatchedEpisode() : nil, forceManual: true) } label: {
                             Label("Choose Stream", systemImage: "list.bullet")
@@ -411,25 +413,19 @@ struct ContentDetailView: View {
             } label: {
                 Label(item.isSeries ? "Watch Now" : playButtonTitle, systemImage: "play.fill")
                     .font(.appFont(18, weight: .bold))
-                    .foregroundStyle(Theme.Colors.background)
-                    .padding(.horizontal, Theme.Spacing.lg)
                     .frame(minHeight: Theme.minTouchTarget)
-                    .background(Theme.Colors.accent, in: Capsule())
-                    .glassEffect(.regular, in: Capsule())   // Liquid Glass chrome
             }
-            .buttonStyle(NovaChipButtonStyle())
+            .buttonStyle(FocusableButtonStyle(prominent: true))
 
             Button { toggleWatched() } label: {
                 Image(systemName: isWatched ? "checkmark.circle.fill" : "checkmark")
                     .font(.appFont(21, weight: .semibold))
-                    .foregroundStyle(isWatched ? Theme.Colors.background : .white)
                     .frame(width: Theme.minTouchTarget, height: Theme.minTouchTarget)
-                    .background(isWatched ? Theme.Colors.accent : Color.white.opacity(0.12), in: Circle())
-                    .overlay(Circle().strokeBorder(Color.white.opacity(0.18), lineWidth: 1))
-                    .glassEffect(.regular, in: Circle())   // Liquid Glass chrome
             }
-            .buttonStyle(NovaChipButtonStyle())
+            .buttonStyle(NovaIconButtonStyle(selected: isWatched))
             .accessibilityLabel(isWatched ? "Mark as unwatched" : "Mark as watched")
+            .accessibilityValue(isWatched ? "Watched" : "Not watched")
+            .accessibilityAddTraits(isWatched ? .isSelected : [])
         }
     }
 
@@ -673,7 +669,10 @@ struct ContentDetailView: View {
                         Button("Create") {
                             let trimmed = newCollectionName.trimmingCharacters(in: .whitespaces)
                             guard !trimmed.isEmpty else { return }
-                            let c = env.library.createCollection(name: trimmed)
+                            guard let c = env.library.createCollection(name: trimmed) else {
+                                ToastCenter.shared.show(env.library.lastPersistenceError ?? "Could not save collection")
+                                return
+                            }
                             env.library.addToCollection(c.id, item: catalogAsMediaItem())
                             newCollectionName = ""
                         }
@@ -846,12 +845,12 @@ struct ContentDetailView: View {
                         Image(systemName: "chevron.down")
                     }
                     .font(.appFont(18, weight: .bold))
-                    .foregroundStyle(Theme.Colors.background)
                     .padding(.horizontal, Theme.Spacing.md)
                     .frame(minHeight: Theme.minTouchTarget)
-                    .background(Theme.Colors.accent, in: Capsule())
                 }
-                .buttonStyle(NovaChipButtonStyle())
+                .buttonStyle(NovaChipButtonStyle(selected: true, providesSurface: true))
+                .accessibilityLabel("Season")
+                .accessibilityValue(seasons.first(where: { $0.number == activeSeason })?.displayName ?? "Season \(activeSeason)")
                 .padding(.horizontal, Theme.Spacing.edge)
 
                 #endif
@@ -879,20 +878,10 @@ struct ContentDetailView: View {
                 .font(.appFont(20, weight: .semibold))
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.vertical, Theme.Spacing.sm)
-                .background {
-                    if isActive {
-                        Capsule().fill(
-                            LinearGradient(colors: [Theme.Colors.accent, Theme.Colors.accent.opacity(0.8)],
-                                           startPoint: .top, endPoint: .bottom)
-                        )
-                    } else {
-                        Capsule().fill(Theme.Colors.card)
-                    }
-                }
-                .foregroundStyle(isActive ? .white : Theme.Colors.textSecondary)
                 .contentShape(Capsule())
         }
-        .buttonStyle(NovaChipButtonStyle())
+        .buttonStyle(NovaChipButtonStyle(selected: isActive, providesSurface: true))
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     /// A wide episode card: the still fills it with the episode number, title, and
@@ -1091,12 +1080,13 @@ struct ContentDetailView: View {
                     image.resizable().aspectRatio(contentMode: .fill)
                 } placeholder: { Rectangle().fill(Theme.Colors.card) }
                 .frame(width: 350, height: 197).clipped()
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                 .overlay(alignment: .bottomTrailing) {
                     if watched { Image(systemName: "checkmark.circle.fill").font(.system(size: 25)).padding(12).shadow(radius: 4) }
                 }
                 Text("EPISODE \(ep.number)").font(.system(size: 17, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
-                Text(ep.displayTitle).font(.system(size: 22, weight: .semibold)).lineLimit(1)
+                Text(ep.displayTitle).font(.system(size: 22, weight: .semibold)).lineLimit(2)
+                    .frame(height: 54, alignment: .topLeading)
                 Text(ep.overview ?? "").font(.system(size: 20)).foregroundStyle(.white.opacity(0.78)).lineLimit(3)
                     .frame(height: 74, alignment: .topLeading)
             }
@@ -1467,15 +1457,14 @@ private struct ContentDetailActionButton: View {
         Button(action: action) {
             Label(title, systemImage: systemImage)
                 .font(.appFont(16, weight: .semibold))
-                .lineLimit(1)
+                .lineLimit(2)
                 .padding(.horizontal, 12)
                 .frame(minHeight: Theme.minTouchTarget)
         }
         #if os(tvOS)
         .buttonStyle(TVReferenceButtonStyle(selected: active))
         #else
-        .buttonStyle(.glass)
-        .tint(active ? accent : .primary)
+        .buttonStyle(NovaChipButtonStyle(selected: active, providesSurface: true))
         #endif
         .accessibilityAddTraits(active ? .isSelected : [])
     }

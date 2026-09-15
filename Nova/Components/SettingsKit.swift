@@ -54,11 +54,12 @@ enum SettingsStyle {
 struct SettingsIconTile: View {
     let systemImage: String
     let color: Color
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Image(systemName: systemImage)
             .font(.appFont(SettingsMetrics.symbol, weight: .semibold))
-            .foregroundStyle(color.opacity(0.95))
+            .foregroundStyle(colorScheme == .light ? Color.primary : color.opacity(0.95))
             .frame(width: SettingsMetrics.tile, height: SettingsMetrics.tile)
             .background(Color.white.opacity(0.09), in: RoundedRectangle(cornerRadius: SettingsMetrics.tileRadius, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: SettingsMetrics.tileRadius, style: .continuous)
@@ -76,6 +77,7 @@ struct SettingsGroup: View {
     var header: String? = nil
     var footer: String? = nil
     let rows: [AnyView]
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         VStack(alignment: .leading, spacing: SettingsMetrics.rowSpacing * 0.6) {
@@ -96,8 +98,11 @@ struct SettingsGroup: View {
                     }
                 }
             }
-            .background(.thinMaterial)
+            .background(reduceTransparency ? AnyShapeStyle(SettingsStyle.groupBackground) : AnyShapeStyle(.thinMaterial),
+                        in: RoundedRectangle(cornerRadius: SettingsMetrics.groupRadius, style: .continuous))
+            #if !os(tvOS)
             .clipShape(RoundedRectangle(cornerRadius: SettingsMetrics.groupRadius, style: .continuous))
+            #endif
             if let footer, !footer.isEmpty {
                 Text(footer)
                     .font(.appFont(SettingsMetrics.header))
@@ -152,7 +157,7 @@ struct SettingsRow: View {
         Text(title)
             .font(.appFont(SettingsMetrics.title))
             .foregroundStyle(tint ?? Theme.Colors.textPrimary)
-            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
             .fixedSize(horizontal: false, vertical: true)
     }
 
@@ -160,7 +165,7 @@ struct SettingsRow: View {
         Text(detail)
             .font(.appFont(SettingsMetrics.detail))
             .foregroundStyle(Theme.Colors.textSecondary)
-            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
             .fixedSize(horizontal: false, vertical: true)
     }
 
@@ -214,26 +219,64 @@ struct SettingsPickerRow<T: Hashable>: View {
     @Binding var selection: T
     let options: [T]
     let label: (T) -> String
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        HStack(spacing: SettingsMetrics.rowSpacing) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: SettingsMetrics.rowSpacing))
+        layout {
+            HStack(spacing: SettingsMetrics.rowSpacing) {
             SettingsIconTile(systemImage: icon, color: color)
             Text(title)
                 .font(.appFont(SettingsMetrics.title))
                 .foregroundStyle(Theme.Colors.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
-            Spacer(minLength: 8)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
             Picker(title, selection: $selection) {
                 ForEach(options, id: \.self) { opt in
                     Text(label(opt)).tag(opt)
                 }
             }
             .pickerStyle(.menu)
-            .tint(Theme.Colors.textSecondary)
+            .tint(Theme.Colors.accent)
+            .frame(minHeight: 44)
+            .accessibilityValue(label(selection))
         }
         .padding(.horizontal, SettingsMetrics.rowSpacing + 2)
         .padding(.vertical, SettingsMetrics.rowVPad * 0.5)
+    }
+}
+
+/// A grouped settings row already owns its padding and surface. Add feedback
+/// without putting another rounded card inside the group or moving neighboring rows.
+struct SettingsRowButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        #if os(tvOS)
+        TVReferenceButtonStyle().makeBody(configuration: configuration)
+        #else
+        RowBody(configuration: configuration)
+        #endif
+    }
+
+    private struct RowBody: View {
+        let configuration: Configuration
+        @Environment(\.isEnabled) private var enabled
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @State private var hovering = false
+
+        var body: some View {
+            configuration.label
+                .frame(minHeight: 44)
+                .background(Color.primary.opacity(enabled ? (configuration.isPressed ? 0.14 : hovering ? 0.07 : 0) : 0))
+                .contentShape(Rectangle())
+                .opacity(enabled ? 1 : 0.45)
+                #if os(iOS)
+                .onHover { hovering = $0 }
+                #endif
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovering)
+        }
     }
 }
 

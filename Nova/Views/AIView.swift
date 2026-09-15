@@ -157,10 +157,8 @@ struct AIView: View {
                     .foregroundStyle(Theme.Colors.textTertiary)
             }
             .padding(Theme.Spacing.md)
-            .background(Theme.Colors.card,
-                        in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
-        .buttonStyle(NovaChipButtonStyle())
+        .buttonStyle(NovaListRowStyle())
         .accessibilityLabel("AI task, \(capability.rawValue)")
         .onChange(of: capability) { _, _ in resetResults() }
     }
@@ -192,7 +190,7 @@ struct AIView: View {
                 Button { prompt = "" } label: {
                     Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.Colors.textTertiary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(NovaIconButtonStyle())
                 // Accessibility: icon-only clear button needs a spoken name.
                 .accessibilityLabel("Clear prompt")
             }
@@ -220,13 +218,9 @@ struct AIView: View {
             Label("Prompt ideas", systemImage: "lightbulb")
                 .font(.appFont(16, weight: .semibold))
                 .foregroundStyle(Theme.Colors.textSecondary)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .padding(.horizontal, 14)
-                .frame(minHeight: Theme.minTouchTarget)
-                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .buttonStyle(NovaRowButtonStyle())
+        .buttonStyle(NovaChipButtonStyle(providesSurface: true))
         .accessibilityHint("Choose a suggested AI prompt")
     }
 
@@ -263,7 +257,7 @@ struct AIView: View {
                             NavigationLink(value: item) {
                                 catalogCard(item)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(NovaArtworkButtonStyle())
                             .overlay(alignment: .topTrailing) {
                                 quickAddButton(item)
                             }
@@ -313,8 +307,7 @@ struct AIView: View {
             Spacer()
             Button("Set Up") { nav.selection = .settings }
                 .font(.appFont(15, weight: .semibold))
-                .foregroundStyle(Theme.Colors.accent)
-                .buttonStyle(NovaChipButtonStyle())
+                .buttonStyle(NovaChipButtonStyle(providesSurface: true))
         }
         .padding(Theme.Spacing.md)
         .background(Theme.Colors.card,
@@ -357,13 +350,10 @@ struct AIView: View {
             library.add(item.asLibraryItem())
             ToastCenter.shared.show("Added “\(item.title)”")
         } label: {
-            Image(systemName: "plus.circle.fill")
-                .font(.appFont(26, weight: .semibold))
-                .symbolRenderingMode(.palette)
-                .foregroundStyle(.white, Theme.Colors.accent)
-                .shadow(color: .black.opacity(0.5), radius: 4)
+            Image(systemName: "plus")
+                .font(.appFont(20, weight: .semibold))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(NovaIconButtonStyle())
         .padding(6)
         .accessibilityLabel("Add \(item.title) to library")
     }
@@ -432,9 +422,9 @@ struct AIView: View {
                         }
                         Spacer()
                         Button("Dismiss") { dismissCollectionSuggestion(suggestion.id) }
-                            .buttonStyle(NovaChipButtonStyle())
+                            .buttonStyle(NovaChipButtonStyle(providesSurface: true))
                         Button("Save") { saveCollectionSuggestion(suggestion) }
-                            .buttonStyle(NovaChipButtonStyle())
+                            .buttonStyle(NovaChipButtonStyle(providesSurface: true))
                     }
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: Theme.Spacing.sm) {
@@ -466,7 +456,10 @@ struct AIView: View {
     }
 
     private func saveCollectionSuggestion(_ suggestion: AISearchService.CollectionSuggestion) {
-        let collection = library.createCollection(name: suggestion.name, systemImage: capability.systemImage)
+        guard let collection = library.createCollection(name: suggestion.name, systemImage: capability.systemImage) else {
+            ToastCenter.shared.show(library.lastPersistenceError ?? "Could not save collection")
+            return
+        }
         for item in suggestion.items {
             let libraryItem = item.asLibraryItem()
             library.add(libraryItem)
@@ -496,7 +489,7 @@ struct AIView: View {
                         Label("Add as Home Shelf", systemImage: "rectangle.grid.1x2")
                             .font(.appFont(15, weight: .semibold))
                     }
-                    .buttonStyle(NovaChipButtonStyle())
+                    .buttonStyle(NovaChipButtonStyle(providesSurface: true))
 
                     Button {
                         saveAsCollection()
@@ -504,7 +497,7 @@ struct AIView: View {
                         Label("Save as Collection", systemImage: "rectangle.stack.badge.plus")
                             .font(.appFont(15, weight: .semibold))
                     }
-                    .buttonStyle(NovaChipButtonStyle())
+                    .buttonStyle(NovaChipButtonStyle(providesSurface: true))
 
                     Button {
                         addAllToLibrary()
@@ -512,7 +505,7 @@ struct AIView: View {
                         Label("Add All to Library", systemImage: "plus.square.on.square")
                             .font(.appFont(15, weight: .semibold))
                     }
-                    .buttonStyle(NovaChipButtonStyle())
+                    .buttonStyle(NovaChipButtonStyle(providesSurface: true))
 
                     Button {
                         queueAll()
@@ -520,7 +513,7 @@ struct AIView: View {
                         Label("Add All to Queue", systemImage: "text.badge.plus")
                             .font(.appFont(15, weight: .semibold))
                     }
-                    .buttonStyle(NovaChipButtonStyle())
+                    .buttonStyle(NovaChipButtonStyle(providesSurface: true))
                 }
             }
             .padding(.bottom, Theme.Spacing.xs)
@@ -546,7 +539,10 @@ struct AIView: View {
 
     private func saveAsCollection() {
         let name = lastPrompt.isEmpty ? capability.rawValue : lastPrompt
-        let collection = library.createCollection(name: name, systemImage: capability.systemImage)
+        guard let collection = library.createCollection(name: name, systemImage: capability.systemImage) else {
+            ToastCenter.shared.show(library.lastPersistenceError ?? "Could not save collection")
+            return
+        }
         for item in resultItems() {
             library.add(item)
             library.addToCollection(collection.id, item: item)
@@ -578,6 +574,7 @@ struct NewAndHotView: View {
     @Binding var path: NavigationPath
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var nav: NavigationCoordinator
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var reminders = CatalogReminderStore.shared
     @StateObject private var network = NetworkConditionMonitor.shared
 
@@ -635,11 +632,12 @@ struct NewAndHotView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Theme.Spacing.sm) {
                     ForEach(NewHotFilter.allCases) { option in
-                        Button(option.rawValue) { withAnimation(Theme.Motion.spring) { filter = option } }
+                        Button(option.rawValue) { withAnimation(reduceMotion ? nil : Theme.Motion.quick) { filter = option } }
                             .buttonStyle(NewHotFilterButtonStyle(selected: filter == option))
                     }
                 }
             }
+            .scrollClipDisabled()
         }
         .padding(.horizontal, Theme.Spacing.edge)
         .padding(.top, Theme.Spacing.lg)
@@ -727,9 +725,8 @@ struct NewAndHotView: View {
                     .font(.appFont(16)).foregroundStyle(Theme.Colors.textSecondary).lineLimit(3)
                 NavigationLink(value: item) {
                     Label("More Info", systemImage: "info.circle.fill")
-                        .font(.appFont(17, weight: .bold)).padding(.horizontal, 18).padding(.vertical, 11)
-                        .background(.white, in: RoundedRectangle(cornerRadius: Theme.Radius.button)).foregroundStyle(.black)
-                }.buttonStyle(.plain)
+                        .font(.appFont(17, weight: .bold))
+                }.buttonStyle(FocusableButtonStyle(prominent: true))
             }
             .frame(maxWidth: Theme.isCompact ? .infinity : 620, alignment: .leading)
             .padding(Theme.Spacing.edge)
@@ -752,10 +749,10 @@ struct NewAndHotView: View {
                                     .overlay(Text("\(index + 1)").font(.system(size: Theme.CardSize.posterHeight * 0.62, weight: .black, design: .rounded)).strokeText(color: .white.opacity(0.72), width: 1.5))
                                 CatalogPosterCard(item: item, scale: 0.82)
                             }
-                        }.buttonStyle(NovaListRowStyle()).accessibilityLabel("Number \(index + 1), \(item.title)")
+                        }.buttonStyle(NovaArtworkButtonStyle()).accessibilityLabel("Number \(index + 1), \(item.title)")
                     }
                 }.padding(.horizontal, Theme.Spacing.edge)
-            }
+            }.scrollClipDisabled()
         }
     }
 
@@ -766,10 +763,10 @@ struct NewAndHotView: View {
                 LazyHStack(spacing: Theme.Spacing.md) {
                     ForEach(items) { item in
                         NavigationLink(value: item) { CatalogPosterCard(item: item, scale: 0.82) }
-                            .buttonStyle(NovaListRowStyle())
+                            .buttonStyle(NovaArtworkButtonStyle())
                     }
                 }.padding(.horizontal, Theme.Spacing.edge)
-            }
+            }.scrollClipDisabled()
         }
     }
 
@@ -781,7 +778,7 @@ struct NewAndHotView: View {
                     ForEach(items) { item in
                         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                             NavigationLink(value: item) { CatalogPosterCard(item: item, scale: 0.82) }
-                                .buttonStyle(NovaListRowStyle())
+                                .buttonStyle(NovaArtworkButtonStyle())
                             Button { reminders.toggle(item); Haptics.selection() } label: {
                                 Label(reminders.contains(item) ? "Reminder Set" : "Remind Me",
                                       systemImage: reminders.contains(item) ? "bell.fill" : "bell")
@@ -790,7 +787,7 @@ struct NewAndHotView: View {
                         }
                     }
                 }.padding(.horizontal, Theme.Spacing.edge)
-            }
+            }.scrollClipDisabled()
         }
     }
 
@@ -800,7 +797,7 @@ struct NewAndHotView: View {
             LazyVGrid(columns: Theme.posterGridColumns, spacing: Theme.Spacing.lg) {
                 ForEach(items) { item in
                     NavigationLink(value: item) { CatalogPosterCard(item: item, scale: 0.82) }
-                        .buttonStyle(NovaListRowStyle())
+                        .buttonStyle(NovaArtworkButtonStyle())
                 }
             }.padding(.horizontal, Theme.Spacing.edge)
         }
@@ -860,13 +857,9 @@ private final class CatalogReminderStore: ObservableObject {
 private struct NewHotFilterButtonStyle: ButtonStyle {
     let selected: Bool
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
+        NovaChipButtonStyle(selected: selected, providesSurface: true)
+            .makeBody(configuration: configuration)
             .font(.appFont(15, weight: .bold))
-            .foregroundStyle(selected ? .white : Theme.Colors.textSecondary)
-            .padding(.horizontal, 15).padding(.vertical, 9)
-            .background(selected ? Theme.Colors.accent : Theme.Colors.card,
-                        in: Capsule())
-            .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
 

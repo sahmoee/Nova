@@ -213,9 +213,9 @@ private struct OfflineDownloadsContent: View {
             } else if download.state == .downloading || download.state == .queued { compactButton("Pause", "pause.fill") { manager.pause(download.id) } }
             else if download.state == .paused { compactButton("Resume", "play.fill") { manager.resume(download.id) } }
             else if download.state == .failed { compactButton("Retry", "arrow.clockwise") { manager.retry(download.id) } }
-            Button { pendingRemoval = download } label: {
-                Image(systemName: "trash").frame(minWidth: 44, minHeight: 44)
-            }.buttonStyle(NovaChipButtonStyle()).foregroundStyle(Theme.Colors.error).accessibilityLabel("Remove \(download.title)")
+            Button(role: .destructive) { pendingRemoval = download } label: {
+                Image(systemName: "trash")
+            }.buttonStyle(NovaIconButtonStyle()).accessibilityLabel("Remove \(download.title)")
         }
     }
 
@@ -224,7 +224,7 @@ private struct OfflineDownloadsContent: View {
             if Theme.isCompact { Image(systemName: icon) }
             else { Label(title, systemImage: icon) }
         }
-            .buttonStyle(NovaChipButtonStyle()).foregroundStyle(Theme.Colors.accent).frame(minWidth: 44, minHeight: 44)
+            .buttonStyle(NovaChipButtonStyle(providesSurface: true))
             .accessibilityLabel(title)
     }
 

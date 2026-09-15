@@ -39,6 +39,11 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     @Published private(set) var audioTracks: [VLCTrack] = []
     @Published private(set) var externalSubtitleTracks: [SubtitleTrack]
     @Published private(set) var selectedExternalSubtitleID: String?
+    /// Read back from VLC, never optimistic copies of the tapped row.
+    @Published private(set) var selectedSubtitleTrackID: Int?
+    @Published private(set) var selectedAudioTrackID: Int?
+    @Published private(set) var pendingExternalSubtitleID: String?
+    @Published private(set) var isDownloadingSubtitle = false
     @Published private(set) var isLoadingExternalSubtitles = false
     @Published private(set) var subtitleStatusMessage: String?
     @Published var showSubtitlePicker = false
@@ -64,6 +69,13 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     private var didApplyResume = false
     private var didAttemptAutomaticSubtitles = false
     private var localSubtitleFiles: [String: URL] = [:]
+    private var subtitleSelection = SubtitleSelectionGate()
+    private var subtitleDownloadTask: Task<Void, Never>?
+    private var subtitleRegistrationTask: Task<Int?, Never>?
+    private var registrationRevision = UUID()
+    private var attachedSubtitleIDs: [URL: Int] = [:]
+    private var externalSubtitleIDsByTrackIndex: [Int: String] = [:]
+    private var unresolvedAttachment: (url: URL, previousIDs: Set<Int>)?
     /// When true, the resume seek is skipped so playback starts from the beginning
     /// (set by the "Start from beginning" choice in the resume prompt).
     var forceRestart = false
@@ -123,6 +135,11 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         isPlaying = false
         didApplyResume = false
         didAttemptAutomaticSubtitles = false
+        subtitleSelection.cancel(); subtitleDownloadTask?.cancel(); subtitleDownloadTask = nil
+        registrationRevision = UUID(); subtitleRegistrationTask?.cancel(); subtitleRegistrationTask = nil
+        attachedSubtitleIDs = [:]; externalSubtitleIDsByTrackIndex = [:]; unresolvedAttachment = nil
+        selectedSubtitleTrackID = nil; selectedAudioTrackID = nil; selectedExternalSubtitleID = nil
+        pendingExternalSubtitleID = nil; isDownloadingSubtitle = false
 
         let media = VLCMedia(url: item.playbackURL)
         // Apply the user's built-in player profile (network cache size, hardware
@@ -155,6 +172,7 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     }
 
     func stopAndSave() {
+        cancelPendingSubtitleSelection()
         // Idempotent: the back button and onDisappear can both call this.
         guard isActive else { return }
         isActive = false
@@ -173,6 +191,7 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     /// stop the pipeline, but keep the Now Playing / Resume bar (minimize) so they can
     /// jump back in. Tapping the bar reopens the player and resumes from saved time.
     func minimizeAndSave() {
+        cancelPendingSubtitleSelection()
         guard isActive else { return }
         isActive = false
         PlaybackCoordinator.shared.resign(self)
@@ -228,20 +247,21 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     // MARK: - Subtitle / audio tracks
 
     func selectSubtitleTrack(_ track: VLCTrack?) {
+        cancelPendingSubtitleSelection()
         #if canImport(VLCKitSPM)
-        // -1 disables subtitles in VLC. Selecting an embedded track replaces the
-        // provider selection indicator so the picker reflects what is actually live.
         mediaPlayer.currentVideoSubTitleIndex = Int32(track?.id ?? -1)
-        selectedExternalSubtitleID = nil
+        refreshTracks()
+        subtitleStatusMessage = nil
         showSubtitlePicker = false
         #endif
     }
 
     func disableSubtitles() {
+        cancelPendingSubtitleSelection()
         #if canImport(VLCKitSPM)
         mediaPlayer.currentVideoSubTitleIndex = -1
-        selectedExternalSubtitleID = nil
-        subtitleStatusMessage = "Subtitles are off."
+        refreshTracks()
+        subtitleStatusMessage = selectedSubtitleTrackID == -1 ? "Subtitles are off." : "Disabling subtitles…"
         showSubtitlePicker = false
         #endif
     }
@@ -249,14 +269,28 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     func selectAudioTrack(_ track: VLCTrack) {
         #if canImport(VLCKitSPM)
         mediaPlayer.currentAudioTrackIndex = Int32(track.id)
+        refreshTracks()
         #endif
     }
 
-    /// Subtitle text scale. 1.0 is default; larger is bigger text. Persisted so the
-    /// choice carries across playback sessions.
-    @Published var subtitleScale: Double = UserDefaults.standard.object(forKey: "player.subtitleScale") as? Double ?? 1.0 {
+    /// A later Off, embedded choice, sheet dismissal, or stop wins over pending work.
+    func cancelPendingSubtitleSelection() {
+        let wasPending = isDownloadingSubtitle
+        subtitleSelection.cancel(); subtitleDownloadTask?.cancel(); subtitleDownloadTask = nil
+        pendingExternalSubtitleID = nil; isDownloadingSubtitle = false
+        didAttemptAutomaticSubtitles = true
+        if wasPending { subtitleStatusMessage = "Subtitle download cancelled." }
+    }
+
+    var subtitlesAreOff: Bool { selectedSubtitleTrackID == -1 }
+    var playerSubtitleTracks: [VLCTrack] { subtitleTracks.filter { externalSubtitleIDsByTrackIndex[$0.id] == nil } }
+
+    /// Finite, bounded persisted values keep the preview and native renderer safe.
+    @Published var subtitleScale: Double = SubtitleScalePolicy.normalized(UserDefaults.standard.object(forKey: "player.subtitleScale") as? Double ?? 1) {
         didSet {
-            UserDefaults.standard.set(subtitleScale, forKey: "player.subtitleScale")
+            let normalized = SubtitleScalePolicy.normalized(subtitleScale)
+            if subtitleScale != normalized { subtitleScale = normalized }
+            UserDefaults.standard.set(normalized, forKey: "player.subtitleScale")
             applySubtitleScale()
         }
     }
@@ -265,7 +299,7 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         #if canImport(VLCKitSPM)
         // VLCMediaPlayer.setTextRendererFontSize is not exposed on all builds, so we
         // guard the call. Larger scale => bigger text; VLC font size is in points.
-        // Map scale 0.5...2.0 onto roughly 12...48pt.
+        // Map scale 0.5...2.5 onto roughly 12...60pt.
         let size = NSNumber(value: Int(16 * subtitleScale * 1.5))
         if mediaPlayer.responds(to: Selector(("setTextRendererFontSize:"))) {
             mediaPlayer.perform(Selector(("setTextRendererFontSize:")), with: size)
@@ -284,51 +318,71 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         }
     }
 
-    /// Loads an external subtitle file (e.g. a .srt the user picked) and selects it.
+    /// Copy a picked file while its security-scoped access is still active. VLC may
+    /// read it after the importer callback returns, so it must own a stable local URL.
     func addExternalSubtitle(_ url: URL) {
-        #if canImport(VLCKitSPM)
-        mediaPlayer.addPlaybackSlave(url, type: .subtitle, enforce: true)
-        // VLCKit publishes the new track asynchronously after the slave is attached.
-        // Refresh once immediately and once after a brief registration window.
-        refreshTracks()
-        Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(250))
-            guard !Task.isCancelled else { return }
-            self?.refreshTracks()
-        }
-        #endif
+        cancelPendingSubtitleSelection()
+        do {
+            let dir = try subtitleDirectory()
+            let local = dir.appendingPathComponent(UUID().uuidString).appendingPathExtension(url.pathExtension.isEmpty ? "srt" : url.pathExtension)
+            try FileManager.default.copyItem(at: url, to: local)
+            let request = subtitleSelection.begin(local.lastPathComponent)
+            isDownloadingSubtitle = true
+            subtitleStatusMessage = "Opening subtitle file…"
+            subtitleDownloadTask = Task { [weak self] in
+                guard let self else { return }
+                defer { self.finishSubtitleRequest(request) }
+                do {
+                    try await self.attachSubtitle(local, externalID: nil, request: request)
+                    guard self.subtitleSelection.accepts(request), !Task.isCancelled else { return }
+                    self.subtitleStatusMessage = "Using the imported subtitle file."
+                    self.showSubtitlePicker = false
+                } catch is CancellationError { }
+                catch {
+                    guard self.subtitleSelection.accepts(request) else { return }
+                    self.subtitleStatusMessage = error.localizedDescription
+                }
+            }
+        } catch { subtitleStatusMessage = "The subtitle file could not be opened: \(error.localizedDescription)" }
     }
 
     /// Searches enabled subtitle add-ons and exposes their results in the picker.
     /// When requested at startup, the preferred language is downloaded and selected.
     func refreshExternalSubtitles(autoSelectPreferred: Bool = false) async {
         guard !isLoadingExternalSubtitles else { return }
+        let selectionRevision = subtitleSelection.revision
         guard let contentID = item.contentID, let catalog else {
             subtitleStatusMessage = externalSubtitleTracks.isEmpty
                 ? "This item has no catalog ID for subtitle lookup."
                 : nil
-            if autoSelectPreferred { await autoSelectPreferredExternalSubtitle() }
+            if autoSelectPreferred, !didAttemptAutomaticSubtitles { await autoSelectPreferredExternalSubtitle() }
             return
         }
 
         isLoadingExternalSubtitles = true
         subtitleStatusMessage = "Searching subtitle add-ons…"
         let fetched = await catalog.subtitles(for: contentID, episode: item.episode)
-        mergeExternalSubtitleTracks(fetched)
         isLoadingExternalSubtitles = false
-        subtitleStatusMessage = fetched.isEmpty
-            ? (externalSubtitleTracks.isEmpty ? "No subtitle add-on returned a match." : "No new subtitles found.")
-            : "Found \(fetched.count) subtitle option\(fetched.count == 1 ? "" : "s")."
-
-        if autoSelectPreferred, !didAttemptAutomaticSubtitles {
-            didAttemptAutomaticSubtitles = true
+        guard !Task.isCancelled, isActive else { return }
+        mergeExternalSubtitleTracks(fetched)
+        if selectionRevision == subtitleSelection.revision, !isDownloadingSubtitle {
+            subtitleStatusMessage = fetched.isEmpty
+                ? (externalSubtitleTracks.isEmpty ? "No subtitle add-on returned a match." : "No new subtitles found.")
+                : "Found \(fetched.count) subtitle option\(fetched.count == 1 ? "" : "s")."
+        }
+        if autoSelectPreferred, !didAttemptAutomaticSubtitles, selectionRevision == subtitleSelection.revision {
             await autoSelectPreferredExternalSubtitle()
         }
     }
 
     func selectExternalSubtitle(_ track: SubtitleTrack) {
-        selectedExternalSubtitleID = track.id
-        Task { await downloadAndAttachSubtitle(track) }
+        cancelPendingSubtitleSelection()
+        let request = subtitleSelection.begin(track.id)
+        pendingExternalSubtitleID = track.id; isDownloadingSubtitle = true
+        subtitleDownloadTask = Task { [weak self] in
+            guard let self else { return }
+            await self.downloadAndAttachSubtitle(track, request: request)
+        }
     }
 
     private func mergeExternalSubtitleTracks(_ tracks: [SubtitleTrack]) {
@@ -340,57 +394,124 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     }
 
     private func autoSelectPreferredExternalSubtitle() async {
-        guard settings?.subtitlesEnabled == true,
+        guard !didAttemptAutomaticSubtitles, isActive,
+              settings?.subtitlesEnabled == true,
               let preferred = settings?.subtitleLanguage,
-              let match = externalSubtitleTracks.first(where: {
-                  $0.matchesPreferredLanguage(preferred)
-              }) else { return }
-        selectedExternalSubtitleID = match.id
-        await downloadAndAttachSubtitle(match)
+              let match = externalSubtitleTracks.first(where: { $0.matchesPreferredLanguage(preferred) }) else { return }
+        didAttemptAutomaticSubtitles = true
+        selectExternalSubtitle(match)
+        await subtitleDownloadTask?.value
     }
 
-    private func downloadAndAttachSubtitle(_ track: SubtitleTrack) async {
-        isLoadingExternalSubtitles = true
-        defer { isLoadingExternalSubtitles = false }
+    private func finishSubtitleRequest(_ request: UUID) {
+        guard subtitleSelection.finish(request) else { return }
+        pendingExternalSubtitleID = nil; isDownloadingSubtitle = false; subtitleDownloadTask = nil
+    }
 
-        if let cached = localSubtitleFiles[track.id] {
-            addExternalSubtitle(cached)
-            subtitleStatusMessage = "Using \(track.languageDisplay) subtitles from \(track.source)."
-            showSubtitlePicker = false
-            return
-        }
+    private func subtitleDirectory() throws -> URL {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("vlc_subtitles", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
 
-        subtitleStatusMessage = "Downloading \(track.languageDisplay) subtitles…"
-        var sourceURL = track.url
-        if sourceURL == nil, track.id.hasPrefix("os:"),
-           let fileID = Int(track.id.dropFirst(3)) {
-            sourceURL = try? await openSubtitles?.requestDownload(fileID: fileID)
-        }
-        guard let sourceURL else {
-            subtitleStatusMessage = "The selected subtitle could not be downloaded."
-            return
-        }
-
+    private func downloadAndAttachSubtitle(_ track: SubtitleTrack, request: UUID) async {
+        defer { finishSubtitleRequest(request) }
         do {
-            let (data, response) = try await AppNetworking.shared.data(from: sourceURL)
-            let suggested = response.suggestedFilename ?? sourceURL.lastPathComponent
-            let ext = URL(fileURLWithPath: suggested).pathExtension.isEmpty
-                ? (sourceURL.pathExtension.isEmpty ? "srt" : sourceURL.pathExtension)
-                : URL(fileURLWithPath: suggested).pathExtension
-            let dir = FileManager.default.temporaryDirectory
-                .appendingPathComponent("vlc_subtitles", isDirectory: true)
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let safeID = track.id.replacingOccurrences(of: ":", with: "_")
-                .replacingOccurrences(of: "/", with: "_")
-            let local = dir.appendingPathComponent("\(safeID).\(ext)")
-            try data.write(to: local, options: [.atomic])
-            localSubtitleFiles[track.id] = local
-            addExternalSubtitle(local)
+            var local = localSubtitleFiles[track.id]
+            if local == nil {
+                subtitleStatusMessage = "Downloading \(track.languageDisplay) subtitles…"
+                var sourceURL = track.url
+                if sourceURL == nil, track.id.hasPrefix("os:"), let fileID = Int(track.id.dropFirst(3)) {
+                    sourceURL = try await openSubtitles?.requestDownload(fileID: fileID)
+                }
+                try Task.checkCancellation()
+                guard subtitleSelection.accepts(request) else { throw CancellationError() }
+                guard let sourceURL else { throw SubtitleAttachmentError.message("The selected subtitle could not be downloaded.") }
+                let (data, response) = try await AppNetworking.shared.data(from: sourceURL)
+                try Task.checkCancellation()
+                guard subtitleSelection.accepts(request) else { throw CancellationError() }
+                if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                    throw SubtitleAttachmentError.message("The subtitle provider returned HTTP \(http.statusCode). Choose another track or retry.")
+                }
+                guard !data.isEmpty else { throw SubtitleAttachmentError.message("The subtitle provider returned an empty file.") }
+                let name = response.suggestedFilename ?? sourceURL.lastPathComponent
+                let ext = URL(fileURLWithPath: name).pathExtension
+                let destination = try subtitleDirectory().appendingPathComponent(UUID().uuidString).appendingPathExtension(ext.isEmpty ? "srt" : ext)
+                try data.write(to: destination, options: [.atomic])
+                localSubtitleFiles[track.id] = destination; local = destination
+            }
+            guard let local else { return }
+            try await attachSubtitle(local, externalID: track.id, request: request)
+            guard subtitleSelection.accepts(request), !Task.isCancelled else { return }
             subtitleStatusMessage = "Using \(track.languageDisplay) subtitles from \(track.source)."
             showSubtitlePicker = false
-        } catch {
-            subtitleStatusMessage = "The selected subtitle could not be downloaded."
+        } catch is CancellationError { }
+        catch {
+            guard subtitleSelection.accepts(request), !Task.isCancelled else { return }
+            subtitleStatusMessage = error.localizedDescription
         }
+    }
+
+    /// Register without native auto-selection. Manual Off therefore cannot be undone
+    /// by VLC registering a previously requested file after the download was cancelled.
+    private func attachSubtitle(_ url: URL, externalID: String?, request: UUID) async throws {
+        #if canImport(VLCKitSPM)
+        if let pending = subtitleRegistrationTask { _ = await pending.value }
+        try Task.checkCancellation()
+        guard subtitleSelection.accepts(request), isActive else { throw CancellationError() }
+        refreshTracks()
+        var index = attachedSubtitleIDs[url]
+        if index == nil {
+            guard unresolvedAttachment == nil else {
+                throw SubtitleAttachmentError.message("VLC is still registering a subtitle. Check Player tracks before adding another file.")
+            }
+            let before = Set(subtitleTracks.map(\.id))
+            guard mediaPlayer.addPlaybackSlave(url, type: .subtitle, enforce: false) == 0 else {
+                throw SubtitleAttachmentError.message("VLC could not open this subtitle file. Your active track is unchanged.")
+            }
+            unresolvedAttachment = (url, before)
+            let revision = UUID(); registrationRevision = revision
+            // Registration bookkeeping continues after a cancelled choice. The next
+            // request waits for it, so two added files cannot exchange their track IDs.
+            let task = Task<Int?, Never> { [weak self] in
+                for _ in 0..<30 {
+                    do { try await Task.sleep(for: .milliseconds(100)) } catch { return nil }
+                    guard let self, self.isActive, self.registrationRevision == revision else { return nil }
+                    self.refreshTracks()
+                    if let index = self.attachedSubtitleIDs[url] { return index }
+                }
+                return nil
+            }
+            subtitleRegistrationTask = task
+            index = await task.value
+            if registrationRevision == revision { subtitleRegistrationTask = nil }
+        }
+        try Task.checkCancellation()
+        guard subtitleSelection.accepts(request), isActive else { throw CancellationError() }
+        guard let index else {
+            throw SubtitleAttachmentError.message("VLC has not exposed the added subtitle yet. Check Player tracks; the previous selection is unchanged.")
+        }
+        mediaPlayer.currentVideoSubTitleIndex = Int32(index)
+        // Apply only while current, then confirm the engine's actual index.
+        for _ in 0..<10 {
+            refreshTracks()
+            if selectedSubtitleTrackID == index {
+                if let externalID { externalSubtitleIDsByTrackIndex[index] = externalID }
+                refreshTracks()
+                return
+            }
+            try await Task.sleep(for: .milliseconds(100))
+            guard subtitleSelection.accepts(request), isActive else { throw CancellationError() }
+        }
+        throw SubtitleAttachmentError.message("VLC did not confirm that subtitle selection. Check the active track before retrying.")
+        #else
+        throw SubtitleAttachmentError.message("VLC playback engine is unavailable in this build.")
+        #endif
+    }
+
+    private enum SubtitleAttachmentError: LocalizedError {
+        case message(String)
+        var errorDescription: String? { if case .message(let value) = self { value } else { nil } }
     }
 
     /// Whether the video fills the screen (cropping) vs. fits with letterboxing.
@@ -479,7 +600,7 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         }
     }
 
-    private func refreshTracks() {
+    func refreshTracks() {
         #if canImport(VLCKitSPM)
         // Build subtitle + audio track lists from VLC's indices/names.
         func tracks(indices: [Any]?, names: [Any]?) -> [VLCTrack] {
@@ -493,10 +614,25 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
             }
             return out
         }
-        subtitleTracks = tracks(indices: mediaPlayer.videoSubTitlesIndexes,
-                                names: mediaPlayer.videoSubTitlesNames)
-        audioTracks = tracks(indices: mediaPlayer.audioTrackIndexes,
-                             names: mediaPlayer.audioTrackNames)
+        let subtitles = tracks(indices: mediaPlayer.videoSubTitlesIndexes, names: mediaPlayer.videoSubTitlesNames)
+        let audio = tracks(indices: mediaPlayer.audioTrackIndexes, names: mediaPlayer.audioTrackNames)
+        let subtitleIndex = Int(mediaPlayer.currentVideoSubTitleIndex)
+        let audioIndex = Int(mediaPlayer.currentAudioTrackIndex)
+        // Registration polls the engine briefly; identical samples must not rebuild
+        // the entire player and picker every 100 ms.
+        if subtitleTracks != subtitles { subtitleTracks = subtitles }
+        if audioTracks != audio { audioTracks = audio }
+        if selectedSubtitleTrackID != subtitleIndex { selectedSubtitleTrackID = subtitleIndex }
+        if selectedAudioTrackID != audioIndex { selectedAudioTrackID = audioIndex }
+        if let pending = unresolvedAttachment {
+            let added = subtitleTracks.filter { !pending.previousIDs.contains($0.id) }
+            if added.count == 1 {
+                attachedSubtitleIDs[pending.url] = added[0].id
+                unresolvedAttachment = nil
+            }
+        }
+        let externalID = externalSubtitleIDsByTrackIndex[subtitleIndex]
+        if selectedExternalSubtitleID != externalID { selectedExternalSubtitleID = externalID }
         #endif
     }
 }

@@ -58,6 +58,19 @@ struct RootView: View {
             )) {
                 PersonalMediaDisclosureView { hasSeenDisclosure = true }
             }
+            #if os(iOS)
+            .onAppear {
+                NovaPhoneWatchBridge.shared.openItem = { id in
+                    guard hasSeenDisclosure, !offerRestore, !showWhatsNew, reopenItem == nil,
+                          !PlaybackCoordinator.shared.hasActivePlayer,
+                          let item = env.library.items.first(where: { $0.id == id }) else { return false }
+                    nav.popToRoot(.library)
+                    nav.selection = .library
+                    nav.pendingContentKey = item.contentKey
+                    return true
+                }
+            }
+            #endif
             .onAppear(perform: maybeOfferRestore)
             .onAppear(perform: autoSyncFromCloud)
             .onAppear(perform: maybeShowWhatsNew)
@@ -402,6 +415,7 @@ struct RootView: View {
 private struct NovaHomeBar: View {
     @Binding var selection: AppTab
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         HStack(spacing: 4) {
@@ -416,30 +430,59 @@ private struct NovaHomeBar: View {
                             .symbolVariant(selection == tab ? .fill : .none)
                         Text(tab.title)
                             .font(.caption2.weight(.semibold))
-                            .lineLimit(1)
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                            .multilineTextAlignment(.center)
                     }
                     .foregroundStyle(selection == tab ? Color.accentColor : Color.secondary)
                     .frame(maxWidth: .infinity, minHeight: 49)
-                    .contentShape(Rectangle())
+                    .padding(.vertical, dynamicTypeSize.isAccessibilitySize ? 4 : 0)
+                    .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.navigationItem, style: .continuous))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(NovaNavigationItemStyle(selected: selection == tab))
                 .accessibilityLabel(tab.title)
                 .accessibilityValue(selection == tab ? "Selected" : "")
-                .accessibilityHint(selection == tab ? "Returns to the top of (tab.title)" : "Opens (tab.title)")
+                .accessibilityHint(selection == tab ? "Returns to the main \(tab.title) page" : "Opens \(tab.title)")
                 .accessibilityAddTraits(selection == tab ? .isSelected : [])
             }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
         .background(reduceTransparency ? AnyShapeStyle(Color(white: 0.08)) : AnyShapeStyle(.ultraThinMaterial),
-                    in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.navigationPanel, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.navigationPanel, style: .continuous)
             .strokeBorder(Color.white.opacity(0.13), lineWidth: 0.5))
         .shadow(color: .black.opacity(0.30), radius: 18, y: 7)
         .padding(.horizontal, 10)
         .padding(.bottom, 5)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Main navigation")
+    }
+}
+
+/// Selection stays visible when the pointer or keyboard focus moves elsewhere.
+/// Feedback does not resize the bar or shift neighboring tabs.
+private struct NovaNavigationItemStyle: ButtonStyle {
+    let selected: Bool
+    func makeBody(configuration: Configuration) -> some View {
+        ItemBody(configuration: configuration, selected: selected)
+    }
+    private struct ItemBody: View {
+        let configuration: Configuration
+        let selected: Bool
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @Environment(\.colorSchemeContrast) private var contrast
+        @Environment(\.isFocused) private var focused
+        @State private var hovering = false
+        var body: some View {
+            let shape = RoundedRectangle(cornerRadius: Theme.Radius.navigationItem, style: .continuous)
+            configuration.label
+                .background(Color.primary.opacity(configuration.isPressed ? 0.18 : selected ? 0.11 : hovering ? 0.06 : 0), in: shape)
+                .overlay(shape.strokeBorder(selected || focused ? Color.accentColor.opacity(contrast == .increased ? 1 : 0.65) : .clear,
+                                            lineWidth: focused || contrast == .increased ? 2 : 1))
+                .onHover { hovering = $0 }
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: hovering)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: selected)
+        }
     }
 }
 #endif

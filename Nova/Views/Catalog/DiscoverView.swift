@@ -76,9 +76,8 @@ struct DiscoverView: View {
             Label("Browse categories", systemImage: "ellipsis.circle")
                 .font(.appFont(17, weight: .semibold))
                 .foregroundStyle(Theme.Colors.textSecondary)
-                .frame(minHeight: Theme.minTouchTarget)
         }
-        .buttonStyle(NovaChipButtonStyle())
+        .buttonStyle(NovaChipButtonStyle(providesSurface: true))
         .accessibilityHint("Open Smart Search, New and Hot, Live TV, or Anime")
     }
 
@@ -409,11 +408,12 @@ struct DiscoverView: View {
                         NavigationLink(value: item) {
                             posterCard(item)
                         }
-                        .buttonStyle(NovaListRowStyle())
+                        .buttonStyle(NovaArtworkButtonStyle())
                     }
                 }
                 .padding(.vertical, Theme.Spacing.xs)
             }
+            .scrollClipDisabled()
         }
     }
 
@@ -425,7 +425,7 @@ struct DiscoverView: View {
                 NavigationLink(value: item) {
                     posterCard(item)
                 }
-                .buttonStyle(NovaListRowStyle())
+                .buttonStyle(NovaArtworkButtonStyle())
             }
         }
         // Warm poster images ahead of scroll so the grid stays smooth.

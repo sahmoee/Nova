@@ -403,6 +403,8 @@ struct LibraryView: View {
 
     private var tvLibraryOptions: some View {
         Menu {
+            NavigationLink { watchNightDestination } label: { Label("Watch Night", systemImage: "moon.stars") }
+            Divider()
             Picker("Library View", selection: $filter) {
                 ForEach(activeFilters) { value in
                     Text(value == .recentlyAdded ? "All Library Items" : filterTitle(value)).tag(value)
@@ -840,6 +842,7 @@ struct LibraryView: View {
                     .font(.appFont(20))
                     .foregroundStyle(Theme.Colors.accent)
             }
+            NavigationLink { watchNightDestination } label: { Label("Watch Night", systemImage: "moon.stars") }.novaRowStyle()
             Button { showCollectionPicker = true } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "rectangle.stack")
@@ -964,9 +967,17 @@ struct LibraryView: View {
         }
     }
 
+    private var watchNightDestination: some View {
+        WatchNightView { item in
+            if item.isDirectPlay { openDirect(item) } else { detailItem = item }
+        }
+    }
+
     /// The consolidated options menu behind the sliders icon in the clean header.
     private var optionsMenu: some View {
         Menu {
+            NavigationLink { watchNightDestination } label: { Label("Watch Night", systemImage: "moon.stars") }
+            Divider()
             Button {
                 showStats = true
             } label: {
@@ -1452,15 +1463,14 @@ struct LibraryView: View {
             HStack(spacing: 4) {
                 if let systemImage { Image(systemName: systemImage) }
                 Text(title)
+                if active { Image(systemName: "checkmark").accessibilityHidden(true) }
             }
             .font(.appFont(15, weight: .medium))
-            .foregroundStyle(active ? Theme.Colors.background : Theme.Colors.textSecondary)
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, Theme.Spacing.sm)
-            .background(active ? Theme.Colors.accent : Theme.Colors.card, in: Capsule())
             .contentShape(Capsule())
         }
-        .buttonStyle(NovaChipButtonStyle())
+        .buttonStyle(NovaChipButtonStyle(selected: active, providesSurface: true))
         .accessibilityLabel(title)
         .accessibilityAddTraits(active ? [.isButton, .isSelected] : .isButton)
     }

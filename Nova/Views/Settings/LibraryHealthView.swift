@@ -15,6 +15,7 @@ struct LibraryHealthView: View {
         case duplicates = "Duplicates"
         case cleanup    = "Clean Up"
         case rules      = "Rules"
+        case tidy       = "Tidy Up"
 
         var id: String { rawValue }
 
@@ -24,6 +25,7 @@ struct LibraryHealthView: View {
             case .duplicates: return "arrow.triangle.merge"
             case .cleanup:    return "wand.and.stars"
             case .rules:      return "textformat.abc.dottedunderline"
+            case .tidy:       return "checklist"
             }
         }
     }
@@ -34,20 +36,29 @@ struct LibraryHealthView: View {
         ZStack {
             Theme.Colors.appBackground.ignoresSafeArea()
             VStack(spacing: 0) {
-                Picker("Section", selection: $tab) {
-                    ForEach(Tab.allCases) { t in
-                        Label(t.rawValue, systemImage: t.systemImage).tag(t)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        ForEach(Tab.allCases) { item in
+                            Button { tab = item } label: {
+                                Label(item.rawValue, systemImage: tab == item ? "checkmark.circle.fill" : item.systemImage)
+                                    .font(.appFont(16, weight: .semibold))
+                            }
+                            .buttonStyle(NovaChipButtonStyle(selected: tab == item, providesSurface: true))
+                            .accessibilityAddTraits(tab == item ? .isSelected : [])
+                            .accessibilityHint("Show \(item.rawValue.lowercased()) tools")
+                        }
                     }
+                    .padding(.horizontal, Theme.Spacing.edge)
+                    .padding(.vertical, Theme.Spacing.sm)
                 }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, Theme.Spacing.edge)
-                .padding(.vertical, Theme.Spacing.sm)
+                .scrollClipDisabled()
 
                 switch tab {
                 case .scan:       LibraryQualityView()
                 case .duplicates: DuplicatesView()
                 case .cleanup:    LibraryEnrichView()
                 case .rules:      TitleCleanupRulesView()
+                case .tidy:       LibraryCleanupView()
                 }
             }
         }

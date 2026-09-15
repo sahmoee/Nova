@@ -18,10 +18,17 @@ final class LibraryStore: ObservableObject {
     @Published private(set) var collections: [MediaCollection] = []
     @Published private(set) var lastPersistenceError: String?
 
+    private let defaults: UserDefaults
     private let fileURL: URL
     private let collectionsURL: URL
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
+    private var durableItems: [MediaItem] = []
+    private var libraryNeedsRecovery = false
+    #if os(iOS)
+    var allowsWatchEdits: Bool { !libraryNeedsRecovery }
+    #endif
+    private var collectionsNeedRecovery = false
 
     // iCloud sync. The library is mirrored to iCloud KVS so favorites, watch
     // progress, and saved items follow the user across iPhone, iPad, and Apple TV.
@@ -31,8 +38,9 @@ final class LibraryStore: ObservableObject {
     /// Guards against echoing a remote change straight back to iCloud.
     private var applyingRemoteChange = false
 
-    init(filename: String = "library.json") {
-        let support = FileManager.default
+    init(filename: String = "library.json", directory: URL? = nil, defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        let support = directory ?? FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)
             .first!
         // Ensure the directory exists.
@@ -81,13 +89,15 @@ final class LibraryStore: ObservableObject {
     /// Loads the library from iCloud if its revision is newer than what we last saw,
     /// then publishes it. Uses a monotonically increasing revision so the most recent
     /// write wins and devices converge.
-    private func mergeFromCloudIfNewer() {
+    @discardableResult
+    private func mergeFromCloudIfNewer(force: Bool = false) -> Bool {
         applySettingsDeletions()
         // Progress lives inside the library payload. A device-only history reset
         // must suspend both directions until the user explicitly resumes sync.
-        guard !CloudSync.shared.isPaused(.history) else { return }
+        guard !CloudSync.shared.isPaused(.history), (!libraryNeedsRecovery || force) else { return false }
         guard let data = CloudSync.shared.data(forKey: cloudKey),
-              var decoded = try? decoder.decode([MediaItem].self, from: data) else { return }
+              data.count <= LibraryFilePolicy.maximumLibraryBytes,
+              var decoded = try? decoder.decode([MediaItem].self, from: data) else { return false }
         let historyDeletion = CloudSync.shared.deletionDate(.history)
         for index in decoded.indices where historyDeletion > 0
             && (decoded[index].lastPlayedDate?.timeIntervalSince1970 ?? 0) <= historyDeletion {
@@ -96,19 +106,33 @@ final class LibraryStore: ObservableObject {
         }
 
         let cloudRev = CloudSync.shared.double(forKey: cloudRevisionKey) ?? 0
-        let localRev = UserDefaults.standard.double(forKey: cloudRevisionKey)
+        let localRev = defaults.double(forKey: cloudRevisionKey)
         // Only adopt if the cloud copy is at least as new, and actually differs.
         // FIX: the "actually differs" half was never enforced, so every KVS
         // notification republished the whole library (invalidating all observing
         // views) and rewrote the local file even when nothing changed.
-        guard cloudRev >= localRev, decoded != items else { return }
+        guard cloudRev.isFinite, cloudRev >= 0, (force || cloudRev >= localRev), (decoded != items || force) else { return false }
+        // Publish a remote snapshot only after it is durable locally. Cancel the
+        // pending local echo before accepting its revision.
+        do {
+            try LibraryFilePolicy.write(try encoder.encode(decoded), to: fileURL,
+                                        maximumBytes: LibraryFilePolicy.maximumLibraryBytes)
+        } catch {
+            lastPersistenceError = error.localizedDescription
+            return false
+        }
+        cloudPushTask?.cancel()
+        libraryNeedsRecovery = false
+        lastPersistenceError = nil
 
         applyingRemoteChange = true
         items = decoded
-        UserDefaults.standard.set(cloudRev, forKey: cloudRevisionKey)
-        // Write through to the local file so an offline launch still has the latest.
-        persistLocalOnly()
+        durableItems = decoded
+        defaults.set(cloudRev, forKey: cloudRevisionKey)
         applyingRemoteChange = false
+        SpotlightIndexer.reindex(items)
+        writeWidgetSnapshot()
+        return true
     }
 
     /// Pushes the current library to iCloud with a fresh revision stamp.
@@ -128,7 +152,7 @@ final class LibraryStore: ObservableObject {
     }
 
     private func pushToCloudNow() {
-        guard !applyingRemoteChange, !CloudSync.shared.isPaused(.history) else { return }
+        guard !applyingRemoteChange, !libraryNeedsRecovery, !CloudSync.shared.isPaused(.history) else { return }
         guard let data = try? encoder.encode(items) else { return }
         // Skip if the payload exceeds iCloud KVS's per-value limit (~1MB); the local
         // file still holds everything, we just can't mirror an oversized library.
@@ -137,7 +161,7 @@ final class LibraryStore: ObservableObject {
             return
         }
         let rev = Date().timeIntervalSince1970
-        UserDefaults.standard.set(rev, forKey: cloudRevisionKey)
+        defaults.set(rev, forKey: cloudRevisionKey)
         CloudSync.shared.setData(data, forKey: cloudKey)
         CloudSync.shared.setDouble(rev, forKey: cloudRevisionKey)
         CloudSync.shared.flush()
@@ -151,7 +175,7 @@ final class LibraryStore: ObservableObject {
             return
         }
         do {
-            let data = try Data(contentsOf: fileURL)
+            let data = try LibraryFilePolicy.read(fileURL, maximumBytes: LibraryFilePolicy.maximumLibraryBytes)
             let decoded = try decoder.decode([MediaItem].self, from: data)
             // One-time cleanup: collapse duplicates (same content saved multiple
             // times before dedup-by-contentKey existed), keeping the first.
@@ -169,13 +193,17 @@ final class LibraryStore: ObservableObject {
                 return !(isSample && !engaged)
             }
             items = cleaned
+            durableItems = cleaned
             if cleaned.count != decoded.count { persist() }
             // Index the freshly loaded library into Spotlight (no-op on tvOS).
             SpotlightIndexer.reindex(items)
             // Seed the widget snapshot on launch (no-op effect on tvOS).
             writeWidgetSnapshot()
         } catch {
-            // Corrupt/old format: start clean rather than crash.
+            // Keep unreadable user data intact; ordinary mutations must never
+            // overwrite it with the empty recovery view.
+            libraryNeedsRecovery = true
+            lastPersistenceError = error.localizedDescription
             items = []
         }
     }
@@ -185,52 +213,73 @@ final class LibraryStore: ObservableObject {
     private let collectionsCloudKey = PrefKey.cloudCollections
 
     private func loadCollections() {
-        // Prefer local file; fall back to iCloud if present and local is empty.
-        if let data = try? Data(contentsOf: collectionsURL),
+        if FileManager.default.fileExists(atPath: collectionsURL.path) {
+            do {
+                let data = try LibraryFilePolicy.read(collectionsURL, maximumBytes: LibraryFilePolicy.maximumCollectionsBytes)
+                collections = try decoder.decode([MediaCollection].self, from: data)
+            } catch {
+                collectionsNeedRecovery = true
+                lastPersistenceError = error.localizedDescription
+            }
+            return
+        }
+        if let json = CloudSync.shared.string(forKey: collectionsCloudKey),
+           let data = json.data(using: .utf8), data.count <= LibraryFilePolicy.maximumCollectionsBytes,
            let decoded = try? decoder.decode([MediaCollection].self, from: data) {
-            collections = decoded
-        } else if let json = CloudSync.shared.string(forKey: collectionsCloudKey),
-                  let data = json.data(using: .utf8),
-                  let decoded = try? decoder.decode([MediaCollection].self, from: data) {
-            collections = decoded
+            _ = persistCollections(decoded)
         }
     }
 
-    private func persistCollections() {
-        if let data = try? encoder.encode(collections) {
-            try? data.write(to: collectionsURL, options: [.atomic])
+    @discardableResult
+    private func persistCollections(_ candidate: [MediaCollection]? = nil) -> Bool {
+        do {
+            guard !collectionsNeedRecovery else { throw LibraryFilePolicy.Failure.recoveryRequired }
+            let value = candidate ?? collections
+            let data = try encoder.encode(value)
+            try LibraryFilePolicy.write(data, to: collectionsURL, maximumBytes: LibraryFilePolicy.maximumCollectionsBytes)
+            if value != collections { collections = value }
             if let json = String(data: data, encoding: .utf8) {
                 CloudSync.shared.setString(json, forKey: collectionsCloudKey)
             }
+            if !libraryNeedsRecovery { lastPersistenceError = nil }
+            return true
+        } catch {
+            lastPersistenceError = error.localizedDescription
+            return false
         }
     }
 
     /// Creates a new empty collection and returns it.
     @discardableResult
-    func createCollection(name: String, systemImage: String = "rectangle.stack") -> MediaCollection {
+    func createCollection(name: String, systemImage: String = "rectangle.stack") -> MediaCollection? {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return nil }
         let collection = MediaCollection(name: name, systemImage: systemImage)
-        collections.append(collection)
-        persistCollections()
-        return collection
+        return persistCollections(collections + [collection]) ? collection : nil
     }
 
     func renameCollection(_ id: UUID, to name: String) {
         guard let idx = collections.firstIndex(where: { $0.id == id }) else { return }
-        collections[idx].name = name
-        persistCollections()
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, collections[idx].name != name else { return }
+        var candidate = collections
+        candidate[idx].name = name
+        _ = persistCollections(candidate)
     }
 
     func deleteCollection(_ id: UUID) {
-        collections.removeAll { $0.id == id }
-        persistCollections()
+        let candidate = collections.filter { $0.id != id }
+        guard candidate != collections else { return }
+        _ = persistCollections(candidate)
     }
 
     /// Adds an item to a collection (no-op if already present).
     func addToCollection(_ collectionID: UUID, item: MediaItem) {
         guard let idx = collections.firstIndex(where: { $0.id == collectionID }) else { return }
         if !collections[idx].contentKeys.contains(item.contentKey) {
-            collections[idx].contentKeys.append(item.contentKey)
-            persistCollections()
+            var candidate = collections
+            candidate[idx].contentKeys.append(item.contentKey)
+            _ = persistCollections(candidate)
         }
     }
 
@@ -238,19 +287,22 @@ final class LibraryStore: ObservableObject {
     /// collapsing duplicates, and persists once regardless of list size.
     func addToCollection(_ collectionID: UUID, items newItems: [MediaItem]) {
         guard let idx = collections.firstIndex(where: { $0.id == collectionID }) else { return }
-        var seen = Set(collections[idx].contentKeys)
+        var candidate = collections
+        var seen = Set(candidate[idx].contentKeys)
         var changed = false
         for item in newItems where seen.insert(item.contentKey).inserted {
-            collections[idx].contentKeys.append(item.contentKey)
+            candidate[idx].contentKeys.append(item.contentKey)
             changed = true
         }
-        if changed { persistCollections() }
+        if changed { _ = persistCollections(candidate) }
     }
 
     func removeFromCollection(_ collectionID: UUID, contentKey: String) {
         guard let idx = collections.firstIndex(where: { $0.id == collectionID }) else { return }
-        collections[idx].contentKeys.removeAll { $0 == contentKey }
-        persistCollections()
+        var candidate = collections
+        candidate[idx].contentKeys.removeAll { $0 == contentKey }
+        guard candidate != collections else { return }
+        _ = persistCollections(candidate)
     }
 
     /// Whether an item is in a given collection.
@@ -261,15 +313,17 @@ final class LibraryStore: ObservableObject {
 
     /// The library items that belong to a collection, in collection order.
     func items(in collection: MediaCollection) -> [MediaItem] {
-        collection.contentKeys.compactMap { key in
-            items.first(where: { $0.contentKey == key })
-        }
+        LibraryMutationPolicy.orderedValues(keys: collection.contentKeys, values: items, key: \.contentKey)
     }
 
     // MARK: - Persistence
 
     private func persist() {
-        persistLocalOnly()
+        guard persistLocalOnly() else {
+            cloudPushTask?.cancel()
+            if items != durableItems { items = durableItems }
+            return
+        }
         pushToCloud()
         // Keep iOS Spotlight in sync with the current library (no-op on tvOS).
         SpotlightIndexer.reindex(items)
@@ -315,9 +369,11 @@ final class LibraryStore: ObservableObject {
     @discardableResult
     private func persistLocalOnly() -> Bool {
         do {
+            guard !libraryNeedsRecovery else { throw LibraryFilePolicy.Failure.recoveryRequired }
             let data = try encoder.encode(items)
-            try data.write(to: fileURL, options: [.atomic])
-            lastPersistenceError = nil
+            try LibraryFilePolicy.write(data, to: fileURL, maximumBytes: LibraryFilePolicy.maximumLibraryBytes)
+            durableItems = items
+            if !collectionsNeedRecovery { lastPersistenceError = nil }
             return true
         } catch {
             lastPersistenceError = error.localizedDescription
@@ -336,88 +392,82 @@ final class LibraryStore: ObservableObject {
     /// library for every title. `merge` retains the same durable watch state as add().
     func add(contentsOf newItems: [MediaItem]) {
         guard !newItems.isEmpty else { return }
-        for item in newItems { merge(item) }
+        let candidate = LibraryMutationPolicy.adding(newItems, to: items)
+        guard candidate != items else { return }
+        items = candidate
         persist()
     }
 
     /// Atomically replaces the portion of the index owned by one media server.
     /// User state survives through `merge`, while titles removed from that server
     /// disappear without touching SMB, direct-link, addon, or other-server rows.
-    func reconcileMediaServer(_ newItems: [MediaItem], connectionID: UUID) {
-        let liveIDs = Set(newItems.compactMap(\.metadata.mediaServerItemID))
-        items = items.compactMap { item in
-            var item = item
-            item.alternateSources.removeAll {
-                $0.mediaServerID == connectionID
-                    && $0.mediaServerItemID.map { !liveIDs.contains($0) } == true
-            }
-            guard item.metadata.mediaServerID == connectionID,
-                  item.metadata.mediaServerItemID.map({ !liveIDs.contains($0) }) == true else { return item }
-            guard let fallback = item.alternateSources.first else { return nil }
-            item.alternateSources.removeFirst()
-            item.sourceType = fallback.sourceType
-            item.playbackURL = fallback.playbackURL
-            item.metadata.mediaServerID = fallback.mediaServerID
-            item.metadata.mediaServerItemID = fallback.mediaServerItemID
-            return item
+    @discardableResult
+    func reconcileMediaServer(_ newItems: [MediaItem], connectionID: UUID) -> Bool {
+        guard newItems.allSatisfy({ $0.metadata.mediaServerID == connectionID && $0.metadata.mediaServerItemID?.isEmpty == false }) else { return false }
+        guard !libraryNeedsRecovery else {
+            lastPersistenceError = LibraryFilePolicy.Failure.recoveryRequired.localizedDescription
+            return false
         }
-        var positions: [String: Int] = [:]
-        for (index, item) in items.enumerated() where positions[item.contentKey] == nil {
-            positions[item.contentKey] = index
+        let result = LibraryMutationPolicy.reconcile(newItems, existing: items, connectionID: connectionID)
+        guard result.items != items else { return true }
+        let remapped = LibraryMutationPolicy.remapping(collections, keys: result.renamedKeys)
+        return commitLibraryChange(result.items, collections: remapped, queue: queueIDs)
+    }
+
+    /// Bridge references before replacing the independent files. On failure, keep
+    /// the old published state and restore the original references where writable.
+    private func commitLibraryChange(_ candidate: [MediaItem], collections nextCollections: [MediaCollection], queue nextQueue: [UUID]) -> Bool {
+        guard !libraryNeedsRecovery else {
+            lastPersistenceError = LibraryFilePolicy.Failure.recoveryRequired.localizedDescription
+            return false
         }
-        for item in newItems {
-            if let index = positions[item.contentKey] {
-                items[index] = merged(item, preserving: items[index])
-            } else {
-                items.append(item)
-                positions[item.contentKey] = items.count - 1
+        let oldCollections = collections, oldQueue = queueIDs
+        let nextByID = Dictionary(nextCollections.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var bridge = collections
+        for index in bridge.indices {
+            if let next = nextByID[bridge[index].id] {
+                bridge[index].contentKeys = LibraryMutationPolicy.unique(bridge[index].contentKeys + next.contentKeys)
             }
         }
-        items.sort { $0.addedDate > $1.addedDate }
-        persist()
+        if nextCollections != collections {
+            // Even an unchanged bridge must be writable before records disappear.
+            guard persistCollections(bridge) else { return false }
+        }
+        let queueBridge = LibraryMutationPolicy.unique(queueIDs + nextQueue)
+        if queueBridge != queueIDs { queueIDs = queueBridge; persistQueue() }
+        do {
+            try LibraryFilePolicy.write(try encoder.encode(candidate), to: fileURL,
+                                        maximumBytes: LibraryFilePolicy.maximumLibraryBytes)
+        } catch {
+            cloudPushTask?.cancel()
+            if collections != oldCollections { _ = persistCollections(oldCollections) }
+            if queueIDs != oldQueue { queueIDs = oldQueue; persistQueue() }
+            lastPersistenceError = error.localizedDescription
+            return false
+        }
+        items = candidate
+        durableItems = candidate
+        if nextQueue != queueIDs { queueIDs = nextQueue; persistQueue() }
+        let referencesSaved = nextCollections == collections || persistCollections(nextCollections)
+        if referencesSaved && !collectionsNeedRecovery { lastPersistenceError = nil }
+        pushToCloud()
+        SpotlightIndexer.reindex(items)
+        writeWidgetSnapshot()
+        return referencesSaved
     }
 
     private func merge(_ item: MediaItem) {
-        // Dedupe by stable content identity, not the per-playback random id, so
-        // replaying the same episode updates its entry instead of adding a copy.
         if let idx = items.firstIndex(where: { $0.contentKey == item.contentKey }) {
-            // Preserve durable user/watch state while refreshing the playable URL and
-            // metadata. Stream resolution creates a fresh transient MediaItem, and
-            // replacing the record wholesale used to erase the exact resume point.
-            items[idx] = merged(item, preserving: items[idx])
+            let updated = LibraryMutationPolicy.merged(item, preserving: items[idx])
+            if updated != items[idx] { items[idx] = updated }
         } else {
             items.insert(item, at: 0)
         }
     }
 
-    private func merged(_ incoming: MediaItem, preserving existing: MediaItem) -> MediaItem {
-        var updated = incoming
-        updated.id = existing.id
-        updated.isFavorite = existing.isFavorite
-        updated.addedDate = existing.addedDate
-        updated.lastPlayedPosition = existing.lastPlayedPosition
-        updated.lastPlayedDate = existing.lastPlayedDate
-        updated.duration = incoming.duration ?? existing.duration
-        updated.subtitleOffset = existing.subtitleOffset
-        updated.tags = existing.tags
-        updated.isHidden = existing.isHidden
-        if updated.subtitles.isEmpty { updated.subtitles = existing.subtitles }
-
-        let previous = MediaSourceLocation(sourceType: existing.sourceType,
-            playbackURL: existing.playbackURL, mediaServerID: existing.metadata.mediaServerID,
-            mediaServerItemID: existing.metadata.mediaServerItemID)
-        var sources = existing.alternateSources + incoming.alternateSources
-        let incomingIdentity = MediaSourceLocation(sourceType: incoming.sourceType,
-            playbackURL: incoming.playbackURL, mediaServerID: incoming.metadata.mediaServerID,
-            mediaServerItemID: incoming.metadata.mediaServerItemID).identity
-        if previous.identity != incomingIdentity { sources.append(previous) }
-        var seen = Set<String>()
-        updated.alternateSources = sources.filter { $0.identity != incomingIdentity && seen.insert($0.identity).inserted }
-        return updated
-    }
-
     func update(_ item: MediaItem) {
         guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
+        guard items[idx] != item else { return }
         items[idx] = item
         persist()
     }
@@ -448,16 +498,16 @@ final class LibraryStore: ObservableObject {
     }
 
     func setHidden(_ hidden: Bool, for ids: Set<UUID>) {
-        for id in ids {
-            if let idx = items.firstIndex(where: { $0.id == id }) { items[idx].isHidden = hidden }
-        }
+        var candidate = items
+        for index in candidate.indices where ids.contains(candidate[index].id) { candidate[index].isHidden = hidden }
+        guard candidate != items else { return }
+        items = candidate
         persist()
     }
 
     /// Add a tag (case-insensitive de-dupe) to an item.
     func addTag(_ tag: String, to item: MediaItem) {
-        let clean = tag.trimmingCharacters(in: .whitespaces)
-        guard !clean.isEmpty, let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
+        guard let clean = LibraryMutationPolicy.normalizedTag(tag), let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
         if !items[idx].tags.contains(where: { $0.caseInsensitiveCompare(clean) == .orderedSame }) {
             items[idx].tags.append(clean)
             persist()
@@ -472,14 +522,14 @@ final class LibraryStore: ObservableObject {
 
     /// Apply a tag to many items at once (bulk edit).
     func addTag(_ tag: String, to ids: Set<UUID>) {
-        let clean = tag.trimmingCharacters(in: .whitespaces)
-        guard !clean.isEmpty else { return }
-        for id in ids {
-            if let idx = items.firstIndex(where: { $0.id == id }),
-               !items[idx].tags.contains(where: { $0.caseInsensitiveCompare(clean) == .orderedSame }) {
-                items[idx].tags.append(clean)
-            }
+        guard let clean = LibraryMutationPolicy.normalizedTag(tag) else { return }
+        var candidate = items
+        for index in candidate.indices where ids.contains(candidate[index].id)
+            && !candidate[index].tags.contains(where: { $0.caseInsensitiveCompare(clean) == .orderedSame }) {
+            candidate[index].tags.append(clean)
         }
+        guard candidate != items else { return }
+        items = candidate
         persist()
     }
 
@@ -497,16 +547,18 @@ final class LibraryStore: ObservableObject {
 
     /// Remember a subtitle timing offset (seconds) for an item.
     func setSubtitleOffset(_ offset: Double, for item: MediaItem) {
-        guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
+        guard offset.isFinite, let idx = items.firstIndex(where: { $0.id == item.id }),
+              items[idx].subtitleOffset != offset else { return }
         items[idx].subtitleOffset = offset
         persist()
     }
 
     /// Bulk favorite/unfavorite.
     func setFavorite(_ favorite: Bool, for ids: Set<UUID>) {
-        for id in ids {
-            if let idx = items.firstIndex(where: { $0.id == id }) { items[idx].isFavorite = favorite }
-        }
+        var candidate = items
+        for index in candidate.indices where ids.contains(candidate[index].id) { candidate[index].isFavorite = favorite }
+        guard candidate != items else { return }
+        items = candidate
         persist()
     }
 
@@ -517,6 +569,9 @@ final class LibraryStore: ObservableObject {
     }
 
     func clearAll() {
+        #if os(iOS)
+        NovaPhoneWatchBridge.shared.invalidateEpoch(allowRecovery: true)
+        #endif
         items.removeAll()
         persist()
     }
@@ -527,6 +582,8 @@ final class LibraryStore: ObservableObject {
         let cloud = CloudSync.shared
         if cloud.consumeDeletion(.library, consumer: ".library") {
             cloudPushTask?.cancel()
+            libraryNeedsRecovery = false
+            collectionsNeedRecovery = false
             items = []
             collections = []
             queueIDs = []
@@ -534,7 +591,7 @@ final class LibraryStore: ObservableObject {
             do { try encoder.encode(collections).write(to: collectionsURL, options: .atomic) }
             catch { saved = false; lastPersistenceError = error.localizedDescription }
             if !saved { cloud.retryDeletion(.library, consumer: ".library") }
-            UserDefaults.standard.set(try? encoder.encode(queueIDs), forKey: queueDefaultsKey)
+            defaults.set(try? encoder.encode(queueIDs), forKey: queueDefaultsKey)
             SpotlightIndexer.clear()
             writeWidgetSnapshot()
         }
@@ -550,6 +607,7 @@ final class LibraryStore: ObservableObject {
     }
 
     func pushSettingsDataToCloud() {
+        guard persistLocalOnly() else { return }
         CloudSync.shared.resumeSync(.library)
         CloudSync.shared.resumeSync(.history)
         pushToCloudNow()
@@ -561,18 +619,21 @@ final class LibraryStore: ObservableObject {
         CloudSync.shared.resumeSync(.library, pulling: true)
         CloudSync.shared.resumeSync(.history, pulling: true)
         // This is an explicit replacement request, including queue and collections.
-        UserDefaults.standard.set(0, forKey: cloudRevisionKey)
-        mergeFromCloudIfNewer()
+        guard mergeFromCloudIfNewer(force: true) else { return }
+        #if os(iOS)
+        NovaPhoneWatchBridge.shared.invalidateEpoch()
+        #endif
         if let data = CloudSync.shared.data(forKey: queueDefaultsKey),
            let decoded = try? decoder.decode([UUID].self, from: data) {
-            queueIDs = decoded
-            UserDefaults.standard.set(data, forKey: queueDefaultsKey)
+            queueIDs = LibraryMutationPolicy.unique(decoded)
+            defaults.set(try? encoder.encode(queueIDs), forKey: queueDefaultsKey)
         }
         if let string = CloudSync.shared.string(forKey: collectionsCloudKey),
            let data = string.data(using: .utf8),
            let decoded = try? decoder.decode([MediaCollection].self, from: data) {
-            collections = decoded
-            try? data.write(to: collectionsURL, options: .atomic)
+            let wasBlocked = collectionsNeedRecovery
+            collectionsNeedRecovery = false
+            if !persistCollections(decoded) { collectionsNeedRecovery = wasBlocked }
         }
     }
 
@@ -590,6 +651,9 @@ final class LibraryStore: ObservableObject {
 
     /// Resets only watch progress across the whole library.
     func clearWatchHistory() {
+        #if os(iOS)
+        NovaPhoneWatchBridge.shared.invalidateEpoch(allowRecovery: true)
+        #endif
         for idx in items.indices {
             items[idx].lastPlayedPosition = 0
             items[idx].lastPlayedDate = nil
@@ -653,21 +717,20 @@ final class LibraryStore: ObservableObject {
 
     /// Loads the queue from local storage (called from init via loadQueue()).
     func loadQueue() {
-        if let data = UserDefaults.standard.data(forKey: queueDefaultsKey),
+        if let data = defaults.data(forKey: queueDefaultsKey),
            let ids = try? Coders.decoder.decode([UUID].self, from: data) {
-            queueIDs = ids
+            queueIDs = LibraryMutationPolicy.unique(ids)
+            return // A deliberately empty local queue must not resurrect an old cloud copy.
         }
-        // Adopt a cloud copy if one exists (newer device wins on merge below).
         if let data = CloudSync.shared.data(forKey: queueDefaultsKey),
-           let ids = try? Coders.decoder.decode([UUID].self, from: data),
-           !ids.isEmpty, queueIDs.isEmpty {
-            queueIDs = ids
+           let ids = try? Coders.decoder.decode([UUID].self, from: data) {
+            queueIDs = LibraryMutationPolicy.unique(ids)
         }
     }
 
     private func persistQueue() {
         if let data = try? Coders.encoder.encode(queueIDs) {
-            UserDefaults.standard.set(data, forKey: queueDefaultsKey)
+            defaults.set(data, forKey: queueDefaultsKey)
             CloudSync.shared.setData(data, forKey: queueDefaultsKey)
         }
     }
@@ -683,19 +746,22 @@ final class LibraryStore: ObservableObject {
     }
 
     func removeFromQueue(_ item: MediaItem) {
+        guard queueIDs.contains(item.id) else { return }
         queueIDs.removeAll { $0 == item.id }
         persistQueue()
     }
 
     /// Reorders the queue (list-style move).
     func moveInQueue(from source: IndexSet, to destination: Int) {
-        queueIDs.move(fromOffsets: source, toOffset: destination)
+        guard let candidate = LibraryMutationPolicy.moving(queueIDs, from: source, to: destination),
+              candidate != queueIDs else { return }
+        queueIDs = candidate
         persistQueue()
     }
 
     /// The queued items in order, skipping any that were removed from the library.
     var queuedItems: [MediaItem] {
-        collapseToShow(queueIDs.compactMap { id in items.first(where: { $0.id == id }) })
+        collapseToShow(LibraryMutationPolicy.orderedValues(keys: queueIDs, values: items, key: \.id))
     }
 
     /// The next thing to watch tonight: the first queued item, preferring one that is
@@ -722,7 +788,7 @@ extension LibraryStore {
     /// A group of library items that appear to be the same title from different
     /// sources (matched by shared imdb/tmdb id, or by normalized title + year).
     struct DuplicateGroup: Identifiable {
-        let id = UUID()
+        var id: UUID { items.map(\.id).min(by: { $0.uuidString < $1.uuidString }) ?? UUID() }
         let items: [MediaItem]
         var title: String { items.first?.title ?? "" }
     }
@@ -746,20 +812,17 @@ extension LibraryStore {
     /// A loose identity key for duplicate matching: prefer a shared imdb/tmdb id,
     /// otherwise normalized title + year.
     private func duplicateKey(for item: MediaItem) -> String {
-        if let imdb = item.contentID?.imdb { return "imdb:\(imdb)" }
-        if let tmdb = item.contentID?.tmdb { return "tmdb:\(tmdb)" }
-        let title = item.title.lowercased()
-            .components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .joined()
-        let year = item.metadata.year.map(String.init) ?? "?"
-        return "title:\(title):\(year)"
+        LibraryMutationPolicy.duplicateKey(item)
     }
 
     /// Merges a duplicate group into a single item: keeps the most-complete record
     /// (most progress / has artwork), unions favorite status and the furthest watch
     /// progress, repoints any collections to the survivor, and removes the rest.
     func mergeDuplicates(_ group: DuplicateGroup) {
-        guard group.items.count > 1 else { return }
+        let requested = Set(group.items.map(\.id))
+        let current = items.filter { requested.contains($0.id) }
+        guard current.count > 1, Set(current.map { duplicateKey(for: $0) }).count == 1 else { return }
+        let group = DuplicateGroup(items: current)
         // Choose a survivor: prefer one with a contentID, then artwork, then most progress.
         let survivor = group.items.max { a, b in
             score(a) < score(b)
@@ -771,6 +834,11 @@ extension LibraryStore {
         var merged = items[sIdx]
         for other in group.items where other.id != survivor.id {
             merged.isFavorite = merged.isFavorite || other.isFavorite
+            merged.legalAccessConfirmed = merged.legalAccessConfirmed || other.legalAccessConfirmed
+            merged.tags = LibraryMutationPolicy.unique(merged.tags + other.tags)
+            let sources = merged.alternateSources + [LibraryMutationPolicy.location(other)] + other.alternateSources
+            var seenSources: Set<String> = [LibraryMutationPolicy.location(merged).identity]
+            merged.alternateSources = sources.filter { seenSources.insert($0.identity).inserted }
             if other.lastPlayedPosition > merged.lastPlayedPosition {
                 merged.lastPlayedPosition = other.lastPlayedPosition
                 merged.lastPlayedDate = other.lastPlayedDate ?? merged.lastPlayedDate
@@ -780,29 +848,14 @@ extension LibraryStore {
             if merged.backdropURL == nil { merged.backdropURL = other.backdropURL }
             merged.addedDate = min(merged.addedDate, other.addedDate)
         }
-        items[sIdx] = merged
-
-        // Repoint collections from any removed content keys to the survivor's key.
-        let survivorKey = merged.contentKey
-        let removedKeys = group.items.filter { $0.id != survivor.id }.map { $0.contentKey }
-        for cIdx in collections.indices {
-            var changed = false
-            collections[cIdx].contentKeys = collections[cIdx].contentKeys.map { key in
-                if removedKeys.contains(key) { changed = true; return survivorKey }
-                return key
-            }
-            // De-dupe keys after repointing.
-            if changed {
-                var seen = Set<String>()
-                collections[cIdx].contentKeys = collections[cIdx].contentKeys.filter { seen.insert($0).inserted }
-            }
-        }
-        persistCollections()
-
-        // Remove the merged-away items.
-        let removeIDs = Set(group.items.filter { $0.id != survivor.id }.map { $0.id })
-        items.removeAll { removeIDs.contains($0.id) }
-        persist()
+        let removeIDs = Set(group.items.filter { $0.id != survivor.id }.map(\.id))
+        let removedKeys = Dictionary(group.items.filter { $0.id != survivor.id }.map { ($0.contentKey, merged.contentKey) }, uniquingKeysWith: { first, _ in first })
+        let remappedCollections = LibraryMutationPolicy.remapping(collections, keys: removedKeys)
+        let remappedQueue = LibraryMutationPolicy.unique(queueIDs.map { removeIDs.contains($0) ? merged.id : $0 })
+        var candidate = items
+        candidate[sIdx] = merged
+        candidate.removeAll { removeIDs.contains($0.id) }
+        _ = commitLibraryChange(candidate, collections: remappedCollections, queue: remappedQueue)
     }
 
     /// Merges every detected duplicate group at once.

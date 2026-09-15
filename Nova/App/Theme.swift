@@ -242,6 +242,17 @@ enum Theme {
         static let pill: CGFloat = 999
         static let poster: CGFloat = 10
         static let thumb: CGFloat = 9
+        /// Compact selectors use the same continuous corners on both platforms.
+        static let chip: CGFloat = 12
+        static let navigationPanel: CGFloat = 28
+        static let navigationItem: CGFloat = 12
+    }
+
+    enum Control {
+        static let focusScale: CGFloat = 1.035
+        static let pressedScale: CGFloat = 0.98
+        static let disabledOpacity: Double = 0.6
+        static let focusLineWidth: CGFloat = 3
     }
 
     // MARK: - Soft depth
@@ -302,7 +313,7 @@ enum Theme {
         static var sourceHeight: CGFloat { Theme.scaled(200, min: 120) }
 
         /// Focus scale applied on highlight (tvOS only; subtle on iOS).
-        static var focusScale: CGFloat { Theme.isCompact ? 1.0 : 1.08 }
+        static var focusScale: CGFloat { Theme.isCompact ? 1.0 : Theme.Control.focusScale }
     }
 
     // MARK: - Adaptive grids
@@ -625,11 +636,13 @@ extension SectionHeader where Accessory == EmptyView {
 /// Adds a subtle scale + opacity change while pressed on iOS, matching the tvOS
 /// focus animation. No-op styling on tvOS where focus handles this.
 struct PressableButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var enabled
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed && !Theme.isReduceMotion ? 0.97 : 1)
-            .opacity(configuration.isPressed ? 0.85 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            .scaleEffect(enabled && configuration.isPressed && !reduceMotion ? Theme.Control.pressedScale : 1)
+            .opacity(enabled ? (configuration.isPressed ? 0.88 : 1) : Theme.Control.disabledOpacity)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 

@@ -53,7 +53,11 @@ actor OfflineMetadataCache {
     }
 
     func item(for key: String) async -> CatalogItem? {
-        await cache.value(for: key)
+        await cache.value(for: key, legacyValidator: { item in
+            let id = item.contentID
+            return MetadataCacheIdentity.matches(key, type: id.type.rawValue, imdb: id.imdb,
+                                                 tmdb: id.tmdb, trakt: id.trakt, addon: id.addonItemID)
+        })
     }
 
     func clear() async {

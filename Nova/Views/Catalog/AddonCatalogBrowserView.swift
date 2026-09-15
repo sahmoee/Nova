@@ -50,7 +50,7 @@ struct AddonCatalogBrowserView: View {
                         .textFieldStyle(.plain)
                         .onSubmit { resetAndLoad() }
                     Button("Search") { resetAndLoad() }
-                        .buttonStyle(NovaChipButtonStyle())
+                        .buttonStyle(NovaChipButtonStyle(providesSurface: true))
                 }
                 .padding(Theme.Spacing.md)
                 .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button))
@@ -70,7 +70,7 @@ struct AddonCatalogBrowserView: View {
                             NavigationLink(value: item) {
                                 CatalogPosterCard(item: item)
                             }
-                            .buttonStyle(NovaListRowStyle())
+                            .buttonStyle(NovaArtworkButtonStyle())
                             .onAppear {
                                 if item.id == items.last?.id { Task { await loadNextPage() } }
                             }

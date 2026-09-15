@@ -38,7 +38,7 @@ struct CatalogShelfRow: View {
                                         NavigationLink(value: item) {
                                             posterCard(item)
                                         }
-                                        .buttonStyle(NovaListRowStyle())
+                                        .buttonStyle(NovaArtworkButtonStyle(cornerRadius: artworkCornerRadius + 6))
                                         .simultaneousGesture(TapGesture().onEnded {
                                             if let artworkScope {
                                                 ArtworkHeaderCoordinator.shared.select(item, in: artworkScope)
@@ -49,6 +49,7 @@ struct CatalogShelfRow: View {
                                 }
                                 .padding(.horizontal, Theme.Spacing.edge)
                             }
+                            .scrollClipDisabled()
                         }
                     } else {
                         loadingRow
@@ -191,6 +192,14 @@ struct CatalogShelfRow: View {
         #endif
     }
 
+    private var artworkCornerRadius: CGFloat {
+        #if os(tvOS)
+        Theme.Radius.card
+        #else
+        Theme.Radius.poster
+        #endif
+    }
+
     private var loadingCardWidth: CGFloat {
         #if os(tvOS)
         return Theme.CardSize.wideWidth
@@ -223,7 +232,7 @@ private struct CatalogLandscapeCard: View {
             }
             .frame(width: Theme.CardSize.wideWidth, height: Theme.CardSize.wideHeight)
             .clipped()
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
 
             Text(item.title)
                 .font(.appFont(22, weight: .semibold))

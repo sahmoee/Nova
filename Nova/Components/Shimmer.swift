@@ -1,47 +1,38 @@
-//
-//  Shimmer.swift
-//  Nova
-//
-//  A subtle shimmer effect for skeleton/loading placeholders so grids fade in
-//  gracefully instead of showing blank boxes or spinners.
-//
-
 import SwiftUI
 
+/// Loading sheen stops when Reduce Motion changes or the app leaves the foreground.
 struct Shimmer: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @State private var phase: CGFloat = -1
+    private var animating: Bool { !reduceMotion && scenePhase == .active }
 
     func body(content: Content) -> some View {
         content
-            .overlay(
-                GeometryReader { geo in
-                    let width = geo.size.width
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.0),
-                            Color.white.opacity(0.08),
-                            Color.white.opacity(0.0)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                    .frame(width: width * 0.6)
-                    .offset(x: phase * width * 1.6)
-                    .blendMode(.plusLighter)
+            .overlay {
+                if animating {
+                    GeometryReader { geo in
+                        LinearGradient(colors: [.clear, .white.opacity(0.08), .clear], startPoint: .leading, endPoint: .trailing)
+                            .frame(width: geo.size.width * 0.6)
+                            .offset(x: phase * geo.size.width * 1.6)
+                            .blendMode(.plusLighter)
+                    }
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
                 }
-                .allowsHitTesting(false)
-            )
-            .onAppear {
-                guard !Theme.isReduceMotion else { return }
-                withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                    phase = 1
-                }
+            }
+            .task(id: animating) {
+                phase = -1
+                guard animating else { return }
+                // Commit the resting frame before starting the repeat animation.
+                await Task.yield()
+                guard !Task.isCancelled else { return }
+                withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { phase = 1 }
             }
             .clipped()
     }
 }
 
 extension View {
-    /// Applies an animated shimmer, used on skeleton placeholders.
     func shimmering() -> some View { modifier(Shimmer()) }
 }

@@ -22,15 +22,14 @@ struct FocusableButton: View {
                 }
                 Text(title)
                     .fontWeight(.semibold)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(.center)
             }
             // Prominent buttons stretch to fill; secondary buttons get a comfortable
             // minimum width so a short label ("Edit", "Add") still reads as a proper
-            // button rather than a cramped chip, and a guaranteed 44pt-tall tap target.
+            // button. The shared style owns minimum height after padding.
             .frame(minWidth: prominent ? nil : Theme.minButtonWidth,
-                   maxWidth: prominent ? .infinity : nil,
-                   minHeight: Theme.minTouchTarget)
+                   maxWidth: prominent ? .infinity : nil)
         }
         .buttonStyle(FocusableButtonStyle(prominent: prominent))
         .accessibilityHint(accessibilityHint ?? "")
@@ -45,53 +44,10 @@ struct FocusableButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         #if os(tvOS)
-        TVReferenceButtonStyle(selected: prominent, horizontalPadding: 22, verticalPadding: 10).makeBody(configuration: configuration)
+        TVReferenceButtonStyle(prominent: prominent, horizontalPadding: 22, verticalPadding: 10).makeBody(configuration: configuration)
         #else
-        FocusableButtonBody(configuration: configuration, prominent: prominent)
+        NovaHandheldControl(configuration: configuration, role: prominent ? .prominent : .button)
         #endif
     }
 
-    private struct FocusableButtonBody: View {
-        let configuration: Configuration
-        let prominent: Bool
-        @Environment(\.isFocused) private var isFocused
-        @Environment(\.isEnabled) private var isEnabled
-
-        private var active: Bool {
-            guard isEnabled else { return false }
-            #if os(tvOS)
-            return isFocused
-            #else
-            return configuration.isPressed
-            #endif
-        }
-
-        private var background: some ShapeStyle {
-            if prominent {
-                return AnyShapeStyle(Theme.Colors.focusedControl)
-            }
-            return active ? AnyShapeStyle(Theme.Colors.focusedControl)
-                          : AnyShapeStyle(Theme.Colors.controlGlass)
-        }
-
-        private var foreground: Color {
-            guard isEnabled else { return Theme.Colors.textTertiary }
-            return Theme.Colors.textPrimary
-        }
-
-        var body: some View {
-            return configuration.label
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.vertical, Theme.Spacing.md)
-                .background(background)
-                .foregroundStyle(foreground)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
-                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
-                    .stroke(Color.white.opacity(active ? 0.45 : 0.14), lineWidth: 1))
-                .scaleEffect(active && !Theme.isReduceMotion ? 1.06 : 1.0)
-                .opacity(isEnabled ? 1 : 0.45)
-                .animation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18), value: active)
-        }
-    }
 }

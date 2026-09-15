@@ -24,17 +24,27 @@ struct MediaCard: View {
     var artworkScope: ArtworkHeaderScope? = nil
     /// Optional editorial position used by ranked Top Picks rails.
     var rank: Int? = nil
+    /// Lets the shared card distinguish a direct playback action from opening details.
+    var opensPlayback = false
+    var topLeadingBadge: String? = nil
     let action: () -> Void
 
     @FocusState private var focused: Bool
-    @Environment(\.dynamicAccent) private var accent
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    @State private var hovered = false
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var env: AppEnvironment
 
     private var width: CGFloat { widthOverride ?? (wide ? Theme.CardSize.wideWidth : Theme.CardSize.posterWidth) }
     private var height: CGFloat { heightOverride ?? (wide ? Theme.CardSize.wideHeight : Theme.CardSize.posterHeight) }
+    private var active: Bool { enabled && (focused || hovered) }
+    private var artworkRadius: CGFloat { wide ? Theme.Radius.card : Theme.Radius.poster }
 
     private var titleText: String {
+        if opensPlayback { return item.displayTitle }
         if seasonGrouped, item.episode != nil, let series = item.seriesTitle {
             return series
         }
@@ -66,7 +76,8 @@ struct MediaCard: View {
     }
 
     private var accessibilityHint: String {
-        quickActions ? "Double tap to open. Long press for quick actions." : "Double tap to open details."
+        if opensPlayback { return item.hasResumePoint ? "Resume playback. Long press for playback options." : "Start playback. Long press for playback options." }
+        return quickActions ? "Open details. Long press for quick actions." : "Open details."
     }
 
     private var clampedProgress: Double {
@@ -101,16 +112,19 @@ struct MediaCard: View {
         .accessibilityLabel(accessibilityText)
         .accessibilityHint(accessibilityHint)
         .accessibilityAddTraits(.isButton)
-        .scaleEffect(focused ? Theme.CardSize.focusScale : 1.0)
+        .scaleEffect(focused && enabled && !reduceMotion ? Theme.CardSize.focusScale : 1.0)
         // Native tvOS focus uses a clean lift and white edge without branded glow.
-        .shadow(color: .black.opacity(focused ? 0.65 : 0.0),
-                radius: focused ? 28 : 0, x: 0, y: 14)
-        .animation(.easeOut(duration: 0.18), value: focused)
-        .zIndex(focused ? 1 : 0)
+        .shadow(color: .black.opacity(active ? 0.35 : 0.0),
+                radius: active ? 18 : 0, x: 0, y: 8)
+        .animation(reduceMotion ? nil : Theme.Motion.quick, value: focused)
+        .animation(reduceMotion ? nil : Theme.Motion.quick, value: hovered)
+        .zIndex(active ? 1 : 0)
+        #if !os(tvOS)
+        .onHover { hovered = $0 }
+        #endif
         .onChange(of: focused) { _, isFocused in
-            // When a card gains focus, tint the UI with its artwork color.
+            // Update only the owning destination's artwork, never global chrome tint.
             if isFocused {
-                AccentManager.shared.deriveAccent(from: item.posterURL)
                 if let artworkScope {
                     ArtworkHeaderCoordinator.shared.select(item, in: artworkScope)
                 }
@@ -183,28 +197,40 @@ struct MediaCard: View {
             posterImage
                 .frame(width: width, height: height)
                 .clipped()
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: artworkRadius, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .stroke(focused ? Theme.Colors.focusRing : Theme.Colors.separator,
-                                lineWidth: focused ? 4 : 1)
+                    RoundedRectangle(cornerRadius: artworkRadius, style: .continuous)
+                        .strokeBorder(active ? Theme.Colors.focusRing : .white.opacity(contrast == .increased ? 0.5 : 0.12),
+                                      lineWidth: active ? Theme.Control.focusLineWidth : 1)
+                        .allowsHitTesting(false)
                 )
 
-            if focused {
+            if active {
                 LinearGradient(colors: [.clear, .black.opacity(0.62)],
                                startPoint: .center, endPoint: .bottom)
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: artworkRadius, style: .continuous))
                     .transition(.opacity)
 
-                Image(systemName: item.hasResumePoint ? "play.fill" : "info")
+                Image(systemName: opensPlayback ? "play.fill" : "info")
                     .font(.appFont(22, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.black)
                     .frame(width: 54, height: 54)
                     .background(Color.white, in: Circle())
-                    .foregroundStyle(Color.black)
                     .overlay(Circle().strokeBorder(.white.opacity(0.55), lineWidth: 1.5))
                     .frame(width: width, height: height, alignment: .center)
-                    .transition(.scale.combined(with: .opacity))
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+
+            if let topLeadingBadge {
+                Text(topLeadingBadge)
+                    .font(.appFont(13, weight: .semibold)).foregroundStyle(.white)
+                    .padding(.horizontal, 9).padding(.vertical, 5)
+                    .background(Color.black.opacity(reduceTransparency ? 1 : 0.78), in: Capsule())
+                    .padding(8)
+                    .frame(width: width, height: height, alignment: .topLeading)
+                    .allowsHitTesting(false).accessibilityHidden(true)
             }
 
             if let rank {
@@ -229,7 +255,10 @@ struct MediaCard: View {
                 }
             }
             .padding(8)
-            .background(.ultraThinMaterial, in: Capsule())
+            .background {
+                if reduceTransparency { Capsule().fill(Color(white: 0.14)) }
+                else { Capsule().fill(.ultraThinMaterial) }
+            }
             .padding(10)
 
             // Watched badge: a filled checkmark in the top-right corner once the
@@ -243,7 +272,10 @@ struct MediaCard: View {
                             .font(.appFont(18, weight: .bold))
                             .foregroundStyle(Theme.Colors.success)
                             .padding(6)
-                            .background(.ultraThinMaterial, in: Circle())
+                            .background {
+                                if reduceTransparency { Circle().fill(Color(white: 0.14)) }
+                                else { Circle().fill(.ultraThinMaterial) }
+                            }
                             .padding(8)
                     }
                     Spacer()
@@ -256,10 +288,13 @@ struct MediaCard: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .background(.ultraThinMaterial, in: Capsule())
+                    .background {
+                        if reduceTransparency { Capsule().fill(Color(white: 0.14)) }
+                        else { Capsule().fill(.ultraThinMaterial) }
+                    }
                     .overlay(Capsule().strokeBorder(.white.opacity(0.22), lineWidth: 0.75))
-                    .frame(width: width, height: height, alignment: .topTrailing)
                     .padding(8)
+                    .frame(width: width, height: height, alignment: .topTrailing)
                     .allowsHitTesting(false)
             }
 
@@ -324,28 +359,23 @@ struct MediaCard: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(titleText)
                 .font(Theme.Font.cardTitle())
-                .foregroundStyle(focused ? Theme.Colors.textPrimary : Theme.Colors.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .lineLimit(2, reservesSpace: true)
             if !subtitleText.isEmpty {
                 Text(subtitleText)
                     .font(.appFont(16))
-                    .foregroundStyle(Theme.Colors.textTertiary)
+                    .foregroundStyle(Theme.Colors.textSecondary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.85)
             }
         }
         .padding(.top, 4)
-        .opacity(focused ? 1 : 0.88)
-        .offset(y: focused && !Theme.isReduceMotion ? -2 : 0)
-        .animation(Theme.Motion.quick, value: focused)
     }
 }
 
 
 // MARK: - Catalog poster card (shared)
 
-/// The poster + one-line-title card used for CatalogItems everywhere (shelf rows,
+/// The poster and two-line title card used for CatalogItems everywhere (shelf rows,
 /// AI results, search grids), so sizing and typography stay identical.
 struct CatalogPosterCard: View {
     let item: CatalogItem
@@ -363,8 +393,7 @@ struct CatalogPosterCard: View {
             Text(item.title)
                 .font(.appFont(17, weight: .medium))
                 .foregroundStyle(Theme.Colors.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
+                .lineLimit(2, reservesSpace: true)
                 .frame(width: width, alignment: .leading)
         }
         // Larger tap target: the whole card (including the gap under the poster)

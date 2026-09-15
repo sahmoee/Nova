@@ -559,95 +559,101 @@ struct VLCPlayerView: View {
                     Button {
                         Task { await model.refreshExternalSubtitles() }
                     } label: {
-                        if model.isLoadingExternalSubtitles {
-                            Label("Searching Subtitle Add-ons…", systemImage: "arrow.triangle.2.circlepath")
-                        } else {
-                            Label("Download from Add-ons", systemImage: "arrow.down.circle.fill")
-                        }
+                        Label(model.isLoadingExternalSubtitles ? "Searching Subtitle Add-ons…" : "Download from Add-ons",
+                              systemImage: "arrow.down.circle")
+                            .padding(Theme.Spacing.sm)
                     }
-                    .disabled(model.isLoadingExternalSubtitles)
+                    .buttonStyle(NovaListRowStyle())
+                    .listRowBackground(Color.clear)
+                    .disabled(model.isLoadingExternalSubtitles || model.isDownloadingSubtitle)
 
-                    Button {
+                    trackChoice("Off", detail: "Disable subtitles", selected: model.subtitlesAreOff) {
                         model.disableSubtitles()
-                    } label: {
-                        Label("Off", systemImage: "captions.bubble")
                     }
 
                     ForEach(model.externalSubtitleTracks) { track in
-                        Button {
+                        trackChoice(track.languageDisplay, detail: track.source,
+                                    selected: model.selectedExternalSubtitleID == track.id,
+                                    pending: model.pendingExternalSubtitleID == track.id) {
                             model.selectExternalSubtitle(track)
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(track.languageDisplay)
-                                    Text(track.source).font(.caption).foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                if model.selectedExternalSubtitleID == track.id {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
                         }
                     }
 
-                    ForEach(model.subtitleTracks) { track in
-                        Button(track.name) { model.selectSubtitleTrack(track) }
+                    if !model.playerSubtitleTracks.isEmpty {
+                        Text("Player tracks").font(.caption).foregroundStyle(.secondary).accessibilityAddTraits(.isHeader)
+                    }
+                    ForEach(model.playerSubtitleTracks) { track in
+                        trackChoice(track.name, selected: model.selectedSubtitleTrackID == track.id) {
+                            model.selectSubtitleTrack(track)
+                        }
                     }
 
+                    if model.isDownloadingSubtitle {
+                        Button("Cancel subtitle download") { model.cancelPendingSubtitleSelection() }
+                            .buttonStyle(NovaListRowStyle()).listRowBackground(Color.clear)
+                    }
                     if let message = model.subtitleStatusMessage {
-                        Text(message)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                        Text(message).font(.footnote).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
 
                     #if os(iOS)
-                    Button {
-                        showSubtitleImporter = true
-                    } label: {
-                        Label("Add subtitle file…", systemImage: "plus.circle")
+                    Button { showSubtitleImporter = true } label: {
+                        Label("Add subtitle file…", systemImage: "plus.circle").padding(Theme.Spacing.sm)
                     }
+                    .buttonStyle(NovaListRowStyle()).listRowBackground(Color.clear)
                     #endif
                 }
 
                 Section("Subtitle Size") {
                     VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Text(model.subtitleScale.formatted(.percent.precision(.fractionLength(0))))
+                            .monospacedDigit().accessibilityLabel("Subtitle size")
                         #if os(iOS)
-                        HStack {
-                            Image(systemName: "textformat.size.smaller")
-                            Slider(value: $model.subtitleScale, in: 0.5...2.5, step: 0.1)
-                            Image(systemName: "textformat.size.larger")
-                        }
+                        Slider(value: $model.subtitleScale, in: SubtitleScalePolicy.range, step: 0.1)
+                            .accessibilityLabel("Subtitle size")
+                            .accessibilityValue(model.subtitleScale.formatted(.percent.precision(.fractionLength(0))))
                         #else
-                        // tvOS: Slider isn't available, so use stepper buttons.
-                        HStack(spacing: Theme.Spacing.lg) {
-                            Button {
-                                model.subtitleScale = max(0.5, model.subtitleScale - 0.1)
-                            } label: {
-                                Label("Smaller", systemImage: "textformat.size.smaller")
+                        HStack(spacing: Theme.Spacing.md) {
+                            Button { model.subtitleScale -= 0.1 } label: {
+                                Label("Smaller", systemImage: "textformat.size.smaller").padding(Theme.Spacing.sm)
                             }
-                            Text("\(Int(model.subtitleScale * 100))%")
-                                .monospacedDigit()
-                            Button {
-                                model.subtitleScale = min(2.5, model.subtitleScale + 0.1)
-                            } label: {
-                                Label("Larger", systemImage: "textformat.size.larger")
+                            .buttonStyle(NovaChipButtonStyle(providesSurface: true))
+                            .disabled(model.subtitleScale <= SubtitleScalePolicy.range.lowerBound)
+                            Button { model.subtitleScale += 0.1 } label: {
+                                Label("Larger", systemImage: "textformat.size.larger").padding(Theme.Spacing.sm)
                             }
+                            .buttonStyle(NovaChipButtonStyle(providesSurface: true))
+                            .disabled(model.subtitleScale >= SubtitleScalePolicy.range.upperBound)
                         }
                         #endif
-                        Text("Preview").font(.system(size: 17 * model.subtitleScale))
-                            .foregroundStyle(.secondary)
+                        Text("Subtitle preview").font(.system(size: 17 * model.subtitleScale))
+                            .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                 }
 
-                if model.audioTracks.count > 1 {
+                if !model.audioTracks.isEmpty {
                     Section("Audio") {
                         ForEach(model.audioTracks) { track in
-                            Button(track.name) { model.selectAudioTrack(track) }
+                            trackChoice(track.name, selected: model.selectedAudioTrackID == track.id) {
+                                model.selectAudioTrack(track)
+                            }
                         }
                     }
                 }
             }
+            #if os(iOS)
+            .scrollContentBackground(.hidden)
+            #endif
+            .background(Theme.Colors.appBackground)
             .navigationTitle("Audio & Subtitles")
+            .onAppear { model.refreshTracks() }
+            .onDisappear { model.cancelPendingSubtitleSelection() }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { model.cancelPendingSubtitleSelection(); model.showSubtitlePicker = false }
+                }
+            }
             #if os(iOS)
             .fileImporter(isPresented: $showSubtitleImporter,
                           allowedContentTypes: subtitleTypes,
@@ -660,6 +666,29 @@ struct VLCPlayerView: View {
             }
             #endif
         }
+        .presentationBackground(Theme.Colors.appBackground)
+    }
+
+    private func trackChoice(_ title: String, detail: String? = nil, selected: Bool,
+                             pending: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: Theme.Spacing.md) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title).foregroundStyle(.primary)
+                    if let detail, !detail.isEmpty { Text(detail).font(.caption).foregroundStyle(.secondary) }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+                if pending { ProgressView().tint(.primary) }
+                if selected { Image(systemName: "checkmark").accessibilityHidden(true) }
+            }.padding(Theme.Spacing.sm)
+        }
+        .buttonStyle(NovaListRowStyle(selected: selected))
+        .listRowBackground(Color.clear)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue([detail, selected ? "Selected" : nil, pending ? "Downloading" : nil].compactMap { $0 }.joined(separator: ", "))
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     // MARK: - Drag-to-seek

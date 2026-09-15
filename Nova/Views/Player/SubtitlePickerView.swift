@@ -118,32 +118,26 @@ struct SubtitlePickerView: View {
             HStack(spacing: Theme.Spacing.md) {
                 if isLoading {
                     ProgressView()
-                        .tint(Theme.Colors.textPrimary)
+                        .tint(.primary)
                         .frame(width: 30)
                 } else {
                     Image(systemName: "arrow.down.circle.fill")
                         .font(.appFont(27))
-                        .foregroundStyle(Theme.Colors.accent)
+                        .foregroundStyle(.primary)
                         .frame(width: 30)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(isLoading ? "Searching Subtitle Add-ons…" : "Download from Add-ons")
                         .font(.appFont(20, weight: .semibold))
-                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .foregroundStyle(.primary)
                     Text("Search enabled providers for this movie or episode")
                         .font(.appFont(15))
-                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
             }
             .padding(Theme.Spacing.md)
-            .background(.thinMaterial,
-                        in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
-            )
-            .contentShape(Rectangle())
         }
         .buttonStyle(NovaListRowStyle())
         .disabled(isLoading)
@@ -159,33 +153,25 @@ struct SubtitlePickerView: View {
         } label: {
             HStack(spacing: Theme.Spacing.md) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isSelected ? Theme.Colors.accent : Theme.Colors.textSecondary)
+                    .foregroundStyle(.primary)
                     .font(.appFont(25))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.appFont(20, weight: .medium))
-                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
                     if let subtitle {
                         Text(subtitle)
                             .font(.appFont(14))
-                            .foregroundStyle(Theme.Colors.textTertiary)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Spacer()
             }
             .padding(Theme.Spacing.md)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                    .fill(isSelected ? Theme.Colors.accent.opacity(0.16) : Color.white.opacity(0.07))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                    .strokeBorder(isSelected ? Theme.Colors.accent : Color.white.opacity(0.08),
-                                  lineWidth: isSelected ? 2 : 1)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
-        .buttonStyle(NovaListRowStyle())
+        .buttonStyle(NovaListRowStyle(selected: isSelected))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
         .accessibilityValue([subtitle, isSelected ? "Selected" : nil].compactMap { $0 }.joined(separator: ", "))

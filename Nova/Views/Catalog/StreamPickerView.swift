@@ -73,7 +73,7 @@ struct StreamPickerView: View {
                         .padding(.horizontal, Theme.Spacing.edge)
                     streamSkeletons.padding(.horizontal, Theme.Spacing.edge)
                     Button("Cancel") { cancelWork(); dismiss() }
-                        .buttonStyle(NovaChipButtonStyle())
+                        .buttonStyle(NovaChipButtonStyle(providesSurface: true))
                 }
               }
             case .empty:
@@ -212,20 +212,21 @@ struct StreamPickerView: View {
     }
 
 
-    /// A one-tap minimum-quality chip. Selecting the active chip (or Any) clears it.
+    /// A one-tap minimum-quality chip. Any clears the minimum quality.
     private func qualityChip(_ quality: StreamQuality?, label: String) -> some View {
         let isActive = minQuality == quality
         return Button {
             withAnimation { minQuality = quality }
         } label: {
-            Text(label)
-                .font(.appFont(16, weight: .semibold))
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.vertical, 7)
-                .background(Capsule().fill(isActive ? Theme.Colors.accent : Theme.Colors.card))
-                .foregroundStyle(isActive ? .white : Theme.Colors.textSecondary)
+            HStack(spacing: 6) {
+                if isActive { Image(systemName: "checkmark").accessibilityHidden(true) }
+                Text(label)
+            }
+            .font(.appFont(16, weight: .semibold))
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.vertical, 7)
         }
-        .buttonStyle(NovaChipButtonStyle())
+        .buttonStyle(NovaChipButtonStyle(selected: isActive, providesSurface: true))
         .accessibilityAddTraits(isActive ? .isSelected : [])
         .accessibilityLabel(quality == nil ? "Any quality" : "Minimum quality \(label)")
     }
@@ -249,24 +250,27 @@ struct StreamPickerView: View {
                         HStack(spacing: 6) {
                             Image(systemName: groupBySource ? "square.stack.3d.up.fill" : "square.stack.3d.up")
                             Text("Group")
+                            if groupBySource { Image(systemName: "checkmark").accessibilityHidden(true) }
                         }
                         .font(.appFont(18, weight: .semibold))
-                        .foregroundStyle(groupBySource ? Theme.Colors.accent : Theme.Colors.textSecondary)
                         .padding(.horizontal, 14).padding(.vertical, 8)
                     }
-                    .buttonStyle(NovaChipButtonStyle())
+                    .buttonStyle(NovaChipButtonStyle(selected: groupBySource, providesSurface: true))
+                    .accessibilityLabel("Group sources")
                     .accessibilityValue(groupBySource ? "Grouped by source" : "Ranked list")
                     Button { withAnimation { showFilters.toggle() } } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "line.3.horizontal.decrease.circle\(anyFilterActive ? ".fill" : "")")
-                            Text("Filter")
+                            Text(anyFilterActive ? "Filters On" : "Filters")
+                            Image(systemName: showFilters ? "chevron.up" : "chevron.down")
+                                .accessibilityHidden(true)
                         }
                         .font(.appFont(18, weight: .semibold))
-                        .foregroundStyle(anyFilterActive ? Theme.Colors.accent : Theme.Colors.textSecondary)
                         .padding(.horizontal, 14).padding(.vertical, 8)
                     }
-                    .buttonStyle(NovaChipButtonStyle())
-                    .accessibilityValue(showFilters ? "Expanded" : "Collapsed")
+                    .buttonStyle(NovaChipButtonStyle(selected: showFilters, providesSurface: true))
+                    .accessibilityLabel("Source filters")
+                    .accessibilityValue((showFilters ? "Expanded" : "Collapsed") + (anyFilterActive ? ", filters applied" : ", no filters applied"))
                 }
 
                 if showFilters { filterBar }
@@ -285,14 +289,15 @@ struct StreamPickerView: View {
                             HStack(spacing: 5) {
                                 Image(systemName: cachedOnly ? "bolt.fill" : "bolt")
                                 Text("Cached")
+                                if cachedOnly { Image(systemName: "checkmark").accessibilityHidden(true) }
                             }
                             .font(.appFont(16, weight: .semibold))
                             .padding(.horizontal, Theme.Spacing.md)
                             .padding(.vertical, 7)
-                            .background(Capsule().fill(cachedOnly ? Theme.Colors.accent : Theme.Colors.card))
-                            .foregroundStyle(cachedOnly ? .white : Theme.Colors.textSecondary)
                         }
-                        .buttonStyle(NovaChipButtonStyle())
+                        .buttonStyle(NovaChipButtonStyle(selected: cachedOnly, providesSurface: true))
+                        .accessibilityLabel("Cached sources only")
+                        .accessibilityValue(cachedOnly ? "On" : "Off")
                         .accessibilityAddTraits(cachedOnly ? .isSelected : [])
                     }
                 }
@@ -308,7 +313,7 @@ struct StreamPickerView: View {
                         resolvingStreamID = nil
                         autoFailingOver = false
                     }
-                    .buttonStyle(NovaChipButtonStyle())
+                    .buttonStyle(NovaChipButtonStyle(providesSurface: true))
                 }
 
                 if groupBySource {
@@ -474,7 +479,7 @@ struct StreamPickerView: View {
                 Spacer()
                 Button("Enable") { settings.bandwidthSaver = true }
                     .font(.appFont(15, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.accent)
+                    .buttonStyle(NovaChipButtonStyle(providesSurface: true))
             }
             .padding(Theme.Spacing.md)
             .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
@@ -506,9 +511,8 @@ struct StreamPickerView: View {
                             smartFilter = ParsedStreamFilter()
                         } label: {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(Theme.Colors.textTertiary)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(NovaIconButtonStyle())
                         // Accessibility: icon-only clear button needs a spoken name.
                         .accessibilityLabel("Clear smart filter")
                     }
@@ -550,7 +554,8 @@ struct StreamPickerView: View {
             if anyFilterActive {
                 Button("Clear filters", action: resetFilters)
                 .font(.appFont(17, weight: .semibold))
-                .foregroundStyle(Theme.Colors.accent)
+                .padding(.horizontal, 14).padding(.vertical, 8)
+                .buttonStyle(NovaChipButtonStyle(providesSurface: true))
                 .padding(.top, 4)
             }
         }
@@ -562,24 +567,20 @@ struct StreamPickerView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).font(.appFont(16, weight: .semibold))
                 .foregroundStyle(Theme.Colors.textTertiary)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) { content() }
-            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 8)], alignment: .leading, spacing: 8) { content() }
         }
     }
 
     private func chip(_ label: String, active: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(label)
-                .font(.appFont(17, weight: .semibold))
-                .padding(.horizontal, 14).padding(.vertical, 8)
-                // Use the shared card color; chip style adds the tvOS focus effect
-                // so these match the quality chips above.
-                .background(active ? Theme.Colors.accent : Theme.Colors.card,
-                            in: Capsule())
-                .foregroundStyle(active ? .white : Theme.Colors.textPrimary)
+            HStack(spacing: 6) {
+                if active { Image(systemName: "checkmark").accessibilityHidden(true) }
+                Text(label)
+            }
+            .font(.appFont(17, weight: .semibold))
+            .padding(.horizontal, 14).padding(.vertical, 8)
         }
-        .buttonStyle(NovaChipButtonStyle())
+        .buttonStyle(NovaChipButtonStyle(selected: active, providesSurface: true))
         .accessibilityAddTraits(active ? .isSelected : [])
     }
 
@@ -595,32 +596,24 @@ struct StreamPickerView: View {
             Text(StreamHistoryStore.usedAgoText(date))
         }
         .font(.appFont(13, weight: .semibold))
-        .foregroundStyle(Theme.Colors.accent)
+        .foregroundStyle(.primary)
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
-        .background(Capsule().fill(Theme.Colors.accent.opacity(0.15)))
-        .overlay(Capsule().strokeBorder(Theme.Colors.accent.opacity(0.5), lineWidth: 1))
+        .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
     }
 
     private func streamRow(_ stream: StreamOption, labels: [StreamRanker.StreamLabel]) -> some View {
         Button { startPlayback(stream) } label: {
-            HStack(spacing: Theme.Spacing.md) {
-                // Quality chip.
+            (dynamicTypeSize.isAccessibilitySize || Theme.isCompact
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: Theme.Spacing.md))
+                : AnyLayout(HStackLayout(spacing: Theme.Spacing.md))) {
+                // Neutral quality label inherits the focused control's contrast.
                 Text(stream.quality.rawValue)
                     .font(.appFont(18, weight: .bold))
-                    .frame(width: 72)
+                    .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(
-                        LinearGradient(colors: [qualityColor(stream.quality),
-                                                qualityColor(stream.quality).opacity(0.75)],
-                                       startPoint: .top, endPoint: .bottom),
-                        in: RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
-                    )
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
+                    .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 6) {
                     // "Previously used" marker: if this is the exact stream the user
@@ -644,7 +637,7 @@ struct StreamPickerView: View {
                     StreamQualityChips(stream: stream)
                     Text(stream.rawTitle)
                         .font(.appFont(20, weight: .medium))
-                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .foregroundStyle(.primary)
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                     // "Why this stream?" — a plain-language reason line for the top pick.
@@ -652,13 +645,25 @@ struct StreamPickerView: View {
                         let reasons = StreamRanker.explain(stream, preferences: settings.streamPreferences)
                         Text("Why: " + reasons.prefix(4).joined(separator: " · "))
                             .font(.appFont(14))
-                            .foregroundStyle(Theme.Colors.accent)
+                            .foregroundStyle(.primary)
                             .lineLimit(2)
                     }
                     // Source health badges (Cached, Fast, 4K, HDR, Dolby, Low Seed
                     // Risk, Local SMB, Cloud), parsed from the stream's title.
                     if !stream.badges.isEmpty {
+                        #if os(tvOS)
+                        FlowLayout(spacing: 6) {
+                            ForEach(stream.badges) { badge in
+                                Label(badge.label, systemImage: badge.systemImage)
+                                    .font(.appFont(13, weight: .semibold))
+                                    .foregroundStyle(.primary)
+                                    .padding(.horizontal, 8).padding(.vertical, 4)
+                                    .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
+                            }
+                        }
+                        #else
                         FlowBadges(badges: stream.badges)
+                        #endif
                     }
                     WrapFlowLayout(spacing: Theme.Spacing.sm, lineSpacing: 6) {
                         Label(stream.addonName, systemImage: "puzzlepiece.extension")
@@ -669,24 +674,24 @@ struct StreamPickerView: View {
                         if let lang = stream.languages.first { Text(lang) }
                     }
                     .font(.appFont(15))
-                    .foregroundStyle(Theme.Colors.textTertiary)
+                    .foregroundStyle(.secondary)
                 }
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if !dynamicTypeSize.isAccessibilitySize && !Theme.isCompact { Spacer() }
                 if resolvingStreamID == stream.id {
                     VStack(spacing: 4) {
-                        ProgressView().tint(.white)
+                        ProgressView().tint(.primary)
                         Text(autoFailingOver ? "Trying next" : "Opening")
                             .font(.appFont(12, weight: .semibold))
                     }
                 } else {
                     Image(systemName: "play.circle.fill")
                         .font(.appFont(30))
-                        .foregroundStyle(Theme.Colors.accent)
+                        .foregroundStyle(.primary)
                 }
             }
             .padding(.vertical, Theme.Spacing.sm)
             .frame(minHeight: Theme.minTouchTarget)
-            .contentShape(Rectangle())
         }
         .novaRowStyle()
         .disabled(resolvingStreamID != nil)
@@ -707,11 +712,14 @@ struct StreamPickerView: View {
         }
         .font(.appFont(13, weight: .bold))
         .padding(.horizontal, 8).padding(.vertical, 3)
-        .background(
-            (label.isWarning ? Color.orange : Theme.Colors.accent).opacity(0.18),
-            in: Capsule()
-        )
+        #if os(tvOS)
+        .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
+        .foregroundStyle(.primary)
+        #else
+        .background((label.isWarning ? Color.orange : Theme.Colors.accent).opacity(0.18),
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
         .foregroundStyle(label.isWarning ? Color.orange : Theme.Colors.accent)
+        #endif
     }
 
     private func confidenceBadge(_ c: StreamRanker.PlaybackConfidence) -> some View {
@@ -728,7 +736,11 @@ struct StreamPickerView: View {
             Text(c.rawValue)
         }
         .font(.appFont(14, weight: .semibold))
+        #if os(tvOS)
+        .foregroundStyle(.primary)
+        #else
         .foregroundStyle(color)
+        #endif
     }
 
     @ViewBuilder
@@ -743,8 +755,8 @@ struct StreamPickerView: View {
                     if !isSearching {
                         Button("Refresh Sources", action: startLoading)
                             .font(.appFont(15, weight: .semibold))
-                            .foregroundStyle(Theme.Colors.accent)
-                            .buttonStyle(NovaChipButtonStyle())
+                            .padding(.horizontal, 14).padding(.vertical, 8)
+                            .buttonStyle(NovaChipButtonStyle(providesSurface: true))
                             .disabled(isSearching || resolvingStreamID != nil)
                     }
                 }
@@ -792,17 +804,6 @@ struct StreamPickerView: View {
         case .started: return Theme.Colors.warning
         case .succeeded: return Theme.Colors.success
         case .failed, .circuitOpen: return Theme.Colors.error
-        }
-    }
-
-    private func qualityColor(_ q: StreamQuality) -> Color {
-        switch q {
-        case .uhd4k:   return Theme.Colors.accent
-        case .fhd1080: return Theme.Colors.accentSecondary
-        case .hd720:   return Theme.Colors.success
-        case .sd480:   return Theme.Colors.warning
-        case .cam:     return Theme.Colors.error
-        case .unknown: return Theme.Colors.textTertiary
         }
     }
 
