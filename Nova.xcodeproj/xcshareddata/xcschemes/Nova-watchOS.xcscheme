@@ -45,7 +45,8 @@
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES">
-      <Testables/>
+      <Testables>
+      </Testables>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
@@ -63,7 +64,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "B1400000000000000000000A"
             BuildableName = "Nova Watch.app"
-            BlueprintName = "Nova-watchOS"
             ReferencedContainer = "container:Nova.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -80,7 +80,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "B1400000000000000000000A"
             BuildableName = "Nova Watch.app"
-            BlueprintName = "Nova-watchOS"
             ReferencedContainer = "container:Nova.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
