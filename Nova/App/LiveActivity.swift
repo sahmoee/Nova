@@ -13,7 +13,7 @@
 //  5. Call NovaLiveActivityManager.shared.end() when playback stops.
 //
 
-import ActivityKit
+@preconcurrency import ActivityKit
 import SwiftUI
 import WidgetKit
 
