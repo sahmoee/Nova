@@ -304,6 +304,25 @@ struct SettingsView: View {
             },
         ]))
 
+        groups.append(CategoryGroup(header: "Playback Tools", items: [
+            Category(id: "bookmarks", icon: "bookmark.fill", color: Theme.Colors.iconRed,
+                     title: "Playback Bookmarks", detail: "Saved moments across your library") {
+                AnyView(NovaBookmarksView(item: nil))
+            },
+            Category(id: "up-next", icon: "text.line.first.and.arrowtriangle.forward", color: Theme.Colors.iconSilver,
+                     title: "Up Next Queue", detail: "Review and reorder queued titles") {
+                AnyView(NovaUpNextQueueView())
+            },
+            Category(id: "playback-speed", icon: "gauge.with.dots.needle.67percent", color: Theme.Colors.iconGraphite,
+                     title: "Playback Speed", detail: NovaSpeedControl.shared.speed.label) {
+                AnyView(NovaSpeedPickerSheet())
+            },
+            Category(id: "sleep-timer", icon: "moon.zzz.fill", color: Theme.Colors.iconGraphite,
+                     title: "Sleep Timer", detail: NovaSleepTimerManager.shared.isActive ? NovaSleepTimerManager.shared.displayString : "Off") {
+                AnyView(NovaSleepTimerSheet())
+            },
+        ]))
+
         groups.append(CategoryGroup(header: "Testing", items: [
             Category(id: "qa", icon: "checkmark.seal.fill", color: Theme.Colors.iconGraphite,
                      title: "Quality Assurance", detail: "Off by default") {

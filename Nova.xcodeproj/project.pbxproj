@@ -437,6 +437,13 @@
 		B140000000000000000000DC = {isa = PBXBuildFile; fileRef = B1400000000000000000006E; };
 		B140000000000000000000DD = {isa = PBXBuildFile; fileRef = B1400000000000000000006F; };
 		B14000000000000000000006 /* Nova Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B14000000000000000000001; settings = {ATTRIBUTES = (RemoveHeadersOnCopy,); }; };
+		5AA50695780E89590C542D8D /* BookmarkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 628955A11938A0F4E56D8299 /* BookmarkStore.swift */; };
+		9331525F232645F2B17781C9 /* PositionSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = D874028267C567358891E52D /* PositionSync.swift */; };
+		FDC154C7F5AFC6A975198229 /* QuickActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4CA62781737051EB51AD61A /* QuickActions.swift */; };
+		FAB87ECEBCD03B2956E0423B /* SleepTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508751B939ECB71326C5F387 /* SleepTimer.swift */; };
+		A25B6AD01542D0FADD0445D9 /* SpeedControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B32736CFD7E0C64DB11FC1C /* SpeedControl.swift */; };
+		118AA903FA6411F2D48D4067 /* UpNextQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 450ADBBA20E4E5F543E7674C /* UpNextQueue.swift */; };
+		6CE1270B68EEBBF68DE2DE41 /* LiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BE4E0116990860694F1A508 /* LiveActivity.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -719,6 +726,13 @@
 		B1400000000000000000006E = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "NovaWatch/Assets.xcassets"; sourceTree = SOURCE_ROOT; };
 		B1400000000000000000006F = {isa = PBXFileReference; lastKnownFileType = text.xml; path = "Nova/Resources/PrivacyInfo.xcprivacy"; sourceTree = SOURCE_ROOT; };
 		B14000000000000000000001 /* Nova Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Nova Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		628955A11938A0F4E56D8299 /* BookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkStore.swift; sourceTree = "<group>"; };
+		D874028267C567358891E52D /* PositionSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PositionSync.swift; sourceTree = "<group>"; };
+		C4CA62781737051EB51AD61A /* QuickActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActions.swift; sourceTree = "<group>"; };
+		508751B939ECB71326C5F387 /* SleepTimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepTimer.swift; sourceTree = "<group>"; };
+		0B32736CFD7E0C64DB11FC1C /* SpeedControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedControl.swift; sourceTree = "<group>"; };
+		450ADBBA20E4E5F543E7674C /* UpNextQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpNextQueue.swift; sourceTree = "<group>"; };
+		3BE4E0116990860694F1A508 /* LiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivity.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -842,6 +856,13 @@
 		1B8B9DDCE663EB2745CC54D7 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				3BE4E0116990860694F1A508 /* LiveActivity.swift */,
+				628955A11938A0F4E56D8299 /* BookmarkStore.swift */,
+				D874028267C567358891E52D /* PositionSync.swift */,
+				C4CA62781737051EB51AD61A /* QuickActions.swift */,
+				508751B939ECB71326C5F387 /* SleepTimer.swift */,
+				0B32736CFD7E0C64DB11FC1C /* SpeedControl.swift */,
+				450ADBBA20E4E5F543E7674C /* UpNextQueue.swift */,
 				03A6E5C6725A225171E020CD /* AppEnvironment.swift */,
 				671F3AF1CDC4B1AB200C36CA /* NovaApp.swift */,
 				8FE1A2D3DDDC258F2EC64F99 /* NavigationCoordinator.swift */,
@@ -1677,6 +1698,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6CE1270B68EEBBF68DE2DE41 /* LiveActivity.swift in Sources */,
+				5AA50695780E89590C542D8D /* BookmarkStore.swift in Sources */,
+				9331525F232645F2B17781C9 /* PositionSync.swift in Sources */,
+				FDC154C7F5AFC6A975198229 /* QuickActions.swift in Sources */,
+				FAB87ECEBCD03B2956E0423B /* SleepTimer.swift in Sources */,
+				A25B6AD01542D0FADD0445D9 /* SpeedControl.swift in Sources */,
+				118AA903FA6411F2D48D4067 /* UpNextQueue.swift in Sources */,
 				B140000000000000000000CF,
 				B140000000000000000000CD,
 				B140000000000000000000CB,

@@ -35,7 +35,7 @@ enum NovaQADeviceIdentity {
         if identifier.hasPrefix("iPad") { return "iPad" }
         if identifier.hasPrefix("iPhone") { return "iPhone" }
         if identifier.hasPrefix("AppleTV") { return "Apple TV" }
-        return UIDevice.current.model
+        return identifier == "arm64" ? "Apple device" : identifier
     }
 
     static var model: String {

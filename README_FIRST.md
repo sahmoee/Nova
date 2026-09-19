@@ -1,3 +1,7 @@
+> **Shared rules live in the master doc:** read `/Users/key/Documents/CLAUDE_ALL_PROJECTS_HANDOFF.md` first for the
+> shared safety, QA, build-numbering, endpoint, machine, and cross-project delivery contracts.
+> This file holds only Nova-specific facts.
+
 # Read me first
 
 Nova is a local-first iOS/iPadOS/tvOS personal-media app. User libraries and progress are authoritative; remote metadata, AI, tracking, and sharing are optional. Start in `Nova/App`, then the relevant `Nova/Services` or `Nova/Views` area. Keep credentials in Keychain, never source control.
