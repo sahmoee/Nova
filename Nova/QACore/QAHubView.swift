@@ -157,12 +157,12 @@ struct QARuntimeSnapshotView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
             HStack(spacing: 16) {
-                statPill(String(format: "%.0f MB", QARuntimeMonitor.shared.memoryMB), icon: "memorychip")
-                statPill(QARuntimeMonitor.shared.thermalState.capitalized, icon: "thermometer.medium")
+                statPill(String(format: "%.0f MB", QARuntimeMonitor.shared.currentFootprintMB), icon: "memorychip")
+                statPill(QARuntimeMonitor.shared.thermalName.capitalized, icon: "thermometer.medium")
                 if QARuntimeMonitor.shared.worstHitchMs > 0 {
                     statPill(String(format: "%.0f ms", QARuntimeMonitor.shared.worstHitchMs), icon: "chart.line.downtrend.xyaxis")
                 }
-                if QARuntimeMonitor.shared.isLowPower {
+                if QARuntimeMonitor.shared.lowPower {
                     statPill("Low Power", icon: "battery.25")
                 }
             }
@@ -408,7 +408,7 @@ struct QANewTicketSheet: View {
 
 struct QAChecklistView: View {
     /// Injected per-app. Call QAHubView.checklistProvider = { MyApp.qaChecklist } at startup.
-    static var checklistProvider: (() -> [QAChecklistSection])?
+    nonisolated(unsafe) static var checklistProvider: (() -> [QAChecklistSection])?
 
     @State private var states: [String: QACheckItemState] = [:]
     private static let statesKey = "qa.checklist.states.v1"

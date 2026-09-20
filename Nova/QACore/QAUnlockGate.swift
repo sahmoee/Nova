@@ -54,7 +54,7 @@ struct QAUnlockGate: View {
                     .foregroundStyle(.secondary)
                 Text("QA Access")
                     .font(.system(size: 22, weight: .semibold))
-                Text(QA.config.appName + " · " + QA.config.buildVersion + " (\(QA.config.buildNumber))")
+                Text(QA.config.appName + " · " + QA.config.version + " (\(QA.config.buildNumber))")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
@@ -74,7 +74,7 @@ struct QAUnlockGate: View {
 
             Spacer().frame(height: 8)
 
-            Text("Code changes every 10 minutes")
+            Text("Enter your four-digit access code")
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
 
@@ -100,6 +100,7 @@ struct QAUnlockGate: View {
         VStack(spacing: 16) {
             ForEach([[1, 2, 3], [4, 5, 6], [7, 8, 9], [0]], id: \.self) { row in
                 HStack(spacing: 24) {
+                    if row == [0] { Color.clear.frame(width: 72, height: 72) }
                     ForEach(row, id: \.self) { digit in
                         keypadButton(digit)
                     }
@@ -136,7 +137,7 @@ struct QAUnlockGate: View {
     // MARK: Attempt
 
     private func attempt() {
-        if QAAccessGate.shared.attempt(code) {
+        if QAAccessGate.shared.unlock(with: code) {
             unlocked = true
         } else {
             code = ""

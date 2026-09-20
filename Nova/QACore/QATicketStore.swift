@@ -81,13 +81,12 @@ final class QATicketStore {
         ticket.context = context
         ticket.origin = origin
         ticket.automaticCheckID = automaticCheckID
-        ticket.runID = QARunLog.shared.currentID
+        ticket.runID = QARunLog.activeRunID
 
         tickets.insert(ticket, at: 0)
         trim()
 
         QARecorder.shared.record(.note, label: "ticket opened", detail: "\(number) \(title)")
-        QARunLog.shared.recordTicket(number)
 
         if let image = screenshot {
             saveScreenshot(image, for: ticket.id)

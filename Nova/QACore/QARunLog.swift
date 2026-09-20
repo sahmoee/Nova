@@ -84,7 +84,7 @@ nonisolated enum QARunLog {
         var run = QARun(
             name: name,
             buildNumber: QA.config.buildNumber,
-            buildVersion: QA.config.buildVersion
+            buildVersion: QA.config.version
         )
         run.checkTitles = checkTitles()
         runs.insert(run, at: 0)
@@ -121,7 +121,7 @@ nonisolated enum QARunLog {
     /// Returns a snapshot of the app's checklist (checkID → text). The shared
     /// QACore always returns empty — per-app modules override this by calling
     /// `QARunLog.checkTitlesProvider = { ... }` at startup.
-    static var checkTitlesProvider: (() -> [String: String])?
+    nonisolated(unsafe) static var checkTitlesProvider: (() -> [String: String])?
 
     private static func checkTitles() -> [String: String] {
         checkTitlesProvider?() ?? [:]

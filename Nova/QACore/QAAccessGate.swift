@@ -2,7 +2,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared QACore — verbatim from Stocked Build 74.
 //
-// One unlock lasts ten minutes across every QA screen. The code is "Joo"
+// One unlock lasts ten minutes across every QA screen. The code is "6352"
 // (case-insensitive) — shared across all apps, set here as a constant.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -14,7 +14,7 @@ final class QAAccessGate {
     static let shared = QAAccessGate()
 
     static let window: TimeInterval = 10 * 60
-    private static let code = "Joo"
+    private static let code = "6352"
 
     private static let unlockedAtKey   = "qa.access.unlockedAt"
     private static let everUnlockedKey = "qa.access.everUnlocked"

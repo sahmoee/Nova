@@ -42,7 +42,7 @@ public struct QAConfiguration: Sendable {
     /// Human-readable app name shown in the QA hub title.
     public var appName: String
 
-    public init(
+    nonisolated public init(
         source: String,
         ticketPrefix: String,
         workerBaseURL: String,
@@ -68,13 +68,13 @@ public struct QAConfiguration: Sendable {
 /// `QA.configure(...)` once on launch; every other QACore type reads `QA.config`.
 @MainActor
 public enum QA {
-    private(set) nonisolated static var config = QAConfiguration(
+    private(set) nonisolated(unsafe) static var config = QAConfiguration(
         source: "unknown-app",
         ticketPrefix: "QA",
         workerBaseURL: "",
         appName: "App",
-        version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?",
-        buildNumber: Int(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0") ?? 0,
+        version: "?",
+        buildNumber: 0,
         authorizeRequest: { _ in }
     )
 

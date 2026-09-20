@@ -54,7 +54,7 @@ enum UnifiedQAPasscode {
     static let window: TimeInterval = 10 * 60
     static var isUnlocked: Bool { UserDefaults.standard.double(forKey: unlockedUntilKey) > Date().timeIntervalSinceReferenceDate }
     @discardableResult static func unlock(_ value: String) -> Bool {
-        guard value.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare("Joo") == .orderedSame else { return false }
+        guard value.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare("6352") == .orderedSame else { return false }
         UserDefaults.standard.set(Date().addingTimeInterval(window).timeIntervalSinceReferenceDate, forKey: unlockedUntilKey); return true
     }
 }
@@ -347,7 +347,7 @@ final class UnifiedQAStore: ObservableObject {
         do {
             var components = URLComponents(url: base.appendingPathComponent("tickets/sync"), resolvingAgainstBaseURL: false)!
             components.queryItems = [URLQueryItem(name: "source", value: source), URLQueryItem(name: "limit", value: "1000")]
-            var request = URLRequest(url: components.url!); request.httpMethod = "POST"; request.setValue("Joo", forHTTPHeaderField: "X-QA-Passcode")
+            var request = URLRequest(url: components.url!); request.httpMethod = "POST"; request.setValue("6352", forHTTPHeaderField: "X-QA-Passcode")
             let (data, response) = try await URLSession.shared.data(for: request)
             guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.userAuthenticationRequired) }
             let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]

@@ -137,7 +137,7 @@ final class QATriage {
         }
 
         // 2. Stalled processes
-        let stalled = QARecorder.shared.stalledProcesses
+        let stalled = QAProcessTracker.shared.stalled.map(\.line)
         for s in stalled {
             out.append(QAFinding(
                 id: "stall-\(s)",
@@ -149,7 +149,7 @@ final class QATriage {
         }
 
         // 3. Dead screens
-        let dead = QARecorder.shared.recentFailures
+        let dead = QARecorder.shared.deadScreens
         for d in dead {
             out.append(QAFinding(
                 id: "dead-\(d)",
@@ -188,7 +188,7 @@ final class QATriage {
         }
 
         // 6. Runtime: memory
-        let mem = QARuntimeMonitor.shared.memoryMB
+        let mem = QARuntimeMonitor.shared.currentFootprintMB
         if mem > 800 {
             out.append(QAFinding(
                 id: "memory",
@@ -200,7 +200,7 @@ final class QATriage {
         }
 
         // 7. Runtime: thermal
-        let thermal = QARuntimeMonitor.shared.thermalState
+        let thermal = QARuntimeMonitor.shared.thermalName
         if thermal == "serious" || thermal == "critical" {
             out.append(QAFinding(
                 id: "thermal",

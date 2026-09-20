@@ -145,6 +145,9 @@ final class QARecorder {
     private(set) var newViolations:   [QAInvariantResult] = []
     private(set) var fixedSinceLastRun: [QAInvariantResult] = []
     private var prevInvariantNames: Set<String> = []
+    var openViolations: [String] {
+        invariantResults.filter { $0.status == .violation }.map(\.name)
+    }
 
     // Session
     private let sessionStart = Date()
