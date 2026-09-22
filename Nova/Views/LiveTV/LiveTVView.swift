@@ -344,6 +344,10 @@ struct SportsProvidersView: View {
     ]
 
     @State private var tvProvider: Provider?
+    @State private var showsCustomWebsite = false
+    #if os(tvOS)
+    @State private var pendingCustomWebsite: URL?
+    #endif
 
     var body: some View {
         ScrollView {
@@ -355,6 +359,29 @@ struct SportsProvidersView: View {
                                        subtitle: "Open an official provider. Your subscription and sign-in stay with that service.",
                                        systemImage: "sportscourt.fill")
                 #endif
+
+                Button { showsCustomWebsite = true } label: {
+                    HStack(spacing: Theme.Spacing.md) {
+                        Image(systemName: "link")
+                            .font(.appFont(28, weight: .semibold))
+                            .frame(width: 44, height: 44)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Open Your Own Link").font(.appFont(18, weight: .semibold))
+                            Text("Paste an unverified HTTPS website at your own risk")
+                                .font(.appFont(13))
+                                .foregroundStyle(Theme.Colors.textSecondary)
+                        }
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                    }
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .padding(Theme.Spacing.md)
+                    .background(Theme.Colors.card,
+                                in: RoundedRectangle(cornerRadius: Theme.Radius.card,
+                                                     style: .continuous))
+                }
+                .buttonStyle(NovaArtworkButtonStyle())
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 250), spacing: Theme.Spacing.md)],
                           spacing: Theme.Spacing.md) {
@@ -376,6 +403,14 @@ struct SportsProvidersView: View {
             .padding(Theme.Spacing.edge)
         }
         .background(Theme.Colors.appBackground.ignoresSafeArea())
+        .sheet(isPresented: $showsCustomWebsite,
+               onDismiss: presentPendingTVWebsite) {
+            CustomSportsWebsiteEntryView { url in
+                #if os(tvOS)
+                pendingCustomWebsite = url
+                #endif
+            }
+        }
         #if os(iOS)
         .navigationDestination(for: Provider.self) { provider in
             SportsProviderBrowser(title: provider.name, url: provider.url)
@@ -384,6 +419,18 @@ struct SportsProvidersView: View {
         .sheet(item: $tvProvider) { provider in
             SportsTVHandoffView(title: provider.name, payload: provider.url.absoluteString)
         }
+        #endif
+    }
+
+    private func presentPendingTVWebsite() {
+        #if os(tvOS)
+        guard let url = pendingCustomWebsite else { return }
+        pendingCustomWebsite = nil
+        tvProvider = Provider(id: "custom-\(UUID().uuidString)",
+                              name: url.host ?? "Website",
+                              detail: "User-provided website",
+                              systemImage: "link",
+                              url: url)
         #endif
     }
 
@@ -403,6 +450,108 @@ struct SportsProvidersView: View {
         .padding(Theme.Spacing.md)
         .background(Theme.Colors.card,
                     in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+    }
+}
+
+private enum CustomSportsWebsitePolicy {
+    static func normalizedURL(from input: String) -> URL? {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let candidate = trimmed.contains("://") ? trimmed : "https://\(trimmed)"
+        guard var components = URLComponents(string: candidate),
+              components.scheme?.lowercased() == "https",
+              let host = components.host,
+              !host.isEmpty,
+              components.user == nil,
+              components.password == nil else { return nil }
+        components.scheme = "https"
+        return components.url
+    }
+}
+
+private struct CustomSportsWebsiteEntryView: View {
+    let onTVHandoff: (URL) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var address = ""
+    @State private var errorMessage: String?
+    #if os(iOS)
+    @State private var openedURL: URL?
+    #endif
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                    Image(systemName: "exclamationmark.shield.fill")
+                        .font(.appFont(40, weight: .semibold))
+                        .foregroundStyle(.orange)
+
+                    Text("Open an Unverified Website")
+                        .font(.appFont(28, weight: .bold))
+
+                    Text("Nova does not verify, recommend, or control websites you paste. Continue only if you trust the address and have permission to view its content.")
+                        .font(.appFont(16))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+
+                    TextField("https://example.com", text: $address)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+                        .autocorrectionDisabled()
+                        .textFieldStyle(.roundedBorder)
+                        #endif
+                        .onSubmit(openWebsite)
+
+                    Text("Only secure HTTPS addresses are accepted. On iPhone and iPad, Nova keeps the site inside its popup-blocking browser. Apple TV shows a QR code for handoff.")
+                        .font(.appFont(13))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+
+                    if let errorMessage {
+                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                            .font(.appFont(14, weight: .semibold))
+                            .foregroundStyle(.red)
+                    }
+
+                    Button("Open at My Own Risk", action: openWebsite)
+                        .buttonStyle(NovaRowButtonStyle())
+                        .disabled(address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                .padding(Theme.Spacing.edge)
+                .frame(maxWidth: 720, alignment: .leading)
+                .frame(maxWidth: .infinity)
+            }
+            .background(Theme.Colors.appBackground.ignoresSafeArea())
+            .navigationTitle("Open Website")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+            #if os(iOS)
+            .navigationDestination(isPresented: Binding(
+                get: { openedURL != nil },
+                set: { if !$0 { openedURL = nil } }
+            )) {
+                if let openedURL {
+                    SportsProviderBrowser(title: openedURL.host ?? "Website", url: openedURL)
+                }
+            }
+            #endif
+        }
+    }
+
+    private func openWebsite() {
+        guard let url = CustomSportsWebsitePolicy.normalizedURL(from: address) else {
+            errorMessage = "Enter a valid HTTPS website without an embedded username or password."
+            return
+        }
+        errorMessage = nil
+        #if os(iOS)
+        openedURL = url
+        #else
+        onTVHandoff(url)
+        dismiss()
+        #endif
     }
 }
 

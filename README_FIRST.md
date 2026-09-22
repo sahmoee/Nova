@@ -29,8 +29,11 @@ Primary navigation is Home, Search, Library, and Settings. Smart Search is integ
 Search → Browse and Live TV expose a Sports directory for official providers. On iPhone and iPad,
 provider pages stay inside a popup-blocking `WKWebView`; new-window requests never create another
 web view, and JavaScript alert/confirm popups are suppressed. Apple TV presents a QR handoff because
-tvOS has no general web browser. Nova does not embed, resolve, or advertise third-party restreams;
-provider authentication, subscription availability, and playback remain provider-owned.
+tvOS has no general web browser. Users may also paste their own HTTPS address after an explicit
+unverified-site warning; Nova rejects non-HTTPS links and embedded URL credentials, applies the same
+popup protections on iPhone/iPad, and uses QR handoff on Apple TV. Nova does not endorse, index,
+extract, resolve, or bypass access controls for pasted websites. Provider authentication,
+subscription availability, permissions, and playback remain provider- or user-owned.
 
 tvOS navigation is a floating Back menu with Remote, Home, Search, Library, and Settings. A root page's heading or the remote Back button opens it; Back closes the open menu. Pushed destinations retain native Back navigation. RootView keeps visited sections mounted while excluding inactive sections from interaction and accessibility. The root-only Now Playing bar follows the same menu behavior. TVPageHeading and TVReferenceStyle own the shared television heading and geometry. Preserve the iPhone bottom tab bar and iPad sidebar independently of tvOS changes.
 
