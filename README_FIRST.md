@@ -34,6 +34,7 @@ unverified-site warning; Nova rejects non-HTTPS links and embedded URL credentia
 popup protections on iPhone/iPad, and uses QR handoff on Apple TV. Nova does not endorse, index,
 extract, resolve, or bypass access controls for pasted websites. Provider authentication,
 subscription availability, permissions, and playback remain provider- or user-owned.
+Nova intentionally does not expose Formula 1 or music-provider integrations in this directory.
 
 tvOS navigation is a floating Back menu with Remote, Home, Search, Library, and Settings. A root page's heading or the remote Back button opens it; Back closes the open menu. Pushed destinations retain native Back navigation. RootView keeps visited sections mounted while excluding inactive sections from interaction and accessibility. The root-only Now Playing bar follows the same menu behavior. TVPageHeading and TVReferenceStyle own the shared television heading and geometry. Preserve the iPhone bottom tab bar and iPad sidebar independently of tvOS changes.
 

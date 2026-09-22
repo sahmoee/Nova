@@ -339,7 +339,6 @@ struct SportsProvidersView: View {
         .init(id: "paramount", name: "Paramount+ Sports", detail: "CBS Sports and soccer", systemImage: "star.circle.fill", url: URL(string: "https://www.paramountplus.com/sports/")!),
         .init(id: "nba", name: "NBA League Pass", detail: "NBA games and coverage", systemImage: "basketball.fill", url: URL(string: "https://www.nba.com/watch/league-pass-stream")!),
         .init(id: "nfl", name: "NFL+", detail: "NFL live and on-demand coverage", systemImage: "football.fill", url: URL(string: "https://www.nfl.com/plus/")!),
-        .init(id: "f1", name: "F1 TV", detail: "Formula 1 live timing and races", systemImage: "flag.checkered", url: URL(string: "https://f1tv.formula1.com/")!),
         .init(id: "ufc", name: "UFC Fight Pass", detail: "UFC and combat sports", systemImage: "figure.martial.arts", url: URL(string: "https://ufcfightpass.com/")!)
     ]
 
