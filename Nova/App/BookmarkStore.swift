@@ -72,7 +72,9 @@ final class NovaBookmarkStore: ObservableObject {
         )
         bookmarks.insert(bookmark, at: 0)
         save()
+        #if os(iOS)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+        #endif
     }
 
     func delete(_ bookmark: NovaBookmark) {
@@ -138,7 +140,9 @@ struct NovaAddBookmarkSheet: View {
                 }
             }
             .navigationTitle("Add Bookmark")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -211,7 +215,9 @@ struct NovaBookmarksView: View {
             }
         }
         .navigationTitle("Bookmarks")
+        #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        #endif
     }
 }
 

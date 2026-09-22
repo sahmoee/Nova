@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C0DE5A000000000000000001 /* BookmarkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 628955A11938A0F4E56D8299 /* BookmarkStore.swift */; };
+		C0DE5A000000000000000002 /* SleepTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508751B939ECB71326C5F387 /* SleepTimer.swift */; };
+		C0DE5A000000000000000003 /* SpeedControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B32736CFD7E0C64DB11FC1C /* SpeedControl.swift */; };
+		C0DE5A000000000000000004 /* UpNextQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 450ADBBA20E4E5F543E7674C /* UpNextQueue.swift */; };
 		A10000000000000000000001 /* MediaServerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* MediaServerModels.swift */; };
 		A10000000000000000000002 /* MediaServerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* MediaServerModels.swift */; };
 		A10000000000000000000003 /* MediaServerClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* MediaServerClient.swift */; };
@@ -1489,6 +1493,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C0DE5A000000000000000001 /* BookmarkStore.swift in Sources */,
+				C0DE5A000000000000000002 /* SleepTimer.swift in Sources */,
+				C0DE5A000000000000000003 /* SpeedControl.swift in Sources */,
+				C0DE5A000000000000000004 /* UpNextQueue.swift in Sources */,
 				C2957F5527C03E76772E505F /* SubtitleSelectionPolicy.swift in Sources */,
 				7A6FEC91C860C5975A48F114 /* ArtworkCachePolicy.swift in Sources */,
 				69EE5B85E92744D9886EFA7D /* LibraryMutationPolicy.swift in Sources */,

@@ -114,7 +114,9 @@ struct NovaSleepTimerSheet: View {
                             manager.begin(minutes: preset.minutes) {
                                 onPause?()
                             }
+                            #if os(iOS)
                             UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            #endif
                             dismiss()
                         } label: {
                             HStack {
@@ -134,7 +136,9 @@ struct NovaSleepTimerSheet: View {
                 }
             }
             .navigationTitle("Sleep Timer")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }

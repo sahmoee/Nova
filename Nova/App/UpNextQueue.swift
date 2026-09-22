@@ -37,7 +37,9 @@ final class NovaUpNextQueue: ObservableObject {
         guard !items.contains(where: { $0.contentKey == item.contentKey }) else { return }
         items.append(item)
         save()
+        #if os(iOS)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+        #endif
     }
 
     /// Insert at front (Play Next).
@@ -45,7 +47,9 @@ final class NovaUpNextQueue: ObservableObject {
         items.removeAll { $0.contentKey == item.contentKey }
         items.insert(item, at: 0)
         save()
+        #if os(iOS)
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        #endif
     }
 
     /// Remove a specific item.
@@ -127,7 +131,9 @@ struct NovaUpNextQueueView: View {
                 }
             }
             .navigationTitle("Up Next")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }

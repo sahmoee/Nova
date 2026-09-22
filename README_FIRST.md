@@ -26,6 +26,12 @@ Nova uses Apple platform styling throughout: a neutral black Apple TV canvas, st
 
 Primary navigation is Home, Search, Library, and Settings. Smart Search is integrated inside Search; `AppTab.ai` and `nova://ai` exist only for compatibility and must route into Search. iPhone uses the shared floating `NovaHomeBar`, iPad uses its sidebar, and tvOS uses the Back menu. tvOS Settings uses a six-category native directory; selecting a category pushes one independently scrolling destination. See `docs/UI_UX_REDESIGN_2026_09_09.md`.
 
+Search → Browse and Live TV expose a Sports directory for official providers. On iPhone and iPad,
+provider pages stay inside a popup-blocking `WKWebView`; new-window requests never create another
+web view, and JavaScript alert/confirm popups are suppressed. Apple TV presents a QR handoff because
+tvOS has no general web browser. Nova does not embed, resolve, or advertise third-party restreams;
+provider authentication, subscription availability, and playback remain provider-owned.
+
 tvOS navigation is a floating Back menu with Remote, Home, Search, Library, and Settings. A root page's heading or the remote Back button opens it; Back closes the open menu. Pushed destinations retain native Back navigation. RootView keeps visited sections mounted while excluding inactive sections from interaction and accessibility. The root-only Now Playing bar follows the same menu behavior. TVPageHeading and TVReferenceStyle own the shared television heading and geometry. Preserve the iPhone bottom tab bar and iPad sidebar independently of tvOS changes.
 
 Home is an artwork-first streaming storefront. On tvOS, the hero leads with title artwork (or a text fallback), real metadata, a short synopsis, Play/Resume, Up Next, information, circular page indicators, and landscape Continue Watching cards. Source setup, source health, profile editing, and shelf customization belong in Settings instead of Home. The iPhone/iPad feed retains its own hero, rails, and Discover composition. Use Nova's live artwork and destinations; do not embed reference-screen branding, sample titles, or imagery.

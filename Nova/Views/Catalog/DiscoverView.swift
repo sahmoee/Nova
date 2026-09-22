@@ -56,7 +56,7 @@ struct DiscoverView: View {
         }
     }
 
-    enum DiscoverRoute: Hashable { case newAndHot, liveTV, anime, smartSearch }
+    enum DiscoverRoute: Hashable { case newAndHot, liveTV, sports, anime, smartSearch }
 
     private var browseMenu: some View {
         Menu {
@@ -69,6 +69,9 @@ struct DiscoverView: View {
             Button { path.append(DiscoverRoute.liveTV) } label: {
                 Label("Live TV", systemImage: "dot.radiowaves.left.and.right")
             }
+            Button { path.append(DiscoverRoute.sports) } label: {
+                Label("Sports", systemImage: "sportscourt.fill")
+            }
             Button { path.append(DiscoverRoute.anime) } label: {
                 Label("Anime", systemImage: "film.stack")
             }
@@ -78,7 +81,7 @@ struct DiscoverView: View {
                 .foregroundStyle(Theme.Colors.textSecondary)
         }
         .buttonStyle(NovaChipButtonStyle(providesSurface: true))
-        .accessibilityHint("Open Smart Search, New and Hot, Live TV, or Anime")
+        .accessibilityHint("Open Smart Search, New and Hot, Live TV, Sports, or Anime")
     }
 
     private var recentSearches: [String] {
@@ -157,6 +160,7 @@ struct DiscoverView: View {
                 switch route {
                 case .newAndHot: NewAndHotView(path: $newAndHotPath)
                 case .liveTV: LiveTVView()
+                case .sports: SportsProvidersView()
                 case .anime: AnimeView()
                 case .smartSearch: AIView(path: $nav.aiPath)
                 }

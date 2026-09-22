@@ -69,7 +69,9 @@ final class NovaSpeedControl: ObservableObject {
         let all = NovaPlaybackSpeed.allCases
         let idx = all.firstIndex(of: speed) ?? 2
         speed = all[(idx + 1) % all.count]
+        #if os(iOS)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        #endif
     }
 }
 
@@ -110,7 +112,9 @@ struct NovaSpeedPickerSheet: View {
             List(NovaPlaybackSpeed.allCases) { speed in
                 Button {
                     control.speed = speed
+                    #if os(iOS)
                     UISelectionFeedbackGenerator().selectionChanged()
+                    #endif
                     dismiss()
                 } label: {
                     HStack {
@@ -127,7 +131,9 @@ struct NovaSpeedPickerSheet: View {
                 }
             }
             .navigationTitle("Playback Speed")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
@@ -136,7 +142,9 @@ struct NovaSpeedPickerSheet: View {
                     if !control.speed.isNormal {
                         Button("Reset") {
                             control.speed = .normal
+                            #if os(iOS)
                             UISelectionFeedbackGenerator().selectionChanged()
+                            #endif
                         }
                         .foregroundStyle(.orange)
                     }
@@ -158,7 +166,9 @@ struct NovaSpeedStrip: View {
                 ForEach(NovaPlaybackSpeed.allCases) { speed in
                     Button {
                         control.speed = speed
+                        #if os(iOS)
                         UISelectionFeedbackGenerator().selectionChanged()
+                        #endif
                     } label: {
                         Text(speed.label)
                             .font(.footnote.weight(.medium).monospacedDigit())

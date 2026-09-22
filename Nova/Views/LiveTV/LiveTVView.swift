@@ -8,6 +8,12 @@
 //
 
 import SwiftUI
+#if os(iOS)
+import WebKit
+#elseif os(tvOS)
+import CoreImage.CIFilterBuiltins
+import UIKit
+#endif
 
 struct LiveTVView: View {
     @EnvironmentObject private var env: AppEnvironment
@@ -35,6 +41,17 @@ struct LiveTVView: View {
                                 .screenTitleStyle()
                                 .foregroundStyle(Theme.Colors.textPrimary)
                             Spacer()
+                            NavigationLink { SportsProvidersView() } label: {
+                                Label("Sports", systemImage: "sportscourt.fill")
+                                    .font(.appFont(16, weight: .semibold))
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+                                    .padding(.horizontal, Theme.Spacing.sm)
+                                    .padding(.vertical, Theme.Spacing.xs)
+                                    .background(Theme.Colors.card,
+                                                in: Capsule(style: .continuous))
+                            }
+                            .buttonStyle(NovaChipButtonStyle())
+                            .accessibilityHint("Open official sports providers")
                             NavigationLink { LiveTVSourcesView() } label: {
                                 Image(systemName: "slider.horizontal.3")
                                     .font(.appFont(20, weight: .semibold))
@@ -300,3 +317,202 @@ struct LiveTVView: View {
         }
     }
 }
+
+// MARK: - Official sports providers
+
+/// A safe doorway to official sports services. Nova does not embed or resolve
+/// third-party restreams: provider authentication and playback remain owned by
+/// the service the user opens.
+struct SportsProvidersView: View {
+    private struct Provider: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let detail: String
+        let systemImage: String
+        let url: URL
+    }
+
+    private let providers: [Provider] = [
+        .init(id: "espn", name: "ESPN", detail: "Live and upcoming sports", systemImage: "sportscourt", url: URL(string: "https://www.espn.com/watch/")!),
+        .init(id: "apple", name: "Apple TV Sports", detail: "MLS and Apple sports coverage", systemImage: "appletv.fill", url: URL(string: "https://tv.apple.com/us/room/sports/edt.item.635f48fe-1355-44e5-81e5-26eb857f9823")!),
+        .init(id: "peacock", name: "Peacock Sports", detail: "Premier League, golf, racing, and more", systemImage: "play.tv.fill", url: URL(string: "https://www.peacocktv.com/sports")!),
+        .init(id: "paramount", name: "Paramount+ Sports", detail: "CBS Sports and soccer", systemImage: "star.circle.fill", url: URL(string: "https://www.paramountplus.com/sports/")!),
+        .init(id: "nba", name: "NBA League Pass", detail: "NBA games and coverage", systemImage: "basketball.fill", url: URL(string: "https://www.nba.com/watch/league-pass-stream")!),
+        .init(id: "nfl", name: "NFL+", detail: "NFL live and on-demand coverage", systemImage: "football.fill", url: URL(string: "https://www.nfl.com/plus/")!),
+        .init(id: "f1", name: "F1 TV", detail: "Formula 1 live timing and races", systemImage: "flag.checkered", url: URL(string: "https://f1tv.formula1.com/")!),
+        .init(id: "ufc", name: "UFC Fight Pass", detail: "UFC and combat sports", systemImage: "figure.martial.arts", url: URL(string: "https://ufcfightpass.com/")!)
+    ]
+
+    @State private var tvProvider: Provider?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                #if os(tvOS)
+                TVPageHeading(title: "Sports", systemImage: "sportscourt.fill")
+                #else
+                NovaGradientPageHeader(title: "Sports",
+                                       subtitle: "Open an official provider. Your subscription and sign-in stay with that service.",
+                                       systemImage: "sportscourt.fill")
+                #endif
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 250), spacing: Theme.Spacing.md)],
+                          spacing: Theme.Spacing.md) {
+                    ForEach(providers) { provider in
+                        #if os(iOS)
+                        NavigationLink(value: provider) { providerCard(provider) }
+                            .buttonStyle(NovaArtworkButtonStyle())
+                        #else
+                        Button { tvProvider = provider } label: { providerCard(provider) }
+                            .buttonStyle(NovaArtworkButtonStyle())
+                        #endif
+                    }
+                }
+
+                Text("Nova blocks new-window popups in its iPhone and iPad browser. Provider authentication, availability, subscriptions, and playback are controlled by each service.")
+                    .font(.appFont(13))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+            .padding(Theme.Spacing.edge)
+        }
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
+        #if os(iOS)
+        .navigationDestination(for: Provider.self) { provider in
+            SportsProviderBrowser(title: provider.name, url: provider.url)
+        }
+        #else
+        .sheet(item: $tvProvider) { provider in
+            SportsTVHandoffView(title: provider.name, payload: provider.url.absoluteString)
+        }
+        #endif
+    }
+
+    private func providerCard(_ provider: Provider) -> some View {
+        HStack(spacing: Theme.Spacing.md) {
+            Image(systemName: provider.systemImage)
+                .font(.appFont(28, weight: .semibold))
+                .frame(width: 44, height: 44)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(provider.name).font(.appFont(18, weight: .semibold))
+                Text(provider.detail).font(.appFont(13)).foregroundStyle(Theme.Colors.textSecondary)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right").foregroundStyle(Theme.Colors.textTertiary)
+        }
+        .foregroundStyle(Theme.Colors.textPrimary)
+        .padding(Theme.Spacing.md)
+        .background(Theme.Colors.card,
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+    }
+}
+
+#if os(tvOS)
+private struct SportsTVHandoffView: View {
+    let title: String
+    let payload: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: Theme.Spacing.lg) {
+            Text(title).font(.appFont(34, weight: .bold))
+            if let image = Self.qrImage(for: payload) {
+                Image(uiImage: image)
+                    .interpolation(.none)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 420, height: 420)
+                    .padding(Theme.Spacing.md)
+                    .background(.white,
+                                in: RoundedRectangle(cornerRadius: Theme.Radius.card,
+                                                     style: .continuous))
+            }
+            Text("Scan with a phone or tablet to open the official provider.")
+                .font(.appFont(20))
+                .foregroundStyle(Theme.Colors.textSecondary)
+            Button("Done") { dismiss() }.buttonStyle(NovaRowButtonStyle())
+        }
+        .padding(Theme.Spacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.Colors.appBackground.ignoresSafeArea())
+    }
+
+    private static func qrImage(for string: String) -> UIImage? {
+        let context = CIContext()
+        let filter = CIFilter.qrCodeGenerator()
+        filter.message = Data(string.utf8)
+        filter.correctionLevel = "M"
+        guard let output = filter.outputImage else { return nil }
+        let scaled = output.transformed(by: CGAffineTransform(scaleX: 12, y: 12))
+        guard let cg = context.createCGImage(scaled, from: scaled.extent) else { return nil }
+        return UIImage(cgImage: cg)
+    }
+}
+#endif
+
+#if os(iOS)
+private struct SportsProviderBrowser: View {
+    let title: String
+    let url: URL
+    var body: some View {
+        PopupBlockingWebView(url: url)
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .background(Theme.Colors.appBackground)
+    }
+}
+
+private struct PopupBlockingWebView: UIViewRepresentable {
+    let url: URL
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
+        configuration.websiteDataStore = .default()
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = context.coordinator
+        webView.uiDelegate = context.coordinator
+        webView.allowsBackForwardNavigationGestures = true
+        webView.load(URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad,
+                                timeoutInterval: 30))
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        guard webView.url == nil else { return }
+        webView.load(URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad,
+                                timeoutInterval: 30))
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            guard let target = navigationAction.targetFrame else {
+                // Keep legitimate provider links in the current view while
+                // refusing the extra window that advertising scripts request.
+                if navigationAction.navigationType == .linkActivated,
+                   let url = navigationAction.request.url,
+                   ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
+                    webView.load(navigationAction.request)
+                }
+                decisionHandler(.cancel)
+                return
+            }
+            decisionHandler(.allow)
+        }
+
+        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                     for navigationAction: WKNavigationAction,
+                     windowFeatures: WKWindowFeatures) -> WKWebView? { nil }
+
+        func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String,
+                     initiatedByFrame frame: WKFrameInfo,
+                     completionHandler: @escaping () -> Void) { completionHandler() }
+
+        func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String,
+                     initiatedByFrame frame: WKFrameInfo,
+                     completionHandler: @escaping (Bool) -> Void) { completionHandler(false) }
+    }
+}
+#endif
