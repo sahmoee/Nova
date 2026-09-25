@@ -39,3 +39,5 @@ These checks do not establish poster-overlay contrast for every piece of media a
 No simulator or physical screen pass was performed. Device visual acceptance, Dynamic Type,
 iPad resizing and Apple TV remote focus remain pending. No data/provider/backend tests were
 needed for this presentation-only batch. The iPhone install stalled despite a connected device listing; a separate read-only app query timed out after 15 seconds. The stalled installer was interrupted, and installation remains unconfirmed pending an unlocked device.
+
+After the user unlocked the iPhone, the bounded retry successfully installed Nova iOS build 250.
