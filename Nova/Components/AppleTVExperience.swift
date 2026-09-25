@@ -990,7 +990,7 @@ enum TVReferenceStyle {
     static let top: CGFloat = 42
     static let controlHeight: CGFloat = 56
     static let cornerRadius: CGFloat = Theme.Radius.button
-    static let canvas = LinearGradient(colors: [.black, .black],
+    static let canvas = LinearGradient(colors: [Theme.Colors.background, Theme.Colors.background],
                                        startPoint: .top, endPoint: .bottom)
 }
 
@@ -1038,7 +1038,7 @@ struct TVPageHeading: View {
                     .font(.system(size: 24, weight: .medium))
                     .frame(width: 42, height: 42)
                     .background(.white.opacity(0.12), in: Circle())
-                Text(title).font(.system(size: 26, weight: .semibold))
+                Text(title).font(.system(size: 26, weight: .semibold, design: .serif))
             }
             .padding(.horizontal, 10).frame(height: TVReferenceStyle.controlHeight)
         }

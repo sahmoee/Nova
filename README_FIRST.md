@@ -4,6 +4,10 @@
 
 # Read me first
 
+September 24: the user requested Stocked’s softer styling in gray/black for Nova. Shared surfaces,
+headers, controls, navigation, settings and accent assets now use charcoal/graphite/pearl. Restore
+tag: `restore/nova-pre-pastel-2026-09-24`. See `docs/PASTEL_GRAY_REDESIGN_2026_09_24.md`.
+
 Nova is a local-first iOS/iPadOS/tvOS personal-media app. User libraries and progress are authoritative; remote metadata, AI, tracking, and sharing are optional. Start in `Nova/App`, then the relevant `Nova/Services` or `Nova/Views` area. Keep credentials in Keychain, never source control.
 
 Nova's media-server index accepts user-configured Jellyfin, Plex, and Emby servers. `MediaServerStore`
@@ -22,7 +26,7 @@ on read. Source-picker work is cancellable/generation-guarded; all automatic pic
 visible filters and the required-cached preference. Returning from playback does not auto-replay.
 Prompts protect drafts; subtitle selection and offline queue states remain shared across platforms.
 
-Nova uses Apple platform styling throughout: a neutral black Apple TV canvas, standard San Francisco typography, semantic system colors, native materials, and compact system controls. iPhone and iPad use system blue for actions and selection. tvOS uses the native neutral white focus surface with dark text and a restrained lift. Media artwork supplies the color; app chrome must not introduce a separate brand palette, artwork-derived tint, colored glow, or decorative background gradient. Keep top-level controls condensed.
+Nova uses Apple platform styling throughout: a soft charcoal canvas, graphite surfaces, serif display headings, San Francisco body typography, semantic state colors, and compact system controls. iPhone and iPad use pearl gray for actions and selection. tvOS uses the native neutral white focus surface with dark text and a restrained lift. Media artwork supplies the color; app chrome follows the September 24 gray/black pastel palette without artwork-derived tint or colored glow. Keep top-level controls condensed.
 
 Primary navigation is Home, Search, Library, and Settings. Smart Search is integrated inside Search; `AppTab.ai` and `nova://ai` exist only for compatibility and must route into Search. iPhone uses the shared floating `NovaHomeBar`, iPad uses its sidebar, and tvOS uses the Back menu. tvOS Settings uses a six-category native directory; selecting a category pushes one independently scrolling destination. See `docs/UI_UX_REDESIGN_2026_09_09.md`.
 
@@ -46,7 +50,7 @@ Reactive artwork remains scoped to the destination that owns it: selections must
 
 The Library options menu keeps collections, upcoming episodes, watch stats, tracker lists, sources, folders, tags, hidden items, bulk actions, and category management reachable on tvOS. Category names, visibility, and default restoration remain editable. The system Edit button and JSON category import remain iPhone/iPad-only because tvOS does not provide those SwiftUI APIs. The visible destination name is Library on every platform.
 
-Use Nova's shared system button styles for interactive controls. iPhone/iPad use native materials and system blue selection while tvOS uses the shared neutral focus style. Poster focus preserves image colors, aspect ratio, and row geometry. Cast and crew tiles always open a person's combined movie, television, and crew-credit filmography; do not reduce those pages to acting credits alone.
+Use Nova's shared system button styles for interactive controls. iPhone/iPad use native materials and pearl-gray selection while tvOS uses the shared neutral focus style. Poster focus preserves image colors, aspect ratio, and row geometry. Cast and crew tiles always open a person's combined movie, television, and crew-credit filmography; do not reduce those pages to acting credits alone.
 
 tvOS Settings uses six native push-navigation categories: Playback, Sources, Library, Experience, Accessibility, and Data & Privacy. Each destination owns one vertical scroll surface so the remote focus engine can reveal every control. Controls must edit real persistent preferences or invoke existing actions. Media servers, SMB, Live TV, Real-Debrid, add-ons, and supported accounts are consolidated under Sources. Snapshot Import previews a private Nova snapshot URL and does not imply a web server running on Apple TV. Record iCloud transfer and deletion results from observed local/cloud state, not from a requested sync alone.
 

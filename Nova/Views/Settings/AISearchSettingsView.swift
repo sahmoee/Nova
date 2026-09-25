@@ -146,7 +146,7 @@ struct AISearchSettingsView: View {
         HStack(alignment: .top, spacing: Theme.Spacing.sm) {
             Text("\(n)")
                 .font(.appFont(15, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.Colors.onAccent)
                 .frame(width: 26, height: 26)
                 .background(Theme.Colors.accent, in: Circle())
             Text(text)

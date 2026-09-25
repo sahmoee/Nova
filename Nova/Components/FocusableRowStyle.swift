@@ -150,10 +150,10 @@ struct NovaHandheldControl: View {
     private var fill: Color {
         if role == .prominent { return Theme.Colors.accent }
         if selected { return reduceTransparency ? Color(white: 0.18) : Theme.Colors.accent.opacity(0.18) }
-        return Color(white: active ? 0.23 : 0.14)
+        return active ? Theme.Colors.cardElevated : Theme.Colors.card
     }
     private var foreground: Color {
-        role == .prominent ? .white : selected ? Theme.Colors.accent : Theme.Colors.textPrimary
+        role == .prominent ? Theme.Colors.onAccent : selected ? Theme.Colors.accent : Theme.Colors.textPrimary
     }
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)

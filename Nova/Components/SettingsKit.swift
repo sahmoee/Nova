@@ -33,18 +33,18 @@ enum SettingsMetrics {
     static let header: CGFloat = 13
     static let symbol: CGFloat = 15
     static let tile: CGFloat = 30
-    static let tileRadius: CGFloat = 7
+    static let tileRadius: CGFloat = 10
     static let chevron: CGFloat = 14
     static let rowVPad: CGFloat = 11
     static let rowSpacing: CGFloat = 12
-    static let groupRadius: CGFloat = 16
+    static let groupRadius: CGFloat = 22
     static let dividerInset: CGFloat = 58
     #endif
 }
 
 enum SettingsStyle {
     /// The elevated gray each grouped card sits on (iOS Settings cell color over black).
-    static let groupBackground = Color(white: 0.11)
+    static let groupBackground = Theme.Colors.card
     static let divider = Color.white.opacity(0.08)
 }
 
@@ -59,7 +59,7 @@ struct SettingsIconTile: View {
     var body: some View {
         Image(systemName: systemImage)
             .font(.appFont(SettingsMetrics.symbol, weight: .semibold))
-            .foregroundStyle(colorScheme == .light ? Color.primary : color.opacity(0.95))
+            .foregroundStyle(colorScheme == .light ? Color.primary : Theme.Colors.accent)
             .frame(width: SettingsMetrics.tile, height: SettingsMetrics.tile)
             .background(Color.white.opacity(0.09), in: RoundedRectangle(cornerRadius: SettingsMetrics.tileRadius, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: SettingsMetrics.tileRadius, style: .continuous)
@@ -98,7 +98,7 @@ struct SettingsGroup: View {
                     }
                 }
             }
-            .background(reduceTransparency ? AnyShapeStyle(SettingsStyle.groupBackground) : AnyShapeStyle(.thinMaterial),
+            .background(SettingsStyle.groupBackground,
                         in: RoundedRectangle(cornerRadius: SettingsMetrics.groupRadius, style: .continuous))
             #if !os(tvOS)
             .clipShape(RoundedRectangle(cornerRadius: SettingsMetrics.groupRadius, style: .continuous))

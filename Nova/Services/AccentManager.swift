@@ -17,11 +17,7 @@ final class AccentManager: ObservableObject {
 
     /// The system action color. Nonisolated so it can
     /// be used as an EnvironmentKey default value (which runs outside the main actor).
-    #if os(tvOS)
-    nonisolated static let fallback = Color.white
-    #else
-    nonisolated static let fallback = Color.blue
-    #endif
+    nonisolated static let fallback = Color(white: 0.84)
 
     /// The current accent color, animated when it changes.
     @Published private(set) var accent: Color = AccentManager.fallback

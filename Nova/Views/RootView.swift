@@ -322,7 +322,7 @@ struct RootView: View {
                     } label: {
                         Image(systemName: "play.fill")
                             .font(.appFont(isTV ? 24 : 18, weight: .semibold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.Colors.onAccent)
                             .frame(width: isTV ? 58 : 42, height: isTV ? 58 : 42)
                             .background(Theme.Colors.focusedControl, in: Circle())
                     }
@@ -433,7 +433,7 @@ private struct NovaHomeBar: View {
                             .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
                             .multilineTextAlignment(.center)
                     }
-                    .foregroundStyle(selection == tab ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(selection == tab ? Theme.Colors.accent : Color.secondary)
                     .frame(maxWidth: .infinity, minHeight: 49)
                     .padding(.vertical, dynamicTypeSize.isAccessibilitySize ? 4 : 0)
                     .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.navigationItem, style: .continuous))
@@ -447,7 +447,7 @@ private struct NovaHomeBar: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background(reduceTransparency ? AnyShapeStyle(Color(white: 0.08)) : AnyShapeStyle(.ultraThinMaterial),
+        .background(Theme.Colors.backgroundElevated.opacity(reduceTransparency ? 1 : 0.97),
                     in: RoundedRectangle(cornerRadius: Theme.Radius.navigationPanel, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.navigationPanel, style: .continuous)
             .strokeBorder(Color.white.opacity(0.13), lineWidth: 0.5))

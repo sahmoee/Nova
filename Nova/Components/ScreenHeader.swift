@@ -85,7 +85,7 @@ struct CinematicPageHeader<Trailing: View>: View {
                             .foregroundStyle(Theme.Colors.accent)
                     }
                     Text(title)
-                        .font(.appFont(Theme.isCompact ? 32 : 48, weight: .heavy))
+                        .font(.appFont(Theme.isCompact ? 32 : 48, weight: .semibold, design: .serif))
                         .screenTitleStyle()
                         .foregroundStyle(Theme.Colors.textPrimary)
                 }
@@ -112,22 +112,24 @@ extension CinematicPageHeader where Trailing == EmptyView {
 }
 
 struct CinematicGlassSurface: ViewModifier {
-    var radius: CGFloat = 16
+    var radius: CGFloat = Theme.Radius.card
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
 
     func body(content: Content) -> some View {
         content
-            .background(.ultraThinMaterial,
+            .background(Theme.Colors.card.opacity(reduceTransparency ? 1 : 0.96),
                         in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.75)
+                    .strokeBorder(Color.white.opacity(contrast == .increased ? 0.55 : 0.14), lineWidth: contrast == .increased ? 1.5 : 0.75)
             }
-            .shadow(color: .black.opacity(0.34), radius: 16, y: 8)
+            .shadow(color: Theme.Shadow.color, radius: 16, y: 6)
     }
 }
 
 extension View {
-    func cinematicGlass(radius: CGFloat = 16) -> some View {
+    func cinematicGlass(radius: CGFloat = Theme.Radius.card) -> some View {
         modifier(CinematicGlassSurface(radius: radius))
     }
 }

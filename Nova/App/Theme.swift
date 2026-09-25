@@ -150,19 +150,15 @@ enum Theme {
     // MARK: - Colors
 
     enum Colors {
-        static let background = Color.black
-        static let backgroundElevated = Color(white: 0.075)
+        static let background = Color(white: 0.075)
+        static let backgroundElevated = Color(white: 0.115)
 
-        static let card = Color.white.opacity(0.08)
-        static let cardElevated = Color(white: 0.12)
+        static let card = Color(white: 0.16)
+        static let cardElevated = Color(white: 0.21)
 
-        #if os(tvOS)
-        static let accent = Color.white
-        static let accentSecondary = Color.white
-        #else
-        static let accent = Color.blue
-        static let accentSecondary = Color.blue
-        #endif
+        static let accent = Color(white: 0.84)
+        static let accentSecondary = Color(white: 0.72)
+        static let onAccent = Color(white: 0.10)
         static let iconRed = Color.red
         static let iconGraphite = Color.secondary
         static let iconSilver = Color.secondary
@@ -193,13 +189,13 @@ enum Theme {
         #if os(tvOS)
         static let appBackground = TVReferenceStyle.canvas
         #else
-        static let appBackground = LinearGradient(colors: [Color.black, Color.black],
+        static let appBackground = LinearGradient(colors: [background, background],
                                                   startPoint: .top, endPoint: .bottom)
 
         #endif
 
         static let cardGradient = LinearGradient(
-            colors: [Color.white.opacity(0.10), Color.white.opacity(0.10)],
+            colors: [card, card],
             startPoint: .top,
             endPoint: .bottom
         )
@@ -221,7 +217,7 @@ enum Theme {
         )
 
         static let controlGlass = LinearGradient(
-            colors: [Color.white.opacity(0.12), Color.white.opacity(0.12)],
+            colors: [cardElevated, cardElevated],
             startPoint: .top,
             endPoint: .bottom
         )
@@ -236,16 +232,16 @@ enum Theme {
     // MARK: - Radii
 
     enum Radius {
-        static var card: CGFloat { Theme.scaled(16, min: 12) }
-        static var largeCard: CGFloat { Theme.scaled(22, min: 16) }
-        static var button: CGFloat { Theme.scaled(14, min: 10) }
+        static var card: CGFloat { Theme.scaled(24, min: 20) }
+        static var largeCard: CGFloat { Theme.scaled(32, min: 26) }
+        static var button: CGFloat { Theme.scaled(20, min: 14) }
         static let pill: CGFloat = 999
-        static let poster: CGFloat = 10
-        static let thumb: CGFloat = 9
+        static let poster: CGFloat = 16
+        static let thumb: CGFloat = 12
         /// Compact selectors use the same continuous corners on both platforms.
-        static let chip: CGFloat = 12
+        static let chip: CGFloat = 16
         static let navigationPanel: CGFloat = 28
-        static let navigationItem: CGFloat = 12
+        static let navigationItem: CGFloat = 18
     }
 
     enum Control {
@@ -260,7 +256,7 @@ enum Theme {
     /// A soft, diffuse shadow for raised surfaces — low opacity and a wide blur so
     /// panels feel gently lifted rather than hard-edged. Apple-style restraint.
     enum Shadow {
-        static let color = Color.black.opacity(0.35)
+        static let color = Color.black.opacity(0.20)
         static var radius: CGFloat { Theme.scaled(24, min: 12) }
         static var y: CGFloat { Theme.scaled(10, min: 5) }
     }
@@ -339,11 +335,11 @@ enum Theme {
     // MARK: - Typography helpers
 
     enum Font {
-        static func heroTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(60), weight: .bold) }
-        static func sectionTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(30), weight: .bold) }
+        static func heroTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(60), weight: .semibold, design: .serif) }
+        static func sectionTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(30), weight: .semibold, design: .serif) }
         static func cardTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(22), weight: .semibold) }
         static func cardSubtitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(18), weight: .regular) }
-        static func screenTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(56), weight: .bold) }
+        static func screenTitle() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(56), weight: .semibold, design: .serif) }
         static func eyebrow() -> SwiftUI.Font { .system(size: Theme.dynamicFontSize(13), weight: .semibold) }
     }
 }
@@ -381,7 +377,7 @@ extension View {
             .foregroundStyle(Theme.Colors.textPrimary)
             .tint(Theme.Colors.accent)
             .background(Theme.Colors.appBackground.ignoresSafeArea())
-            .presentationBackground(.regularMaterial)
+            .presentationBackground(Theme.Colors.backgroundElevated)
     }
 
     /// Applies Nova's theme at a scene or presentation boundary. This catches
@@ -568,7 +564,7 @@ extension View {
                 in: shape
             )
             .overlay(
-                shape.strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5)
+                shape.strokeBorder(Theme.Colors.separator, lineWidth: 0.75)
             )
     }
 }
@@ -616,7 +612,7 @@ struct SectionHeader<Accessory: View>: View {
                     .foregroundStyle(Theme.Colors.accent)
             }
             Text(title)
-                .font(.appFont(24, weight: .bold))
+                .font(.appFont(24, weight: .semibold, design: .serif))
                 .foregroundStyle(Theme.Colors.textPrimary)
             Spacer(minLength: 0)
             accessory()

@@ -55,7 +55,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Settings")
-                            .font(.largeTitle.bold())
+                            .font(Theme.Font.screenTitle())
                         Text("Playback, library, connections, and privacy")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)

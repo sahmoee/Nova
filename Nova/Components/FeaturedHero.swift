@@ -234,7 +234,7 @@ private struct HeroIconButtonStyle: ButtonStyle {
 
         var body: some View {
             configuration.label
-                .foregroundStyle(.white)
+                .foregroundStyle(isFocused ? Theme.Colors.onAccent : Theme.Colors.textPrimary)
                 .background(isFocused ? AnyShapeStyle(Theme.Colors.focusedControl)
                                       : AnyShapeStyle(Theme.Colors.controlGlass), in: Circle())
                 .overlay(Circle().strokeBorder(isFocused ? Theme.Colors.accentSecondary : .white.opacity(0.16), lineWidth: 1.5))
@@ -296,7 +296,7 @@ private struct HeroPlayButtonStyle: ButtonStyle {
         var body: some View {
             configuration.label
                 .background(Theme.Colors.focusedControl, in: Capsule())
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.Colors.onAccent)
                 .scaleEffect(active && !Theme.isReduceMotion ? 1.06 : 1.0)
                 .shadow(color: active ? Theme.Colors.accent.opacity(0.55) : .black.opacity(0.22),
                         radius: active ? 22 : 10, y: active ? 9 : 4)

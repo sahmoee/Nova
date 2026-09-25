@@ -906,7 +906,7 @@ struct LibraryView: View {
 
             HStack(spacing: 9) {
                 Text("Library")
-                .font(.appFont(Theme.isCompact ? 32 : 54, weight: .heavy))
+                .font(.appFont(Theme.isCompact ? 32 : 54, weight: .semibold, design: .serif))
                     .foregroundStyle(.white)
                     .lineLimit(1)
 

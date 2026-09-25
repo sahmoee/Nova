@@ -170,7 +170,7 @@ struct ContentDetailView: View {
 
                 VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                     Text(item.title)
-                        .font(.appFont(Theme.isCompact ? 40 : 58, weight: .heavy))
+                        .font(.appFont(Theme.isCompact ? 40 : 58, weight: .semibold, design: .serif))
                         .foregroundStyle(Theme.Colors.textPrimary)
                         .lineLimit(2)
                         .minimumScaleFactor(0.72)
@@ -223,7 +223,7 @@ struct ContentDetailView: View {
                            startPoint: .leading, endPoint: .trailing)
             LinearGradient(colors: [.clear, .black], startPoint: .center, endPoint: .bottom)
             VStack(alignment: .leading, spacing: 18) {
-                Text(item.title).font(.system(size: 64, weight: .bold)).lineLimit(2)
+                Text(item.title).font(.system(size: 64, weight: .semibold, design: .serif)).lineLimit(2)
                 Text(metaLine).font(.system(size: 22, weight: .semibold)).foregroundStyle(.white.opacity(0.82))
                 if let overview = item.overview, !overview.isEmpty {
                     Text(overview).font(.system(size: 23)).lineLimit(3)

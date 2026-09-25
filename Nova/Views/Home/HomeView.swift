@@ -217,7 +217,7 @@ struct HomeView: View {
     private var topBar: some View {
         HStack(alignment: .center, spacing: Theme.Spacing.sm) {
             Text("Nova")
-                .font(.appFont(PlatformCapabilities.platform == .appleTV ? 38 : 30, weight: .heavy))
+                .font(.appFont(PlatformCapabilities.platform == .appleTV ? 38 : 34, weight: .semibold, design: .serif))
                 .foregroundStyle(Theme.Colors.textPrimary)
                 .accessibilityLabel("Nova Home")
             if !Theme.isCompact {
@@ -481,7 +481,7 @@ struct HomeView: View {
         #if os(tvOS)
         GeometryReader { geometry in
             ZStack(alignment: .bottomLeading) {
-                Color.black
+                Theme.Colors.background
                 RadialGradient(
                     colors: [.white.opacity(0.08), .clear],
                     center: .topTrailing,
