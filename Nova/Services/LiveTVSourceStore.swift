@@ -31,6 +31,99 @@ struct LiveTVSource: Identifiable, Codable, Hashable {
         self.epgURL = epgURL; self.refreshHours = refreshHours
     }
 
+    // MARK: Codable — credentials live in the Keychain, not in the JSON
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, url, kind, isEnabled, isBuiltIn, username, password, epgURL, refreshHours
+    }
+
+    /// Encoder `userInfo` flag. Only when set to `true` (a backup the user explicitly
+    /// opted into including secrets) are `username`/`password` written inline.
+    /// Otherwise they are omitted, so the JSON persisted to UserDefaults and
+    /// iCloud KVS never contains plaintext IPTV credentials.
+    static let includeCredentialsKey = CodingUserInfoKey(rawValue: "nova.livetv.includeCredentials")!
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        url = try c.decode(String.self, forKey: .url)
+        kind = try c.decode(Kind.self, forKey: .kind)
+        isEnabled = try c.decode(Bool.self, forKey: .isEnabled)
+        isBuiltIn = try c.decode(Bool.self, forKey: .isBuiltIn)
+        // Data written by older versions (or restored from a backup) may still carry
+        // credentials inline; LiveTVSourceStore migrates them into the Keychain.
+        username = try c.decodeIfPresent(String.self, forKey: .username)
+        password = try c.decodeIfPresent(String.self, forKey: .password)
+        epgURL = try c.decodeIfPresent(String.self, forKey: .epgURL)
+        refreshHours = try c.decodeIfPresent(Int.self, forKey: .refreshHours)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(name, forKey: .name)
+        try c.encode(url, forKey: .url)
+        try c.encode(kind, forKey: .kind)
+        try c.encode(isEnabled, forKey: .isEnabled)
+        try c.encode(isBuiltIn, forKey: .isBuiltIn)
+        if encoder.userInfo[Self.includeCredentialsKey] as? Bool == true {
+            try c.encodeIfPresent(username, forKey: .username)
+            try c.encodeIfPresent(password, forKey: .password)
+        }
+        try c.encodeIfPresent(epgURL, forKey: .epgURL)
+        try c.encodeIfPresent(refreshHours, forKey: .refreshHours)
+    }
+
+    // MARK: Keychain-backed credentials
+
+    /// Keychain account for one credential field of one source (keyed by source id).
+    static func keychainAccount(_ field: String, for id: UUID) -> String {
+        "livetv.\(id.uuidString).\(field)"
+    }
+
+    /// Whether this value carries credentials in memory (e.g. decoded inline).
+    var hasCredentials: Bool { username != nil || password != nil }
+
+    /// A copy whose missing credentials are filled in from the Keychain.
+    func withKeychainCredentials() -> LiveTVSource {
+        guard !isBuiltIn else { return self }
+        var copy = self
+        let keychain = KeychainStore.shared
+        if copy.username == nil { copy.username = keychain.get(Self.keychainAccount("username", for: id)) }
+        if copy.password == nil { copy.password = keychain.get(Self.keychainAccount("password", for: id)) }
+        return copy
+    }
+
+    /// Writes any in-memory credentials to the Keychain.
+    func saveCredentialsToKeychain() {
+        let keychain = KeychainStore.shared
+        do {
+            if let username { try keychain.set(username, for: Self.keychainAccount("username", for: id)) }
+            if let password { try keychain.set(password, for: Self.keychainAccount("password", for: id)) }
+        } catch {
+            NovaLog.sync.error("Failed to save Live TV credentials to Keychain: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// Removes a source's credentials from the Keychain.
+    static func deleteKeychainCredentials(for id: UUID) {
+        let keychain = KeychainStore.shared
+        try? keychain.delete(keychainAccount("username", for: id))
+        try? keychain.delete(keychainAccount("password", for: id))
+    }
+
+    /// Takes a Live TV source-list JSON blob that may contain inline credentials
+    /// (legacy data or a restored backup), moves those credentials into the
+    /// Keychain, and returns the blob re-encoded without them. Returns the input
+    /// unchanged if it can't be decoded.
+    static func migratingCredentialsToKeychain(_ data: Data) -> Data {
+        guard let sources = try? JSONDecoder().decode([LiveTVSource].self, from: data) else { return data }
+        guard sources.contains(where: \.hasCredentials) else { return data }
+        for source in sources { source.saveCredentialsToKeychain() }
+        return (try? JSONEncoder().encode(sources)) ?? data
+    }
+
     var playlistURL: URL? {
         switch kind {
         case .m3u, .curated:
@@ -146,10 +239,16 @@ final class LiveTVSourceStore: ObservableObject {
     private func load() {
         guard let data = defaults.data(forKey: defaultsKey),
               let decoded = try? JSONDecoder().decode([LiveTVSource].self, from: data) else { return }
-        sources = decoded
+        sources = decoded.map { $0.withKeychainCredentials() }
+        // Migrate credentials stored inline by older versions (or a restored backup)
+        // into the Keychain and rewrite the stored JSON without them.
+        if decoded.contains(where: \.hasCredentials) { persist() }
     }
 
     private func persist() {
+        // Credentials go to the Keychain; the JSON below omits them (see
+        // LiveTVSource.encode(to:)), so UserDefaults/iCloud KVS never hold them.
+        for source in sources where source.hasCredentials { source.saveCredentialsToKeychain() }
         guard let data = try? JSONEncoder().encode(sources) else { return }
         defaults.set(data, forKey: defaultsKey)
         // Mirror to iCloud so other devices pick up the change in real time.
@@ -160,8 +259,18 @@ final class LiveTVSourceStore: ObservableObject {
     /// Built-in curated sources are re-seeded afterward so they're never lost.
     private func mergeFromCloud() {
         guard let data = CloudSync.shared.data(forKey: Self.cloudKey),
-              let cloudSources = try? JSONDecoder().decode([LiveTVSource].self, from: data),
-              cloudSources != sources else { return }
+              let decoded = try? JSONDecoder().decode([LiveTVSource].self, from: data) else { return }
+        let cloudSources = decoded.map { $0.withKeychainCredentials() }
+        if decoded.contains(where: \.hasCredentials) {
+            // Legacy plaintext credentials in iCloud KVS: adopt the list, move the
+            // credentials into the Keychain, and re-push the list without them.
+            let changed = cloudSources != sources
+            sources = cloudSources
+            persist()
+            if changed { Task { await refreshAll() } }
+            return
+        }
+        guard cloudSources != sources else { return }
         sources = cloudSources
         // Persist locally without re-pushing identical data to the cloud.
         if let encoded = try? JSONEncoder().encode(sources) {
@@ -219,6 +328,7 @@ final class LiveTVSourceStore: ObservableObject {
         guard !source.isBuiltIn else { return }
         sources.removeAll { $0.id == source.id }
         channelsBySource[source.id] = nil
+        LiveTVSource.deleteKeychainCredentials(for: source.id)
         persist()
     }
 
