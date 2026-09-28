@@ -287,7 +287,25 @@ struct RealDebridView: View {
             while !Task.isCancelled && Date() < deadline {
                 try? await Task.sleep(nanoseconds: UInt64(interval) * 1_000_000_000)
                 if Task.isCancelled { return }
-                guard let creds = try? await environment.realDebrid.pollForCredentials(deviceCode: device.deviceCode) else {
+                let polled: RDCredentials?
+                do {
+                    polled = try await environment.realDebrid.pollForCredentials(deviceCode: device.deviceCode)
+                } catch {
+                    if Task.isCancelled { return }
+                    // A dropped connection is transient: keep polling until the deadline.
+                    if let rdError = error as? RealDebridError, case .network = rdError { continue }
+                    // Terminal failure (denied, expired, bad request, server error):
+                    // stop polling and tell the user instead of waiting for timeout.
+                    let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    await MainActor.run {
+                        rdDeviceCode = nil
+                        rdPollTask = nil
+                        statusMessage = message
+                        isError = true
+                    }
+                    return
+                }
+                guard let creds = polled else {
                     continue   // still pending
                 }
                 // Got client credentials — exchange for a token.

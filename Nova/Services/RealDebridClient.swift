@@ -22,6 +22,7 @@ enum RealDebridError: LocalizedError {
     case http(Int)
     case network(Error)
     case decoding(Error)
+    case deviceAuthorizationFailed(String)   // device sign-in denied/expired
 
     var errorDescription: String? {
         switch self {
@@ -33,6 +34,8 @@ enum RealDebridError: LocalizedError {
         case .http(let code):  return "Real-Debrid request failed (HTTP \(code))."
         case .network(let e):  return "Network error contacting Real-Debrid: \(e.localizedDescription)"
         case .decoding:        return "Couldn't read the Real-Debrid response."
+        case .deviceAuthorizationFailed(let reason):
+            return "Real-Debrid sign-in failed: \(reason). Start sign-in again."
         }
     }
 }
@@ -188,18 +191,60 @@ final actor RealDebridClient {
         return try decoder.decode(RDDeviceCode.self, from: data)
     }
 
-    /// Step 2: poll until the user authorizes. Returns nil while still pending.
+    /// Step 2: poll until the user authorizes. Returns nil only while authorization
+    /// is still pending (or the server asks us to slow down). Terminal failures —
+    /// access denied, expired device code, bad request, server errors, unreadable
+    /// responses — are thrown so the caller can stop polling immediately instead
+    /// of spinning until the device code times out.
     func pollForCredentials(deviceCode: String) async throws -> RDCredentials? {
         var comps = URLComponents(string: "\(Self.oauthBase)/device/credentials")!
         comps.queryItems = [
             URLQueryItem(name: "client_id", value: Self.oauthClientID),
             URLQueryItem(name: "code", value: deviceCode)
         ]
-        let (data, response) = try await session.data(from: comps.url!)
-        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-            return nil   // still pending
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(from: comps.url!)
+        } catch {
+            throw RealDebridError.network(error)
         }
-        return try? decoder.decode(RDCredentials.self, from: data)
+        guard let http = response as? HTTPURLResponse else {
+            throw RealDebridError.invalidResponse
+        }
+
+        if (200...299).contains(http.statusCode),
+           let credentials = try? decoder.decode(RDCredentials.self, from: data) {
+            return credentials
+        }
+
+        // Real-Debrid error bodies look like {"error": "...", "error_code": N}.
+        let body = try? decoder.decode(RDOAuthErrorBody.self, from: data)
+        let errorText = body?.error?.lowercased() ?? ""
+        if errorText.contains("pending") || errorText.contains("slow_down") || body?.errorCode == 5 {
+            return nil   // still waiting for the user (or asked to back off)
+        }
+        if errorText.contains("access_denied") {
+            throw RealDebridError.deviceAuthorizationFailed("access was denied")
+        }
+        if errorText.contains("expired") {
+            throw RealDebridError.deviceAuthorizationFailed("the sign-in code expired")
+        }
+
+        switch http.statusCode {
+        case 200...299:
+            // Success status but no credentials in the body.
+            throw RealDebridError.invalidResponse
+        case 403, 429:
+            // Real-Debrid answers 403 until the user has approved the device;
+            // 429 is rate limiting. Both mean "keep polling".
+            return nil
+        case 401:
+            throw RealDebridError.unauthorized
+        default:
+            // 400 (bad/unknown device code), other 4xx, and 5xx server errors.
+            throw RealDebridError.http(http.statusCode)
+        }
     }
 
     /// Step 3: exchange the device code + obtained client credentials for a token.
@@ -298,6 +343,17 @@ final actor RealDebridClient {
             let v = value.addingPercentEncoding(withAllowedCharacters: .rdFormAllowed) ?? value
             return "\(k)=\(v)"
         }.joined(separator: "&")
+    }
+}
+
+/// Error body returned by Real-Debrid's OAuth endpoints.
+private struct RDOAuthErrorBody: Decodable {
+    let error: String?
+    let errorCode: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case error
+        case errorCode = "error_code"
     }
 }
 
