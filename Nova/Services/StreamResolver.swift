@@ -51,7 +51,11 @@ actor StreamResolver {
         guard let infoHash = stream.infoHash else { throw StreamResolveError.noPlayableURL }
         guard hasDebridToken else { throw StreamResolveError.debridUnavailable }
 
-        let magnet = Self.magnet(fromHash: infoHash, name: stream.behaviorHints?.filename ?? stream.rawTitle)
+        // The info hash comes from an untrusted addon; refuse anything that isn't
+        // a well-formed BitTorrent info hash rather than building a malformed magnet.
+        guard let magnet = Self.magnet(fromHash: infoHash, name: stream.behaviorHints?.filename ?? stream.rawTitle) else {
+            throw StreamResolveError.noPlayableURL
+        }
 
         do {
             // 1. Add the magnet to the user's Real-Debrid account.
@@ -113,9 +117,34 @@ actor StreamResolver {
         throw StreamResolveError.noPlayableURL
     }
 
-    static func magnet(fromHash hash: String, name: String?) -> String {
+    private static let hexDigits = CharacterSet(charactersIn: "0123456789abcdefABCDEF")
+    private static let base32Digits = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz234567")
+    /// Query-value-safe characters: `.urlQueryAllowed` minus the separators that
+    /// would let a display name inject extra magnet parameters.
+    private static let magnetValueAllowed: CharacterSet = {
+        var set = CharacterSet.urlQueryAllowed
+        set.remove(charactersIn: "&=+#?")
+        return set
+    }()
+
+    /// Whether `hash` is a BitTorrent v1 info hash: 40 hex characters, or the
+    /// 32-character base32 form.
+    static func isValidInfoHash(_ hash: String) -> Bool {
+        let scalars = hash.unicodeScalars
+        switch scalars.count {
+        case 40: return scalars.allSatisfy { hexDigits.contains($0) }
+        case 32: return scalars.allSatisfy { base32Digits.contains($0) }
+        default: return false
+        }
+    }
+
+    /// Builds a magnet URI for an addon-supplied info hash. Returns nil when the
+    /// hash is not a valid info hash (e.g. contains `&` or other injected params).
+    static func magnet(fromHash rawHash: String, name: String?) -> String? {
+        let hash = rawHash.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isValidInfoHash(hash) else { return nil }
         var s = "magnet:?xt=urn:btih:\(hash)"
-        if let name, let encoded = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+        if let name, let encoded = name.addingPercentEncoding(withAllowedCharacters: magnetValueAllowed) {
             s += "&dn=\(encoded)"
         }
         // A few well-known public trackers to help RD pick it up quickly.
