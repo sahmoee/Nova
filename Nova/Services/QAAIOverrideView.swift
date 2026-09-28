@@ -1,5 +1,10 @@
 import SwiftUI
 
+// The QA AI-model override talks to a remote config endpoint that is protected
+// only by a shared QA passcode. It is a developer tool, so it is compiled into
+// DEBUG builds only and never ships in release/App Store builds.
+#if DEBUG
+
 struct QAAIOverrideView: View {
     let app: String; var hasActiveAI = true
     @State private var provider = "default"; @State private var model = ""; @State private var status = ""; @State private var busy = false
@@ -15,3 +20,4 @@ struct QAAIOverrideView: View {
     @MainActor private func load() async { do { let d = try await request("GET"); if let x = try JSONSerialization.jsonObject(with: d) as? [String: Any], let o = x["override"] as? [String: String] { provider = o["provider"] ?? "default"; model = o["model"] ?? "" } } catch { status = "Could not load current override." } }
     @MainActor private func save() async { busy = true; defer { busy = false }; do { let d = try JSONSerialization.data(withJSONObject: ["app": app, "provider": provider, "model": provider == "default" ? "" : model]); _ = try await request("POST", d); status = provider == "default" ? "Restored the lowest-credit default." : "QA now uses \(model)." } catch { status = "Override failed: \(error.localizedDescription)" } }
 }
+#endif

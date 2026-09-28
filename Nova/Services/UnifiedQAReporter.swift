@@ -641,7 +641,9 @@ struct UnifiedQASettingsView: View {
                 Toggle("Press and hold to report", isOn: $longPress).disabled(!enabled)
                 Toggle("Monitor performance and resources", isOn: $monitor).disabled(!enabled)
                 Toggle("Record taps and navigation path", isOn: $touches).disabled(!enabled)
+                #if DEBUG
                 if unlocked && enabled { QAAIOverrideView(app: "nova") }
+                #endif
             }
             Section("Tester and device") {
                 Picker("Tester on this device", selection: $tester) {
