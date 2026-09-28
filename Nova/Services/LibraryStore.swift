@@ -472,6 +472,30 @@ final class LibraryStore: ObservableObject {
         persist()
     }
 
+    /// Batch variant of `update(_:)`: applies every changed item in one pass and
+    /// persists (disk write, iCloud push, Spotlight reindex, widget snapshot)
+    /// exactly once, instead of once per item. Items not in the library, or
+    /// identical to the stored copy, are ignored. Returns the number applied.
+    @discardableResult
+    func update(contentsOf updatedItems: [MediaItem]) -> Int {
+        guard !updatedItems.isEmpty else { return 0 }
+        var candidate = items
+        var indexByID: [UUID: Int] = [:]
+        for (idx, existing) in candidate.enumerated() where indexByID[existing.id] == nil {
+            indexByID[existing.id] = idx
+        }
+        var applied = 0
+        for item in updatedItems {
+            guard let idx = indexByID[item.id], candidate[idx] != item else { continue }
+            candidate[idx] = item
+            applied += 1
+        }
+        guard applied > 0 else { return 0 }
+        items = candidate
+        persist()
+        return applied
+    }
+
     func remove(_ item: MediaItem) {
         items.removeAll { $0.id == item.id }
         persist()
