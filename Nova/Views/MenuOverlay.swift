@@ -40,6 +40,7 @@ struct MenuOverlay: View {
                 #if os(iOS)
                 .contentShape(Rectangle())
                 .onTapGesture { onDismiss() }
+                .accessibilityAddTraits(.isButton)
                 #endif
 
             panel

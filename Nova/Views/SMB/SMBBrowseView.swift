@@ -162,6 +162,7 @@ struct SMBBrowseView: View {
             .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
             .contentShape(Rectangle())
             .onTapGesture { pathFieldFocused = true }
+            .accessibilityAddTraits(.isButton)
         }
         .padding(.bottom, Theme.Spacing.sm)
     }

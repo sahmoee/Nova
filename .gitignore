@@ -26,3 +26,10 @@ scripts/__pycache__/
 # Local development guidance
 /AGENTS.md
 /CLAUDE.md
+
+# Shared quality/release tooling local output
+.bundle/
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+**/__pycache__/

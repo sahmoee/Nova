@@ -101,6 +101,12 @@ struct LibraryView: View {
                       systemImage: item.isWatched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
             }
             Button {
+                if library.isQueued(item) { library.removeFromQueue(item) } else { library.addToQueue(item) }
+            } label: {
+                Label(library.isQueued(item) ? "Remove from Up Next" : "Add to Up Next",
+                      systemImage: library.isQueued(item) ? "text.badge.minus" : "text.badge.plus")
+            }
+            Button {
                 library.toggleHidden(item)
             } label: {
                 Label(item.isHidden ? "Unhide" : "Hide", systemImage: item.isHidden ? "eye" : "eye.slash")
@@ -111,6 +117,17 @@ struct LibraryView: View {
                 Label("Remove from Library", systemImage: "trash")
             }
         }
+    }
+
+    /// Opens a random title from the current view, preferring ones not yet watched.
+    private func surpriseMe(from items: [MediaItem]) {
+        let unwatched = items.filter { !$0.isWatched }
+        guard let pick = (unwatched.isEmpty ? items : unwatched).randomElement() else {
+            ToastCenter.shared.show("Nothing in this view to pick from.")
+            return
+        }
+        ToastCenter.shared.show("Tonight: \(pick.seriesTitle ?? pick.title)")
+        if pick.isDirectPlay { openDirect(pick) } else { detailItem = pick }
     }
 
     /// SMB playback URLs are localhost bridge URLs and do not survive an app or
@@ -375,7 +392,7 @@ struct LibraryView: View {
             } else if filter != .recentlyAdded || hideWatched || showingHidden || activeTag != nil {
                 Text(tvViewDescription)
                     .font(.appFont(24))
-                    .foregroundStyle(.white.opacity(0.65))
+                    .foregroundStyle(.white.opacity(0.7))
                     .lineLimit(1)
             }
         }
@@ -404,6 +421,8 @@ struct LibraryView: View {
     private var tvLibraryOptions: some View {
         Menu {
             NavigationLink { watchNightDestination } label: { Label("Watch Night", systemImage: "moon.stars") }
+            Button { surpriseMe(from: tvDisplayedItems) } label: { Label("Surprise Me", systemImage: "dice") }
+                .disabled(tvDisplayedItems.isEmpty)
             Divider()
             Picker("Library View", selection: $filter) {
                 ForEach(activeFilters) { value in
@@ -467,6 +486,12 @@ struct LibraryView: View {
                 Button(allVisibleSelected ? "Deselect All" : "Select All") { toggleVisibleSelection() }
                 Button("Favorite Selected") { library.setFavorite(true, for: selectedIDs); endBulk() }
                     .disabled(selectedIDs.isEmpty)
+                Button("Mark Selected Watched") { library.setWatched(true, for: selectedIDs); endBulk() }
+                    .disabled(selectedIDs.isEmpty)
+                Button("Mark Selected Unwatched") { library.setWatched(false, for: selectedIDs); endBulk() }
+                    .disabled(selectedIDs.isEmpty)
+                Button("Add Selected to Up Next") { queueSelection(); endBulk() }
+                    .disabled(selectedIDs.isEmpty)
                 Button("Tag Selected") { showTagPrompt = true }.disabled(selectedIDs.isEmpty)
                 Button(showingHidden ? "Unhide Selected" : "Hide Selected") {
                     library.setHidden(!showingHidden, for: selectedIDs); endBulk()
@@ -513,6 +538,9 @@ struct LibraryView: View {
                 Button(item.isFavorite ? "Unfavorite" : "Favorite") { library.toggleFavorite(item) }
                 Button(item.isWatched ? "Mark as Unwatched" : "Mark as Watched") {
                     if item.isWatched { library.markUnwatched(item) } else { library.markWatched(item) }
+                }
+                Button(library.isQueued(item) ? "Remove from Up Next" : "Add to Up Next") {
+                    if library.isQueued(item) { library.removeFromQueue(item) } else { library.addToQueue(item) }
                 }
                 Button(item.isHidden ? "Unhide" : "Hide") { library.toggleHidden(item) }
                 if item.hasResumePoint {
@@ -643,7 +671,7 @@ struct LibraryView: View {
             Text(tvHasFilters ? "No matching titles" : "Your library is empty")
                 .font(.appFont(32, weight: .semibold))
             Text(tvHasFilters ? "Try another filter to see more of your library." : "Add a source or discover a title to get started.")
-                .font(.appFont(24)).foregroundStyle(.white.opacity(0.65))
+                .font(.appFont(24)).foregroundStyle(.white.opacity(0.7))
             Button {
                 if tvHasFilters { resetTVFilters() } else { nav.selection = .settings }
             } label: {
@@ -977,6 +1005,8 @@ struct LibraryView: View {
     private var optionsMenu: some View {
         Menu {
             NavigationLink { watchNightDestination } label: { Label("Watch Night", systemImage: "moon.stars") }
+            Button { surpriseMe(from: displayedItems) } label: { Label("Surprise Me", systemImage: "dice") }
+                .disabled(displayedItems.isEmpty)
             Divider()
             Button {
                 showStats = true
@@ -1019,6 +1049,13 @@ struct LibraryView: View {
             } label: {
                 Label(bulkEditing ? "Done Editing" : "Select Items",
                       systemImage: bulkEditing ? "checkmark.circle.fill" : "checklist")
+            }
+            if bulkEditing && !selectedIDs.isEmpty {
+                Button {
+                    library.setWatched(false, for: selectedIDs); endBulk()
+                } label: {
+                    Label("Mark Selected Unwatched", systemImage: "circle")
+                }
             }
             Button {
                 showCollectionPicker = true
@@ -1425,16 +1462,24 @@ struct LibraryView: View {
     }
 
     /// Applies the active sort order.
+    /// Applies the active sort order. Ties fall back to the stable content key (as on
+    /// tvOS) so equal years/titles/dates don't reshuffle while artwork and metadata load.
     private func sortItems(_ items: [MediaItem]) -> [MediaItem] {
-        switch sortOrder {
-        case .recentlyAdded:
-            return items.sorted { $0.addedDate > $1.addedDate }
-        case .title:
-            return items.sorted { ($0.seriesTitle ?? $0.title).localizedCaseInsensitiveCompare($1.seriesTitle ?? $1.title) == .orderedAscending }
-        case .year:
-            return items.sorted { ($0.metadata.year ?? 0) > ($1.metadata.year ?? 0) }
-        case .recentlyPlayed:
-            return items.sorted { ($0.lastPlayedDate ?? .distantPast) > ($1.lastPlayedDate ?? .distantPast) }
+        items.sorted { left, right in
+            switch sortOrder {
+            case .recentlyAdded:
+                if left.addedDate != right.addedDate { return left.addedDate > right.addedDate }
+            case .title:
+                let comparison = (left.seriesTitle ?? left.title).localizedCaseInsensitiveCompare(right.seriesTitle ?? right.title)
+                if comparison != .orderedSame { return comparison == .orderedAscending }
+            case .year:
+                let leftYear = left.metadata.year ?? 0, rightYear = right.metadata.year ?? 0
+                if leftYear != rightYear { return leftYear > rightYear }
+            case .recentlyPlayed:
+                let leftDate = left.lastPlayedDate ?? .distantPast, rightDate = right.lastPlayedDate ?? .distantPast
+                if leftDate != rightDate { return leftDate > rightDate }
+            }
+            return left.contentKey < right.contentKey
         }
     }
 
@@ -1489,6 +1534,8 @@ struct LibraryView: View {
             .buttonStyle(.plain)
             .disabled(displayedItems.isEmpty)
             bulkAction("star", "Favorite") { library.setFavorite(true, for: selectedIDs); endBulk() }
+            bulkAction("checkmark.circle", "Watched") { library.setWatched(true, for: selectedIDs); endBulk() }
+            bulkAction("text.badge.plus", "Up Next") { queueSelection(); endBulk() }
             bulkAction("tag", "Tag") { showTagPrompt = true }
             bulkAction("eye.slash", "Hide") { library.setHidden(!showingHidden, for: selectedIDs); endBulk() }
             bulkAction("trash", "Remove", destructive: true) { confirmBulkRemove = true }
@@ -1527,6 +1574,17 @@ struct LibraryView: View {
     private func endBulk() {
         selectedIDs.removeAll()
         bulkEditing = false
+    }
+
+    /// Queues the selection in the order it appears on screen.
+    private func queueSelection() {
+        #if os(tvOS)
+        let ordered = tvDisplayedItems.map(\.id).filter { selectedIDs.contains($0) }
+        #else
+        let ordered = displayedItems.map(\.id).filter { selectedIDs.contains($0) }
+        #endif
+        library.addToQueue(ids: ordered)
+        ToastCenter.shared.show("Added \(ordered.count) to Up Next")
     }
 
     private func toggleSelection(_ id: UUID) {

@@ -18,29 +18,36 @@ final class NovaSleepTimerManager: ObservableObject {
 
     @Published private(set) var isActive = false
     @Published private(set) var remainingSeconds: Int = 0
+    /// The preset last chosen, so the sheet can mark it while the timer runs.
+    @Published private(set) var selectedMinutes: Int?
 
     private var task: Task<Void, Never>?
     private var onExpire: (() -> Void)?
+    /// Wall-clock deadline. A 1-second counting loop drifted and stalled while the app
+    /// was suspended, so the remaining time is always derived from this deadline.
+    private var deadline: Date?
 
     private init() {}
 
-    func begin(minutes: Int, onExpire: @escaping () -> Void) {
+    /// Starts (or restarts) the timer. Without an explicit handler, expiry pauses
+    /// whichever Nova player is active, so the timer also works when started from Settings.
+    func begin(minutes: Int, onExpire: (() -> Void)? = nil) {
         cancel()
         guard minutes > 0 else { return }
         self.onExpire = onExpire
-        remainingSeconds = minutes * 60
+        selectedMinutes = minutes
+        deadline = Date().addingTimeInterval(TimeInterval(minutes * 60))
         isActive = true
-        task = Task { [weak self] in
-            while let self, self.remainingSeconds > 0 {
-                try? await Task.sleep(for: .seconds(1))
-                guard !Task.isCancelled else { return }
-                await MainActor.run { self.remainingSeconds -= 1 }
-            }
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                self?.expire()
-            }
-        }
+        refreshRemaining()
+        startTicking()
+    }
+
+    /// Adds time to a running timer without resetting it.
+    func extend(minutes: Int) {
+        guard isActive, minutes > 0, let deadline else { return }
+        self.deadline = deadline.addingTimeInterval(TimeInterval(minutes * 60))
+        selectedMinutes = nil
+        refreshRemaining()
     }
 
     func cancel() {
@@ -48,27 +55,53 @@ final class NovaSleepTimerManager: ObservableObject {
         task = nil
         isActive = false
         remainingSeconds = 0
+        selectedMinutes = nil
+        deadline = nil
         onExpire = nil
+    }
+
+    private func startTicking() {
+        task = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled, let self else { return }
+                self.refreshRemaining()
+                if self.remainingSeconds <= 0 {
+                    self.expire()
+                    return
+                }
+            }
+        }
+    }
+
+    private func refreshRemaining() {
+        guard let deadline else { remainingSeconds = 0; return }
+        remainingSeconds = max(0, Int(deadline.timeIntervalSinceNow.rounded(.up)))
     }
 
     private func expire() {
-        isActive = false
         let handler = onExpire
+        task = nil
+        isActive = false
+        remainingSeconds = 0
+        selectedMinutes = nil
+        deadline = nil
         onExpire = nil
-        handler?()
+        if let handler { handler() } else { PlaybackCoordinator.shared.pauseActive() }
     }
 
     var displayString: String {
-        let m = remainingSeconds / 60
+        let h = remainingSeconds / 3600
+        let m = (remainingSeconds % 3600) / 60
         let s = remainingSeconds % 60
-        return String(format: "%d:%02d", m, s)
+        return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
     }
 }
 
 // MARK: - View
 
 struct NovaSleepTimerSheet: View {
-    @StateObject private var manager = NovaSleepTimerManager.shared
+    @ObservedObject private var manager = NovaSleepTimerManager.shared
     @Environment(\.dismiss) private var dismiss
 
     /// Inject a closure that pauses the active player.
@@ -103,17 +136,22 @@ struct NovaSleepTimerSheet: View {
                             .buttonStyle(.bordered)
                         }
                         .padding(.vertical, 4)
+                        Button {
+                            manager.extend(minutes: 10)
+                        } label: {
+                            Label("Add 10 minutes", systemImage: "plus.circle")
+                        }
                     } header: {
                         Text("Active Timer")
+                    } footer: {
+                        Text("When the timer ends, Nova pauses whatever is playing and saves your place.")
                     }
                 }
 
                 Section {
                     ForEach(presets, id: \.minutes) { preset in
                         Button {
-                            manager.begin(minutes: preset.minutes) {
-                                onPause?()
-                            }
+                            manager.begin(minutes: preset.minutes, onExpire: onPause)
                             #if os(iOS)
                             UINotificationFeedbackGenerator().notificationOccurred(.success)
                             #endif
@@ -123,8 +161,7 @@ struct NovaSleepTimerSheet: View {
                                 Text(preset.label)
                                     .foregroundStyle(.primary)
                                 Spacer()
-                                if manager.isActive,
-                                   manager.remainingSeconds == preset.minutes * 60 {
+                                if manager.isActive, manager.selectedMinutes == preset.minutes {
                                     Image(systemName: "checkmark")
                                         .foregroundStyle(.orange)
                                 }
@@ -152,7 +189,7 @@ struct NovaSleepTimerSheet: View {
 // MARK: - Compact indicator (embed in player controls)
 
 struct NovaSleepTimerIndicator: View {
-    @StateObject private var manager = NovaSleepTimerManager.shared
+    @ObservedObject private var manager = NovaSleepTimerManager.shared
     @State private var showSheet = false
     var onPause: (() -> Void)?
 

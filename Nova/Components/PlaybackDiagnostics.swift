@@ -31,6 +31,7 @@ struct PlaybackDiagnostics: View {
                         .font(.appFont(22))
                 }
                 .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
             }
 
             row("Engine", engine == .vlc ? "VLCKit" : "AVPlayer")
@@ -56,7 +57,7 @@ struct PlaybackDiagnostics: View {
         HStack {
             Text(label)
                 .font(.appFont(15, weight: .medium))
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(.white.opacity(0.7))
             Spacer()
             Text(value)
                 .font(.appFont(15, weight: .semibold))

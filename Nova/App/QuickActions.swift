@@ -39,11 +39,20 @@ final class NovaQuickActionsManager {
             actions.append(UIApplicationShortcutItem(
                 type: "nova.resume",
                 localizedTitle: "Resume",
-                localizedSubtitle: item.title,
+                localizedSubtitle: item.seriesTitle ?? item.title,
                 icon: UIApplicationShortcutIcon(systemImageName: "play.fill"),
-                userInfo: ["contentKey": item.contentKey as NSString]
+                userInfo: ["contentKey": item.contentKey as NSString,
+                           "isShow": NSNumber(value: item.isSeries)]
             ))
         }
+
+        actions.append(UIApplicationShortcutItem(
+            type: "nova.continue",
+            localizedTitle: "Continue Watching",
+            localizedSubtitle: nil,
+            icon: UIApplicationShortcutIcon(systemImageName: "play.circle"),
+            userInfo: nil
+        ))
 
         actions.append(UIApplicationShortcutItem(
             type: "nova.search",
@@ -64,22 +73,45 @@ final class NovaQuickActionsManager {
         UIApplication.shared.shortcutItems = actions
     }
 
-    /// Call from scene(_:continue:) with the shortcut item.
-    func handle(shortcutItem: UIApplicationShortcutItem) {
+    /// Call from the scene delegate with the shortcut item. Each action is routed as the
+    /// equivalent nova:// link so it uses the same navigation as widgets and Shortcuts.
+    @discardableResult
+    func handle(shortcutItem: UIApplicationShortcutItem) -> Bool {
+        guard let url = Self.url(for: shortcutItem.type, userInfo: shortcutItem.userInfo) else { return false }
         switch shortcutItem.type {
         case "nova.resume":
-            let contentKey = shortcutItem.userInfo?["contentKey"] as? String
-            NotificationCenter.default.post(
-                name: .novaQuickActionResume,
-                object: nil,
-                userInfo: contentKey.map { ["contentKey": $0] }
-            )
+            NotificationCenter.default.post(name: .novaQuickActionResume, object: nil,
+                                            userInfo: shortcutItem.userInfo?["contentKey"].map { ["contentKey": $0] })
         case "nova.search":
             NotificationCenter.default.post(name: .novaQuickActionSearch, object: nil)
         case "nova.library":
             NotificationCenter.default.post(name: .novaQuickActionLibrary, object: nil)
         default:
             break
+        }
+        // Give a cold-launched scene a moment to attach its URL handler.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(350))
+            _ = await UIApplication.shared.open(url)
+        }
+        return true
+    }
+
+    /// The deep link for a quick action. Content keys can contain URL delimiters, so they
+    /// are percent-encoded as a single path segment.
+    static func url(for type: String, userInfo: [String: NSSecureCoding]?) -> URL? {
+        switch type {
+        case "nova.resume":
+            guard let key = userInfo?["contentKey"] as? String, !key.isEmpty else { return URL(string: "nova://continue") }
+            let isShow = (userInfo?["isShow"] as? NSNumber)?.boolValue ?? false
+            var allowed = CharacterSet.urlPathAllowed
+            allowed.remove(charactersIn: "/?#%")
+            guard let encoded = key.addingPercentEncoding(withAllowedCharacters: allowed) else { return nil }
+            return URL(string: "nova://\(isShow ? "show" : "movie")/\(encoded)")
+        case "nova.continue": return URL(string: "nova://continue")
+        case "nova.search": return URL(string: "nova://discover")
+        case "nova.library": return URL(string: "nova://library")
+        default: return nil
         }
     }
 

@@ -65,6 +65,22 @@ actor FakeMediaClient: MediaServerIndexing {
         var checks = 0
         func check(_ condition: Bool, _ label: String) { precondition(condition, label); checks += 1 }
         func rejects(_ label: String, _ operation: () throws -> Void) { do { try operation(); preconditionFailure(label) } catch { checks += 1 } }
+        var retry = MediaServerRetryGate()
+        retry.failed(kind: .jellyfin, now: 100, providerMinimum: 300)
+        rejects("Manual refresh respects provider deadline") { try retry.begin(now: 399, automatic: false) }
+        try retry.begin(now: 400, automatic: true)
+        for index in 2...5 { retry.failed(kind: .jellyfin, now: Double(index) * 1_000, providerMinimum: nil) }
+        rejects("Automatic retries pause at five failures") { try retry.begin(now: 10_000, automatic: true) }
+        try retry.begin(now: 10_000, automatic: false)
+        check(retry.failures == 0, "Explicit retry renews exhausted budget")
+        retry.failed(kind: .plex, now: 10_000, providerMinimum: nil)
+        check(retry.deadline == 10_060, "Plex local delay is independent")
+        var otherServer = MediaServerRetryGate()
+        try otherServer.begin(now: 10_001, automatic: true)
+        check(otherServer.failures == 0, "Another server is unaffected")
+        retry.succeeded(now: 11_000)
+        check(retry.failures == 0, "Success clears failure budget")
+        rejects("Successful refresh also prevents rapid repeat") { try retry.begin(now: 11_009, automatic: false) }
         let base = URL(string: "https://EXAMPLE.invalid/proxy/")!
         check(try MediaServerIndexPolicy.normalizedBase(base).absoluteString == "https://example.invalid/proxy", "Normalize base without losing reverse proxy")
         for address in ["ftp://example.invalid", "https://example.invalid?key=x", "https://u:p@example.invalid", "https://example.invalid/#fragment", "https://example.invalid/%2e%2e", "https://example.invalid:0"] {
@@ -162,7 +178,8 @@ actor FakeMediaClient: MediaServerIndexing {
         // Only this unique suite is used; never the app defaults or Keychain.
         defer { defaults.removePersistentDomain(forName: suite) }
         let library = LibraryStore(), fake = FakeMediaClient(), vault = MemoryCredentials()
-        let store = MediaServerStore(library: library, client: fake, defaults: defaults, credentials: vault.access)
+        var clock: TimeInterval = 0
+        let store = MediaServerStore(library: library, client: fake, defaults: defaults, credentials: vault.access, uptime: { clock })
         connection.selectedLibraryIDs = ["movies", "music"]
         try store.save(connection, secret: "synthetic-only")
         check(store.connections.count == 1 && vault.writes == 1, "Configured secret persists through injected credential owner")
@@ -183,6 +200,9 @@ actor FakeMediaClient: MediaServerIndexing {
         check(library.snapshots.count == 1 && store.syncingIDs.isEmpty, "Coalesced result reconciles exactly once")
         check(store.connections[0].lastIndexed != nil, "Successful reconciliation marks timestamp")
         check(store.connections[0].selectedLibraryIDs == ["movies"], "Successful snapshot persists migrated video selection")
+        do { try await store.sync(connection.id); preconditionFailure("Repeat ignored cooldown") } catch { checks += 1 }
+        check(await fake.counts().0 == 1, "Cooldown blocks network request")
+        clock += 1_000
         let stale = Task { try await store.sync(connection.id) }; await waitFor(2)
         connection.name = "Changed"; try store.save(connection, secret: "synthetic-new")
         let current = Task { try await store.sync(connection.id) }; await waitFor(3)
@@ -192,6 +212,7 @@ actor FakeMediaClient: MediaServerIndexing {
         await fake.finishIndex(3, result: result); try await current.value
         check(library.snapshots.count == 2 && store.connections[0].name == "Changed", "New generation commits")
         library.accepts = false
+        clock += 1_000
         let before = store.connections[0].lastIndexed
         let failedSave = Task { try await store.sync(connection.id) }; await waitFor(4)
         await fake.finishIndex(4, result: result)
@@ -201,9 +222,11 @@ actor FakeMediaClient: MediaServerIndexing {
         check(store.connections.count == 1 && vault.removes == 0, "Failed library removal retains credentials and configuration")
         library.accepts = true
         vault.failRead = true
+        clock += 1_000
         do { try await store.sync(connection.id); preconditionFailure("Credential failure ignored") } catch { checks += 1 }
         check(store.connections[0].lastError != nil && store.syncingIDs.isEmpty, "Credential failures clear progress and surface error")
         vault.failRead = false
+        clock += 1_000
         let removed = Task { try await store.sync(connection.id) }; await waitFor(5)
         store.remove(connection, removeIndexedItems: false)
         await fake.finishIndex(5, result: result)

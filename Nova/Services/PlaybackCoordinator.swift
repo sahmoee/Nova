@@ -17,6 +17,9 @@ import Foundation
 protocol StoppablePlayer: AnyObject {
     /// Stop playback and release resources. Must be safe to call more than once.
     func stopAndSave()
+    /// Pause in place (keeping the player open) and checkpoint progress. Used by the
+    /// sleep timer. Must be safe to call when already paused.
+    func pauseAndSave()
 }
 
 @MainActor
@@ -60,6 +63,12 @@ final class PlaybackCoordinator {
         #if os(iOS)
         NovaPhoneWatchBridge.shared.sceneChanged()
         #endif
+    }
+
+    /// Pauses the active player without closing it, e.g. when the sleep timer ends.
+    func pauseActive() {
+        active?.pauseAndSave()
+        NowPlayingStore.shared.isPlaying = false
     }
 
     /// Whether something is currently active.

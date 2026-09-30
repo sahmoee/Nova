@@ -300,7 +300,7 @@ struct RootView: View {
                                     .lineLimit(1)
                                 Text(nowPlayingSubtitle(item))
                                     .font(.appFont(isTV ? 16 : 13))
-                                    .foregroundStyle(.white.opacity(0.68))
+                                    .foregroundStyle(.white.opacity(0.7))
                                     .lineLimit(1)
                                     // Roll the percent digits instead of hard-swapping.
                                     .contentTransition(.numericText())

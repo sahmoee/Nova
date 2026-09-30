@@ -207,6 +207,15 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
 
     // MARK: - Controls
 
+    func pauseAndSave() {
+        #if canImport(VLCKitSPM)
+        guard isActive, mediaPlayer.isPlaying else { return }
+        checkpointProgress()
+        mediaPlayer.pause()
+        scrobble(.pause)
+        #endif
+    }
+
     func togglePlayPause() {
         #if canImport(VLCKitSPM)
         if mediaPlayer.isPlaying {

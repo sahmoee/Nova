@@ -133,11 +133,21 @@ struct PrivacyLegalView: View {
                             .font(.appFont(28, weight: .bold))
                             .foregroundStyle(Theme.Colors.textPrimary)
                         legalLink("Privacy Policy", systemImage: "hand.raised.fill",
-                                  url: "https://sahmoee.github.io/Nova/privacy.html")
+                                  url: "https://sowensstudios.com/privacy/")
+                        legalLink("Terms of Service", systemImage: "doc.plaintext.fill",
+                                  url: "https://sowensstudios.com/terms/")
+                        legalLink("Cookies & Tracking", systemImage: "shield.lefthalf.filled",
+                                  url: "https://sowensstudios.com/cookies/")
+                        legalLink("Request Data Deletion", systemImage: "person.crop.circle.badge.minus",
+                                  url: "https://sowensstudios.com/delete-data/")
+                        legalLink("About & Business Details", systemImage: "building.2.fill",
+                                  url: "https://sowensstudios.com/about/")
                         legalLink("License & Open-Source Notices", systemImage: "doc.text.fill",
-                                  url: "https://sahmoee.github.io/Nova/license.html")
+                                  url: "https://sowensstudios.com/licenses/")
                         legalLink("Support", systemImage: "questionmark.circle.fill",
-                                  url: "https://sahmoee.github.io/Nova/support.html")
+                                  url: "https://sowensstudios.com/support/")
+                        legalLink("Accessibility Statement", systemImage: "figure.stand",
+                                  url: "https://sowensstudios.com/accessibility/")
                         legalLink("Apple Standard EULA", systemImage: "checkmark.seal.fill",
                                   url: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")
                     }

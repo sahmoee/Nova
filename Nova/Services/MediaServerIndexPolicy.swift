@@ -1,5 +1,32 @@
 import Foundation
 
+/// Per-connection session budget, measured with uptime so wall-clock changes
+/// cannot shorten a provider's Retry-After deadline. These are Nova defaults,
+/// not claims about provider-mandated rate limits.
+struct MediaServerRetryGate {
+    private(set) var failures = 0
+    private(set) var deadline: TimeInterval = 0
+    static let maximumFailures = 5
+
+    mutating func begin(now: TimeInterval, automatic: Bool) throws {
+        if now < deadline { throw MediaServerError.coolingDown(deadline - now) }
+        if failures >= Self.maximumFailures {
+            if automatic { throw MediaServerError.retryPaused }
+            failures = 0 // An explicit refresh begins a new budget, after cooldown.
+        }
+    }
+
+    mutating func failed(kind: MediaServerKind, now: TimeInterval, providerMinimum: TimeInterval?) {
+        failures = min(Self.maximumFailures, failures + 1)
+        let base: TimeInterval = kind == .plex ? 60 : 30
+        let local = min(900, base * pow(2, Double(failures - 1)))
+        let minimum = providerMinimum.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil } ?? 0
+        deadline = max(deadline, now + max(local, minimum))
+    }
+
+    mutating func succeeded(now: TimeInterval) { failures = 0; deadline = now + 10 }
+}
+
 enum MediaServerIndexPolicy {
     static let maximumResponseBytes = 16 * 1024 * 1024
     static let maximumItems = 200_000

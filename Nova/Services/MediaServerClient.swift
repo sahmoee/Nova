@@ -185,6 +185,10 @@ actor MediaServerClient: MediaServerIndexing {
         try Task.checkCancellation()
         guard let http = response as? HTTPURLResponse else { throw MediaServerError.unsupportedResponse }
         if http.statusCode == 401 || http.statusCode == 403 { throw MediaServerError.unauthorized }
+        if [429, 503].contains(http.statusCode),
+           let delay = MediaReliabilityPolicy.retryAfter(http.value(forHTTPHeaderField: "Retry-After")) {
+            throw MediaServerError.rateLimited(delay)
+        }
         guard http.statusCode == 200 else { throw MediaServerError.http(http.statusCode) }
         guard response.expectedContentLength <= MediaServerIndexPolicy.maximumResponseBytes else { throw MediaServerError.responseTooLarge }
         var payload = Data()

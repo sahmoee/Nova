@@ -70,10 +70,14 @@ struct MediaServerIndexResult: Sendable {
 }
 
 enum MediaServerError: LocalizedError {
+    case rateLimited(TimeInterval), coolingDown(TimeInterval), retryPaused
     case invalidAddress, missingCredential, unauthorized, unsupportedResponse, http(Int)
     case incompleteIndex, responseTooLarge, unreadableConfiguration, userRequired, localPersistence
     var errorDescription: String? {
         switch self {
+        case .rateLimited(let seconds), .coolingDown(let seconds):
+            return "This server is cooling down. Try again in \(Int(ceil(min(max(seconds, 0), 31_536_000)))) seconds."
+        case .retryPaused: return "Automatic refresh paused after five failed attempts. Use Refresh to try again after the cooldown."
         case .invalidAddress: return "Enter a valid HTTP or HTTPS server address."
         case .missingCredential: return "This server needs a saved access token."
         case .unauthorized: return "The server rejected the account or access token."

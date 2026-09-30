@@ -1,3 +1,6 @@
+<!-- PROJECT-KNOWLEDGE managed; do not edit this export -->
+> Maintained in ProjectKnowledge: `projects/nova/documents/README.md`. This is a generated portable read-only export. Update the central source with `project-knowledge put`; use `project-knowledge publish` to refresh exports. Relative links and code paths below refer to this original project location.
+
 # Nova
 
 Nova is a local-first personal media experience for iPhone, iPad, and Apple TV. It combines a user’s own libraries and sources with discovery, metadata, playback, progress, profiles, optional tracking services, and private backup in a native SwiftUI interface.

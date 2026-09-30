@@ -16,6 +16,16 @@ private let episodeRefreshTaskID = "com.nova.ios.episode-refresh"
 private final class NovaAppDelegate: NSObject, UIApplicationDelegate {
     static var environment: AppEnvironment?
 
+    /// Supplies a scene delegate only for Home Screen quick actions; SwiftUI still owns
+    /// the window and content.
+    func application(_ application: UIApplication,
+                     configurationForConnecting connectingSceneSession: UISceneSession,
+                     options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
+        configuration.delegateClass = NovaSceneDelegate.self
+        return configuration
+    }
+
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         // NovaAppDelegate is main-actor isolated. Supplying no queue lets
@@ -48,6 +58,20 @@ private final class NovaAppDelegate: NSObject, UIApplicationDelegate {
         task.expirationHandler = { work.cancel() }
     }
 }
+/// Receives Home Screen quick actions, both at cold launch and while running.
+@MainActor
+final class NovaSceneDelegate: NSObject, UIWindowSceneDelegate {
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+        if let shortcut = connectionOptions.shortcutItem {
+            NovaQuickActionsManager.shared.handle(shortcutItem: shortcut)
+        }
+    }
+
+    func windowScene(_ windowScene: UIWindowScene, performActionFor shortcutItem: UIApplicationShortcutItem,
+                     completionHandler: @escaping (Bool) -> Void) {
+        completionHandler(NovaQuickActionsManager.shared.handle(shortcutItem: shortcutItem))
+    }
+}
 #endif
 
 @main
@@ -63,6 +87,7 @@ struct NovaApp: App {
         WindowGroup {
             ZStack {
                 RootView()
+                    .studioAgeGate()
                 VStack {
                     Spacer()
                     HStack {
@@ -97,6 +122,9 @@ struct NovaApp: App {
             } else if phase == .background {
                 #if os(iOS)
                 NovaAppDelegate.scheduleEpisodeRefresh()
+                // Keep the Home Screen "Resume" shortcut pointed at the latest title.
+                NovaQuickActionsManager.shared.registerActions(
+                    lastWatched: environment.library.continueWatching.first ?? environment.library.recentlyWatched.first)
                 #endif
             }
         }

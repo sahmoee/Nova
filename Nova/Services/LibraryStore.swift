@@ -729,6 +729,34 @@ final class LibraryStore: ObservableObject {
         persist()
     }
 
+    /// Bulk watched/unwatched with one persist, using the same rules as the single-item
+    /// actions (including leaving the queue once watched).
+    func setWatched(_ watched: Bool, for ids: Set<UUID>) {
+        var candidate = items
+        let now = Date()
+        for index in candidate.indices where ids.contains(candidate[index].id) {
+            if watched {
+                if let duration = candidate[index].duration, duration > 0 {
+                    candidate[index].lastPlayedPosition = duration
+                } else {
+                    candidate[index].duration = 100
+                    candidate[index].lastPlayedPosition = 100
+                }
+                candidate[index].lastPlayedDate = now
+            } else {
+                candidate[index].lastPlayedPosition = 0
+                candidate[index].lastPlayedDate = nil
+            }
+        }
+        guard candidate != items else { return }
+        items = candidate
+        if watched, queueIDs.contains(where: ids.contains) {
+            queueIDs.removeAll { ids.contains($0) }
+            persistQueue()
+        }
+        persist()
+    }
+
     // MARK: - Watchlist Queue
     //
     // A dedicated "I plan to watch this" list, separate from Favorites ("I like
@@ -773,6 +801,34 @@ final class LibraryStore: ObservableObject {
         guard queueIDs.contains(item.id) else { return }
         queueIDs.removeAll { $0 == item.id }
         persistQueue()
+    }
+
+    /// Adds many items at once, keeping their order and skipping ones already queued.
+    func addToQueue(ids: [UUID]) {
+        let known = Set(items.map(\.id))
+        let additions = ids.filter { known.contains($0) && !queueIDs.contains($0) }
+        guard !additions.isEmpty else { return }
+        queueIDs = LibraryMutationPolicy.unique(queueIDs + additions)
+        persistQueue()
+    }
+
+    /// Moves a queued item to the front ("Play Next").
+    func moveToFrontOfQueue(_ item: MediaItem) {
+        guard let index = queueIDs.firstIndex(of: item.id), index > 0 else { return }
+        queueIDs.remove(at: index)
+        queueIDs.insert(item.id, at: 0)
+        persistQueue()
+    }
+
+    func clearQueue() {
+        guard !queueIDs.isEmpty else { return }
+        queueIDs = []
+        persistQueue()
+    }
+
+    /// The exact queued library rows in order (no series collapsing), for management UI.
+    var queuedEntries: [MediaItem] {
+        queueIDs.compactMap { id in items.first { $0.id == id } }
     }
 
     /// Reorders the queue (list-style move).

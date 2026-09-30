@@ -1,3 +1,4 @@
+import SowensKit
 //
 //  Theme.swift
 //  Nova
@@ -165,7 +166,7 @@ enum Theme {
 
         static let textPrimary = Color.primary
         static let textSecondary = Color.secondary
-        static let textTertiary = Color.secondary.opacity(0.78)
+        static let textTertiary = Color.secondary
         static let textQuaternary = Color.secondary.opacity(0.58)
 
         static let success = Color.green
@@ -397,14 +398,8 @@ extension View {
         let radius = cornerRadius ?? Theme.Radius.card
         return self
             .padding(padding ?? Theme.Spacing.md)
-            .background(
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .fill(Theme.Colors.cardGradient)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.06), lineWidth: 0.5)
-            )
+            .sowensSurface(fill: Theme.Colors.cardGradient, border: Color.white.opacity(0.06),
+                           radius: radius, lineWidth: 0.5)
     }
 }
 
@@ -569,9 +564,7 @@ extension View {
     }
 }
 
-
 // MARK: - Surface & header polish (merged from Components/Polish.swift)
-
 
 // MARK: - Card surface
 
@@ -645,7 +638,6 @@ struct PressableButtonStyle: ButtonStyle {
 extension ButtonStyle where Self == PressableButtonStyle {
     static var pressable: PressableButtonStyle { PressableButtonStyle() }
 }
-
 
 // MARK: - Destructive confirmation
 

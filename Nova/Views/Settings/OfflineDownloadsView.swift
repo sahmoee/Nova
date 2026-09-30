@@ -23,6 +23,7 @@ private struct OfflineDownloadsContent: View {
     @State private var pendingRemoval: OfflineDownload?
     @State private var showRemoveCompleted = false
     @State private var playbackItem: MediaItem?
+    @State private var expandedDevices: Set<UUID> = []
 
     private var visibleDownloads: [OfflineDownload] {
         manager.downloads
@@ -58,6 +59,7 @@ private struct OfflineDownloadsContent: View {
                 if !manager.isNetworkAvailable { offlineBanner }
                 summary
                 controls
+                deviceStatuses
 
                 if manager.downloads.isEmpty {
                     EmptyStateView(systemImage: "arrow.down.circle", title: "Nothing downloaded",
@@ -97,7 +99,41 @@ private struct OfflineDownloadsContent: View {
         .fullScreenCover(item: $playbackItem) { item in
             NavigationStack { PlayerView(item: item) }
         }
-        .onAppear { manager.reconcileFiles() }
+        .onAppear { manager.reconcileFiles(); manager.refreshDeviceStatuses() }
+    }
+
+    private var deviceStatuses: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text("Downloads on this device").font(.headline)
+            Text("Files stay on the device that downloaded them. Other devices report their last known status below.")
+                .font(.caption).foregroundStyle(Theme.Colors.textSecondary)
+            if let message = manager.deviceStatusMessage { Text(message).font(.caption) }
+            ForEach(manager.otherDevices) { device in
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                    Button {
+                        if expandedDevices.contains(device.id) { expandedDevices.remove(device.id) }
+                        else { expandedDevices.insert(device.id) }
+                    } label: {
+                        Label("\(device.platform) · \(String(device.id.uuidString.prefix(4))) · \(device.totalCount) downloads",
+                              systemImage: expandedDevices.contains(device.id) ? "chevron.down" : "chevron.right")
+                    }
+                    if expandedDevices.contains(device.id) {
+                    Text("Last reported \(device.updatedAt.formatted(date: .abbreviated, time: .shortened)). This device may now be offline.")
+                        .font(.caption).foregroundStyle(Theme.Colors.textSecondary)
+                    if device.transfers.isEmpty { Text("No downloads reported.") }
+                    ForEach(device.transfers) { transfer in
+                        HStack {
+                            Text(transfer.title).lineLimit(2)
+                            Spacer()
+                            Text(transfer.state == .complete ? "Downloaded there" : transfer.state.rawValue.capitalized)
+                                .foregroundStyle(Theme.Colors.textSecondary)
+                        }.font(.caption)
+                    }
+                    if device.totalCount > device.transfers.count { Text("Showing the latest 50 of \(device.totalCount) downloads.").font(.caption) }
+                    }
+                }
+            }
+        }
     }
 
     private var header: some View {

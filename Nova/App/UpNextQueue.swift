@@ -13,121 +13,86 @@
 
 import SwiftUI
 
-// MARK: - Store
+// MARK: - Legacy store
 
+/// Nova 1.7 briefly shipped this separate queue file. Nothing in the app added to it, so
+/// the library's own queue (Home "Up Next", title detail "Queue", iCloud-synced) is the
+/// one real queue. Any legacy entries are moved into it once and the file is removed.
 @MainActor
-final class NovaUpNextQueue: ObservableObject {
+final class NovaUpNextQueue {
     static let shared = NovaUpNextQueue()
-
-    @Published private(set) var items: [MediaItem] = []
 
     private let fileURL: URL = {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Nova", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("upnext.json")
     }()
 
-    private init() { load() }
+    private init() {}
 
-    // MARK: - Mutations
-
-    /// Add to end of queue.
-    func add(_ item: MediaItem) {
-        guard !items.contains(where: { $0.contentKey == item.contentKey }) else { return }
-        items.append(item)
-        save()
-        #if os(iOS)
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        #endif
-    }
-
-    /// Insert at front (Play Next).
-    func playNext(_ item: MediaItem) {
-        items.removeAll { $0.contentKey == item.contentKey }
-        items.insert(item, at: 0)
-        save()
-        #if os(iOS)
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        #endif
-    }
-
-    /// Remove a specific item.
-    func remove(_ item: MediaItem) {
-        items.removeAll { $0.id == item.id }
-        save()
-    }
-
-    func remove(offsets: IndexSet) {
-        items.remove(atOffsets: offsets)
-        save()
-    }
-
-    func move(from: IndexSet, to: Int) {
-        items.move(fromOffsets: from, toOffset: to)
-        save()
-    }
-
-    func clear() {
-        items = []
-        save()
-    }
-
-    /// Returns the next item and removes it from the queue.
+    /// Returns how many legacy entries were matched to library items and queued.
     @discardableResult
-    func advance() -> MediaItem? {
-        guard !items.isEmpty else { return nil }
-        let next = items.removeFirst()
-        save()
-        return next
-    }
-
-    // MARK: - Persistence
-
-    private func save() {
-        guard let data = try? JSONEncoder().encode(items) else { return }
-        try? data.write(to: fileURL, options: [.atomic, .completeFileProtection])
-    }
-
-    private func load() {
-        guard let data = try? Data(contentsOf: fileURL),
-              let saved = try? JSONDecoder().decode([MediaItem].self, from: data)
-        else { return }
-        items = saved
+    func migrateLegacyEntries(into library: LibraryStore) -> Int {
+        guard let data = try? Data(contentsOf: fileURL) else { return 0 }
+        guard let saved = try? JSONDecoder().decode([MediaItem].self, from: data) else {
+            // Unreadable legacy data is left in place rather than destroyed.
+            return 0
+        }
+        let ids = saved.compactMap { legacy in
+            library.item(id: legacy.id)?.id ?? library.items.first(where: { $0.contentKey == legacy.contentKey })?.id
+        }
+        library.addToQueue(ids: ids)
+        try? FileManager.default.removeItem(at: fileURL)
+        return ids.count
     }
 }
 
 // MARK: - Up Next Sheet
 
+/// Settings → Playback Tools → Up Next Queue. Edits the same queue Home and title
+/// detail use, so reordering and removal here are reflected everywhere.
 struct NovaUpNextQueueView: View {
-    @StateObject private var queue = NovaUpNextQueue.shared
+    @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var nav: NavigationCoordinator
     @Environment(\.dismiss) private var dismiss
+    @State private var confirmClear = false
 
-    /// Called when the user taps a queue item to play it immediately.
+    /// Called when the user taps a queue item. Defaults to opening the title.
     var onPlay: ((MediaItem) -> Void)?
 
     var body: some View {
         NavigationStack {
             Group {
-                if queue.items.isEmpty {
+                if library.queuedEntries.isEmpty {
                     ContentUnavailableView(
                         "Up Next is Empty",
                         systemImage: "list.bullet.rectangle",
-                        description: Text("Long-press any title and choose \"Play Next\" or \"Add to Queue\".")
+                        description: Text("Add titles from their detail page, or long-press a title in Library and choose Add to Queue.")
                     )
                 } else {
                     List {
-                        ForEach(queue.items) { item in
-                            QueueRow(item: item, onPlay: {
-                                queue.remove(item)
-                                onPlay?(item)
-                                dismiss()
-                            })
+                        ForEach(library.queuedEntries) { item in
+                            QueueRow(item: item, onPlay: { open(item) })
+                                .contextMenu {
+                                    Button { library.moveToFrontOfQueue(item) } label: {
+                                        Label("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward")
+                                    }
+                                    Button(role: .destructive) { library.removeFromQueue(item) } label: {
+                                        Label("Remove from Queue", systemImage: "minus.circle")
+                                    }
+                                }
                         }
-                        .onDelete { queue.remove(offsets: $0) }
-                        .onMove { queue.move(from: $0, to: $1) }
+                        .onDelete { offsets in
+                            let entries = library.queuedEntries
+                            for index in offsets where entries.indices.contains(index) {
+                                library.removeFromQueue(entries[index])
+                            }
+                        }
+                        .onMove { library.moveInQueue(from: $0, to: $1) }
                     }
+                    #if os(iOS)
                     .environment(\.editMode, .constant(.active))
+                    #endif
                 }
             }
             .navigationTitle("Up Next")
@@ -138,17 +103,27 @@ struct NovaUpNextQueueView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
                 }
-                if !queue.items.isEmpty {
+                if !library.queuedEntries.isEmpty {
                     ToolbarItem(placement: .primaryAction) {
-                        Button("Clear", role: .destructive) {
-                            queue.clear()
-                        }
-                        .foregroundStyle(.red)
+                        Button("Clear", role: .destructive) { confirmClear = true }
                     }
                 }
             }
+            .confirmationDialog("Clear Up Next?", isPresented: $confirmClear, titleVisibility: .visible) {
+                Button("Clear Queue", role: .destructive) { library.clearQueue() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Titles stay in your library; only the queue is emptied.")
+            }
+            .onAppear { NovaUpNextQueue.shared.migrateLegacyEntries(into: library) }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    private func open(_ item: MediaItem) {
+        if let onPlay { onPlay(item); return }
+        dismiss()
+        nav.handle(.content(contentKey: item.contentKey, isShow: item.isSeries))
     }
 }
 
@@ -167,12 +142,13 @@ private struct QueueRow: View {
             }
             .frame(width: 40, height: 56)
             .clipShape(RoundedRectangle(cornerRadius: 5))
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.displayTitle)
                     .font(.subheadline.weight(.medium))
                     .lineLimit(2)
-                Text(item.subtitleLine)
+                Text(item.hasResumePoint ? "In progress · \(item.subtitleLine)" : item.subtitleLine)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -185,30 +161,11 @@ private struct QueueRow: View {
             } label: {
                 Image(systemName: "play.circle.fill")
                     .font(.title2)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Theme.Colors.accent)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Open \(item.displayTitle)")
         }
         .padding(.vertical, 2)
-    }
-}
-
-// MARK: - Context menu actions (add to any MediaItem row)
-
-extension View {
-    /// Adds "Play Next" and "Add to Queue" context menu items for a MediaItem.
-    func novaQueueActions(for item: MediaItem) -> some View {
-        contextMenu {
-            Button {
-                NovaUpNextQueue.shared.playNext(item)
-            } label: {
-                Label("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward")
-            }
-            Button {
-                NovaUpNextQueue.shared.add(item)
-            } label: {
-                Label("Add to Queue", systemImage: "text.badge.plus")
-            }
-        }
     }
 }

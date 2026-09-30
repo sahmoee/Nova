@@ -23,6 +23,7 @@ enum SettingsDataPolicy {
     static let preferencePrefixes = ["settings.", "discover.", "player.", "home.", "ai.", "whatsNew."]
 
     static func domain(for key: String) -> SettingsDataDomain? {
+        if key.hasPrefix("cloud.offline.device.") { return .library }
         if ["stream.history.v1", "cloud.stream.history.v1"].contains(key) { return .history }
         if key == "cloud.addons" { return .addons }
         if ["cloud.library.v1", "cloud.library.revision", "cloud.collections.v1", "library.queue.v1"].contains(key) {

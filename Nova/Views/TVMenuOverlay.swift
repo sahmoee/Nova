@@ -22,7 +22,7 @@ struct TVMenuOverlay: View {
                         .font(.system(size: 32, weight: .bold))
                     Text(selection.title)
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.60))
+                        .foregroundStyle(.white.opacity(0.7))
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)

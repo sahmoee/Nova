@@ -33,9 +33,13 @@ final class MediaServerStore: ObservableObject {
     private var indexTasks: [UUID: Task<Void, Error>] = [:]
     private var indexOwners = MediaServerOperationGate()
     private var authOwners = MediaServerOperationGate()
+    private var retryGates: [UUID: MediaServerRetryGate] = [:]
+    private let uptime: () -> TimeInterval
 
     init(library: LibraryStore, client: any MediaServerIndexing = MediaServerClient(), defaults: UserDefaults = .standard,
-         credentials: MediaServerCredentialAccess = .keychain) {
+         credentials: MediaServerCredentialAccess = .keychain,
+         uptime: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
+        self.uptime = uptime
         self.library = library; self.client = client; self.defaults = defaults; self.credentials = credentials
         guard let data = defaults.data(forKey: defaultsKey) else { return }
         do {
@@ -115,15 +119,20 @@ final class MediaServerStore: ObservableObject {
             if removeIndexedItems, !library.reconcileMediaServer([], connectionID: connection.id) { throw MediaServerError.localPersistence }
             try credentials.remove(connection.tokenAccount)
             publish(candidate, data: data)
+            retryGates.removeValue(forKey: connection.id)
             statusMessage = "Removed \(connection.name)."
         } catch { statusMessage = "The server could not be removed. " + error.localizedDescription }
     }
 
-    func sync(_ id: UUID) async throws {
+    func sync(_ id: UUID, automatic: Bool = false) async throws {
         guard !configurationUnreadable else { throw MediaServerError.unreadableConfiguration }
         try Task.checkCancellation()
         if let task = indexTasks[id] { try await task.value; try Task.checkCancellation(); return }
         guard let connection = connections.first(where: { $0.id == id }) else { throw CancellationError() }
+        var gate = retryGates[id] ?? MediaServerRetryGate()
+        do { try gate.begin(now: uptime(), automatic: automatic) }
+        catch { statusMessage = error.localizedDescription; throw error }
+        retryGates[id] = gate
         let operation = indexOwners.begin(id)
         syncingIDs.insert(id)
         let task = Task { [weak self] in
@@ -164,10 +173,14 @@ final class MediaServerStore: ObservableObject {
             let data = try encoded(candidate)
             guard library.reconcileMediaServer(result.items, connectionID: id) else { throw MediaServerError.localPersistence }
             publish(candidate, data: data)
+            retryGates[id, default: MediaServerRetryGate()].succeeded(now: uptime())
             statusMessage = "Indexed \(result.items.count) items from \(candidate[liveIndex].name)."
         } catch {
             if !Task.isCancelled, !(error is CancellationError), indexOwners.owns(operation, id: id),
                let index = connections.firstIndex(where: { $0.id == id }) {
+                let minimum: TimeInterval?
+                if case MediaServerError.rateLimited(let delay) = error { minimum = delay } else { minimum = nil }
+                retryGates[id, default: MediaServerRetryGate()].failed(kind: connection.kind, now: uptime(), providerMinimum: minimum)
                 var candidate = connections; candidate[index].lastError = error.localizedDescription
                 if let data = try? encoded(candidate) { publish(candidate, data: data) }
                 statusMessage = "Couldn't refresh \(connection.name). " + error.localizedDescription
@@ -186,7 +199,7 @@ final class MediaServerStore: ObservableObject {
                 if Task.isCancelled { return }
                 // Recheck after each suspension; an editor may disable automatic refresh.
                 guard self.connections.first(where: { $0.id == id })?.autoRefresh == true else { continue }
-                try? await self.sync(id)
+                try? await self.sync(id, automatic: true)
             }
         }
     }

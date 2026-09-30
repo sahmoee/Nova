@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import UIKit
 
 /// One durable transfer record. Optional metrics keep the v1 persistence format
 /// backward-compatible while adding resume, rate, ETA, retry and update state.
@@ -29,6 +30,8 @@ struct OfflineDownload: Identifiable, Codable, Hashable, Sendable {
 @MainActor
 final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDelegate {
     @Published private(set) var downloads: [OfflineDownload] = []
+    @Published private(set) var otherDevices: [OfflineDeviceSnapshot] = []
+    @Published private(set) var deviceStatusMessage: String?
     @Published private(set) var availableStorageBytes: Int64?
     @Published private(set) var isNetworkAvailable = NetworkConditionMonitor.shared.isOnline
 
@@ -42,6 +45,24 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
     private var connectionFailures: [UUID: Int] = [:]
     private var persistTask: Task<Void, Never>?
     private var networkCancellable: AnyCancellable?
+    private var cloudCancellable: AnyCancellable?
+    private var statusPublishTask: Task<Void, Never>?
+    private var lastPublishedTransfers: [OfflineDeviceSnapshot.Transfer]?
+    private var lastPublishedCount: Int?
+    private var lastPublishedAt = Date.distantPast
+    private let deviceID: UUID = {
+        let key = "offline.device.identity.v1"
+        let bindingKey = "offline.device.binding.v1"
+        let binding = UIDevice.current.identifierForVendor?.uuidString
+        if let saved = UserDefaults.standard.string(forKey: key), let id = UUID(uuidString: saved),
+           binding == nil || UserDefaults.standard.string(forKey: bindingKey) == binding { return id }
+        // Restoring defaults onto another device must not create two writers for
+        // the same snapshot. The vendor identifier stays local and is never sent.
+        let id = UUID(); UserDefaults.standard.set(id.uuidString, forKey: key)
+        if let binding { UserDefaults.standard.set(binding, forKey: bindingKey) }
+        UserDefaults.standard.set(0, forKey: "offline.device.revision.v1")
+        return id
+    }()
 
     private lazy var session: URLSession = {
         let configuration = URLSessionConfiguration.default
@@ -66,10 +87,15 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
                 if online { self?.pumpQueue() }
             }
         pumpQueue()
+        cloudCancellable = CloudSync.shared.externalChange.receive(on: RunLoop.main).sink { [weak self] _ in
+            self?.refreshDeviceStatuses()
+        }
+        refreshDeviceStatuses()
     }
 
     deinit {
         persistTask?.cancel()
+        statusPublishTask?.cancel()
         retryTasks.values.forEach { $0.cancel() }
     }
 
@@ -412,7 +438,66 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
             try? await Task.sleep(for: .milliseconds(750)); guard !Task.isCancelled else { return }; self?.persistNow()
         }
     }
-    private func persistNow() { persistTask?.cancel(); persistTask = nil; store.save(downloads) }
+    private func persistNow() {
+        persistTask?.cancel(); persistTask = nil; store.save(downloads)
+        scheduleDeviceStatus()
+    }
+
+    func refreshDeviceStatuses() {
+        let cloud = CloudSync.shared
+        let key = OfflineDeviceSnapshot.keyPrefix + deviceID.uuidString.lowercased()
+        otherDevices = cloud.storedKeys.filter { $0.hasPrefix(OfflineDeviceSnapshot.keyPrefix) && $0 != key }
+            .sorted().prefix(OfflineDeviceSnapshot.maximumDevices).compactMap { name in
+                cloud.data(forKey: name).flatMap { OfflineDeviceSnapshot.decode($0, key: name) }
+            }.sorted { $0.updatedAt > $1.updatedAt }
+        deviceStatusMessage = !cloud.accountAvailable ? "Sign in to iCloud to share device download status."
+            : cloud.isPaused(.library) ? "Device status sharing is paused with Library sync."
+            : cloud.syncIssue
+        scheduleDeviceStatus()
+    }
+
+    private func scheduleDeviceStatus() {
+        guard statusPublishTask == nil else { return }
+        statusPublishTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled, let self else { return }
+            self.statusPublishTask = nil
+            self.publishDeviceStatus()
+        }
+    }
+
+    private func publishDeviceStatus() {
+        let cloud = CloudSync.shared
+        guard cloud.accountAvailable, !cloud.isPaused(.library) else { return }
+        let key = OfflineDeviceSnapshot.keyPrefix + deviceID.uuidString.lowercased()
+        let keys = cloud.storedKeys.filter { $0.hasPrefix(OfflineDeviceSnapshot.keyPrefix) }
+        guard keys.contains(key) || keys.count < OfflineDeviceSnapshot.maximumDevices else {
+            deviceStatusMessage = "Device status sharing supports up to eight installations. Local downloads are unchanged."
+            return
+        }
+        let transfers = downloads.sorted { $0.createdAt > $1.createdAt }.prefix(50).map {
+            OfflineDeviceSnapshot.Transfer(id: $0.id, title: String(($0.title.isEmpty ? "Untitled" : $0.title).prefix(120)), state: $0.state)
+        }
+        // Progress byte updates do not flood KVS. Refresh last-seen at most every
+        // five minutes, or publish immediately when a lifecycle state changes.
+        guard transfers != lastPublishedTransfers || downloads.count != lastPublishedCount
+            || Date().timeIntervalSince(lastPublishedAt) >= 300 || cloud.data(forKey: key) == nil else { return }
+        let revisionKey = "offline.device.revision.v1"
+        let previous = UserDefaults.standard.integer(forKey: revisionKey)
+        guard previous < Int.max else { return }
+        let platform: String
+        #if os(tvOS)
+        platform = "Apple TV"
+        #else
+        platform = UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
+        #endif
+        let snapshot = OfflineDeviceSnapshot(id: deviceID, platform: platform, revision: previous + 1,
+            updatedAt: Date(), totalCount: downloads.count, transfers: transfers)
+        guard let data = try? JSONEncoder().encode(snapshot), data.count <= OfflineDeviceSnapshot.maximumBytes else { return }
+        UserDefaults.standard.set(snapshot.revision, forKey: revisionKey)
+        cloud.setData(data, forKey: key)
+        lastPublishedTransfers = transfers; lastPublishedCount = downloads.count; lastPublishedAt = snapshot.updatedAt
+    }
     private var resumeFolder: URL {
         let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("OfflineResumeData", isDirectory: true)

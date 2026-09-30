@@ -605,6 +605,11 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
         scrobble(.pause)
     }
 
+    func pauseAndSave() {
+        guard player.rate != 0 || player.timeControlStatus != .paused else { return }
+        pause()
+    }
+
     func stopAndSave() {
         PlaybackCoordinator.shared.resign(self)
         saveTask?.cancel(); saveTask = nil

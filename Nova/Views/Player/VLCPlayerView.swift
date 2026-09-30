@@ -169,6 +169,7 @@ struct VLCPlayerView: View {
                             }
                         }
                         .onTapGesture { revealControls() }
+                        .accessibilityAddTraits(.isButton)
                         .onPlayPauseCommand { model.togglePlayPause() }
                         .onAppear { surfaceFocused = true }
                         .onExitCommand { model.minimizeAndSave(); dismiss() }

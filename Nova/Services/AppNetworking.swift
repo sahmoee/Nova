@@ -1,3 +1,4 @@
+import SowensKit
 //
 //  AppNetworking.swift
 //  Nova
@@ -58,7 +59,7 @@ enum AppNetworking {
                 try Task.checkCancellation()
                 return value
             }
-            let task = Task { try await session.data(for: request) }
+            let task = Task { try await session.sowensData(for: request) }
             tasks[request] = task
             defer { tasks[request] = nil }
             let value = try await task.value
@@ -106,7 +107,7 @@ enum AppNetworking {
         for (k, v) in headers { req.setValue(v, forHTTPHeaderField: k) }
         req.httpBody = try Coders.encoder.encode(body)
         req.timeoutInterval = MediaReliabilityPolicy.boundedInterval(timeout, fallback: 30)
-        let (data, response) = try await shared.data(for: req)
+        let (data, response) = try await shared.sowensData(for: req)
         try Task.checkCancellation()
         guard let http = response as? HTTPURLResponse else { throw RequestError.invalidResponse }
         if !(200..<300).contains(http.statusCode) {

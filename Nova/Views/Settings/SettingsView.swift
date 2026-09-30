@@ -310,11 +310,11 @@ struct SettingsView: View {
                 AnyView(NovaBookmarksView(item: nil))
             },
             Category(id: "up-next", icon: "text.line.first.and.arrowtriangle.forward", color: Theme.Colors.iconSilver,
-                     title: "Up Next Queue", detail: "Review and reorder queued titles") {
+                     title: "Up Next Queue", detail: library.queueIDs.isEmpty ? "Empty" : "\(library.queueIDs.count) queued") {
                 AnyView(NovaUpNextQueueView())
             },
             Category(id: "playback-speed", icon: "gauge.with.dots.needle.67percent", color: Theme.Colors.iconGraphite,
-                     title: "Playback Speed", detail: NovaSpeedControl.shared.speed.label) {
+                     title: "Playback Speed", detail: NovaSpeedControl.label(for: settings.playbackSpeed)) {
                 AnyView(NovaSpeedPickerSheet())
             },
             Category(id: "sleep-timer", icon: "moon.zzz.fill", color: Theme.Colors.iconGraphite,

@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import SwiftUI
+import SowensKit
 
 // MARK: - QAHubView
 
@@ -15,6 +16,7 @@ struct QAHubView: View {
     let dismiss: () -> Void
 
     @State private var tab: QAHubTab = .triage
+    @State private var showNetworkConsole = false
     @State private var showRunSheet = false
     @State private var showTicketSheet = false
     @State private var newTicketTitle = ""
@@ -31,6 +33,11 @@ struct QAHubView: View {
             .navigationTitle(QA.config.appName + " QA")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                #if DEBUG
+                ToolbarItem(placement: .automatic) {
+                    Button("Network", systemImage: "network") { showNetworkConsole = true }
+                }
+                #endif
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
                 }
@@ -43,6 +50,9 @@ struct QAHubView: View {
                 }
             }
         }
+        #if DEBUG
+        .sheet(isPresented: $showNetworkConsole) { SowensNetworkConsole() }
+        #endif
         .onAppear { QATriage.shared.refresh() }
         .sheet(isPresented: $showRunSheet) { QANewRunSheet() }
         .sheet(isPresented: $showTicketSheet) { QANewTicketSheet() }

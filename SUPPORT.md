@@ -1,3 +1,6 @@
+<!-- PROJECT-KNOWLEDGE managed; do not edit this export -->
+> Maintained in ProjectKnowledge: `projects/nova/documents/SUPPORT.md`. This is a generated portable read-only export. Update the central source with `project-knowledge put`; use `project-knowledge publish` to refresh exports. Relative links and code paths below refer to this original project location.
+
 # Nova Support
 
 For help with Nova, email [support@sowensstudios.com](mailto:support@sowensstudios.com). Include the Nova version, device model, iOS/tvOS version, and a short description of what happened. Do not send passwords, API keys, access tokens, private media URLs, or backup files containing credentials.

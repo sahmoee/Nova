@@ -21,6 +21,21 @@ struct MediaReliabilityChecks {
             count += 1
         }
         let now = Date(timeIntervalSince1970: 1_446_412_480)
+        let device = UUID()
+        let transfer = OfflineDeviceSnapshot.Transfer(id: UUID(), title: "Synthetic title", state: .complete)
+        var snapshot = OfflineDeviceSnapshot(id: device, platform: "iPhone", revision: 1, updatedAt: now, totalCount: 1, transfers: [transfer])
+        let key = OfflineDeviceSnapshot.keyPrefix + device.uuidString.lowercased()
+        let snapshotData = try JSONEncoder().encode(snapshot)
+        check(OfflineDeviceSnapshot.decode(snapshotData, key: key) == snapshot, "Device snapshot round trips")
+        check(OfflineDeviceSnapshot.decode(snapshotData, key: key + "other") == nil, "Device identity must own key")
+        check(OfflineDeviceSnapshot.decode(Data(repeating: 0, count: 16_385), key: key) == nil, "Snapshot size is bounded")
+        snapshot.transfers.append(transfer)
+        check(OfflineDeviceSnapshot.decode(try JSONEncoder().encode(snapshot), key: key) == nil, "Duplicate transfers rejected")
+        snapshot.transfers = [transfer]; snapshot.revision = -1
+        check(OfflineDeviceSnapshot.decode(try JSONEncoder().encode(snapshot), key: key) == nil, "Negative revision rejected")
+        snapshot.revision = 1; snapshot.transfers[0].title = String(repeating: "A", count: 121)
+        check(OfflineDeviceSnapshot.decode(try JSONEncoder().encode(snapshot), key: key) == nil, "Title size bounded")
+        check(!String(decoding: snapshotData, as: UTF8.self).contains("URL"), "Snapshot includes no file or source URLs")
         check(MediaReliabilityPolicy.retryAfter("12") == 12, "delta seconds")
         check(MediaReliabilityPolicy.retryAfter(" 0 \n") == 0, "zero and whitespace")
         check(MediaReliabilityPolicy.retryAfter("Wed, 21 Oct 2015 07:28:00 GMT", now: now) == 0, "past HTTP date")

@@ -211,6 +211,7 @@ private struct ChapterSegment: View {
         }
         .frame(maxWidth: .infinity)
         .onTapGesture { onTap?() }
+        .accessibilityAddTraits(.isButton)
     }
 }
 

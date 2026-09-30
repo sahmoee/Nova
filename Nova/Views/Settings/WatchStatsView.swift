@@ -40,6 +40,19 @@ struct WatchStatsView: View {
                     statCard(value: hours(s.totalHoursWatched), label: "Time watched", icon: "clock")
                     statCard(value: "\(s.movies)", label: "Movies", icon: "film")
                     statCard(value: "\(s.shows)", label: "Shows", icon: "tv")
+                    statCard(value: "\(s.playedThisWeek)", label: "Played this week", icon: "calendar.badge.clock")
+                    statCard(value: s.currentStreak == 1 ? "1 day" : "\(s.currentStreak) days", label: "Current streak", icon: "flame")
+                }
+
+                activityChart(s.lastSevenDays)
+
+                if s.bestStreak > 1 {
+                    detailRow(title: "Best streak", value: "\(s.bestStreak) days in a row", icon: "trophy")
+                }
+                if !s.topShows.isEmpty {
+                    detailRow(title: "Most-watched shows",
+                              value: s.topShows.map { "\($0.title) (\($0.episodes))" }.joined(separator: " · "),
+                              icon: "tv.and.mediabox")
                 }
 
                 if let longest = s.longestTitle {
@@ -71,12 +84,48 @@ struct WatchStatsView: View {
             "Watched all time: \(s.watchedAllTime)",
             "In progress: \(s.inProgress)",
             "Time watched: \(hours(s.totalHoursWatched))",
-            "Movies: \(s.movies)  Shows: \(s.shows)"
+            "Movies: \(s.movies)  Shows: \(s.shows)",
+            "Played this week: \(s.playedThisWeek)",
+            "Current streak: \(s.currentStreak) days (best \(s.bestStreak))"
         ]
+        if !s.topShows.isEmpty {
+            lines.append("Most-watched shows: " + s.topShows.map { "\($0.title) (\($0.episodes) episodes)" }.joined(separator: ", "))
+        }
         if let longest = s.longestTitle {
             lines.append("Longest title: \(longest.title) (\(longest.minutes) min)")
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Seven small bars, one per day, labelled with the weekday initial.
+    private func activityChart(_ days: [(day: Date, count: Int)]) -> some View {
+        let peak = max(1, days.map(\.count).max() ?? 1)
+        return VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text("Last 7 days")
+                .font(.appFont(15))
+                .foregroundStyle(Theme.Colors.textSecondary)
+            HStack(alignment: .bottom, spacing: Theme.Spacing.sm) {
+                ForEach(days, id: \.day) { entry in
+                    VStack(spacing: 6) {
+                        Text("\(entry.count)")
+                            .font(.appFont(13, weight: .semibold))
+                            .foregroundStyle(entry.count > 0 ? Theme.Colors.textPrimary : Theme.Colors.textTertiary)
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(entry.count > 0 ? Theme.Colors.accent : Theme.Colors.textTertiary.opacity(0.25))
+                            .frame(height: max(6, 70 * CGFloat(entry.count) / CGFloat(peak)))
+                        Text(entry.day.formatted(.dateTime.weekday(.narrow)))
+                            .font(.appFont(12))
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(entry.day.formatted(.dateTime.weekday(.wide))): \(entry.count) played")
+                }
+            }
+            .frame(height: 110, alignment: .bottom)
+        }
+        .padding(Theme.Spacing.md)
+        .refinedCardBackground()
     }
 
     private func hours(_ h: Double) -> String {

@@ -677,6 +677,7 @@ private struct KodiCompatibilityView: View {
                     .foregroundStyle(Theme.Colors.accent)
             }
             .frame(width: 48, height: 48)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(package.name)

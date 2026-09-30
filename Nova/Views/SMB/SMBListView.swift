@@ -205,6 +205,7 @@ struct SMBAddView: View {
                             .foregroundStyle(Theme.Colors.textPrimary)
                             .contentShape(Rectangle())
                             .onTapGesture { focusedField = .server }
+                            .accessibilityAddTraits(.isButton)
                         Text(connectionRoute == .tailscale
                              ? "Enter the Tailscale device name, preferably its full MagicDNS name ending in .ts.net. Nova will also upgrade a Tailscale IP to its name when DNS provides one."
                              : "Enter a local network name or IP. Nova retains this as a fallback when no Tailscale name can be resolved.")
@@ -248,6 +249,7 @@ struct SMBAddView: View {
                             .frame(maxWidth: .infinity)
                             .contentShape(Rectangle())
                             .onTapGesture { focusedField = .username }
+                            .accessibilityAddTraits(.isButton)
                             Divider().overlay(Theme.Colors.separator)
                             HStack {
                                 Text("Password").font(.appFont(19))
@@ -262,6 +264,7 @@ struct SMBAddView: View {
                             .frame(maxWidth: .infinity)
                             .contentShape(Rectangle())
                             .onTapGesture { focusedField = .password }
+                            .accessibilityAddTraits(.isButton)
                         }
                         .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous))
                     }
@@ -279,6 +282,7 @@ struct SMBAddView: View {
                             .foregroundStyle(Theme.Colors.textPrimary)
                             .contentShape(Rectangle())
                             .onTapGesture { focusedField = .displayName }
+                            .accessibilityAddTraits(.isButton)
                     }
 
                     FocusableButton(title: "Connect", systemImage: "checkmark", prominent: true) {

@@ -719,7 +719,7 @@ struct NewAndHotView: View {
             LinearGradient(colors: [.clear, .black.opacity(0.35), .black], startPoint: .top, endPoint: .bottom)
             LinearGradient(colors: [.black.opacity(0.75), .clear], startPoint: .leading, endPoint: .trailing)
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                Text("#1 IN NEW & HOT").font(.appFont(13, weight: .black)).tracking(1.1).foregroundStyle(Theme.Colors.accent)
+                Text("TOP PICK IN NEW & HOT").font(.appFont(13, weight: .black)).tracking(1.1).foregroundStyle(Theme.Colors.accent)
                 Text(item.title).font(.appFont(42, weight: .black)).lineLimit(2).minimumScaleFactor(0.65)
                 Text(item.overview ?? "A standout pick for your next watch.")
                     .font(.appFont(16)).foregroundStyle(Theme.Colors.textSecondary).lineLimit(3)

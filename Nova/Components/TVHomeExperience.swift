@@ -276,7 +276,7 @@ struct TVHomeHeroCarousel: View {
                 .foregroundStyle(.white)
             Text("Start watching a movie or show to see it featured here.")
                 .font(.appFont(24))
-                .foregroundStyle(.white.opacity(0.65))
+                .foregroundStyle(.white.opacity(0.7))
         }
     }
 
@@ -368,7 +368,7 @@ private struct TVContinueWatchingCard: View {
                             .overlay {
                                 Image(systemName: item.isSeries ? "tv" : "film")
                                     .font(.appFont(40, weight: .light))
-                                    .foregroundStyle(.white.opacity(0.32))
+                                    .foregroundStyle(.white.opacity(0.7))
                             }
                     }
                     .frame(width: width, height: width * 9 / 16)
@@ -401,7 +401,7 @@ private struct TVContinueWatchingCard: View {
                     if let caption {
                         Text(caption)
                             .font(.appFont(19))
-                            .foregroundStyle(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.7))
                             .lineLimit(1)
                     }
                 }

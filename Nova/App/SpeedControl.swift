@@ -2,16 +2,8 @@
 //  NovaSpeedControl.swift
 //  Nova
 //
-//  Playback speed picker for Nova's built-in players.
-//  Persists the last-used speed in UserDefaults.
-//  Wire to the player: observe NovaSpeedControl.shared.rate and
-//  call player.rate = rate (AVPlayer) or vlcMediaPlayer.rate = Float(rate) (VLC).
-//
-//  In your player view, add:
-//      NovaSpeedButton()
-//  and observe:
-//      @StateObject private var speedControl = NovaSpeedControl.shared
-//      .onReceive(speedControl.$rate) { player.rate = Float($0) }
+//  Playback speed controls. Every control edits SettingsStore.playbackSpeed, the value
+//  both built-in players apply (PlayerModel.applyPlaybackSpeed / VLCPlayerModel).
 //
 
 import SwiftUI
@@ -45,58 +37,51 @@ enum NovaPlaybackSpeed: Double, CaseIterable, Identifiable {
     var isNormal: Bool { self == .normal }
 }
 
-// MARK: - Manager
+// MARK: - Legacy migration
 
+/// Earlier builds kept a second speed value (`nova.playbackSpeed`) that the players never
+/// read. The players apply `SettingsStore.playbackSpeed`, so every control below edits
+/// that value, and a non-default legacy choice is carried over once.
 @MainActor
-final class NovaSpeedControl: ObservableObject {
-    static let shared = NovaSpeedControl()
+enum NovaSpeedControl {
+    private static let legacyKey = "nova.playbackSpeed"
 
-    @Published var speed: NovaPlaybackSpeed = .normal {
-        didSet {
-            UserDefaults.standard.set(speed.rawValue, forKey: "nova.playbackSpeed")
+    static func migrateLegacy(into settings: SettingsStore) {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: legacyKey) != nil else { return }
+        let legacy = defaults.double(forKey: legacyKey)
+        if let speed = NovaPlaybackSpeed(rawValue: legacy), !speed.isNormal, settings.playbackSpeed == 1.0 {
+            settings.playbackSpeed = speed.rawValue
         }
+        defaults.removeObject(forKey: legacyKey)
     }
 
-    /// Convenience Float for VLC / AVPlayer.
-    var rate: Float { Float(speed.rawValue) }
-
-    private init() {
-        let stored = UserDefaults.standard.double(forKey: "nova.playbackSpeed")
-        speed = NovaPlaybackSpeed(rawValue: stored) ?? .normal
-    }
-
-    func cycleForward() {
-        let all = NovaPlaybackSpeed.allCases
-        let idx = all.firstIndex(of: speed) ?? 2
-        speed = all[(idx + 1) % all.count]
-        #if os(iOS)
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        #endif
+    static func label(for speed: Double) -> String {
+        NovaPlaybackSpeed(rawValue: speed)?.label ?? String(format: "%g×", speed)
     }
 }
 
 // MARK: - Speed button (compact, for player toolbar)
 
 struct NovaSpeedButton: View {
-    @StateObject private var control = NovaSpeedControl.shared
+    @EnvironmentObject private var settings: SettingsStore
     @State private var showPicker = false
 
     var body: some View {
+        let isNormal = settings.playbackSpeed == 1.0
         Button {
             showPicker = true
         } label: {
-            Text(control.speed.label)
+            Text(NovaSpeedControl.label(for: settings.playbackSpeed))
                 .font(.subheadline.weight(.semibold).monospacedDigit())
-                .foregroundStyle(control.speed.isNormal ? Color.secondary : Color.orange)
+                .foregroundStyle(isNormal ? Color.secondary : Theme.Colors.accent)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
-                .background(
-                    Capsule()
-                        .fill(control.speed.isNormal ? .clear : Color.orange.opacity(0.15))
-                )
+                .background(Capsule().fill(isNormal ? .clear : Theme.Colors.accent.opacity(0.15)))
         }
+        .accessibilityLabel("Playback speed \(NovaSpeedControl.label(for: settings.playbackSpeed))")
         .sheet(isPresented: $showPicker) {
-            NovaSpeedPickerSheet()
+            NovaSpeedPickerSheet().environmentObject(settings)
         }
     }
 }
@@ -104,30 +89,37 @@ struct NovaSpeedButton: View {
 // MARK: - Picker sheet
 
 struct NovaSpeedPickerSheet: View {
-    @StateObject private var control = NovaSpeedControl.shared
+    @EnvironmentObject private var settings: SettingsStore
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            List(NovaPlaybackSpeed.allCases) { speed in
-                Button {
-                    control.speed = speed
-                    #if os(iOS)
-                    UISelectionFeedbackGenerator().selectionChanged()
-                    #endif
-                    dismiss()
-                } label: {
-                    HStack {
-                        Text(speed.label)
-                            .font(.body.monospacedDigit())
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        if speed == control.speed {
-                            Image(systemName: "checkmark")
-                                .foregroundStyle(.orange)
-                                .fontWeight(.semibold)
+            List {
+                Section {
+                    ForEach(NovaPlaybackSpeed.allCases) { speed in
+                        Button {
+                            settings.playbackSpeed = speed.rawValue
+                            #if os(iOS)
+                            UISelectionFeedbackGenerator().selectionChanged()
+                            #endif
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Text(speed.label)
+                                    .font(.body.monospacedDigit())
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                if speed.rawValue == settings.playbackSpeed {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(Theme.Colors.accent)
+                                        .fontWeight(.semibold)
+                                }
+                            }
                         }
+                        .accessibilityAddTraits(speed.rawValue == settings.playbackSpeed ? .isSelected : [])
                     }
+                } footer: {
+                    Text("The default speed for Nova's built-in players. It is the same setting as Player → Playback Speed.")
                 }
             }
             .navigationTitle("Playback Speed")
@@ -139,17 +131,17 @@ struct NovaSpeedPickerSheet: View {
                     Button("Done") { dismiss() }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    if !control.speed.isNormal {
+                    if settings.playbackSpeed != 1.0 {
                         Button("Reset") {
-                            control.speed = .normal
+                            settings.playbackSpeed = 1.0
                             #if os(iOS)
                             UISelectionFeedbackGenerator().selectionChanged()
                             #endif
                         }
-                        .foregroundStyle(.orange)
                     }
                 }
             }
+            .onAppear { NovaSpeedControl.migrateLegacy(into: settings) }
         }
         .presentationDetents([.medium])
     }
@@ -158,14 +150,15 @@ struct NovaSpeedPickerSheet: View {
 // MARK: - Inline speed strip (optional larger control inside player)
 
 struct NovaSpeedStrip: View {
-    @StateObject private var control = NovaSpeedControl.shared
+    @EnvironmentObject private var settings: SettingsStore
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(NovaPlaybackSpeed.allCases) { speed in
+                    let selected = speed.rawValue == settings.playbackSpeed
                     Button {
-                        control.speed = speed
+                        settings.playbackSpeed = speed.rawValue
                         #if os(iOS)
                         UISelectionFeedbackGenerator().selectionChanged()
                         #endif
@@ -174,14 +167,10 @@ struct NovaSpeedStrip: View {
                             .font(.footnote.weight(.medium).monospacedDigit())
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(
-                                Capsule()
-                                    .fill(speed == control.speed
-                                          ? Color.orange
-                                          : Color.white.opacity(0.15))
-                            )
-                            .foregroundStyle(speed == control.speed ? .black : .white)
+                            .background(Capsule().fill(selected ? Theme.Colors.accent : Color.white.opacity(0.15)))
+                            .foregroundStyle(selected ? .black : .white)
                     }
+                    .accessibilityAddTraits(selected ? .isSelected : [])
                 }
             }
             .padding(.horizontal)

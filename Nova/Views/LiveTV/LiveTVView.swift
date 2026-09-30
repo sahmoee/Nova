@@ -633,10 +633,11 @@ private struct PopupBlockingWebView: UIViewRepresentable {
                                 timeoutInterval: 30))
     }
 
+    @MainActor
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
-                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            guard let target = navigationAction.targetFrame else {
+                     decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
+            guard navigationAction.targetFrame != nil else {
                 // Keep legitimate provider links in the current view while
                 // refusing the extra window that advertising scripts request.
                 if navigationAction.navigationType == .linkActivated,
@@ -656,11 +657,11 @@ private struct PopupBlockingWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String,
                      initiatedByFrame frame: WKFrameInfo,
-                     completionHandler: @escaping () -> Void) { completionHandler() }
+                     completionHandler: @escaping @MainActor @Sendable () -> Void) { completionHandler() }
 
         func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String,
                      initiatedByFrame frame: WKFrameInfo,
-                     completionHandler: @escaping (Bool) -> Void) { completionHandler(false) }
+                     completionHandler: @escaping @MainActor @Sendable (Bool) -> Void) { completionHandler(false) }
     }
 }
 #endif

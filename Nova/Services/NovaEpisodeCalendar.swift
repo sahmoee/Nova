@@ -246,6 +246,7 @@ private struct CalendarPickerSheet: View {
                         .onTapGesture {
                             calService.targetCalendarID = cal.calendarIdentifier
                         }
+                        .accessibilityAddTraits(.isButton)
                     }
                 }
 
@@ -316,6 +317,7 @@ struct NovaCalendarSettingsView: View {
                             .onTapGesture {
                                 calService.targetCalendarID = cal.calendarIdentifier
                             }
+                            .accessibilityAddTraits(.isButton)
                         }
                     }
                 } else {

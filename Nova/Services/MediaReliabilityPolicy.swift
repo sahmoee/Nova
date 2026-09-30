@@ -1,5 +1,35 @@
 import Foundation
 
+/// A device owns its own transfer snapshot. No paths, URLs, tokens, resume data,
+/// or remote control actions cross the iCloud boundary.
+struct OfflineDeviceSnapshot: Codable, Identifiable, Equatable {
+    struct Transfer: Codable, Identifiable, Equatable {
+        var id: UUID
+        var title: String
+        var state: DownloadLifecycleState
+    }
+    var id: UUID
+    var platform: String
+    var revision: Int
+    var updatedAt: Date
+    var totalCount: Int
+    var transfers: [Transfer]
+    static let keyPrefix = "cloud.offline.device."
+    static let maximumBytes = 16_384
+    static let maximumDevices = 8
+
+    static func decode(_ data: Data, key: String) -> Self? {
+        guard data.count <= maximumBytes, let value = try? JSONDecoder().decode(Self.self, from: data),
+              key == keyPrefix + value.id.uuidString.lowercased(), value.revision >= 0,
+              value.updatedAt.timeIntervalSince1970.isFinite,
+              ["iPhone", "iPad", "Apple TV"].contains(value.platform),
+              value.transfers.count <= 50, value.totalCount >= value.transfers.count,
+              Set(value.transfers.map(\.id)).count == value.transfers.count,
+              value.transfers.allSatisfy({ !$0.title.isEmpty && $0.title.count <= 120 }) else { return nil }
+        return value
+    }
+}
+
 /// The existing persisted values are unchanged; action permissions are shared by
 /// the queue and tests so a completed file cannot accidentally be retried/deleted.
 nonisolated enum DownloadLifecycleState: String, Codable, Sendable, CaseIterable {
