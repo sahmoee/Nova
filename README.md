@@ -5,7 +5,7 @@
 
 Nova is a local-first personal media experience for iPhone, iPad, and Apple TV. It combines a user’s own libraries and sources with discovery, metadata, playback, progress, profiles, optional tracking services, and private backup in a native SwiftUI interface.
 
-Current app version: **1.7**. The project targets **iOS/iPadOS 26** and **tvOS 26**, with separate app schemes plus an iOS widget extension.
+Current app version: **1.7**. The project targets **iOS/iPadOS 26** and **tvOS 26**, with separate app schemes, an iOS widget extension, and an Apple Watch companion.
 
 Nova does not provide media or access to third-party content. Users are responsible for the sources they configure and for having permission to access and play them.
 
@@ -98,7 +98,7 @@ open Nova.xcodeproj
 
 Select **Nova-iOS** or **Nova-tvOS**, configure signing, and run on the corresponding connected device.
 
-Generic iOS device build:
+Generic iOS device build (set NOVA_DERIVED_DATA to a disposable build folder):
 
 ```bash
 xcodebuild \
@@ -106,8 +106,9 @@ xcodebuild \
   -scheme Nova-iOS \
   -destination 'generic/platform=iOS' \
   -skipPackagePluginValidation \
+  -derivedDataPath "${NOVA_DERIVED_DATA:-$HOME/Library/Developer/Xcode/DerivedData/Nova}" \
   CODE_SIGNING_ALLOWED=NO \
-  clean build
+  build
 ```
 
 Generic tvOS device build:
@@ -118,8 +119,9 @@ xcodebuild \
   -scheme Nova-tvOS \
   -destination 'generic/platform=tvOS' \
   -skipPackagePluginValidation \
+  -derivedDataPath "${NOVA_DERIVED_DATA:-$HOME/Library/Developer/Xcode/DerivedData/Nova}" \
   CODE_SIGNING_ALLOWED=NO \
-  clean build
+  build
 ```
 
 The tvOS SDK must be installed in Xcode. A missing tvOS platform is a local toolchain issue, not an application compile failure.
@@ -153,7 +155,11 @@ Run repository guards before building:
 plutil -lint Nova.xcodeproj/project.pbxproj
 ```
 
-[`Tests/`](Tests/) covers parser behavior, disk caches, backup compatibility, add-on security, Worker configuration, and stream filtering. Hosted CI dynamically selects an available iPhone simulator, tests iOS, and builds tvOS. Local simulator builds/tests require user authorization; reuse approval already granted for the current scope. Simulator validation for the tvOS reference redesign was approved on September 8, 2026, for that pass only. Record build/test results and manual visual/focus checks separately; approval alone is not a successful test result.
+[`Tests/`](Tests/) covers parsers, disk caches, backup compatibility, add-on security,
+Worker configuration, and stream filtering. Hosted CI tests iOS and builds tvOS.
+Compilation, simulator tests, and physical-device playback checks provide different
+coverage; record each result separately. A successful build does not establish
+visual fidelity or provider compatibility.
 
 When adding a Swift file, ensure it is registered in every intended target. Shared code may require both iOS and tvOS source build phases; [`verify_registration.sh`](verify_registration.sh) checks this explicitly.
 
@@ -177,7 +183,7 @@ Report synchronization is an internal development operation and is intentionally
 ## Release checklist
 
 - Update [`CHANGELOG.md`](CHANGELOG.md), [`APP_STORE_METADATA.md`](APP_STORE_METADATA.md), and in-app What’s New content.
-- Increment iOS, tvOS, test, and widget versions/build numbers consistently.
+- Change the marketing version deliberately. Shared schemes reserve build numbers automatically; do not add a second increment in an upload wrapper.
 - Run all configuration/registration guards, tests, and both affected platform builds.
 - Verify real-device playback, SMB, subtitles, downloads, background/now-playing behavior, add-ons, metadata, backup/restore, provider sign-in, offline mode, and iPad/tvOS navigation.
 - Review [`PRIVACY.md`](PRIVACY.md), [`SECURITY.md`](SECURITY.md), [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md), and personal-media disclosure.
@@ -200,7 +206,6 @@ See [`SECURITY.md`](SECURITY.md), [`PRIVACY.md`](PRIVACY.md), [`SUPPORT.md`](SUP
 ## Contributing
 
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution process
-- [`docs/NOVA_RENAME_COMPATIBILITY.md`](docs/NOVA_RENAME_COMPATIBILITY.md) — naming and compatibility constraints
 
 Preserve persisted-data and backup compatibility, keep shared iOS/tvOS behavior deliberate, add regression tests, avoid unsafe provider assumptions, and update all clients when a shared Worker contract changes.
 

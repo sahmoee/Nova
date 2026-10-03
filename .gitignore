@@ -26,6 +26,12 @@ scripts/__pycache__/
 # Local development guidance
 /AGENTS.md
 /CLAUDE.md
+/README_FIRST.md
+/CROSS_PROJECT_SYNC.md
+/PROJECT_GUIDE_ADDITIONS.md
+/APP_STORE_COMPLIANCE.md
+/NovaConfig.json
+**/Secrets.xcconfig
 
 # Shared quality/release tooling local output
 .bundle/
