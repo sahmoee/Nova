@@ -33,6 +33,8 @@ enum OpenSubtitlesError: LocalizedError {
 actor OpenSubtitlesClient {
 
     private static let base = URL(string: "https://api.opensubtitles.com/api/v1")!
+    /// OpenSubtitles asks clients to identify their real version.
+    private static let userAgent = "Nova v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")"
     private let session: URLSession
     private let decoder = JSONDecoder()
     private let keyProvider: @Sendable () -> String?
@@ -65,12 +67,14 @@ actor OpenSubtitlesClient {
 
         var comps = URLComponents(url: Self.base.appendingPathComponent("subtitles"),
                                   resolvingAgainstBaseURL: false)!
-        comps.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
+        // OpenSubtitles redirects requests whose parameters aren't in alphabetical
+        // order, costing an extra round trip; dictionary order is random.
+        comps.queryItems = query.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) }
 
         var req = URLRequest(url: comps.url!)
         req.timeoutInterval = 25
         req.setValue(key, forHTTPHeaderField: "Api-Key")
-        req.setValue("Nova v1.0", forHTTPHeaderField: "User-Agent")
+        req.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
 
         let data: Data
@@ -111,7 +115,7 @@ actor OpenSubtitlesClient {
         req.httpMethod = "POST"
         req.timeoutInterval = 25
         req.setValue(key, forHTTPHeaderField: "Api-Key")
-        req.setValue("Nova v1.0", forHTTPHeaderField: "User-Agent")
+        req.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
         req.httpBody = try JSONSerialization.data(withJSONObject: ["file_id": fileID])
@@ -154,7 +158,10 @@ enum SubtitleConverter {
 
     /// Converts SRT text to WebVTT, which AVPlayer handles well for sideloaded
     /// text tracks. If the input already looks like VTT, it's returned as-is.
-    static func srtToVTT(_ srt: String) -> String {
+    static func srtToVTT(_ input: String) -> String {
+        // Many SRT files start with a UTF-8 byte-order mark, which made the first
+        // cue's counter unparseable and silently dropped that cue.
+        let srt = input.hasPrefix("\u{FEFF}") ? String(input.dropFirst()) : input
         if srt.hasPrefix("WEBVTT") { return srt }
 
         var out = "WEBVTT\n\n"

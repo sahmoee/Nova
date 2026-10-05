@@ -58,6 +58,7 @@ struct LiveTVView: View {
                                     .foregroundStyle(Theme.Colors.textPrimary)
                                     .padding(Theme.Spacing.sm)
                                     .background(Theme.Colors.card, in: Circle())
+                                    .accessibilityLabel("Manage Live TV Sources")
                             }
                             .novaIconStyle()
                         }
@@ -128,6 +129,7 @@ struct LiveTVView: View {
                             Button { channelFilter = "" } label: {
                                 Image(systemName: "xmark.circle.fill")
                                     .foregroundStyle(Theme.Colors.textTertiary)
+                                    .accessibilityLabel("Clear Filter")
                             }
                             .buttonStyle(.plain)
                         }

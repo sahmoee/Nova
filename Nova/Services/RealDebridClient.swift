@@ -186,8 +186,11 @@ final actor RealDebridClient {
             URLQueryItem(name: "client_id", value: Self.oauthClientID),
             URLQueryItem(name: "new_credentials", value: "yes")
         ]
-        let (data, _) = try await session.data(from: comps.url!)
-        return try decoder.decode(RDDeviceCode.self, from: data)
+        var req = URLRequest(url: comps.url!)
+        req.timeoutInterval = 30
+        let data = try await checkedOAuthData(for: req)
+        do { return try decoder.decode(RDDeviceCode.self, from: data) }
+        catch { throw RealDebridError.decoding(error) }
     }
 
     /// Step 2: poll until the user authorizes. Returns nil only while authorization
@@ -259,9 +262,26 @@ final actor RealDebridClient {
         ].map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) ?? $0.value)" }
          .joined(separator: "&")
         req.httpBody = body.data(using: .utf8)
-        let (data, _) = try await session.data(for: req)
-        let token = try decoder.decode(RDToken.self, from: data)
-        return token.accessToken
+        req.timeoutInterval = 30
+        let data = try await checkedOAuthData(for: req)
+        do { return try decoder.decode(RDToken.self, from: data).accessToken }
+        catch { throw RealDebridError.decoding(error) }
+    }
+
+    /// OAuth calls previously decoded error bodies as success payloads, so a
+    /// rejected request surfaced as "Couldn't read the response" instead of its status.
+    private func checkedOAuthData(for req: URLRequest) async throws -> Data {
+        let data: Data
+        let response: URLResponse
+        do { (data, response) = try await session.data(for: req) }
+        catch { throw RealDebridError.network(error) }
+        guard let http = response as? HTTPURLResponse else { throw RealDebridError.invalidResponse }
+        switch http.statusCode {
+        case 200...299: return data
+        case 401: throw RealDebridError.unauthorized
+        case 403: throw RealDebridError.forbidden
+        default: throw RealDebridError.http(http.statusCode)
+        }
     }
 
     // MARK: - Request plumbing

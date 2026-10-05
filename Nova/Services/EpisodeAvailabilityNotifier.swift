@@ -16,15 +16,12 @@
 //     `init(library:tmdb:catalog:)` matches AppEnvironment's call site.
 //  2. Call `episodeNotifier.requestAuthorization()` once at launch
 //     (e.g. from NovaApp or AppEnvironment.init).
-//  3. Call `episodeNotifier.checkForNewStreamableEpisodes()` from:
-//       - BGAppRefreshTask (register "nova.episodeCheck" in Info.plist)
-//       - Scene activation / foreground transition
-//  4. Add "nova.episodeCheck" to BGTaskSchedulerPermittedIdentifiers in Info.plist.
+//  3. NovaApp calls `checkForNewStreamableEpisodes()` from its BGAppRefreshTask
+//     ("com.nova.ios.episode-refresh") and on foreground transition.
 //
 
 import Foundation
 import UserNotifications
-import BackgroundTasks
 
 // MARK: - Notifier
 
@@ -47,8 +44,6 @@ final class EpisodeAvailabilityNotifier {
     /// UserDefaults key → Set<String> of notification IDs already fired.
     private let sentNotifsKey = "nova.episodeNotifier.sentIDs"
 
-    private let bgTaskID = "nova.episodeCheck"
-
     // MARK: - Init (matches AppEnvironment call site)
 
     init(library: LibraryStore, tmdb: TMDBClient, catalog: CatalogService) {
@@ -66,31 +61,6 @@ final class EpisodeAvailabilityNotifier {
                 options: [.alert, .sound, .badge]
             ) { _, _ in }
         }
-    }
-
-    // MARK: - Background task registration
-
-    /// Register the BGAppRefreshTask. Call from application(_:didFinishLaunchingWithOptions:).
-    func registerBackgroundTask() {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: bgTaskID, using: nil) { [weak self] task in
-            self?.handleBackgroundTask(task as! BGAppRefreshTask)
-        }
-    }
-
-    func scheduleBackgroundRefresh() {
-        let request = BGAppRefreshTaskRequest(identifier: bgTaskID)
-        // Check roughly once per day.
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 60 * 60 * 12)
-        try? BGTaskScheduler.shared.submit(request)
-    }
-
-    private func handleBackgroundTask(_ task: BGAppRefreshTask) {
-        scheduleBackgroundRefresh() // reschedule next run
-        let taskItem = Task { [weak self] in
-            await self?.checkForNewStreamableEpisodes()
-            task.setTaskCompleted(success: true)
-        }
-        task.expirationHandler = { taskItem.cancel() }
     }
 
     // MARK: - Main check

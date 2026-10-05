@@ -148,6 +148,7 @@ struct SMBBrowseView: View {
                 if !pathInput.isEmpty {
                     Button { pathInput = "" } label: {
                         Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.Colors.textTertiary)
+                            .accessibilityLabel("Clear Path")
                     }.buttonStyle(.plain)
                 }
                 Button { Task { await jumpToPath() } } label: {

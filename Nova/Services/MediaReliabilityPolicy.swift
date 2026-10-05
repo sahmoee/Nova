@@ -48,13 +48,18 @@ nonisolated enum MediaReliabilityPolicy {
         if let seconds = Double(value) {
             return seconds.isFinite && seconds >= 0 ? seconds : nil
         }
+        guard let date = httpDateFormatter.date(from: value) else { return nil }
+        return max(0, date.timeIntervalSince(now))
+    }
+
+    /// Built once: Retry-After is parsed on every throttled response.
+    private static let httpDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
-        guard let date = formatter.date(from: value) else { return nil }
-        return max(0, date.timeIntervalSince(now))
-    }
+        return formatter
+    }()
 
     static func boundedInterval(_ value: TimeInterval, fallback: TimeInterval, maximum: TimeInterval = 300) -> TimeInterval {
         value.isFinite && value > 0 ? min(value, maximum) : fallback

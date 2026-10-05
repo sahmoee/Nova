@@ -160,13 +160,17 @@ actor UPnPDiscoveryClient {
             let request = "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 2\r\nST: ssdp:all\r\n\r\n"
             connection.start(queue: queue)
             connection.send(content: Data(request.utf8), completion: .contentProcessed { _ in Self.receive(on: connection, collector: collector) })
-            queue.asyncAfter(deadline: .now() + 3) { connection.cancel(); continuation.resume(returning: collector.values) }
+            // Honor the caller's timeout (previously a fixed 3 s), bounded to a sane window.
+            let seconds = min(max(Double(timeout.components.seconds) + Double(timeout.components.attoseconds) / 1e18, 0.5), 30)
+            queue.asyncAfter(deadline: .now() + seconds) { connection.cancel(); continuation.resume(returning: collector.values) }
         }
     }
 
     private nonisolated static func receive(on connection: NWConnection, collector: SSDPCollector) {
-        connection.receiveMessage { data, _, _, _ in
+        connection.receiveMessage { data, _, _, error in
             if let data, let text = String(data: data, encoding: .utf8) { collector.insert(text) }
+            // After cancel every receive fails immediately; re-arming then spun forever.
+            guard error == nil, connection.state == .ready else { return }
             Self.receive(on: connection, collector: collector)
         }
     }

@@ -113,6 +113,7 @@ struct SMBListView: View {
                     .foregroundStyle(Theme.Colors.accent)
                     .padding(Theme.Spacing.sm)
                     .contentShape(Rectangle())
+                    .accessibilityLabel("Run Diagnostics")
             }
             .buttonStyle(.plain)
 
@@ -125,6 +126,7 @@ struct SMBListView: View {
                     .foregroundStyle(Theme.Colors.error)
                     .padding(Theme.Spacing.sm)
                     .contentShape(Rectangle())
+                    .accessibilityLabel("Delete Share")
             }
             .buttonStyle(.plain)
         }

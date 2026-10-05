@@ -35,6 +35,7 @@ struct QRScannerView: View {
                             .foregroundStyle(.white)
                             .padding(Theme.Spacing.md)
                             .background(.black.opacity(0.5), in: Circle())
+                            .accessibilityLabel("Close")
                     }
                     .padding(Theme.Spacing.lg)
                 }

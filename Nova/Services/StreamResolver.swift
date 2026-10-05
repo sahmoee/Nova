@@ -101,9 +101,11 @@ actor StreamResolver {
     private func waitForFiles(id: String) async throws -> TorrentInfo {
         for _ in 0..<30 {
             let info = try await realDebrid.torrentInfo(id: id)
+            // A dead or rejected magnet never recovers; fail now instead of polling for a minute.
+            if info.hasFailed { throw StreamResolveError.noPlayableURL }
             if let files = info.files, !files.isEmpty { return info }
             if info.needsFileSelection { return info }
-            try await Task.sleep(nanoseconds: 2_000_000_000)
+            try await Task.sleep(for: .seconds(2))
         }
         throw StreamResolveError.fileNotFound
     }
@@ -112,7 +114,9 @@ actor StreamResolver {
         for _ in 0..<60 {
             let info = try await realDebrid.torrentInfo(id: id)
             if info.isReady, let links = info.links, !links.isEmpty { return info }
-            try await Task.sleep(nanoseconds: 3_000_000_000)
+            // Without this, an errored torrent kept the user waiting the full three minutes.
+            if info.hasFailed { throw StreamResolveError.noPlayableURL }
+            try await Task.sleep(for: .seconds(3))
         }
         throw StreamResolveError.noPlayableURL
     }

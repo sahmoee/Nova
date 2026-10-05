@@ -595,7 +595,8 @@ struct AiringCalendarView: View {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.locale = Locale(identifier: "en_US_POSIX"); return f
     }()
     private static let dayHeader: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "EEEE, MMM d"; return f
+        // A template (not a fixed format) gives each locale its own order and wording.
+        let f = DateFormatter(); f.setLocalizedDateFormatFromTemplate("EEEEMMMd"); return f
     }()
 
     private var grouped: [(Date, [Entry])] {

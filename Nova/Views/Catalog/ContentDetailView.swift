@@ -960,6 +960,7 @@ struct ContentDetailView: View {
                             Image(systemName: "ellipsis")
                                 .font(.appFont(18, weight: .bold))
                                 .foregroundStyle(.white)
+                                .accessibilityLabel("More Actions")
                         }
                     }
                     .padding(.top, 2)

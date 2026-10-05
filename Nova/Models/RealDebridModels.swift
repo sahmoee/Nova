@@ -69,6 +69,8 @@ struct TorrentInfo: Codable, Hashable {
 
     var isReady: Bool { status.lowercased() == "downloaded" }
     var needsFileSelection: Bool { status.lowercased() == "waiting_files_selection" }
+    /// Terminal Real-Debrid states that will never become playable.
+    var hasFailed: Bool { ["magnet_error", "error", "virus", "dead"].contains(status.lowercased()) }
 }
 
 struct TorrentFile: Codable, Hashable, Identifiable {

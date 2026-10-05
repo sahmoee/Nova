@@ -208,13 +208,15 @@ actor StremioAddonClient {
             .appendingPathComponent(type)
 
         // Extra path segments for search/genre (Stremio uses "/search=foo.json").
+        // Values are encoded like JavaScript's encodeURIComponent (as Stremio's SDK
+        // expects), so "&", "=" and "/" in a query cannot split the extras.
         var extras: [String] = []
-        if let search, !search.isEmpty {
-            let enc = search.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? search
+        if let search, !search.isEmpty,
+           let enc = search.addingPercentEncoding(withAllowedCharacters: .stremioExtraValueAllowed) {
             extras.append("search=\(enc)")
         }
-        if let genre, !genre.isEmpty {
-            let enc = genre.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? genre
+        if let genre, !genre.isEmpty,
+           let enc = genre.addingPercentEncoding(withAllowedCharacters: .stremioExtraValueAllowed) {
             extras.append("genre=\(enc)")
         }
         // Stremio pagination: "/skip=100.json" asks for the next page.
@@ -225,7 +227,10 @@ actor StremioAddonClient {
             url.appendPathComponent("\(catalogID).json")
         } else {
             url.appendPathComponent(catalogID)
-            url.appendPathComponent(extras.joined(separator: "&") + ".json")
+            // Append the pre-encoded segment verbatim: appendPathComponent would
+            // escape the "%" again ("Tom%20Jerry" became "Tom%2520Jerry").
+            guard let extended = URL(string: url.absoluteString + "/" + extras.joined(separator: "&") + ".json") else { return [] }
+            url = extended
         }
 
         guard await reliability.shouldAllow(addon.id) else { return [] }
@@ -497,4 +502,13 @@ actor StremioAddonClient {
             throw AddonError.decoding(error)
         }
     }
+}
+
+private extension CharacterSet {
+    /// JavaScript encodeURIComponent's unreserved set, used for Stremio "extra" values.
+    static let stremioExtraValueAllowed: CharacterSet = {
+        var set = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+        set.insert(charactersIn: "-_.!~*'()")
+        return set
+    }()
 }

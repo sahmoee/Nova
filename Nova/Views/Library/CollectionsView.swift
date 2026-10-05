@@ -73,6 +73,7 @@ struct CollectionsView: View {
             }
             Button { showingNewCollection = true } label: {
                 Image(systemName: "plus")
+                    .accessibilityLabel("New Collection")
             }
         }
         .sheet(isPresented: $showingNewCollection) {
@@ -431,6 +432,7 @@ struct CollectionDetailView: View {
                         confirmingDelete = true
                     } label: {
                         Image(systemName: "trash")
+                            .accessibilityLabel("Delete Collection")
                     }
                 )
             }

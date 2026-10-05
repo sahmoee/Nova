@@ -87,8 +87,15 @@ actor TMDBClient {
         async let shows = try? searchShows(query)
         let m = (await movies) ?? []
         let s = (await shows) ?? []
-        // Interleave, movies and shows, preserving rough relevance.
-        return m + s
+        // Interleave movies and shows, preserving each list's relevance order.
+        // Appending shows after a full page of movies buried the best show match.
+        var merged: [CatalogItem] = []
+        merged.reserveCapacity(m.count + s.count)
+        for index in 0..<max(m.count, s.count) {
+            if index < m.count { merged.append(m[index]) }
+            if index < s.count { merged.append(s[index]) }
+        }
+        return merged
     }
 
     // MARK: - Discovery catalogs (home shelves)

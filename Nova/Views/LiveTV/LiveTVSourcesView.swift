@@ -95,6 +95,7 @@ private struct LiveTVSourcesContent: View {
                 // Ask before deleting instead of removing immediately.
                 Button(role: .destructive) { pendingDelete = source } label: {
                     Image(systemName: "trash").foregroundStyle(Theme.Colors.error)
+                        .accessibilityLabel("Delete Source")
                 }.buttonStyle(.plain)
             }
         }

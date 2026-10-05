@@ -125,13 +125,17 @@ enum SonarrDashboardPolicy {
 
     static func decoder() -> JSONDecoder {
         let decoder = JSONDecoder()
+        // Formatters are built once per decoder, not once per date value: a calendar
+        // or series list carries hundreds of dates and formatter setup is expensive.
+        // ISO8601DateFormatter is thread-safe for parsing; nonisolated(unsafe) matches
+        // how the app shares formatters elsewhere (see BackupManager).
+        nonisolated(unsafe) let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        nonisolated(unsafe) let plain = ISO8601DateFormatter()
+        plain.formatOptions = [.withInternetDateTime]
         decoder.dateDecodingStrategy = .custom { decoder in
             let value = try decoder.singleValueContainer().decode(String.self)
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = formatter.date(from: value) { return date }
-            formatter.formatOptions = [.withInternetDateTime]
-            if let date = formatter.date(from: value) { return date }
+            if let date = fractional.date(from: value) ?? plain.date(from: value) { return date }
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid Sonarr date"))
         }
         return decoder

@@ -47,7 +47,7 @@ actor SMBStreamServer {
             : (UTType(filenameExtension: URL(fileURLWithPath: fileName).pathExtension)?.preferredMIMEType
                ?? "application/octet-stream")
 
-        try startListenerIfNeeded()
+        try await startListenerIfNeeded()
 
         // Percent-encode the filename so AVPlayer/HTTP handles spaces etc.
         var pathAllowed = CharacterSet.urlPathAllowed
@@ -61,26 +61,53 @@ actor SMBStreamServer {
 
     // MARK: - Listener
 
-    private func startListenerIfNeeded() throws {
-        if listener != nil { return }
+    private func startListenerIfNeeded() async throws {
+        if let listener {
+            // Already running, or another serve call is starting it (actor reentrancy
+            // across the await below): wait for that listener instead of making a second one.
+            try await waitForPort(of: listener)
+            return
+        }
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
-        // Bind to loopback only.
+        // Bind to loopback only, so other devices on the network cannot fetch the file.
+        params.requiredLocalEndpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: .any)
         let listener = try NWListener(using: params)
         listener.newConnectionHandler = { [weak self] conn in
             conn.start(queue: .global(qos: .userInitiated))
             Task { await self?.handle(conn) }
         }
-        listener.stateUpdateHandler = { _ in }
-        listener.start(queue: .global(qos: .userInitiated))
-        // Capture the assigned port.
-        self.listener = listener
-        // Wait briefly for the port to be assigned.
-        for _ in 0..<50 {
-            if let p = listener.port?.rawValue, p != 0 { self.port = p; break }
-            usleep(10_000)
+        listener.stateUpdateHandler = { [weak self, weak listener] state in
+            switch state {
+            case .failed, .cancelled:
+                // A dead socket (e.g. reclaimed in the background) must be rebuilt on the next serve.
+                Task { await self?.discard(listener) }
+            default: break
+            }
         }
-        if port == 0 { throw SMBError.streamingUnavailable }
+        listener.start(queue: .global(qos: .userInitiated))
+        self.listener = listener
+        self.port = 0
+        try await waitForPort(of: listener)
+    }
+
+    /// Waits briefly for the port without blocking the actor's thread.
+    private func waitForPort(of listener: NWListener) async throws {
+        for _ in 0..<50 where port == 0 {
+            if let p = listener.port?.rawValue, p != 0, listener === self.listener { port = p; break }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        guard port != 0, listener === self.listener else {
+            discard(listener)
+            throw SMBError.streamingUnavailable
+        }
+    }
+
+    private func discard(_ old: NWListener?) {
+        guard let old, old === listener else { return }
+        old.cancel()
+        listener = nil
+        port = 0
     }
 
     // MARK: - Connection handling
@@ -94,8 +121,13 @@ actor SMBStreamServer {
             conn.cancel(); return
         }
 
-        // Parse a Range header if present.
+        // Parse a Range header if present. A range that starts past the end of the
+        // file cannot be satisfied; answering 416 lets AVPlayer stop probing.
         let (start, end, hasRange) = parseRange(request, fileSize: fileSize)
+        if hasRange, let requestedStart = requestedRangeStart(request), requestedStart >= fileSize {
+            await sendHeader(conn, "HTTP/1.1 416 Range Not Satisfiable\r\nContent-Range: bytes */\(fileSize)\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+            conn.cancel(); return
+        }
         let length = end - start + 1
 
         await sendResponse(conn, start: start, end: end, length: length,
@@ -112,6 +144,14 @@ actor SMBStreamServer {
                 }
             }
         }
+    }
+
+    /// The explicit first byte of a "bytes=N-" range, before clamping. Nil for suffix ranges.
+    private func requestedRangeStart(_ request: String) -> Int64? {
+        guard let line = request.split(separator: "\r\n").first(where: { $0.lowercased().hasPrefix("range:") }),
+              let eq = line.firstIndex(of: "=") else { return nil }
+        let first = line[line.index(after: eq)...].split(separator: "-", maxSplits: 1, omittingEmptySubsequences: false).first
+        return first.flatMap { Int64($0.trimmingCharacters(in: .whitespaces)) }
     }
 
     private func parseRange(_ request: String, fileSize: Int64) -> (Int64, Int64, Bool) {

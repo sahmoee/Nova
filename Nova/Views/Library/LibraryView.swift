@@ -861,6 +861,7 @@ struct LibraryView: View {
                 Image(systemName: "arrow.up.arrow.down.circle")
                     .font(.appFont(20))
                     .foregroundStyle(Theme.Colors.accent)
+                    .accessibilityLabel("Sort Library")
             }
             Button {
                 bulkEditing.toggle()
