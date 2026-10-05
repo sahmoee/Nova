@@ -5,8 +5,7 @@
 //  Networking actor for the Real-Debrid REST API (v1.0).
 //  The token is injected per-call from the Keychain; it is never logged.
 //
-//  NOTE: This is wired for real calls. In Phase 1/2 the UI can run without a
-//  token; screens that need it will prompt the user. Phase 3 activates it.
+//  Requests require a user-configured account token.
 //
 
 import Foundation

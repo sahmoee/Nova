@@ -20,6 +20,10 @@ struct ContinueWatchingCard: View {
     private var progressBadge: String? {
         guard item.progressFraction > 0 else { return nil }
         var text = "\(Int((item.progressFraction * 100).rounded()))%"
+        // Episodes lead with their code so a show's card says which episode resumes.
+        if let episode = item.episode {
+            text = "S\(episode.season) E\(episode.number) · " + text
+        }
         if let duration = item.duration, duration.isFinite, duration > 0 {
             let remaining = max(duration - item.lastPlayedPosition, 0)
             guard remaining.isFinite, remaining / 60 < Double(Int.max) else { return text }

@@ -114,12 +114,26 @@ struct ContentDetailView: View {
         .task(id: item.contentID.tmdb) { await fetchTrailer() }
         .task(id: item.contentID.tmdb) { await fetchExtras() }
         .task(id: item.contentID.imdb) { await fetchRatings() }
+        .task(id: item.contentID.imdb) { await warmStreams() }
         .sheet(isPresented: $showCollectionPicker) {
             collectionPickerSheet
         }
         .onAppear { AccentManager.shared.deriveAccent(from: item.posterURL ?? item.backdropURL) }
         .onDisappear { AccentManager.shared.reset() }
         .toolbarBackground(.hidden, for: .navigationBar)
+    }
+
+    /// Movies only: after a short pause on the page, quietly resolve the stream list
+    /// into the shared short-lived stream cache so Play opens instantly. Skipped in
+    /// Safe Mode, on constrained networks, and when no stream add-on is enabled.
+    /// Leaving the page before the pause cancels it; nothing is auto-played.
+    private func warmStreams() async {
+        guard !item.isSeries, item.contentID.imdb != nil, !SafeMode.isOn,
+              !NetworkConditionMonitor.shared.shouldSuggestBandwidthSaver,
+              !env.addonStore.streamAddons.isEmpty else { return }
+        try? await Task.sleep(for: .milliseconds(800))
+        guard !Task.isCancelled else { return }
+        _ = await env.catalog.streams(for: item.contentID, episode: nil, preferredQuality: nil)
     }
 
     // MARK: - Hero header (centered, Apple TV style)
@@ -852,6 +866,9 @@ struct ContentDetailView: View {
                 .accessibilityLabel("Season")
                 .accessibilityValue(seasons.first(where: { $0.number == activeSeason })?.displayName ?? "Season \(activeSeason)")
                 .padding(.horizontal, Theme.Spacing.edge)
+
+                NovaEpisodeCalendarButton(catalog: item, tmdb: env.tmdb)
+                    .padding(.horizontal, Theme.Spacing.edge)
 
                 #endif
                 // Episode rail: wide 16:9 cards with the episode info overlaid on the

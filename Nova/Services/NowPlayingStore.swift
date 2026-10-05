@@ -38,8 +38,16 @@ final class NowPlayingStore: ObservableObject {
 
     func update(progress: Double, isPlaying: Bool) {
         // FIX: same non-finite guard as begin(); keep the last good value on NaN.
-        if progress.isFinite { self.progress = max(0, min(1, progress)) }
-        self.isPlaying = isPlaying
+        // Players report time several times a second. Publishing only visible changes
+        // (a fifth of a percent, or a play/pause flip) keeps every observer of this
+        // store — including the root navigation — from re-rendering during playback.
+        if progress.isFinite {
+            let clamped = max(0, min(1, progress))
+            if abs(clamped - self.progress) >= 0.002 || (clamped == 0) != (self.progress == 0) || clamped == 1 {
+                if clamped != self.progress { self.progress = clamped }
+            }
+        }
+        if self.isPlaying != isPlaying { self.isPlaying = isPlaying }
     }
 
     /// The user left the player screen but playback state should persist so the

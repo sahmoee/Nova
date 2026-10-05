@@ -28,12 +28,16 @@ final class ToastCenter: ObservableObject {
               systemImage: String = "checkmark.circle.fill",
               isError: Bool = false,
               duration: Duration = .seconds(2.5)) {
-        let msg = ToastMessage(text: text, systemImage: systemImage, isError: isError, duration: duration)
+        // Errors stay up longer so there is time to read them.
+        let shown = (isError && duration == .seconds(2.5)) ? Duration.seconds(4) : duration
+        let msg = ToastMessage(text: text, systemImage: systemImage, isError: isError, duration: shown)
         current = msg
         Haptics.play(isError ? .error : .success)
+        // VoiceOver users hear the message even though focus stays where it was.
+        AccessibilityNotification.Announcement(text).post()
         dismissTask?.cancel()
         dismissTask = Task {
-            try? await Task.sleep(for: duration)
+            try? await Task.sleep(for: shown)
             if Task.isCancelled { return }
             if current?.id == msg.id {
                 withAnimation { current = nil }
@@ -74,7 +78,9 @@ private struct ToastHost: ViewModifier {
                     .padding(.vertical, Theme.Spacing.md)
                     .background(.ultraThinMaterial, in: Capsule())
                     .overlay(
-                        Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                        Capsule().strokeBorder(msg.isError ? Theme.Colors.error.opacity(0.65)
+                                                            : Color.white.opacity(0.12),
+                                               lineWidth: msg.isError ? 1.5 : 1)
                     )
                 }
                 .buttonStyle(.plain)

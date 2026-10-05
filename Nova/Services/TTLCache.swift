@@ -34,6 +34,13 @@ actor TTLCache<Key: Hashable & Sendable, Value: Sendable> {
         return entry.value
     }
 
+    /// Waits for a producer already running for this key (for example a background
+    /// warm-up) instead of starting a duplicate. Returns nil when nothing is in flight.
+    func inFlightValue(for key: Key) async -> Value? {
+        guard let flight = inFlight[key] else { return nil }
+        return await flight.task.value
+    }
+
     /// Deliberately retained for stale-while-refresh callers; still bounded by LRU.
     func staleValue(for key: Key) -> Value? { store[key]?.value }
 

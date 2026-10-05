@@ -2,10 +2,8 @@
 //  AISearchService.swift
 //  Nova
 //
-//  Natural-language search/suggestions powered by Claude. For security, Nova does
-//  NOT hold an Anthropic API key. Instead it calls a small Cloudflare Worker that the
-//  user deploys themselves; the Worker holds the API key server-side and returns a
-//  list of title suggestions. The Worker URL is configured by the user in Settings.
+//  Natural-language title suggestions through a Cloudflare Worker. Provider API
+//  keys stay server-side; Settings can override the default service endpoint.
 //
 //  Expected Worker contract:
 //    POST <workerURL>/titles
@@ -16,7 +14,8 @@
 //  field while retaining the flattened `titles` array for released clients.
 //
 //  The app then resolves those titles to real catalog items via TMDB, so nothing
-//  about the user's library or keys is exposed to the model.
+//  provider keys stay outside the app. Requests include entered search text and
+//  may include title context for features that the user explicitly invokes.
 //
 
 import Foundation
@@ -67,9 +66,7 @@ final class AISearchService: ObservableObject {
     }
 
     static var workerURL: URL? {
-        let trimmed = workerURLString.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return URL(string: NovaWorkerConfiguration.defaultBaseURL) }
-        return URL(string: trimmed)
+        NovaWorkerConfiguration.baseURL(workerURLString)
     }
 
     static var isConfigured: Bool { !SafeMode.isOn && workerURL != nil }

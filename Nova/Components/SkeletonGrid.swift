@@ -37,10 +37,21 @@ struct SkeletonRow: View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: Theme.Spacing.md) {
                 ForEach(0..<count, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .fill(Theme.Colors.card)
-                        .frame(width: Theme.CardSize.posterWidth, height: Theme.CardSize.posterHeight)
-                        .shimmering()
+                    // Same geometry as a loaded poster card (artwork plus two title
+                    // lines), so the row doesn't jump when real content replaces it.
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                            .fill(Theme.Colors.card)
+                            .frame(width: Theme.CardSize.posterWidth, height: Theme.CardSize.posterHeight)
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(Theme.Colors.card)
+                            .frame(width: Theme.CardSize.posterWidth * 0.8, height: 12)
+                            .padding(.top, 4)
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(Theme.Colors.card)
+                            .frame(width: Theme.CardSize.posterWidth * 0.5, height: 10)
+                    }
+                    .shimmering()
                 }
             }
             .padding(.horizontal, Theme.Spacing.edge)

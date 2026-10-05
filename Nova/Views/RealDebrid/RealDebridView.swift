@@ -4,7 +4,6 @@
 //
 //  Connect a Real-Debrid account by pasting an API token, validate it, and
 //  unrestrict a hoster link into a playable item. Token lives in the Keychain.
-//  Networking is live (Phase 3); UI is present from the start.
 //
 
 import SwiftUI

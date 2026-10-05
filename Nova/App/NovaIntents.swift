@@ -88,12 +88,41 @@ struct OpenAIIntent: AppIntent {
     }
 }
 
+
+/// Search a title through the existing discovery UI. A persisted route survives a cold launch;
+/// a notification-only handoff can arrive before any view is listening.
+struct NovaSearchIntent: AppIntent {
+    static let title: LocalizedStringResource = "Search Nova"
+    static let description = IntentDescription("Search Nova for a movie or show title.")
+    static let openAppWhenRun = true
+
+    @Parameter(title: "Title", description: "The title to search for.")
+    var query: String
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        guard let url = DeepLink.searchURL(for: query) else { throw SearchInputError() }
+        PendingRoute.set(url.absoluteString)
+        return .result()
+    }
+
+    private struct SearchInputError: LocalizedError {
+        var errorDescription: String? { "Enter a title of 1–500 characters." }
+    }
+}
+
 // MARK: - Shortcuts provider
 
 /// Registers the above as ready-to-use Shortcuts with spoken phrases. The phrases must
 /// include the app name token so Siri can disambiguate.
 struct NovaShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
+        AppShortcut(
+            intent: NovaSearchIntent(),
+            phrases: ["Search \(.applicationName)"],
+            shortTitle: "Search Titles",
+            systemImageName: "magnifyingglass"
+        )
         AppShortcut(
             intent: ContinueWatchingIntent(),
             phrases: [

@@ -32,6 +32,7 @@ struct PlayerView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @StateObject private var model: PlayerModel
+    @State private var showChapters = false
     @State private var preparedNext: MediaItem?      // pre-resolved, not yet navigated
     @State private var navigateNext: MediaItem?      // bound to navigationDestination
     @State private var prepareTask: Task<Void, Never>?
@@ -44,6 +45,9 @@ struct PlayerView: View {
     // overriding the automatic/preference routing (used by "Try other player").
     @State private var engineOverride: PlaybackEngine?
     @State private var didAutoFallbackSMB = false
+    // One automatic VLC → Apple player hand-off per title.
+    @State private var didAutoFallbackVLC = false
+    @AppStorage("player.subtitleScale") private var subtitleScale: Double = 1
     // #4 External-player return prompt: external apps don't report progress back, so on
     // return we ask the viewer how far they got and update progress/watched accordingly.
     @State private var didOpenExternal = false
@@ -119,6 +123,7 @@ struct PlayerView: View {
                 Text("You left off at \(timeLabel(position)).")
                     .font(.appFont(20))
                     .foregroundStyle(Theme.Colors.textSecondary)
+                ResumeProgressSummary(position: position, duration: item.duration)
 
                 VStack(spacing: Theme.Spacing.sm) {
                     FocusableButton(title: "Resume from \(timeLabel(position))",
@@ -170,9 +175,6 @@ struct PlayerView: View {
     /// switching engine, opening externally, or going back to pick another stream.
     private func playbackRecovery(message: String) -> some View {
         let reason = PlaybackFailureReason.classify(message)
-        // This engine failed for this title — clear the remembered choice so the app
-        // doesn't keep routing here next time.
-        PlayerMemory.forget(for: item)
 
         return ZStack {
             Color.black.opacity(0.92).ignoresSafeArea()
@@ -188,6 +190,12 @@ struct PlayerView: View {
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 640)
+                    .onAppear {
+                        // This engine failed for this title — clear the remembered choice
+                        // so the app doesn't keep routing here next time. Done once on
+                        // appearance rather than on every render of the failure screen.
+                        PlayerMemory.forget(for: item)
+                    }
 
                 VStack(spacing: Theme.Spacing.sm) {
                     // Try the other engine — surfaced first when a codec/engine issue.
@@ -240,7 +248,16 @@ struct PlayerView: View {
         // The user's preferred built-in player can force one engine, and a recovery
         // override (from "Try other player") forces a specific engine for retry.
         if useVLCEngine {
-            VLCPlayerView(item: item, series: series, onStreamExpired: onStreamExpired, autoResume: autoResume)
+            VLCPlayerView(item: item, series: series, onStreamExpired: onStreamExpired, autoResume: autoResume,
+                          onTryOtherEngine: { automatic in
+                              guard PlaybackEngineRouter.isAVPlayerCompatible(for: item) else { return false }
+                              if automatic {
+                                  guard engineOverride == nil, !didAutoFallbackVLC else { return false }
+                                  didAutoFallbackVLC = true
+                              }
+                              engineOverride = .avPlayer
+                              return true
+                          })
         } else {
             avPlayerBody
         }
@@ -345,7 +362,10 @@ struct PlayerView: View {
                         .ignoresSafeArea()
                     }
                     Color.black.opacity(0.68).ignoresSafeArea()
-                    LoadingView(message: "Preparing \(item.displayTitle)…", systemImage: "play.fill")
+                    LoadingView(message: model.isReconnecting
+                                    ? "Connection dropped. Reconnecting…"
+                                    : "Preparing \(item.displayTitle)…",
+                                systemImage: model.isReconnecting ? "wifi.exclamationmark" : "play.fill")
                 }
             case .ready:
                 // Native AVPlayerViewController UI: scrubbing, subtitle/audio menus,
@@ -437,7 +457,8 @@ struct PlayerView: View {
         VStack {
             Spacer()
             Text(text)
-                .font(.system(size: Theme.scaled(28, min: 20), weight: .semibold))
+                .font(.system(size: Theme.scaled(28, min: 20) * SubtitleScalePolicy.normalized(subtitleScale),
+                              weight: .semibold))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
                 .lineLimit(4)
@@ -476,6 +497,22 @@ struct PlayerView: View {
 
                 Spacer()
 
+                if !NovaChapterParser.chapters(from: item).isEmpty {
+                    Button { showChapters = true } label: {
+                        Image(systemName: "list.bullet.rectangle")
+                            .font(.appFont(19, weight: .semibold))
+                            .frame(width: 46, height: 46)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                    .accessibilityLabel("Chapters")
+                    .buttonStyle(NovaIconButtonStyle())
+                    .sheet(isPresented: $showChapters) {
+                        NovaChapterListSheet(chapters: NovaChapterParser.chapters(from: item),
+                                             currentPosition: model.currentTime) { chapter in
+                            model.seek(to: chapter.startSeconds)
+                        }
+                    }
+                }
                 if preparedNext != nil {
                     Button { playNext() } label: {
                         Image(systemName: "forward.end.fill")

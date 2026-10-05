@@ -323,6 +323,15 @@ struct SettingsView: View {
             },
         ]))
 
+        #if os(iOS)
+        groups.append(CategoryGroup(header: "Calendar", items: [
+            Category(id: "calendar", icon: "calendar", color: Theme.Colors.iconGraphite,
+                     title: "Episode Calendar", detail: "Choose where to save air dates") {
+                AnyView(NovaCalendarSettingsView(calService: .shared))
+            }
+        ]))
+        #endif
+
         groups.append(CategoryGroup(header: "Testing", items: [
             Category(id: "qa", icon: "checkmark.seal.fill", color: Theme.Colors.iconGraphite,
                      title: "Quality Assurance", detail: "Off by default") {

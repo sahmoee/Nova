@@ -47,6 +47,8 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     @Published private(set) var isLoadingExternalSubtitles = false
     @Published private(set) var subtitleStatusMessage: String?
     @Published var showSubtitlePicker = false
+    /// The engine's current rate, for the overlay's speed badge.
+    @Published private(set) var playbackRate: Double = 1
 
     struct VLCTrack: Identifiable, Hashable {
         let id: Int          // VLC track index
@@ -76,6 +78,10 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     private var attachedSubtitleIDs: [URL: Int] = [:]
     private var externalSubtitleIDsByTrackIndex: [Int: String] = [:]
     private var unresolvedAttachment: (url: URL, previousIDs: Set<Int>)?
+    private var lastNowPlayingUptime: TimeInterval = 0
+    private var stallTask: Task<Void, Never>?
+    private var didApplyAudioPreference = false
+    private static let preferredAudioKey = "player.vlc.preferredAudioTrackName"
     /// When true, the resume seek is skipped so playback starts from the beginning
     /// (set by the "Start from beginning" choice in the resume prompt).
     var forceRestart = false
@@ -140,19 +146,22 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         attachedSubtitleIDs = [:]; externalSubtitleIDsByTrackIndex = [:]; unresolvedAttachment = nil
         selectedSubtitleTrackID = nil; selectedAudioTrackID = nil; selectedExternalSubtitleID = nil
         pendingExternalSubtitleID = nil; isDownloadingSubtitle = false
+        didApplyAudioPreference = false
+        stallTask?.cancel(); stallTask = nil
 
         let media = VLCMedia(url: item.playbackURL)
-        // Apply the user's built-in player profile (network cache size, hardware
-        // decoding preference). These map to libVLC media options.
-        if let profile = settings?.builtInPlayer {
-            if let cacheMs = profile.vlcNetworkCacheMs {
-                media.addOption("--network-caching=\(cacheMs)")
-                media.addOption("--file-caching=\(cacheMs)")
-            }
-            if profile.prefersHardwareDecoding {
-                media.addOption("--codec=videotoolbox")
-            }
-        }
+        // libVLC media options are ":name=value". The earlier "--name" spelling was
+        // silently ignored, so profile caching never applied. Caching now adapts to
+        // the source: short for local files and the SMB bridge, longer for remote
+        // and constrained networks, with HTTP reconnect for remote streams.
+        let options = VLCStreamingPolicy.mediaOptions(
+            for: item.playbackURL,
+            isLive: item.sourceType == .liveTV,
+            profileCacheMilliseconds: settings?.builtInPlayer.vlcNetworkCacheMs,
+            prefersHardwareDecoding: settings?.builtInPlayer.prefersHardwareDecoding ?? false,
+            constrained: NetworkConditionMonitor.shared.shouldSuggestBandwidthSaver
+        )
+        for option in options { media.addOption(option) }
         mediaPlayer.media = media
         mediaPlayer.delegate = self
         mediaPlayer.play()
@@ -176,6 +185,7 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         // Idempotent: the back button and onDisappear can both call this.
         guard isActive else { return }
         isActive = false
+        stallTask?.cancel(); stallTask = nil
         PlaybackCoordinator.shared.resign(self)
         saveTask?.cancel(); saveTask = nil
         checkpointProgress()
@@ -194,6 +204,7 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         cancelPendingSubtitleSelection()
         guard isActive else { return }
         isActive = false
+        stallTask?.cancel(); stallTask = nil
         PlaybackCoordinator.shared.resign(self)
         saveTask?.cancel(); saveTask = nil
         checkpointProgress()
@@ -239,16 +250,15 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         #endif
     }
 
+    /// Skips relative to the displayed time, so repeated taps accumulate (three taps
+    /// move 30 seconds) and the timeline updates immediately instead of waiting for
+    /// VLC's next time callback.
     func skipForward(_ secs: Int = 15) {
-        #if canImport(VLCKitSPM)
-        mediaPlayer.jumpForward(Int32(secs))
-        #endif
+        seek(to: currentTime + TimeInterval(secs))
     }
 
     func skipBackward(_ secs: Int = 15) {
-        #if canImport(VLCKitSPM)
-        mediaPlayer.jumpBackward(Int32(secs))
-        #endif
+        seek(to: currentTime - TimeInterval(secs))
     }
 
     var remainingTime: TimeInterval { max(duration - currentTime, 0) }
@@ -278,6 +288,22 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     func selectAudioTrack(_ track: VLCTrack) {
         #if canImport(VLCKitSPM)
         mediaPlayer.currentAudioTrackIndex = Int32(track.id)
+        refreshTracks()
+        // Remember the choice so the next title starts on the same language.
+        UserDefaults.standard.set(track.name, forKey: Self.preferredAudioKey)
+        #endif
+    }
+
+    /// Applies the remembered audio language once per session when a matching track
+    /// exists. Matching is by the track's language label, never by index.
+    private func applyPreferredAudioTrackIfNeeded() {
+        #if canImport(VLCKitSPM)
+        guard !didApplyAudioPreference, audioTracks.count > 1 else { return }
+        didApplyAudioPreference = true
+        guard let saved = UserDefaults.standard.string(forKey: Self.preferredAudioKey),
+              let match = VLCStreamingPolicy.preferredAudioTrack(named: saved, in: audioTracks.map { (id: $0.id, name: $0.name) }),
+              match != selectedAudioTrackID else { return }
+        mediaPlayer.currentAudioTrackIndex = Int32(match)
         refreshTracks()
         #endif
     }
@@ -527,7 +553,9 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     /// The actual fill is applied at the SwiftUI view layer (a scale on the player
     /// surface), which works on any VLCKit build and can't crash — unlike VLCKit's
     /// videoCropGeometry, which isn't key-value-coding compliant on this build.
-    @Published var fillScreen: Bool = false
+    @Published var fillScreen: Bool = UserDefaults.standard.bool(forKey: "player.vlc.fillScreen") {
+        didSet { UserDefaults.standard.set(fillScreen, forKey: "player.vlc.fillScreen") }
+    }
 
     // MARK: - Progress
 
@@ -536,14 +564,14 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         saveTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
-                await MainActor.run { self?.checkpointProgress() }
+                await MainActor.run { self?.checkpointProgress(periodic: true) }
             }
         }
     }
 
-    func checkpointProgress() {
+    func checkpointProgress(periodic: Bool = false) {
         guard item.sourceType != .liveTV, duration > 0, currentTime > 0 else { return }
-        progressStore?.save(position: currentTime, duration: duration, for: item)
+        progressStore?.save(position: currentTime, duration: duration, for: item, periodic: periodic)
         NowPlayingStore.shared.update(progress: currentTime / duration, isPlaying: isPlaying)
     }
 
@@ -561,6 +589,7 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
         // Apply the user's default playback speed.
         if let speed = settings?.playbackSpeed, speed > 0 {
             mediaPlayer.rate = Float(speed)
+            playbackRate = speed
         }
         // Apply this title's remembered subtitle timing offset (seconds -> microseconds).
         if item.subtitleOffset != 0 {
@@ -585,8 +614,16 @@ final class VLCPlayerModel: NSObject, ObservableObject, StoppablePlayer {
     /// Live playback-speed change (e.g. from a player control).
     func setRate(_ rate: Double) {
         #if canImport(VLCKitSPM)
-        mediaPlayer.rate = Float(max(0.25, min(rate, 3.0)))
+        let clamped = max(0.25, min(rate, 3.0))
+        mediaPlayer.rate = Float(clamped)
+        playbackRate = clamped
         #endif
+    }
+
+    /// Restarts the current title from the beginning without leaving the player.
+    func restartFromBeginning() {
+        progressStore?.reset(for: item)
+        seek(to: 0)
     }
 
     // MARK: - Watch tracking
@@ -659,7 +696,10 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
                 // VLC emits .buffering repeatedly even mid-playback. Only treat it as
                 // buffering if playback isn't currently advancing; mediaPlayerTimeChanged
                 // clears it as soon as time moves.
-                if !mediaPlayer.isPlaying { self.isBuffering = true }
+                if !mediaPlayer.isPlaying {
+                    self.isBuffering = true
+                    self.armStallWatchdog()
+                }
                 if self.state == .loading, mediaPlayer.isPlaying {
                     self.state = .ready
                     self.markReady()
@@ -674,6 +714,7 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
                 // This engine successfully opened the file — remember it for next time.
                 PlayerMemory.remember(.vlc, for: self.item)
                 self.refreshTracks()
+                self.applyPreferredAudioTrackIfNeeded()
             case .paused:
                 self.isBuffering = false
                 self.isPlaying = false
@@ -711,21 +752,47 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
     nonisolated func mediaPlayerTimeChanged(_ aNotification: Notification) {
         Task { @MainActor in
             let ms = mediaPlayer.time.intValue          // current time in ms
-            self.currentTime = TimeInterval(ms) / 1000.0
+            let reported = TimeInterval(ms) / 1000.0
+            // VLC reports time many times a second. Publishing each sample re-rendered
+            // the whole overlay; quarter-second steps look identical and cost far less.
+            if VLCStreamingPolicy.shouldPublishTime(reported, previous: self.currentTime) {
+                self.currentTime = reported
+            }
             // Time is advancing, so we're playing, not buffering. This is the reliable
             // signal to clear a spinner that VLC's buffering state left stuck on.
             if self.isBuffering { self.isBuffering = false }
+            self.stallTask?.cancel(); self.stallTask = nil
             if self.state == .loading {
                 self.state = .ready
                 self.markReady()
             }
             // VLC length becomes known shortly after play starts.
             let lengthMs = mediaPlayer.media?.length.intValue ?? 0
-            if lengthMs > 0 { self.duration = TimeInterval(lengthMs) / 1000.0 }
+            if lengthMs > 0 {
+                let length = TimeInterval(lengthMs) / 1000.0
+                if length != self.duration { self.duration = length }
+            }
             self.scrobbleProgressIfNeeded()
-            // Feed the Now Playing mini-bar.
-            let frac = self.duration > 0 ? self.currentTime / self.duration : 0
-            NowPlayingStore.shared.update(progress: frac, isPlaying: self.isPlaying)
+            // Feed the Now Playing mini-bar about once a second.
+            let uptime = ProcessInfo.processInfo.systemUptime
+            if uptime - self.lastNowPlayingUptime >= 1 {
+                self.lastNowPlayingUptime = uptime
+                let frac = self.duration > 0 ? self.currentTime / self.duration : 0
+                NowPlayingStore.shared.update(progress: frac, isPlaying: self.isPlaying)
+            }
+        }
+    }
+
+    /// A stall that outlives a normal rebuffer is nudged by re-seeking to the current
+    /// time, which makes VLC reopen the network read at that offset.
+    @MainActor
+    private func armStallWatchdog() {
+        guard stallTask == nil, isActive else { return }
+        stallTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(15))
+            guard let self, !Task.isCancelled, self.isActive, self.isBuffering else { return }
+            self.stallTask = nil
+            self.seek(to: self.currentTime)
         }
     }
 
@@ -740,3 +807,54 @@ extension VLCPlayerModel: VLCMediaPlayerDelegate {
     }
 }
 #endif
+
+// MARK: - Streaming policy
+
+/// Pure libVLC option and publication decisions, kept separate so they can be
+/// checked without the VLC engine.
+enum VLCStreamingPolicy {
+    /// Read-ahead in milliseconds. A profile override (Slow Connection, Hardware,
+    /// Compatibility) wins; otherwise local sources stay responsive and remote or
+    /// constrained networks buffer more.
+    static func cacheMilliseconds(for url: URL, isLive: Bool, profileOverride: Int?, constrained: Bool) -> Int {
+        if let profileOverride, profileOverride > 0 { return min(profileOverride, 20_000) }
+        if url.isFileURL { return 300 }
+        if AVStreamingPolicy.isLocal(url) { return 800 }
+        var milliseconds = isLive ? 1_500 : 2_500
+        if constrained { milliseconds += 1_500 }
+        return milliseconds
+    }
+
+    static func mediaOptions(for url: URL, isLive: Bool, profileCacheMilliseconds: Int?,
+                             prefersHardwareDecoding: Bool, constrained: Bool) -> [String] {
+        let cache = cacheMilliseconds(for: url, isLive: isLive, profileOverride: profileCacheMilliseconds, constrained: constrained)
+        var options = [":network-caching=\(cache)", ":file-caching=\(min(cache, 1_500))"]
+        if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https", !AVStreamingPolicy.isLocal(url) {
+            options.append(":http-reconnect")
+        }
+        if prefersHardwareDecoding { options.append(":codec=videotoolbox,any") }
+        return options
+    }
+
+    /// Publish a new time when it moved a quarter second or more, or went backward
+    /// (a seek or restart), or when playback reached zero.
+    static func shouldPublishTime(_ reported: TimeInterval, previous: TimeInterval) -> Bool {
+        guard reported.isFinite, reported >= 0 else { return false }
+        return reported < previous || reported - previous >= 0.25 || (reported == 0 && previous != 0)
+    }
+
+    /// Finds the track whose label matches a remembered label, first exactly, then by
+    /// its leading language word ("English - 5.1" matches "English").
+    static func preferredAudioTrack(named saved: String, in tracks: [(id: Int, name: String)]) -> Int? {
+        let target = saved.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !target.isEmpty else { return nil }
+        if let exact = tracks.first(where: { $0.name.lowercased() == target }) { return exact.id }
+        func language(_ name: String) -> String {
+            let cleaned = name.lowercased().replacingOccurrences(of: "track", with: "")
+            return cleaned.split(whereSeparator: { !$0.isLetter }).first.map(String.init) ?? ""
+        }
+        let wanted = language(target)
+        guard wanted.count >= 2 else { return nil }
+        return tracks.first(where: { language($0.name) == wanted })?.id
+    }
+}

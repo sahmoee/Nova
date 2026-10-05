@@ -22,7 +22,7 @@ struct MediaItem: Identifiable, Codable, Hashable, Sendable {
     var legalAccessConfirmed: Bool
     var metadata: MediaMetadata
 
-    // MARK: - Phase 3 content linkage (all optional for backward compatibility)
+    // MARK: - Catalog content linkage (all optional for backward compatibility)
 
     /// Cross-service identity (IMDB/TMDB/Trakt) when this item is catalog content.
     var contentID: ContentID?
@@ -118,7 +118,7 @@ struct MediaItem: Identifiable, Codable, Hashable, Sendable {
         self.alternateSources = alternateSources
     }
 
-    // Backward-compatible decoding: libraries saved before Phase 3 lack the new
+    // Backward-compatible decoding: older libraries may lack the optional
     // keys, so they decode to nil/empty rather than failing.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)

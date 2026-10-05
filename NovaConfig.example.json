@@ -1,14 +1,12 @@
 {
-  "_comment": "Optional fallback config for Nova. Rename to NovaConfig.json and place it in the app's Documents folder (via Files sharing) or bundle it at build time. Values set in the in-app Settings ▸ Metadata & Accounts screen take priority over this file. Trakt access tokens are never read from this file for security; connect Trakt in-app via the device-code flow.",
-
+  "_comment": "Optional fallback configuration. Copy to ignored NovaConfig.json and import through Files or use in-app Settings. Provider credentials entered in Settings take priority. Runtime access tokens are stored only in Keychain. Trakt data is imported from a local export; no Trakt sign-in is required.",
   "tmdbApiKey": "your-tmdb-v3-api-key",
   "traktClientId": "your-trakt-client-id",
   "traktClientSecret": "your-trakt-client-secret",
   "openSubtitlesApiKey": "your-opensubtitles-api-key",
   "aiWorkerUrl": "https://nova-ai-worker.your-subdomain.workers.dev",
-  "novaTrackerBaseUrl": "https://nova-tracker.stocked.workers.dev",
+  "novaTrackerBaseUrl": "https://tracker.example.com/nova",
   "preferredSMBServer": "server-name.your-tailnet.ts.net",
-
   "addonManifestURLs": [
     "https://your-configured-addon.example/manifest.json"
   ]

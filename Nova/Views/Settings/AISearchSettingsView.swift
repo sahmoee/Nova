@@ -2,9 +2,8 @@
 //  AISearchSettingsView.swift
 //  Nova
 //
-//  Lets the user point Nova at their own Cloudflare Worker for Claude-powered
-//  search. Nova never stores an API key — the Worker the user deploys holds the
-//  key server-side. This screen only stores the Worker's URL.
+//  Configures the search service endpoint and its optional Keychain token.
+//  Provider API keys remain in the Worker's server-side secret store.
 //
 
 import SwiftUI
@@ -26,7 +25,7 @@ struct AISearchSettingsView: View {
                     .screenTitleStyle()
                     .foregroundStyle(Theme.Colors.textPrimary)
 
-                Text("Search for movies and shows using natural language, powered by Claude. Nova uses its secure unified service by default; advanced users can still enter a self-hosted Worker URL.")
+                Text("Describe what you want to watch. Your search is sent to the configured service for title suggestions. You can use Nova's default service or your own HTTPS Worker.")
                     .font(.appFont(19))
                     .foregroundStyle(Theme.Colors.textSecondary)
 
@@ -75,8 +74,8 @@ struct AISearchSettingsView: View {
                     .font(.appFont(14))
                     .foregroundStyle(Theme.Colors.textTertiary)
 
-                Label(AISearchService.isConfigured ? "AI search is ready" : "Not configured yet",
-                      systemImage: AISearchService.isConfigured ? "checkmark.circle.fill" : "exclamationmark.circle")
+                Label(serviceStatus,
+                      systemImage: NovaWorkerConfiguration.baseURL(workerURL) != nil ? "checkmark.circle" : "exclamationmark.circle")
                     .font(.appFont(17))
                     .foregroundStyle(AISearchService.isConfigured ? Theme.Colors.success : Theme.Colors.textTertiary)
 
@@ -140,6 +139,13 @@ struct AISearchSettingsView: View {
                 .font(.appFont(14))
                 .foregroundStyle(Theme.Colors.textTertiary)
         }
+    }
+
+    private var serviceStatus: String {
+        if SafeMode.isOn { return "Search is paused in Safe Mode" }
+        return NovaWorkerConfiguration.baseURL(workerURL) != nil
+            ? "Service address saved · connection checked when you search"
+            : "Enter an HTTPS address without credentials, a query, or a fragment"
     }
 
     private func instruction(_ n: Int, _ text: String) -> some View {

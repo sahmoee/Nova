@@ -35,8 +35,9 @@ struct MediaCard: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var hovered = false
-    @EnvironmentObject private var library: LibraryStore
-    @EnvironmentObject private var env: AppEnvironment
+    // The library and environment are observed only by the quick-actions menu
+    // (MediaCardQuickActions). Observing them here re-rendered every card on screen
+    // for each library write, including playback checkpoints.
 
     private var width: CGFloat { widthOverride ?? (wide ? Theme.CardSize.wideWidth : Theme.CardSize.posterWidth) }
     private var height: CGFloat { heightOverride ?? (wide ? Theme.CardSize.wideHeight : Theme.CardSize.posterHeight) }
@@ -87,7 +88,7 @@ struct MediaCard: View {
     @ViewBuilder
     var body: some View {
         if quickActions {
-            core.contextMenu { quickMenu }
+            core.contextMenu { MediaCardQuickActions(item: item, action: action) }
         } else {
             core
         }
@@ -129,64 +130,6 @@ struct MediaCard: View {
                     ArtworkHeaderCoordinator.shared.select(item, in: artworkScope)
                 }
             }
-        }
-    }
-
-    // MARK: - Quick actions
-
-    @ViewBuilder private var quickMenu: some View {
-        Button(action: action) {
-            Label(item.hasResumePoint ? "Resume" : "Play", systemImage: "play.fill")
-        }
-        Button {
-            if library.isQueued(item) {
-                library.removeFromQueue(item)
-                ToastCenter.shared.show("Removed from Queue")
-            } else {
-                library.addToQueue(item)
-                ToastCenter.shared.show("Added to Queue")
-            }
-        } label: {
-            Label(library.isQueued(item) ? "Remove from Queue" : "Add to Queue",
-                  systemImage: "text.badge.plus")
-        }
-        Button {
-            library.toggleFavorite(item)
-            Haptics.selection()
-        } label: {
-            Label(item.isFavorite ? "Remove Favorite" : "Favorite",
-                  systemImage: item.isFavorite ? "star.slash" : "star")
-        }
-        Button {
-            if item.isWatched { library.markUnwatched(item) } else { library.markWatched(item) }
-            Haptics.selection()
-        } label: {
-            Label(item.isWatched ? "Mark Unwatched" : "Mark Watched",
-                  systemImage: item.isWatched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
-        }
-        #if os(iOS)
-        Button {
-            if env.downloads.enqueue(item) != nil {
-                ToastCenter.shared.show("Download started", systemImage: "arrow.down.circle.fill")
-            } else if let cid = item.contentID, cid.type == .movie {
-                ToastCenter.shared.show("Finding a stream to download…", systemImage: "arrow.down.circle")
-                Task {
-                    let ok = await env.downloadToDevice(CatalogItem(contentID: cid, title: item.displayTitle))
-                    ToastCenter.shared.show(ok ? "Download started" : "No downloadable stream found",
-                                            systemImage: ok ? "arrow.down.circle.fill" : "exclamationmark.triangle")
-                }
-            } else {
-                ToastCenter.shared.show("Open this title to download an episode", systemImage: "exclamationmark.triangle")
-            }
-        } label: {
-            Label("Download", systemImage: "arrow.down.circle")
-        }
-        #endif
-        Button(role: .destructive) {
-            library.toggleHidden(item)
-            ToastCenter.shared.show("Hidden from your rows")
-        } label: {
-            Label("Hide", systemImage: "eye.slash")
         }
     }
 
@@ -369,6 +312,74 @@ struct MediaCard: View {
             }
         }
         .padding(.top, 4)
+    }
+}
+
+
+// MARK: - Quick actions
+
+/// Long-press menu for MediaCard. It owns the library/environment observation so
+/// cards themselves do not re-render on unrelated library changes.
+private struct MediaCardQuickActions: View {
+    let item: MediaItem
+    let action: () -> Void
+    @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var env: AppEnvironment
+
+    var body: some View {
+        Button(action: action) {
+            Label(item.hasResumePoint ? "Resume" : "Play", systemImage: "play.fill")
+        }
+        Button {
+            if library.isQueued(item) {
+                library.removeFromQueue(item)
+                ToastCenter.shared.show("Removed from Queue")
+            } else {
+                library.addToQueue(item)
+                ToastCenter.shared.show("Added to Queue")
+            }
+        } label: {
+            Label(library.isQueued(item) ? "Remove from Queue" : "Add to Queue",
+                  systemImage: "text.badge.plus")
+        }
+        Button {
+            library.toggleFavorite(item)
+            Haptics.selection()
+        } label: {
+            Label(item.isFavorite ? "Remove Favorite" : "Favorite",
+                  systemImage: item.isFavorite ? "star.slash" : "star")
+        }
+        Button {
+            if item.isWatched { library.markUnwatched(item) } else { library.markWatched(item) }
+            Haptics.selection()
+        } label: {
+            Label(item.isWatched ? "Mark Unwatched" : "Mark Watched",
+                  systemImage: item.isWatched ? "checkmark.circle.badge.xmark" : "checkmark.circle")
+        }
+        #if os(iOS)
+        Button {
+            if env.downloads.enqueue(item) != nil {
+                ToastCenter.shared.show("Download started", systemImage: "arrow.down.circle.fill")
+            } else if let cid = item.contentID, cid.type == .movie {
+                ToastCenter.shared.show("Finding a stream to download…", systemImage: "arrow.down.circle")
+                Task {
+                    let ok = await env.downloadToDevice(CatalogItem(contentID: cid, title: item.displayTitle))
+                    ToastCenter.shared.show(ok ? "Download started" : "No downloadable stream found",
+                                            systemImage: ok ? "arrow.down.circle.fill" : "exclamationmark.triangle")
+                }
+            } else {
+                ToastCenter.shared.show("Open this title to download an episode", systemImage: "exclamationmark.triangle")
+            }
+        } label: {
+            Label("Download", systemImage: "arrow.down.circle")
+        }
+        #endif
+        Button(role: .destructive) {
+            library.toggleHidden(item)
+            ToastCenter.shared.show("Hidden from your rows")
+        } label: {
+            Label("Hide", systemImage: "eye.slash")
+        }
     }
 }
 

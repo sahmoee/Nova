@@ -37,6 +37,8 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
     @Published private(set) var isLoadingSubtitles = false
     @Published private(set) var subtitleStatusMessage: String?
     @Published private(set) var activeSubtitleText: String?
+    /// True while a dropped connection is being re-opened at the last position.
+    @Published private(set) var isReconnecting = false
 
     let player = AVPlayer()
     private(set) var item: MediaItem
@@ -63,6 +65,15 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
     private var lastTimeControlStatus: AVPlayer.TimeControlStatus?
     private var didAttemptAutomaticSubtitles = false
     private var externalSubtitleCues: [SubtitleCue] = []
+    // Transient-failure recovery: one automatic reopen per user-started session.
+    private var didAttemptAutomaticRecovery = false
+    private var recoveryPosition: TimeInterval?
+    private var isStopped = false
+    private var recoveryTask: Task<Void, Never>?
+    // Stall watchdog and coalesced seeking.
+    private var stallTask: Task<Void, Never>?
+    private var seekInFlight = false
+    private var pendingSeek: TimeInterval?
 
     private struct SubtitleCue: Sendable {
         let start: TimeInterval
@@ -92,6 +103,10 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
     func start() {
         // Ensure any other player is stopped — only one plays at a time.
         PlaybackCoordinator.shared.activate(self)
+        isStopped = false
+        recoveryTask?.cancel(); recoveryTask = nil
+        stallTask?.cancel(); stallTask = nil
+        seekInFlight = false; pendingSeek = nil
         state = .loading
         didFinish = false
         hasScrobbledStart = false
@@ -100,12 +115,27 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
         activeSkip = nil
         isBuffering = false
         lastTimeControlStatus = nil
-        didAttemptAutomaticSubtitles = false
-        externalSubtitleCues = []
-        activeSubtitleText = nil
+        // A reconnect keeps the viewer's subtitle choice; a fresh start resets it.
+        if !isReconnecting {
+            didAttemptAutomaticSubtitles = false
+            externalSubtitleCues = []
+            activeSubtitleText = nil
+        }
 
         let asset = AVURLAsset(url: item.playbackURL)
-        let playerItem = AVPlayerItem(asset: asset)
+        // Load only what first frame needs; everything else loads lazily.
+        let playerItem = AVPlayerItem(asset: asset, automaticallyLoadedAssetKeys: [.isPlayable, .duration])
+        let buffering = AVStreamingPolicy.configuration(
+            for: item.playbackURL,
+            isLive: item.sourceType == .liveTV,
+            constrained: NetworkConditionMonitor.shared.shouldSuggestBandwidthSaver
+        )
+        playerItem.preferredForwardBufferDuration = buffering.forwardBuffer
+        playerItem.preferredPeakBitRate = buffering.peakBitRate
+        playerItem.canUseNetworkResourcesForLiveStreamingWhilePaused = false
+        // Local files and the SMB bridge never stall for bandwidth, so start the
+        // moment a frame is decodable instead of waiting to fill a network buffer.
+        player.automaticallyWaitsToMinimizeStalling = !buffering.isLocal
         player.replaceCurrentItem(with: playerItem)
 
         statusObservation = playerItem.observe(\.status, options: [.new]) { [weak self] pItem, _ in
@@ -114,8 +144,10 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
                 switch pItem.status {
                 case .readyToPlay: self.handleReady()
                 case .failed:
+                    if self.attemptTransientRecovery(after: pItem.error) { return }
                     let msg = pItem.error?.localizedDescription
                         ?? "The video couldn't be loaded. Check the source and your connection."
+                    self.isReconnecting = false
                     self.state = .failed(msg)
                 default: break
                 }
@@ -133,6 +165,7 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
 
     private func handleReady() {
         state = .ready
+        isReconnecting = false
         // This engine successfully opened the file — remember it for next time.
         PlayerMemory.remember(.avPlayer, for: item)
 
@@ -143,9 +176,10 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
 
         // Resume (never for live channels — there's no fixed timeline). If the user
         // chose Restart at the prompt, forceRestart skips the resume seek.
-        if !isLive, !forceRestart,
-           (settings?.resumePlaybackEnabled ?? true),
-           let resume = progressStore?.resumePosition(for: item) {
+        let recovered = recoveryPosition
+        recoveryPosition = nil
+        if !isLive, let resume = recovered ?? ((!forceRestart && (settings?.resumePlaybackEnabled ?? true))
+                                                ? progressStore?.resumePosition(for: item) : nil) {
             currentTime = resume
             let target = CMTime(seconds: resume, preferredTimescale: 1_000)
             // Zero tolerance requests the exact saved timestamp instead of allowing
@@ -217,6 +251,7 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
                 guard let self else { return }
                 let status = player.timeControlStatus
                 self.isBuffering = (status == .waitingToPlayAtSpecifiedRate)
+                if self.isBuffering { self.armStallWatchdog() } else { self.stallTask?.cancel(); self.stallTask = nil }
                 NowPlayingStore.shared.isPlaying = (status == .playing)
                 // Native AVPlayer controls pause without calling PlayerModel.pause().
                 // Save immediately on every transition away from playing so Resume is
@@ -253,9 +288,70 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
 
     /// Skips to the end of the given segment.
     func performSkip(_ segment: SkipSegment) {
-        let target = CMTime(seconds: segment.end + 0.1, preferredTimescale: 600)
-        player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+        seek(to: segment.end + 0.1)
         activeSkip = nil
+    }
+
+    /// Exact seek that "chases" the newest target: while one seek is in flight,
+    /// later requests replace the pending target instead of queueing behind it, so
+    /// rapid chapter jumps and skips land quickly without a backlog of seeks.
+    func seek(to seconds: TimeInterval) {
+        guard seconds.isFinite else { return }
+        let upper = duration > 0 ? duration : seconds
+        pendingSeek = max(0, min(seconds, upper))
+        guard !seekInFlight else { return }
+        performPendingSeek()
+    }
+
+    private func performPendingSeek() {
+        guard let target = pendingSeek else { seekInFlight = false; return }
+        pendingSeek = nil
+        seekInFlight = true
+        currentTime = target
+        player.seek(to: CMTime(seconds: target, preferredTimescale: 600),
+                    toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.seekInFlight = false
+                if self.pendingSeek != nil { self.performPendingSeek() }
+            }
+        }
+    }
+
+    // MARK: - Stall watchdog and recovery
+
+    /// A stall that outlives a normal rebuffer is nudged once by re-seeking to the
+    /// current time, which drops a wedged network read and re-requests the range.
+    private func armStallWatchdog() {
+        guard stallTask == nil else { return }
+        stallTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(12))
+            guard let self, !Task.isCancelled, !self.isStopped,
+                  self.player.timeControlStatus == .waitingToPlayAtSpecifiedRate else { return }
+            self.stallTask = nil
+            let now = self.player.currentTime()
+            guard now.seconds.isFinite else { return }
+            self.player.seek(to: now, toleranceBefore: .zero, toleranceAfter: .positiveInfinity,
+                             completionHandler: { _ in })
+        }
+    }
+
+    /// Reopens the stream once at the last position after a dropped connection,
+    /// before showing the failure screen. Codec and URL errors are not retried.
+    private func attemptTransientRecovery(after error: Error?) -> Bool {
+        guard !didAttemptAutomaticRecovery, !isStopped,
+              let nsError = error as NSError?, AVStreamingPolicy.isTransient(nsError) else { return false }
+        didAttemptAutomaticRecovery = true
+        let resumeAt = currentTime
+        recoveryPosition = (item.sourceType != .liveTV && resumeAt.isFinite && resumeAt > 1) ? resumeAt : nil
+        isReconnecting = true
+        teardownObservers()
+        recoveryTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1.5))
+            guard let self, !Task.isCancelled, !self.isStopped else { return }
+            self.start()
+        }
+        return true
     }
 
     func skipActiveSegment() {
@@ -270,7 +366,7 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
                 guard let self else { return }
-                self.checkpointProgress()
+                self.checkpointProgress(periodic: true)
                 self.scrobbleProgressIfNeeded()
             }
         }
@@ -278,7 +374,7 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
 
     /// Persists an immediate playback checkpoint. Safe to call from pause, scene
     /// transitions, minimize, stop, and the periodic save loop.
-    func checkpointProgress() {
+    func checkpointProgress(periodic: Bool = false) {
         guard state == .ready, item.sourceType != .liveTV else { return }
         let liveCurrent = player.currentTime().seconds
         let current = liveCurrent.isFinite ? liveCurrent : currentTime
@@ -287,7 +383,7 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
             ? itemDuration : (duration > 0 ? duration : item.duration)
         guard current.isFinite, current > 0 else { return }
         currentTime = current
-        progressStore?.save(position: current, duration: validDuration, for: item)
+        progressStore?.save(position: current, duration: validDuration, for: item, periodic: periodic)
         if let validDuration, validDuration > 0 {
             NowPlayingStore.shared.update(progress: current / validDuration,
                                           isPlaying: player.timeControlStatus == .playing)
@@ -584,6 +680,8 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
 
     func retry() {
         teardownObservers()
+        didAttemptAutomaticRecovery = false
+        recoveryPosition = nil
         start()
     }
 
@@ -611,6 +709,10 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
     }
 
     func stopAndSave() {
+        isStopped = true
+        recoveryTask?.cancel(); recoveryTask = nil
+        stallTask?.cancel(); stallTask = nil
+        isReconnecting = false
         PlaybackCoordinator.shared.resign(self)
         saveTask?.cancel(); saveTask = nil
         checkpointProgress()
@@ -624,6 +726,10 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
     /// pause the pipeline, but keep the Now Playing / Resume bar alive (minimize) so
     /// they can jump back in. Tapping the bar reopens the player and resumes.
     func minimizeAndSave() {
+        isStopped = true
+        recoveryTask?.cancel(); recoveryTask = nil
+        stallTask?.cancel(); stallTask = nil
+        isReconnecting = false
         PlaybackCoordinator.shared.resign(self)
         saveTask?.cancel(); saveTask = nil
         checkpointProgress()
@@ -640,5 +746,57 @@ final class PlayerModel: ObservableObject, StoppablePlayer {
         timeObserver = nil
         if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
         endObserver = nil
+    }
+}
+
+// MARK: - Streaming policy
+
+/// Pure buffering decisions shared by both engines. Local files and the loopback SMB
+/// bridge need almost no read-ahead; remote streams get more on fast networks and a
+/// bitrate ceiling under Low Data Mode, cellular or metered networks.
+enum AVStreamingPolicy {
+    struct Configuration: Equatable {
+        let forwardBuffer: TimeInterval
+        let peakBitRate: Double
+        let isLocal: Bool
+    }
+
+    /// Ceiling applied to adaptive (HLS) streams on constrained networks.
+    static let constrainedPeakBitRate: Double = 6_000_000
+
+    static func configuration(for url: URL, isLive: Bool, constrained: Bool) -> Configuration {
+        let local = isLocal(url)
+        if local { return Configuration(forwardBuffer: 4, peakBitRate: 0, isLocal: true) }
+        if isLive { return Configuration(forwardBuffer: 6, peakBitRate: constrained ? constrainedPeakBitRate : 0, isLocal: false) }
+        return Configuration(forwardBuffer: constrained ? 10 : 30,
+                             peakBitRate: constrained ? constrainedPeakBitRate : 0,
+                             isLocal: false)
+    }
+
+    /// File URLs, loopback (the SMB bridge), mDNS and private-range hosts.
+    static func isLocal(_ url: URL) -> Bool {
+        if url.isFileURL { return true }
+        guard let host = url.host?.lowercased(), !host.isEmpty else { return false }
+        if host == "localhost" || host == "127.0.0.1" || host == "::1" || host.hasSuffix(".local") { return true }
+        let parts = host.split(separator: ".").compactMap { Int($0) }
+        guard parts.count == 4, parts.allSatisfy({ (0...255).contains($0) }) else { return false }
+        switch (parts[0], parts[1]) {
+        case (10, _), (192, 168): return true
+        case (172, let second): return (16...31).contains(second)
+        case (169, 254): return true
+        default: return false
+        }
+    }
+
+    /// Dropped or briefly unreachable connections are worth one silent reopen;
+    /// bad URLs, authentication and codec errors are not.
+    static func isTransient(_ error: NSError) -> Bool {
+        let candidates = [error] + [error.userInfo[NSUnderlyingErrorKey] as? NSError].compactMap { $0 }
+        return candidates.contains { candidate in
+            guard candidate.domain == NSURLErrorDomain else { return false }
+            return [NSURLErrorNetworkConnectionLost, NSURLErrorTimedOut, NSURLErrorNotConnectedToInternet,
+                    NSURLErrorCannotConnectToHost, NSURLErrorDNSLookupFailed,
+                    NSURLErrorCannotFindHost].contains(candidate.code)
+        }
     }
 }

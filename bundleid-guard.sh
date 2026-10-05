@@ -24,6 +24,7 @@
 # Without --apply, --set only PREVIEWS the change (writes nothing).
 # ============================================================================
 set -u
+SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 PROJECT=""
 WANT_ID=""
@@ -43,7 +44,7 @@ done
 
 # Locate the project if not given: first *.xcodeproj next to this script or CWD.
 if [ -z "$PROJECT" ]; then
-  DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  DIR="$SCRIPT_ROOT"
   PROJECT="$(find "$DIR" "$PWD" -maxdepth 2 -name '*.xcodeproj' -type d 2>/dev/null | head -1)"
 fi
 if [ -z "$PROJECT" ] || [ ! -d "$PROJECT" ]; then
@@ -77,9 +78,9 @@ DISTINCT=$(grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' "$PBX" \
   | sed 's/PRODUCT_BUNDLE_IDENTIFIER = //; s/;$//; s/^"//; s/"$//' \
   | sort -u | wc -l | tr -d ' ')
 
-# The four intentional per-target identifiers. Having these is CORRECT,
+# The intentional per-target identifiers. Having these is correct,
 # not a conflict — the old logic wrongly flagged them.
-ALLOWED_IDS="com.nova.app.ios com.nova.app.ios.widgets com.nova.app.tvos com.nova.app.ios.tests"
+ALLOWED_IDS="com.nova.app.ios com.nova.app.ios.widgets com.nova.app.tvos com.nova.app.ios.tests com.nova.app.ios.watchkitapp"
 UNEXPECTED=""
 while read -r id; do
   [ -z "$id" ] && continue
@@ -136,37 +137,13 @@ fi
 # 4. Optional pin.
 # ----------------------------------------------------------------------------
 if [ -n "$WANT_ID" ]; then
-  echo
-  echo "========================================================"
-  echo "Pinning bundle id to: $WANT_ID"
-  [ -n "$TARGET" ] && echo "Scope: build configs whose block mentions target '$TARGET'" \
-                   || echo "Scope: ALL PRODUCT_BUNDLE_IDENTIFIER lines in the project"
-  echo "--------------------------------------------------------"
-
-  if [ "$APPLY" -eq 0 ]; then
-    echo "(PREVIEW ONLY — re-run with --apply to write. A .bak backup is made.)"
-    echo
-    echo "Lines that WOULD change:"
-    grep -n 'PRODUCT_BUNDLE_IDENTIFIER' "$PBX" | sed 's/^/  /'
-    echo
-    echo "All would become: PRODUCT_BUNDLE_IDENTIFIER = $WANT_ID;"
-  else
-    cp "$PBX" "$PBX.bak.$(date +%Y%m%d%H%M%S)"
-    # Replace every PRODUCT_BUNDLE_IDENTIFIER value with the desired one.
-    # (Simple + robust: enforces a single id everywhere, which is what stops
-    #  the per-config drift. If you truly need distinct ids per target, do that
-    #  edit manually — but drift is almost always accidental.)
-    /usr/bin/sed -i.tmp "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = $WANT_ID;/g" "$PBX"
-    rm -f "$PBX.tmp"
-    echo "Written. Backup saved next to project.pbxproj."
-    echo "New state:"
-    grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' "$PBX" | sort | uniq -c
-    echo
-    echo "IMPORTANT: commit project.pbxproj now so a future checkout can't revert it:"
-    echo "  git -C \"$PROJ_ROOT\" add \"$PBX\" && git -C \"$PROJ_ROOT\" commit -F - <<'MSG'"
-    echo "  Pin bundle identifier to $WANT_ID across all configs"
-    echo "  MSG"
+  if [ -z "$TARGET" ]; then
+    echo "Bundle-ID updates require --target; app and extension identities must stay distinct." >&2
+    exit 1
   fi
+  pin_args=(--project "$PROJECT" --target "$TARGET" --set "$WANT_ID")
+  [ "$APPLY" -eq 1 ] && pin_args+=(--apply)
+  python3 "$SCRIPT_ROOT/scripts/pin_bundle_id.py" "${pin_args[@]}" || exit 1
 fi
 
 echo

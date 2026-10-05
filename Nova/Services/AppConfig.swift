@@ -41,7 +41,7 @@ struct NovaConfigFile: Codable {
     var omdbApiKey: String?
     /// Optional list of addon manifest URLs to preinstall on first run.
     var addonManifestURLs: [String]?
-    /// Optional Cloudflare Worker URL for Claude-powered AI search.
+    /// Optional HTTPS Worker endpoint for title suggestions.
     var aiWorkerUrl: String?
     /// Optional Tailscale/MagicDNS SMB endpoint used to prefill Add Share.
     var preferredSMBServer: String?

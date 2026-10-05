@@ -2,8 +2,7 @@
 //  SourcesView.swift
 //  Nova
 //
-//  Grid of source cards. Each routes to its management screen. Status shown
-//  is best-effort for Phase 1/2 (SMB/Real-Debrid become live in later phases).
+//  Source management cards with saved-share and account connection status.
 //
 
 import SwiftUI

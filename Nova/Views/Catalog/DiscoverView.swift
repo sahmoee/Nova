@@ -177,7 +177,8 @@ struct DiscoverView: View {
                 Text("This removes the recent search suggestions stored on this device.")
             }
         }
-        .task { await onAppear() }
+        .task { await onAppear(); consumePendingSearch() }
+        .onChange(of: nav.pendingSearchQuery) { _, _ in consumePendingSearch() }
         #if os(iOS)
         .refreshable {
             // Pull to refresh: drop the shelf cache so rows fetch fresh data, then
@@ -485,6 +486,18 @@ struct DiscoverView: View {
     }
 
     // MARK: - Logic
+
+    private func consumePendingSearch() {
+        guard let pending = nav.pendingSearchQuery else { return }
+        nav.pendingSearchQuery = nil
+        let previous = query
+        query = pending
+        searchFocused = false
+        // A changed multi-character query uses the normal debouncer once. An identical
+        // query (or an explicit one-character title) still needs a fresh search.
+        if previous == pending || pending.count < 2 { triggerSearch() }
+        else { rememberSearch(pending) }
+    }
 
     private func onAppear() async {
         hasTMDBKey = env.tmdb.hasKey

@@ -23,6 +23,11 @@ struct PlayerGestureOverlay: UIViewRepresentable {
     /// Horizontal scrub. `state` is .began/.changed/.ended(/.cancelled); `fraction`
     /// is signed horizontal translation as a fraction of the surface width.
     var onScrub: (UIGestureRecognizer.State, CGFloat) -> Void
+    /// Double tap, reporting the horizontal position as a 0...1 fraction of the width
+    /// (left side skips back, right side forward). nil keeps single taps immediate.
+    var onDoubleTap: ((CGFloat) -> Void)? = nil
+    /// A clear downward swipe (minimize the player).
+    var onSwipeDown: (() -> Void)? = nil
 
     func makeUIView(context: Context) -> UIView {
         let view = UIView()
@@ -36,6 +41,13 @@ struct PlayerGestureOverlay: UIViewRepresentable {
         pan.delegate = context.coordinator
         // A tap should not be swallowed by the pan.
         tap.require(toFail: pan)
+        if onDoubleTap != nil {
+            let doubleTap = UITapGestureRecognizer(target: context.coordinator,
+                                                   action: #selector(Coordinator.handleDoubleTap))
+            doubleTap.numberOfTapsRequired = 2
+            tap.require(toFail: doubleTap)
+            view.addGestureRecognizer(doubleTap)
+        }
         view.addGestureRecognizer(tap)
         view.addGestureRecognizer(pan)
 
@@ -54,12 +66,19 @@ struct PlayerGestureOverlay: UIViewRepresentable {
         weak var view: UIView?
         /// Set once a pan is confirmed horizontal, so vertical drags never scrub.
         private var scrubbing = false
+        /// Set once a pan is confirmed vertical, for swipe-down-to-minimize.
+        private var verticalDrag = false
         private let activateThreshold: CGFloat = 12
 
         init(_ parent: PlayerGestureOverlay) { self.parent = parent }
 
         @objc func handleTap(_ gesture: UITapGestureRecognizer) {
             parent.onTap()
+        }
+
+        @objc func handleDoubleTap(_ gesture: UITapGestureRecognizer) {
+            guard let view, view.bounds.width > 0 else { return }
+            parent.onDoubleTap?(gesture.location(in: view).x / view.bounds.width)
         }
 
         @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
@@ -70,6 +89,7 @@ struct PlayerGestureOverlay: UIViewRepresentable {
             switch gesture.state {
             case .began:
                 scrubbing = false
+                verticalDrag = false
             case .changed:
                 if !scrubbing {
                     // Lock direction only once movement is clearly horizontal.
@@ -79,6 +99,7 @@ struct PlayerGestureOverlay: UIViewRepresentable {
                         parent.onScrub(.began, fraction)
                     } else if abs(translation.y) > activateThreshold {
                         // Committed vertical: leave scrubbing off for this gesture.
+                        verticalDrag = true
                         return
                     }
                 } else {
@@ -86,7 +107,14 @@ struct PlayerGestureOverlay: UIViewRepresentable {
                 }
             case .ended, .cancelled, .failed:
                 if scrubbing { parent.onScrub(gesture.state, fraction) }
+                // A deliberate downward swipe (distance or flick) minimizes.
+                if !scrubbing, verticalDrag, gesture.state == .ended,
+                   translation.y > 0, abs(translation.y) > abs(translation.x) * 1.5,
+                   translation.y > 120 || gesture.velocity(in: view).y > 900 {
+                    parent.onSwipeDown?()
+                }
                 scrubbing = false
+                verticalDrag = false
             default:
                 break
             }

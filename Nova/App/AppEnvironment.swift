@@ -3,7 +3,7 @@
 //  Nova
 //
 //  Composition root. Owns the shared services so views can pull what they need
-//  via @EnvironmentObject. Seeds sample data and default addons on first run.
+//  via @EnvironmentObject. Preserves the user's library and configured sources.
 //
 
 import SwiftUI
@@ -23,7 +23,7 @@ final class AppEnvironment: ObservableObject {
     let smb: SMBService
     let downloads: DownloadManager
 
-    // Phase 3: catalog, addons, metadata, scrobbling.
+    // Catalog, addons, metadata, and tracking.
     let addonStore: AddonStore
     let liveTVSources = LiveTVSourceStore()
     let mediaIntegrations: MediaIntegrationStore

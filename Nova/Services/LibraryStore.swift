@@ -24,6 +24,8 @@ final class LibraryStore: ObservableObject {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private var durableItems: [MediaItem] = []
+    /// Uptime of the last widget refresh caused by a playback checkpoint.
+    private var lastProgressWidgetRefresh: TimeInterval = -.greatestFiniteMagnitude
     private var libraryNeedsRecovery = false
     #if os(iOS)
     var allowsWatchEdits: Bool { !libraryNeedsRecovery }
@@ -470,6 +472,27 @@ final class LibraryStore: ObservableObject {
         guard items[idx] != item else { return }
         items[idx] = item
         persist()
+    }
+
+    /// Playback checkpoints change only position, date and duration. They commit to
+    /// disk and mirror to iCloud exactly like `update(_:)`, but skip the Spotlight
+    /// reindex (titles are unchanged) and refresh widgets at most once a minute unless
+    /// the caller asks for an immediate refresh (pause, stop, completion).
+    func updateProgress(_ item: MediaItem, refreshWidgets: Bool) {
+        guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
+        guard items[idx] != item else { return }
+        items[idx] = item
+        guard persistLocalOnly() else {
+            cloudPushTask?.cancel()
+            if items != durableItems { items = durableItems }
+            return
+        }
+        pushToCloud()
+        let now = ProcessInfo.processInfo.systemUptime
+        if refreshWidgets || now - lastProgressWidgetRefresh >= 60 {
+            lastProgressWidgetRefresh = now
+            writeWidgetSnapshot()
+        }
     }
 
     /// Batch variant of `update(_:)`: applies every changed item in one pass and

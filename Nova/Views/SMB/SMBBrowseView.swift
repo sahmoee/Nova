@@ -3,7 +3,7 @@
 //  Nova
 //
 //  Browses an SMB share's folders/files, separates them, lets the user add a
-//  video to the library or play it. Uses SMBService (mock in Phase 1/2).
+//  video to the library or play it through SMBService.
 //
 
 import SwiftUI

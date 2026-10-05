@@ -2,7 +2,7 @@
 //  CatalogModels.swift
 //  Nova
 //
-//  Models for richer catalog content introduced in Phase 3: movies and series
+//  Catalog models for movies and series
 //  with seasons/episodes, plus a stable content identity that ties together
 //  IMDB / TMDB / Trakt ids so metadata, streams, and progress can be correlated.
 //

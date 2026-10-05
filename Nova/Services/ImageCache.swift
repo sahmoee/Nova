@@ -17,11 +17,18 @@ import UIKit
 typealias PlatformImage = UIImage
 #endif
 
+/// NSCache is internally synchronized. Boxing it lets views read already-decoded
+/// artwork synchronously while every write still goes through the loader actor.
+final class DecodedImageMemory: @unchecked Sendable {
+    let storage = NSCache<NSString, PlatformImage>()
+}
+
 actor ImageLoader {
     static let shared = ImageLoader()
 
     private let session: URLSession
-    private let memory = NSCache<NSString, PlatformImage>()
+    private let memoryBox = DecodedImageMemory()
+    private var memory: NSCache<NSString, PlatformImage> { memoryBox.storage }
     private struct Flight { let id: UUID; let task: Task<PlatformImage?, Never> }
     private var inFlight: [String: Flight] = [:]
     private var failures: [String: TimeInterval] = [:]
@@ -45,14 +52,14 @@ actor ImageLoader {
         config.httpCookieAcceptPolicy = .never
         config.urlCredentialStorage = nil
         session = URLSession(configuration: config)
-        memory.countLimit = 400
-        memory.totalCostLimit = 80 * 1024 * 1024   // ~80 MB of decoded pixels
 
         // Disk cache for *downsampled, decoded* images (separate from URLCache's raw
         // bytes) so revisits skip both the network and the decode/downsample work.
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
         diskDir = caches.appendingPathComponent("nova-images", isDirectory: true)
         try? FileManager.default.createDirectory(at: diskDir, withIntermediateDirectories: true)
+        memoryBox.storage.countLimit = 400
+        memoryBox.storage.totalCostLimit = 80 * 1024 * 1024   // ~80 MB of decoded pixels
 
         // Evict stale/oversized decoded images in the background on launch so the
         // nova-images directory can't grow without bound.
@@ -73,6 +80,14 @@ actor ImageLoader {
         #endif
     }
 
+    /// Synchronous memory-only lookup for already-decoded artwork. Recycled cells and
+    /// revisited screens paint their image on the first frame instead of flashing a
+    /// placeholder while an async request round-trips through the actor.
+    nonisolated func cachedImage(for url: URL, maxPixel: CGFloat) -> PlatformImage? {
+        let key = ArtworkCachePolicy.key(url: url, pixels: ArtworkCachePolicy.pixels(maxPixel))
+        return memoryBox.storage.object(forKey: key as NSString)
+    }
+
     /// Clears the in-memory image cache; the disk cache is retained.
     func purgeMemory() {
         memory.removeAllObjects()
@@ -86,7 +101,7 @@ actor ImageLoader {
     /// Loads an image, downsampled to roughly `maxPixel` on the long edge. Decoding a
     /// poster at thumbnail size instead of full resolution is dramatically faster and
     /// uses a fraction of the memory, which removes scroll hitches in grids.
-    func image(for url: URL, maxPixel: CGFloat = 600) async -> PlatformImage? {
+    func image(for url: URL, maxPixel: CGFloat = 600, priority: TaskPriority = .userInitiated) async -> PlatformImage? {
         guard !Task.isCancelled else { return nil }
         let pixels = ArtworkCachePolicy.pixels(maxPixel)
         let key = ArtworkCachePolicy.key(url: url, pixels: pixels)
@@ -100,7 +115,8 @@ actor ImageLoader {
         }
 
         let id = UUID()
-        let task = Task<PlatformImage?, Never>.detached(priority: .utility) { [session, diskDir] in
+        // Visible artwork decodes ahead of speculative prefetch work.
+        let task = Task<PlatformImage?, Never>.detached(priority: priority) { [session, diskDir] in
             guard !Task.isCancelled else { return nil }
             let diskPath = diskDir.appendingPathComponent("v2_" + key + ".jpg")
             // The former image key is reconstructible for this exact URL and size;
@@ -197,13 +213,13 @@ actor ImageLoader {
                 var iterator = queue.makeIterator()
                 for _ in 0..<min(4, queue.count) {
                     if let url = iterator.next() {
-                        group.addTask { _ = await self.image(for: url, maxPixel: maxPixel) }
+                        group.addTask { _ = await self.image(for: url, maxPixel: maxPixel, priority: .utility) }
                     }
                 }
                 while await group.next() != nil {
                     guard !Task.isCancelled else { group.cancelAll(); return }
                     if let url = iterator.next() {
-                        group.addTask { _ = await self.image(for: url, maxPixel: maxPixel) }
+                        group.addTask { _ = await self.image(for: url, maxPixel: maxPixel, priority: .utility) }
                     }
                 }
             }
@@ -289,6 +305,22 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
 
     private var identity: LoadIdentity { LoadIdentity(url: url, pixels: ArtworkCachePolicy.pixels(maxPixel)) }
 
+    init(url: URL?, maxPixel: CGFloat = 600,
+         @ViewBuilder content: @escaping (Image) -> Content,
+         @ViewBuilder placeholder: @escaping () -> Placeholder) {
+        self.url = url
+        self.maxPixel = maxPixel
+        self.content = content
+        self.placeholder = placeholder
+        // Seed from the decoded memory cache so already-loaded artwork is on screen
+        // in the first frame of a recycled or revisited view.
+        let pixels = ArtworkCachePolicy.pixels(maxPixel)
+        if let url, let hit = ImageLoader.shared.cachedImage(for: url, maxPixel: CGFloat(pixels)) {
+            _loaded = State(initialValue: hit)
+            _loadedIdentity = State(initialValue: LoadIdentity(url: url, pixels: pixels))
+        }
+    }
+
     var body: some View {
         Group {
             if let loaded, loadedIdentity == identity {
@@ -303,6 +335,14 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
             let expected = identity
             let token = UUID()
             requestID = token
+            // Already showing the right image (seeded from memory): nothing to do.
+            if loaded != nil, loadedIdentity == expected { return }
+            if let url = expected.url,
+               let hit = ImageLoader.shared.cachedImage(for: url, maxPixel: CGFloat(expected.pixels)) {
+                loaded = hit
+                loadedIdentity = expected
+                return
+            }
             loaded = nil
             loadedIdentity = nil
             guard let url = expected.url else { return }

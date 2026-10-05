@@ -277,9 +277,10 @@ struct HomeView: View {
                 if items.count > 1 {
                     HStack(spacing: 6) {
                         ForEach(items.indices, id: \.self) { index in
-                            Circle()
+                            // The current page stretches into a pill, like system page controls.
+                            Capsule()
                                 .fill(index == heroIndex ? Color.white : Color.white.opacity(0.32))
-                                .frame(width: 7, height: 7)
+                                .frame(width: index == heroIndex ? 18 : 7, height: 7)
                         }
                     }
                     .animation(.easeOut(duration: 0.18), value: heroIndex)
@@ -288,6 +289,13 @@ struct HomeView: View {
                 }
             }
             .task(id: heroIndex) {
+                // Warm the neighbouring heroes' artwork so a swipe or auto-advance
+                // fades straight to a decoded image instead of a loading shimmer.
+                if items.count > 1 {
+                    let neighbours = [(heroIndex + 1) % items.count, (heroIndex - 1 + items.count) % items.count]
+                    let urls = neighbours.compactMap { items[$0].backdropURL ?? items[$0].posterURL }
+                    ImageLoader.shared.prefetch(urls, maxPixel: 1600)
+                }
                 guard profiles.preferences.autoAdvanceHero,
                       !profiles.preferences.reduceArtworkMotion,
                       items.count > 1 else { return }

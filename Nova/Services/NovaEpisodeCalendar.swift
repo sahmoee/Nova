@@ -1,3 +1,4 @@
+#if os(iOS)
 //
 //  NovaEpisodeCalendar.swift
 //  Nova
@@ -31,6 +32,8 @@ final class NovaEpisodeCalendar: ObservableObject {
     }
     @Published var isAdding = false
     @Published var lastAddedCount = 0
+    @Published var lastError: String?
+    @Published var skippedCount = 0
 
     private init() {
         targetCalendarID = UserDefaults.standard.string(forKey: "nova.cal.calendarID")
@@ -41,7 +44,7 @@ final class NovaEpisodeCalendar: ObservableObject {
     func requestAccess() async -> Bool {
         let status: Bool
         if #available(iOS 17, *) {
-            status = (try? await store.requestWriteOnlyAccessToEvents()) ?? false
+            status = (try? await store.requestFullAccessToEvents()) ?? false
         } else {
             status = await withCheckedContinuation { cont in
                 store.requestAccess(to: .event) { granted, _ in cont.resume(returning: granted) }
@@ -52,8 +55,7 @@ final class NovaEpisodeCalendar: ObservableObject {
     }
 
     var isAuthorized: Bool {
-        authorizationStatus == .authorized || authorizationStatus == .fullAccess ||
-        authorizationStatus == .writeOnly
+        authorizationStatus == .authorized || authorizationStatus == .fullAccess
     }
 
     // MARK: - Calendar selection
@@ -77,13 +79,16 @@ final class NovaEpisodeCalendar: ObservableObject {
     /// Fetches episodes via TMDB and adds future air dates to the calendar.
     /// Only adds episodes that haven't aired yet.
     func addUpcomingEpisodes(for catalog: CatalogItem, tmdb: TMDBClient) async {
-        guard isAuthorized else { return }
+        guard !isAdding else { return }
+        authorizationStatus = EKEventStore.authorizationStatus(for: .event)
+        lastAddedCount = 0; skippedCount = 0; lastError = nil
+        guard isAuthorized else { lastError = "Calendar access is required."; return }
         isAdding = true
         defer { isAdding = false }
 
         // Hydrate if needed — use what we have if seasons are already populated.
         let source: CatalogItem
-        if catalog.seasons.isEmpty, let hydrated = try? await tmdb.hydrateSeries(catalog.contentID) {
+        if catalog.seasons.isEmpty, let hydrated = try? await tmdb.hydrateSeriesForCalendar(catalog) {
             source = hydrated
         } else {
             source = catalog
@@ -94,14 +99,12 @@ final class NovaEpisodeCalendar: ObservableObject {
             return airDate > Date()
         }
 
-        var added = 0
-        for episode in upcoming {
-            if (try? addEpisode(episode, for: source)) != nil { added += 1 }
+        for episode in upcoming.prefix(100) {
+            if Task.isCancelled { break }
+            do { _ = try addEpisode(episode, for: source); lastAddedCount += 1 }
+            catch CalendarError.alreadyExists { skippedCount += 1 }
+            catch { lastError = error.localizedDescription; break }
         }
-        lastAddedCount = added
-
-        // Commit to the store.
-        try? store.commit()
     }
 
     /// Adds a single episode to the calendar. Returns the new event.
@@ -111,25 +114,24 @@ final class NovaEpisodeCalendar: ObservableObject {
             throw CalendarError.noAirDate
         }
 
-        let cal = targetCalendar ?? store.defaultCalendarForNewEvents!
+        guard let cal = targetCalendar, cal.allowsContentModifications else { throw CalendarError.noCalendar }
         let event = EKEvent(eventStore: store)
 
         event.title = "\(show.title) — \(episode.displayTitle)"
         event.notes = episode.overview
 
-        // Air dates from TMDB are calendar-day dates (midnight UTC).
-        // Use a 1-hour all-day-ish window at 9 PM local so the alert is useful.
-        var components = Calendar.current.dateComponents([.year, .month, .day], from: airDate)
-        components.hour = 21
-        components.minute = 0
-        let startDate = Calendar.current.date(from: components) ?? airDate
+        // TMDB supplies a date, not a verified broadcast time. Preserve its UTC day.
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        let components = utc.dateComponents([.year, .month, .day], from: airDate)
+        guard let startDate = Calendar.current.date(from: components),
+              let endDate = Calendar.current.date(byAdding: .day, value: 1, to: startDate) else {
+            throw CalendarError.noAirDate
+        }
         event.startDate = startDate
-        event.endDate   = startDate.addingTimeInterval(episode.runtime ?? 3600)
-
+        event.endDate = endDate
+        event.isAllDay = true
         event.calendar = cal
-
-        // Add a 30-minute-before alarm.
-        event.addAlarm(EKAlarm(relativeOffset: -30 * 60))
 
         // Check for existing event to avoid duplicates (match by title + start date).
         let predicate = store.predicateForEvents(
@@ -146,7 +148,15 @@ final class NovaEpisodeCalendar: ObservableObject {
         return event
     }
 
-    enum CalendarError: Error {
+    enum CalendarError: LocalizedError {
+        case noCalendar
+        var errorDescription: String? {
+            switch self {
+            case .noCalendar: return "Choose a writable calendar before adding episodes."
+            case .noAirDate: return "This episode has no valid air date."
+            case .alreadyExists: return "This episode is already in your calendar."
+            }
+        }
         case noAirDate
         case alreadyExists
     }
@@ -155,11 +165,8 @@ final class NovaEpisodeCalendar: ObservableObject {
 // MARK: - TMDBClient hydrate helper (mirrors the one in EpisodeAvailabilityNotifier)
 
 private extension TMDBClient {
-    func hydrateSeries(_ contentID: ContentID) async throws -> CatalogItem? {
-        guard contentID.tmdb != nil else { return nil }
-        var result: CatalogItem?
-        await hydrateSeries(contentID) { partial in result = partial }
-        return result
+    func hydrateSeriesForCalendar(_ item: CatalogItem) async throws -> CatalogItem? {
+        return try await hydrateSeries(item)
     }
 }
 
@@ -179,7 +186,7 @@ struct NovaEpisodeCalendarButton: View {
             Task { await tapped() }
         } label: {
             if calService.isAdding {
-                ProgressView().tint(.orange)
+                ProgressView().tint(Theme.Colors.accent)
             } else {
                 Label("Add to Calendar", systemImage: "calendar.badge.plus")
             }
@@ -212,9 +219,10 @@ struct NovaEpisodeCalendarButton: View {
     private func addEpisodes() async {
         await calService.addUpcomingEpisodes(for: catalog, tmdb: tmdb)
         let count = calService.lastAddedCount
-        resultMessage = count == 0
+        resultMessage = calService.lastError ?? (count == 0
             ? "No upcoming episodes found to add."
-            : "\(count) upcoming episode\(count == 1 ? "" : "s") added to your calendar."
+            : "\(count) upcoming episode\(count == 1 ? "" : "s") added to your calendar.")
+        if calService.skippedCount > 0 { resultMessage += " \(calService.skippedCount) already present." }
         showResult = true
     }
 }
@@ -239,7 +247,7 @@ private struct CalendarPickerSheet: View {
                             Spacer()
                             if calService.targetCalendarID == cal.calendarIdentifier {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(.orange)
+                                    .foregroundStyle(Theme.Colors.accent)
                             }
                         }
                         .contentShape(Rectangle())
@@ -255,9 +263,9 @@ private struct CalendarPickerSheet: View {
                         dismiss()
                         onConfirm()
                     }
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Theme.Colors.accent)
                 } footer: {
-                    Text("Only episodes that haven't aired yet will be added. Each event includes a 30-minute reminder.")
+                    Text("Only episodes that haven't aired yet will be added. Air dates are all-day events; exact broadcast times are not supplied.")
                 }
             }
             .navigationTitle("Add to Calendar")
@@ -287,17 +295,9 @@ struct NovaCalendarSettingsRow: View {
 
 struct NovaCalendarSettingsView: View {
     @ObservedObject var calService: NovaEpisodeCalendar
-    @AppStorage("nova.cal.enabled") private var enabled = true
 
     var body: some View {
         Form {
-            Section {
-                Toggle("Add Air Dates to Calendar", isOn: $enabled)
-            } footer: {
-                Text("When you open a series, Nova can add its upcoming episode air dates to your calendar so you never miss a premiere.")
-            }
-
-            if enabled {
                 if calService.isAuthorized {
                     Section("Default Calendar") {
                         ForEach(calService.availableCalendars, id: \.calendarIdentifier) { cal in
@@ -310,7 +310,7 @@ struct NovaCalendarSettingsView: View {
                                 if calService.targetCalendarID == cal.calendarIdentifier
                                     || (calService.targetCalendarID == nil
                                         && cal == calService.targetCalendar) {
-                                    Image(systemName: "checkmark").foregroundStyle(.orange)
+                                    Image(systemName: "checkmark").foregroundStyle(Theme.Colors.accent)
                                 }
                             }
                             .contentShape(Rectangle())
@@ -325,14 +325,15 @@ struct NovaCalendarSettingsView: View {
                         Button("Grant Calendar Access") {
                             Task { _ = await calService.requestAccess() }
                         }
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Theme.Colors.accent)
                     } footer: {
-                        Text("Nova needs calendar write access to add episode air dates.")
+                        Text("Nova needs calendar access to select a calendar and avoid duplicates. Events are only added when you confirm.")
                     }
                 }
-            }
         }
         .navigationTitle("Calendar")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
+
+#endif

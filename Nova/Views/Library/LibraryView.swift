@@ -909,7 +909,7 @@ struct LibraryView: View {
         .accessibilityElement(children: .contain)
     }
 
-    /// Mockup 1's canonical composition with one consolidated options menu. Filters,
+    /// History artwork with one consolidated options menu. Filters,
     /// sorting, collections, and editing no longer consume two persistent rows.
     @ViewBuilder
     private var cleanHeader: some View {

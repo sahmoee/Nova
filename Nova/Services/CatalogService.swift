@@ -165,11 +165,14 @@ final class CatalogService: ObservableObject {
         }
 
         let addons = addonStore.streamAddons
-        let raw = await addonClient.allStreams(from: addons, type: content.type, stremioID: id)
-        guard !Task.isCancelled else { return [] }
-        if !raw.isEmpty {
-            await CatalogCaches.streams.set(raw, for: id)
+        let client = addonClient
+        let type = content.type
+        // Coalesced: a background warm-up (detail page, next-episode prefetch) and a
+        // tap on Play share one add-on fan-out instead of running two.
+        let raw = await CatalogCaches.streams.coalesced(for: id, shouldCache: { !$0.isEmpty }) {
+            await client.allStreams(from: addons, type: type, stremioID: id)
         }
+        guard !Task.isCancelled else { return [] }
         return StreamRanker.rank(raw, preferredQuality: preferredQuality)
     }
 
@@ -185,6 +188,14 @@ final class CatalogService: ObservableObject {
 
         if let cached = await CatalogCaches.streams.value(for: id) {
             let ranked = StreamRanker.rank(cached, preferredQuality: preferredQuality)
+            onPartial(ranked)
+            return ranked
+        }
+        // Join a warm-up that is already fetching this title rather than repeating
+        // the fan-out; an empty warm-up falls through to the progressive path.
+        if let warmed = await CatalogCaches.streams.inFlightValue(for: id), !warmed.isEmpty {
+            guard !Task.isCancelled else { return [] }
+            let ranked = StreamRanker.rank(warmed, preferredQuality: preferredQuality)
             onPartial(ranked)
             return ranked
         }

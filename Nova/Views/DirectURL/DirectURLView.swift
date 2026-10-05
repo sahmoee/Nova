@@ -3,7 +3,6 @@
 //  Nova
 //
 //  Paste a direct video URL, validate it, add it to the library, and play.
-//  This flow is fully functional in Phase 2.
 //
 
 import SwiftUI

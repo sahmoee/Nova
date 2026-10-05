@@ -30,6 +30,7 @@ enum DeepLink: Equatable {
     case settingsSources
     case content(contentKey: String, isShow: Bool)
     case continueWatching
+    case search(query: String)
 
     /// Parses a Nova URL (nova://…).
     static func parse(_ url: URL) -> DeepLink? {
@@ -50,6 +51,11 @@ enum DeepLink: Equatable {
         case "new", "new-and-hot": return .tab(.discover)
         case "library":  return .tab(.library)
         case "continue": return .continueWatching
+        case "search":
+            let terms = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.filter { $0.name == "q" } ?? []
+            guard terms.count == 1, let value = terms[0].value,
+                  let query = normalizedSearchQuery(value) else { return nil }
+            return .search(query: query)
         case "settings":
             if tail.first?.lowercased() == "sources" { return .settingsSources }
             return .tab(.settings)
@@ -63,4 +69,21 @@ enum DeepLink: Equatable {
             return nil
         }
     }
+    /// One bounded, encoded contract shared by Shortcuts and incoming links.
+    static func normalizedSearchQuery(_ raw: String) -> String? {
+        let query = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty, query.count <= 500,
+              query.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) else { return nil }
+        return query
+    }
+
+    static func searchURL(for raw: String) -> URL? {
+        guard let query = normalizedSearchQuery(raw) else { return nil }
+        var components = URLComponents()
+        components.scheme = "nova"
+        components.host = "search"
+        components.queryItems = [URLQueryItem(name: "q", value: query)]
+        return components.url
+    }
+
 }

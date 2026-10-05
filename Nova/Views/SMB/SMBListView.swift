@@ -3,8 +3,7 @@
 //  Nova
 //
 //  Lists saved SMB shares and routes to add/browse. Persists share definitions
-//  via a small JSON store; passwords go to the Keychain. Browsing uses the
-//  MockSMBProvider in Phase 1/2 and the real provider in Phase 5.
+//  via a JSON store; passwords go to Keychain. Browsing uses RealSMBProvider.
 //
 
 import SwiftUI

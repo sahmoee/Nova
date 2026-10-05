@@ -34,6 +34,8 @@ struct LoadingView: View {
     var message: String = "Loading…"
     var systemImage: String = "play.tv.fill"
     @State private var breathing = false
+    /// Fast loads finish before the indicator appears, so it never flashes.
+    @State private var revealed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -56,6 +58,12 @@ struct LoadingView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(Theme.Spacing.xl)
+        .opacity(revealed ? 1 : 0)
+        .task {
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) { revealed = true }
+        }
         .onAppear {
             withAnimation(reduceMotion ? nil : .easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
                 breathing = true

@@ -69,6 +69,12 @@ enum AppNetworking {
     }
     private static let getCoalescer = GETCoalescer()
 
+    /// Connectivity failures that may be answered from the response cache.
+    private static let offlineFallbackCodes: Set<URLError.Code> = [
+        .notConnectedToInternet, .networkConnectionLost, .timedOut,
+        .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed, .dataNotAllowed
+    ]
+
     /// Supports delta seconds and HTTP dates, ignoring invalid/non-finite values.
     static func retryAfterSeconds(_ http: HTTPURLResponse) -> TimeInterval? {
         MediaReliabilityPolicy.retryAfter(http.value(forHTTPHeaderField: "Retry-After"))
@@ -84,7 +90,18 @@ enum AppNetworking {
         req.timeoutInterval = MediaReliabilityPolicy.boundedInterval(timeout, fallback: 20)
         req.setValue("application/json", forHTTPHeaderField: "Accept")
         for (k, v) in headers { req.setValue(v, forHTTPHeaderField: k) }
-        let (data, response) = try await getCoalescer.data(for: req, session: shared)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await getCoalescer.data(for: req, session: shared)
+        } catch let error as URLError where offlineFallbackCodes.contains(error.code) {
+            // Offline or unreachable: serve the last successful response for this
+            // exact request from the shared URL cache (stale-if-error), so catalog
+            // and metadata screens keep their content instead of going blank.
+            guard let cached = shared.configuration.urlCache?.cachedResponse(for: req),
+                  let http = cached.response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { throw error }
+            (data, response) = (cached.data, cached.response)
+        }
         try Task.checkCancellation()
         guard let http = response as? HTTPURLResponse else { throw RequestError.invalidResponse }
         if !(200..<300).contains(http.statusCode) {

@@ -16,6 +16,19 @@ enum NovaWorkerConfiguration {
     static let defaultBaseURL = "https://api.sowensstudios.com/nova"
     static let exampleBaseURL = defaultBaseURL
 
+    /// Worker requests can contain private searches and an optional bearer token.
+    /// Require an HTTPS origin; credentials belong in Keychain, never in the URL.
+    static func baseURL(_ value: String) -> URL? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let candidate = trimmed.isEmpty ? defaultBaseURL : trimmed
+        guard let parts = URLComponents(string: candidate),
+              parts.scheme?.lowercased() == "https",
+              let host = parts.host, !host.isEmpty,
+              parts.user == nil, parts.password == nil,
+              parts.query == nil, parts.fragment == nil else { return nil }
+        return parts.url
+    }
+
     /// Appends a canonical Worker route while preserving a base path used by a
     /// custom domain or reverse proxy (for example, `/nova`).
     static func endpoint(base: URL, path: String) -> URL {

@@ -13,16 +13,41 @@ import Foundation
 final class PlaybackProgressStore: ObservableObject {
 
     private unowned let library: LibraryStore
+    /// Uptime of the last library write per title, used to coalesce the players'
+    /// five-second safety checkpoints.
+    private var lastWriteUptime: [String: TimeInterval] = [:]
+    /// Periodic checkpoints reach disk at most this often. Pause, stop, minimize,
+    /// background and completion always write immediately.
+    static let periodicWriteInterval: TimeInterval = 30
 
     init(library: LibraryStore) {
         self.library = library
+    }
+
+    /// The players' background safety checkpoint. Writing the whole library every
+    /// five seconds re-encoded it, pushed it to iCloud and re-rendered every library
+    /// observer mid-playback; periodic saves now coalesce to one write per interval
+    /// while explicit saves stay exact.
+    func save(position: TimeInterval, duration: TimeInterval?, for item: MediaItem, periodic: Bool) {
+        guard periodic else {
+            save(position: position, duration: duration, for: item)
+            return
+        }
+        let now = ProcessInfo.processInfo.systemUptime
+        if let last = lastWriteUptime[item.contentKey], now - last < Self.periodicWriteInterval { return }
+        write(position: position, duration: duration, for: item, refreshWidgets: false)
     }
 
     /// Records the exact current position for the matching persisted library item.
     /// Progress is cleared only when playback actually reaches the end; pausing late
     /// in a title still resumes at that late timestamp.
     func save(position: TimeInterval, duration: TimeInterval?, for item: MediaItem) {
+        write(position: position, duration: duration, for: item, refreshWidgets: true)
+    }
+
+    private func write(position: TimeInterval, duration: TimeInterval?, for item: MediaItem, refreshWidgets: Bool) {
         guard item.sourceType != .liveTV, position.isFinite, position >= 0 else { return }
+        lastWriteUptime[item.contentKey] = ProcessInfo.processInfo.systemUptime
 
         // Playback normally adds the resolved item before presenting the player, but
         // direct/deep-link routes can bypass that step. Persist it here as a safety net
@@ -41,14 +66,14 @@ final class PlaybackProgressStore: ObservableObject {
             if position >= max(duration - 0.75, 0) {
                 persisted.lastPlayedPosition = 0
                 persisted.lastPlayedDate = Date()
-                library.update(persisted)
+                library.updateProgress(persisted, refreshWidgets: true)
                 return
             }
         }
 
         persisted.lastPlayedPosition = position
         persisted.lastPlayedDate = Date()
-        library.update(persisted)
+        library.updateProgress(persisted, refreshWidgets: refreshWidgets)
     }
 
     /// Backward-compatible UUID API for non-player callers.

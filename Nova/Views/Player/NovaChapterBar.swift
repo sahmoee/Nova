@@ -17,13 +17,13 @@ import SwiftUI
 // MARK: - Chapter model (extends SkipSegment concept)
 
 struct NovaChapter: Identifiable, Hashable {
-    let id = UUID()
+    var id: String { "\(startSeconds)|\(title)" }
     var title: String
     var startSeconds: Double
     var endSeconds: Double?   // nil = runs to next chapter / end of item
 
     var startDisplay: String {
-        let s = Int(startSeconds)
+        let s = Int(startSeconds.isFinite ? min(86_400_000, max(0, startSeconds)) : 0)
         let h = s / 3600
         let m = (s % 3600) / 60
         let sec = s % 60
@@ -39,7 +39,7 @@ enum NovaChapterParser {
     /// Named segments (intro, outro) become chapter dividers.
     static func chapters(from item: MediaItem) -> [NovaChapter] {
         guard !item.skipSegments.isEmpty else { return [] }
-        let sorted = item.skipSegments.sorted { $0.start < $1.start }
+        let sorted = item.skipSegments.filter { $0.start.isFinite && $0.start >= 0 }.sorted { $0.start < $1.start }
         var result: [NovaChapter] = []
 
         for (i, seg) in sorted.enumerated() {
@@ -72,45 +72,44 @@ enum NovaChapterParser {
         var times: [Int: Double] = [:]
         var names: [Int: String] = [:]
 
-        for line in text.components(separatedBy: .newlines) {
+        guard text.utf8.count <= 1_048_576 else { return [] }
+        for line in text.components(separatedBy: .newlines).prefix(10_000) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard trimmed.uppercased().hasPrefix("CHAPTER") else { continue }
             let body = String(trimmed.dropFirst("CHAPTER".count))
-            let parts = body.components(separatedBy: "=")
+            let parts = body.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
             guard parts.count == 2 else { continue }
             let key = parts[0].uppercased()
             let value = parts[1]
 
             if key.hasSuffix("NAME") {
-                if let num = Int(key.dropLast(4)) { names[num] = value }
+                if let num = Int(key.dropLast(4)) { names[num] = String(value.prefix(200)) }
             } else {
                 if let num = Int(key), let secs = parseTimestamp(value) { times[num] = secs }
             }
         }
 
-        return times.keys.sorted().compactMap { num -> NovaChapter? in
+        return times.keys.sorted { times[$0]! == times[$1]! ? $0 < $1 : times[$0]! < times[$1]! }.compactMap { num -> NovaChapter? in
             guard let start = times[num] else { return nil }
             return NovaChapter(title: names[num] ?? "Chapter \(num)", startSeconds: start)
         }
     }
 
     private static func parseTimestamp(_ ts: String) -> Double? {
-        let parts = ts.components(separatedBy: ":").flatMap { $0.components(separatedBy: ".") }
-        guard parts.count >= 3,
-              let h = Double(parts[0]),
-              let m = Double(parts[1]),
-              let s = Double(parts[2])
-        else { return nil }
-        let ms = parts.count > 3 ? (Double(parts[3]) ?? 0) / 1000 : 0
-        return h * 3600 + m * 60 + s + ms
+        let parts = ts.split(separator: ":", omittingEmptySubsequences: false)
+        guard parts.count == 3, let hours = Int(parts[0]), let minutes = Int(parts[1]),
+              let seconds = Double(parts[2]), hours >= 0, hours <= 24_000,
+              (0..<60).contains(minutes), seconds.isFinite, seconds >= 0, seconds < 60 else { return nil }
+        return Double(hours * 3600 + minutes * 60) + seconds
     }
+
 }
 
 // MARK: - SkipSegmentType display name
 
 // SkipSegment uses `kind: SkipSegmentType` and `start`/`end: TimeInterval`
 // (defined in SkipSegmentProvider.swift / MediaItem.swift).
-extension SkipSegmentType {
+extension SkipKind {
     var displayName: String {
         switch self {
         case .intro:  return "Intro"
@@ -143,10 +142,10 @@ struct NovaChapterBar: View {
                         HStack(spacing: 4) {
                             Text(current.title)
                                 .font(.caption.weight(.medium))
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(Theme.Colors.accent)
                             Image(systemName: "chevron.right")
                                 .font(.caption2)
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(Theme.Colors.accent)
                         }
                     }
                 }
@@ -241,7 +240,7 @@ struct NovaChapterListSheet: View {
                         if currentPosition >= chapter.startSeconds,
                            let end = chapter.endSeconds, currentPosition < end {
                             Image(systemName: "speaker.wave.2.fill")
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(Theme.Colors.accent)
                                 .font(.caption)
                         }
                     }

@@ -2,9 +2,7 @@
 //  SMBService.swift
 //  Nova
 //
-//  Defines the SMBProviding protocol and a mock implementation used in
-//  Phase 1/2. Phase 5 swaps in a real AMSMB2-backed provider behind the same
-//  protocol — see the comment block at the bottom for the integration point.
+//  SMB provider interface, injected preview fixture, and production facade.
 //
 
 import Foundation
@@ -44,10 +42,10 @@ enum SMBError: LocalizedError {
     }
 }
 
-// MARK: - Mock provider (Phase 1/2)
+// MARK: - Preview/test provider
 
-/// A deterministic, in-memory SMB provider so the UI is fully navigable before
-/// the real SMB library is wired up. Returns a small folder tree of sample files.
+/// In-memory fixture for explicitly injected previews and tests. Production
+/// uses RealSMBProvider; these entries are never seeded into the user's library.
 actor MockSMBProvider: SMBProviding {
 
     private var connectedShare: SMBShare?

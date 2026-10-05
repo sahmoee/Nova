@@ -3,7 +3,7 @@
 //  Nova
 //
 //  A user-created collection (folder) of library items, organized by intent — e.g.
-//  "Halloween", "Comfort Shows", "For Shalise". Distinct from Favorites, which is a
+//  "Halloween", "Comfort Shows", "Family Favorites". Distinct from Favorites, which is a
 //  single flat flag. Collections reference items by their stable content key so they
 //  survive re-adds and sync across devices.
 //

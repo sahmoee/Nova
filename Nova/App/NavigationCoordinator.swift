@@ -51,6 +51,7 @@ final class NavigationCoordinator: ObservableObject {
 
     /// Set when a deep link targets a specific library item; LibraryView observes this
     /// and opens the matching item's detail, then clears it.
+    @Published var pendingSearchQuery: String?
     @Published var pendingContentKey: String?
 
     // One navigation path per tab.
@@ -116,6 +117,10 @@ final class NavigationCoordinator: ObservableObject {
             let destination = tab == .ai ? AppTab.discover : tab
             selection = destination
             popToRoot(destination)
+        case .search(let query):
+            selection = .discover
+            popToRoot(.discover)
+            pendingSearchQuery = query
         case .continueWatching:
             selection = .library
             popToRoot(.library)
