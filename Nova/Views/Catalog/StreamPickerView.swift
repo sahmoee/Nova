@@ -25,6 +25,9 @@ struct StreamPickerView: View {
     @State private var streams: [StreamOption] = []
     @State private var deadStreamIDs: Set<String> = []
     @State private var autoFailingOver = false
+    /// The most informative failure seen during one fail-over run. The last
+    /// source tried is often the least relevant (e.g. a link-less entry).
+    @State private var bestFailure: String?
     @State private var lastPlayedStream: StreamOption?
     @State private var state: ViewState = .loading
     @State private var resolvingStreamID: String?
@@ -843,6 +846,7 @@ struct StreamPickerView: View {
         let generation = UUID()
         resolutionGeneration = generation
         resolvingStreamID = stream.id
+        bestFailure = nil
         resolutionTask = Task { await play(stream, generation: generation) }
     }
 
@@ -938,12 +942,16 @@ struct StreamPickerView: View {
             // automatically try the next best candidate. Only surface an error if
             // nothing is left to try.
             markDead(stream)
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            if bestFailure == nil || (error as? StreamResolveError)?.isSpecific ?? true {
+                bestFailure = message
+            }
             if let next = nextCandidate() {
                 autoFailingOver = true
                 await play(next, generation: generation)
             } else {
                 autoFailingOver = false
-                state = .error((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
+                state = .error(bestFailure ?? message)
             }
         }
     }

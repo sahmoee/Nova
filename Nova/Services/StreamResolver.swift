@@ -17,18 +17,36 @@ import Foundation
 
 enum StreamResolveError: LocalizedError {
     case noPlayableURL
+    case unsupportedStream
     case debridUnavailable
     case fileNotFound
     case expiredLink
+    case notCached(progress: Double?)
+    case torrentFailed(status: String)
     case underlying(Error)
 
     var errorDescription: String? {
         switch self {
         case .noPlayableURL:    return "This stream couldn't be turned into a playable link."
+        case .unsupportedStream:return "This source doesn't offer a playable link or torrent. Choose another source."
         case .debridUnavailable:return "Resolving this stream needs a connected Real-Debrid account (Settings ▸ Real-Debrid)."
         case .fileNotFound:     return "The selected file wasn't found in the torrent."
-        case .expiredLink:      return "This playback link has expired. Trying the next stream."
+        case .expiredLink:      return "This playback link has expired."
+        case .notCached(let progress):
+            let detail = progress.map { " (\(Int(($0).rounded()))% downloaded)" } ?? ""
+            return "This torrent isn't cached on Real-Debrid yet\(detail). Choose a cached source, or try again once it finishes."
+        case .torrentFailed(let status):
+            return "Real-Debrid couldn't use this torrent (\(status.replacingOccurrences(of: "_", with: " "))). Choose another source."
         case .underlying(let e):return e.localizedDescription
+        }
+    }
+
+    /// Whether this failure says something more useful than the generic message,
+    /// so a picker that tried several sources can show the most helpful one.
+    var isSpecific: Bool {
+        switch self {
+        case .noPlayableURL, .unsupportedStream: return false
+        default: return true
         }
     }
 }
@@ -47,20 +65,23 @@ actor StreamResolver {
         // Already playable.
         if let url = stream.url { return url }
 
-        // Needs torrent resolution via debrid.
-        guard let infoHash = stream.infoHash else { throw StreamResolveError.noPlayableURL }
+        // Needs torrent resolution via debrid. A source with neither a link nor a
+        // torrent (e.g. an addon's "configure me" entry) can never play.
+        guard let infoHash = stream.infoHash else { throw StreamResolveError.unsupportedStream }
         guard hasDebridToken else { throw StreamResolveError.debridUnavailable }
 
         // The info hash comes from an untrusted addon; refuse anything that isn't
         // a well-formed BitTorrent info hash rather than building a malformed magnet.
         guard let magnet = Self.magnet(fromHash: infoHash, name: stream.behaviorHints?.filename ?? stream.rawTitle) else {
-            throw StreamResolveError.noPlayableURL
+            throw StreamResolveError.unsupportedStream
         }
 
-        do {
-            // 1. Add the magnet to the user's Real-Debrid account.
-            let added = try await realDebrid.addMagnet(magnet)
+        // 1. Add the magnet to the user's Real-Debrid account.
+        let added: TorrentAddResponse
+        do { added = try await realDebrid.addMagnet(magnet) }
+        catch { throw StreamResolveError.underlying(error) }
 
+        do {
             // 2. Wait for file metadata, then select the desired file.
             let info = try await waitForFiles(id: added.id)
             let fileID = chooseFileID(in: info, preferredIndex: stream.fileIndex)
@@ -78,9 +99,12 @@ actor StreamResolver {
             let unrestricted = try await realDebrid.unrestrictLink(link)
             guard let url = unrestricted.downloadURL else { throw StreamResolveError.noPlayableURL }
             return url
-        } catch let e as StreamResolveError {
-            throw e
         } catch {
+            // Every attempt adds a torrent to the user's account; don't leave failed
+            // or still-downloading ones behind. Best effort, off the failure path.
+            let client = realDebrid, id = added.id
+            Task.detached { try? await client.deleteTorrent(id: id) }
+            if let e = error as? StreamResolveError { throw e }
             throw StreamResolveError.underlying(error)
         }
     }
@@ -102,7 +126,7 @@ actor StreamResolver {
         for _ in 0..<30 {
             let info = try await realDebrid.torrentInfo(id: id)
             // A dead or rejected magnet never recovers; fail now instead of polling for a minute.
-            if info.hasFailed { throw StreamResolveError.noPlayableURL }
+            if info.hasFailed { throw StreamResolveError.torrentFailed(status: info.status) }
             if let files = info.files, !files.isEmpty { return info }
             if info.needsFileSelection { return info }
             try await Task.sleep(for: .seconds(2))
@@ -110,15 +134,23 @@ actor StreamResolver {
         throw StreamResolveError.fileNotFound
     }
 
+    /// Cached torrents turn "downloaded" within a few seconds of file selection.
+    /// Anything still queued or downloading after this window isn't cached, and
+    /// waiting the old three minutes only delayed the picker's fail-over.
+    static let readyWindow: Duration = .seconds(24)
+
     private func waitUntilReady(id: String) async throws -> TorrentInfo {
-        for _ in 0..<60 {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: Self.readyWindow)
+        var last: TorrentInfo?
+        while clock.now < deadline {
             let info = try await realDebrid.torrentInfo(id: id)
             if info.isReady, let links = info.links, !links.isEmpty { return info }
-            // Without this, an errored torrent kept the user waiting the full three minutes.
-            if info.hasFailed { throw StreamResolveError.noPlayableURL }
-            try await Task.sleep(for: .seconds(3))
+            if info.hasFailed { throw StreamResolveError.torrentFailed(status: info.status) }
+            last = info
+            try await Task.sleep(for: .seconds(2))
         }
-        throw StreamResolveError.noPlayableURL
+        throw StreamResolveError.notCached(progress: last?.progress)
     }
 
     private static let hexDigits = CharacterSet(charactersIn: "0123456789abcdefABCDEF")

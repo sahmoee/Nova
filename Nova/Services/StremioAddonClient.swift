@@ -272,7 +272,11 @@ actor StremioAddonClient {
             let response: AddonStreamResponse = try await getJSON(url, wrap: AddonError.manifestFetchFailed)
             await reliability.recordSuccess(addon.id, latencyMS: Int(Date().timeIntervalSince(start) * 1_000))
             let raw = response.streams ?? []
+            // Entries without a link or a valid torrent hash (YouTube ids, external
+            // "configure" pages, error notices) can never play. Listing them let
+            // auto-select and fail-over end on a misleading "no playable link".
             return raw.map { StreamRanker.normalize($0, addonName: addon.name) }
+                .filter { $0.url != nil || ($0.infoHash.map(StreamResolver.isValidInfoHash) ?? false) }
         } catch {
             await reliability.recordFailure(addon.id)
             throw error

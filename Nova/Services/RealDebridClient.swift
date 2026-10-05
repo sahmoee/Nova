@@ -52,6 +52,7 @@ enum RealDebridEndpoint {
     case streamingTranscode(String)
     case mediaInfo(String)
     case instantAvailability([String])
+    case deleteTorrent(String)
 
     var path: String {
         switch self {
@@ -66,6 +67,7 @@ enum RealDebridEndpoint {
         case .mediaInfo(let id):         return "/streaming/mediaInfos/\(id)"
         case .instantAvailability(let hashes):
             return "/torrents/instantAvailability/" + hashes.joined(separator: "/")
+        case .deleteTorrent(let id):     return "/torrents/delete/\(id)"
         }
     }
 
@@ -76,6 +78,8 @@ enum RealDebridEndpoint {
             return "GET"
         case .unrestrictLink, .addMagnet, .selectFiles:
             return "POST"
+        case .deleteTorrent:
+            return "DELETE"
         }
     }
 }
@@ -158,6 +162,11 @@ final actor RealDebridClient {
     func selectFiles(torrentID: String, fileIDs: [String]) async throws {
         let value = fileIDs.isEmpty ? "all" : fileIDs.joined(separator: ",")
         try await requestNoContent(.selectFiles(torrentID), form: ["files": value])
+    }
+
+    /// Removes a torrent from the user's account (used to clean up failed resolutions).
+    func deleteTorrent(id: String) async throws {
+        try await requestNoContent(.deleteTorrent(id))
     }
 
     func downloads() async throws -> [DebridDownload] {
