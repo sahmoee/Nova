@@ -1,0 +1,7 @@
+{
+  "project": "Nova",
+  "implemented_improvements": 20,
+  "status": "work-in-progress; do not merge before outstanding validation",
+  "validation": "65 media reliability checks plus persistence/local-copy fixtures passed; native iOS/tvOS builds pending",
+  "remaining": "Review final diff, run native build and meaningful regressions, finish minimum 20 meaningful improvements, submit PR. No physical-device verification claimed."
+}

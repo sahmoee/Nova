@@ -107,12 +107,46 @@ nonisolated enum MediaReliabilityPolicy {
         return bytes > 0
     }
 
+
+    static func downloadableURL(_ url: URL) -> Bool {
+        guard !["m3u", "m3u8", "mpd"].contains(url.pathExtension.lowercased()) else { return false }
+        if url.isFileURL { return true }
+        guard ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+              let host = url.host, !host.isEmpty else { return false }
+        // URLSession saves a playlist, not its segments. Do not advertise that
+        // network-dependent file as an offline movie.
+        return true
+    }
+
+    static func downloadableMIME(_ mime: String?) -> Bool {
+        guard let mime else { return true }
+        return !["text/html", "application/json", "application/problem+json", "application/xml",
+                 "text/xml", "application/vnd.apple.mpegurl", "application/x-mpegurl", "audio/mpegurl",
+                 "audio/x-mpegurl", "application/dash+xml"].contains(mime.lowercased())
+    }
+
+    static func downloadExtension(_ raw: String) -> String {
+        let value = raw.lowercased()
+        return !value.isEmpty && value.count <= 16 && value.unicodeScalars.allSatisfy {
+            CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789").contains($0)
+        } ? value : "media"
+    }
+
+    static func cleanupAge(_ age: TimeInterval) -> TimeInterval? {
+        age.isFinite && age >= 0 ? age : nil
+    }
+
+    static func downloadProgress(received: Int64, expected: Int64) -> Double {
+        expected > 0 ? min(max(Double(max(0, received)) / Double(expected), 0), 1) : 0
+    }
+
     /// Persisted filenames are untrusted input (including backups). Only manager-
     /// owned direct children may be read/deleted; never follow a path out of scope.
     static func ownedFile(_ url: URL, in folder: URL) -> Bool {
         guard url.isFileURL else { return false }
         let parent = url.standardizedFileURL.resolvingSymlinksInPath().deletingLastPathComponent()
-        return parent == folder.standardizedFileURL.resolvingSymlinksInPath()
+        return parent.path == folder.standardizedFileURL.resolvingSymlinksInPath().path
+            && (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) != true
             && !url.lastPathComponent.isEmpty && url.lastPathComponent != "." && url.lastPathComponent != ".."
     }
 
