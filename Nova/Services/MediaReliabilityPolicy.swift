@@ -107,7 +107,6 @@ nonisolated enum MediaReliabilityPolicy {
         return bytes > 0
     }
 
-
     static func downloadableURL(_ url: URL) -> Bool {
         guard !["m3u", "m3u8", "mpd"].contains(url.pathExtension.lowercased()) else { return false }
         if url.isFileURL { return true }
