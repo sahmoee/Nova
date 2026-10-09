@@ -6,7 +6,10 @@ DerivedData/
 xcuserdata/
 *.xcscmblueprint
 .swiftpm/
-Packages/
+Packages/*
+!Packages/SowensKit/
+Packages/SowensKit/.build/
+Packages/SowensKit/.swiftpm/
 node_modules/
 .wrangler/
 .dev.vars
