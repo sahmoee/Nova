@@ -32,13 +32,18 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
     @Published private(set) var downloads: [OfflineDownload] = []
     @Published private(set) var otherDevices: [OfflineDeviceSnapshot] = []
     @Published private(set) var deviceStatusMessage: String?
+    @Published private(set) var persistenceError: String?
     @Published private(set) var availableStorageBytes: Int64?
     @Published private(set) var isNetworkAvailable = NetworkConditionMonitor.shared.isOnline
 
     private let legacyDefaultsKey = "offline.downloads.v1"
-    private let store = CodableFileStore<[OfflineDownload]>(filename: "offline-downloads.json", prettyPrinted: false)
+    private let store = CodableFileStore<[OfflineDownload]>(filename: "offline-downloads.json", prettyPrinted: false,
+        validate: { $0.count <= 10_000 && Set($0.map(\.id)).count == $0.count })
     private let maximumConcurrentDownloads = 2
+    private var legacyNeedsRecovery = false
     private var taskByID: [UUID: URLSessionDownloadTask] = [:]
+    private var localCopyByID: [UUID: Task<Void, Never>] = [:]
+    private var localCopyGeneration: [UUID: UUID] = [:]
     private var intentionalPauses = Set<UUID>()
     private var samples: [UUID: (Date, Int64)] = [:]
     private var retryTasks: [UUID: Task<Void, Never>] = [:]
@@ -78,6 +83,7 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
     override init() {
         super.init()
         downloads = loadPersisted().map(Self.recovered)
+        Self.cleanupAbandonedStaging()
         reconcileFiles()
         refreshAvailableStorage()
         networkCancellable = NetworkConditionMonitor.shared.$isOnline
@@ -97,6 +103,7 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
         persistTask?.cancel()
         statusPublishTask?.cancel()
         retryTasks.values.forEach { $0.cancel() }
+        localCopyByID.values.forEach { $0.cancel() }
     }
 
     var activeCount: Int { downloads.filter { $0.state == .downloading }.count }
@@ -134,22 +141,28 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
 
     func isEligible(_ item: MediaItem) -> Bool {
         guard item.legalAccessConfirmed, item.sourceType != .liveTV else { return false }
-        return ["https", "http", "file"].contains(item.playbackURL.scheme?.lowercased() ?? "")
+        return MediaReliabilityPolicy.downloadableURL(item.playbackURL)
     }
 
     @discardableResult
     func enqueue(_ item: MediaItem) -> UUID? {
-        guard isEligible(item) else { return nil }
+        guard isEligible(item), !store.needsRecovery, !legacyNeedsRecovery else { return nil }
         if let existing = downloads.first(where: {
             ($0.mediaID == item.id || $0.sourceURL == item.playbackURL) && $0.state != .failed
-        }) { return existing.id }
+        }) {
+            if existing.state == .complete, playbackItem(for: existing) == nil {
+                update(existing.id, immediate: true) { $0.state = .failed; $0.localURL = nil; $0.errorMessage = "The offline file is no longer on this device." }
+                retry(existing.id)
+            }
+            return existing.id
+        }
         let id = UUID()
         downloads.append(OfflineDownload(id: id, mediaID: item.id, title: item.displayTitle,
             sourceURL: item.playbackURL, localURL: nil, progress: 0, receivedBytes: 0,
             expectedBytes: nil, state: .queued, errorMessage: nil, createdAt: Date(),
             completedAt: nil, bytesPerSecond: nil, estimatedSecondsRemaining: nil,
             retryCount: 0, resumeDataFilename: nil, lastUpdatedAt: Date()))
-        persistNow()
+        guard persistNow() else { downloads.removeAll { $0.id == id }; return nil }
         item.playbackURL.isFileURL ? copyLocalFile(id: id, source: item.playbackURL) : pumpQueue()
         return id
     }
@@ -158,6 +171,9 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
         guard let record = downloads.first(where: { $0.id == id }),
               record.state.canPause, !intentionalPauses.contains(id) else { return }
         retryTasks.removeValue(forKey: id)?.cancel()
+        if let copy = localCopyByID.removeValue(forKey: id) {
+            localCopyGeneration[id] = nil; copy.cancel()
+        }
         guard let task = taskByID[id] else {
             update(id, immediate: true) { $0.state = .paused; $0.errorMessage = nil }
             return
@@ -180,17 +196,17 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
     }
 
     func resume(_ id: UUID) {
-        guard downloads.contains(where: { $0.id == id && $0.state.canResume }), taskByID[id] == nil else { return }
+        guard downloads.contains(where: { $0.id == id && $0.state.canResume }), taskByID[id] == nil, localCopyByID[id] == nil else { return }
         connectionFailures[id] = nil
         update(id, immediate: true) { $0.state = .queued; $0.errorMessage = nil }
         pumpQueue()
     }
 
     func retry(_ id: UUID) {
-        guard let record = downloads.first(where: { $0.id == id && $0.state.canRetry }), taskByID[id] == nil else { return }
+        guard let record = downloads.first(where: { $0.id == id && $0.state.canRetry }), taskByID[id] == nil, localCopyByID[id] == nil else { return }
         retryTasks.removeValue(forKey: id)?.cancel()
         connectionFailures[id] = nil
-        removeFiles(record)
+        guard removeFiles(record) else { return }
         update(id, immediate: true) {
             $0.progress = 0; $0.receivedBytes = 0; $0.expectedBytes = nil; $0.errorMessage = nil
             $0.state = .queued; $0.localURL = nil; $0.bytesPerSecond = nil
@@ -212,24 +228,26 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
         retryTasks.removeValue(forKey: id)?.cancel()
         connectionFailures[id] = nil
         intentionalPauses.remove(id)
+        localCopyGeneration[id] = nil
+        localCopyByID.removeValue(forKey: id)?.cancel()
         samples[id] = nil
         taskByID.removeValue(forKey: id)?.cancel()
-        if let record = downloads.first(where: { $0.id == id }) { removeFiles(record) }
+        if let record = downloads.first(where: { $0.id == id }), !removeFiles(record) { return }
         downloads.removeAll { $0.id == id }
         persistNow(); refreshAvailableStorage(); pumpQueue()
     }
 
     func removeCompleted() {
-        downloads.filter { $0.state == .complete }.forEach(removeFiles)
-        downloads.removeAll { $0.state == .complete }
+        let removed = Set(downloads.filter { $0.state == .complete }.filter { removeFiles($0) }.map(\.id))
+        downloads.removeAll { removed.contains($0.id) }
         persistNow(); refreshAvailableStorage()
     }
 
     func cleanupCompleted(olderThan age: TimeInterval = 30 * 86_400) {
+        guard let age = MediaReliabilityPolicy.cleanupAge(age) else { return }
         let cutoff = Date().addingTimeInterval(-age)
         let expired = downloads.filter { $0.state == .complete && ($0.completedAt ?? $0.createdAt) < cutoff }
-        expired.forEach(removeFiles)
-        let ids = Set(expired.map(\.id)); downloads.removeAll { ids.contains($0.id) }
+        let ids = Set(expired.filter { removeFiles($0) }.map(\.id)); downloads.removeAll { ids.contains($0.id) }
         persistNow(); refreshAvailableStorage()
     }
 
@@ -244,18 +262,26 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
     }
 
     private func pumpQueue() {
-        // Local files need neither connectivity nor an HTTP URLSession task.
-        for record in downloads where record.state == .queued && record.sourceURL.isFileURL {
+        guard persistenceError == nil else { return }
+        // Local copies share the bounded queue but need no network connection.
+        var slots = maximumConcurrentDownloads - taskByID.count - localCopyByID.count
+        for record in downloads where record.state == .queued && record.sourceURL.isFileURL && slots > 0 {
             copyLocalFile(id: record.id, source: record.sourceURL)
+            slots -= 1
         }
-        guard isNetworkAvailable else { return }
-        var slots = maximumConcurrentDownloads - taskByID.count
+        guard isNetworkAvailable, persistenceError == nil else { return }
+        slots = maximumConcurrentDownloads - taskByID.count - localCopyByID.count
         for record in downloads where record.state == .queued && !record.sourceURL.isFileURL
             && slots > 0 && taskByID[record.id] == nil && retryTasks[record.id] == nil {
+            guard MediaReliabilityPolicy.downloadableURL(record.sourceURL) else {
+                fail(record.id, "This source cannot be saved as an offline media file."); continue
+            }
             if let filename = MediaReliabilityPolicy.resumeFilename(record.resumeDataFilename, id: record.id),
-               let data = try? Data(contentsOf: resumeFolder.appendingPathComponent(filename)) {
+               let data = try? LibraryFilePolicy.read(resumeFolder.appendingPathComponent(filename), maximumBytes: 8 * 1_024 * 1_024), !data.isEmpty {
                 start(id: record.id, task: session.downloadTask(withResumeData: data))
             } else {
+                removeResumeData(record.id)
+                update(record.id) { $0.resumeDataFilename = nil; $0.receivedBytes = 0; $0.progress = 0 }
                 var request = URLRequest(url: record.sourceURL, timeoutInterval: 60)
                 request.setValue("video/*,application/octet-stream;q=0.9,*/*;q=0.1", forHTTPHeaderField: "Accept")
                 start(id: record.id, task: session.downloadTask(with: request))
@@ -272,19 +298,68 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
     }
 
     private func copyLocalFile(id: UUID, source: URL) {
-        do {
-            let destination = try Self.destinationURL(id: id, sourceURL: source)
-            try? FileManager.default.removeItem(at: destination); try FileManager.default.copyItem(at: source, to: destination)
-            let size = Self.fileSize(destination)
-            guard size > 0 else {
-                try? FileManager.default.removeItem(at: destination)
-                fail(id, "The source file is empty. Choose another source and try again.")
-                return
+        guard localCopyByID[id] == nil, downloads.contains(where: { $0.id == id && $0.state == .queued }),
+              localCopyByID.count + taskByID.count < maximumConcurrentDownloads else { return }
+        let generation = UUID()
+        localCopyGeneration[id] = generation
+        update(id, immediate: true) { $0.state = .downloading; $0.errorMessage = nil }
+        guard persistenceError == nil else {
+            localCopyGeneration[id] = nil
+            if let index = downloads.firstIndex(where: { $0.id == id }) { downloads[index].state = .queued }
+            return
+        }
+        localCopyByID[id] = Task { [weak self] in
+            do {
+                let transfer = Task.detached { try Self.stageLocalCopy(id: id, source: source) }
+                let result = try await withTaskCancellationHandler(operation: { try await transfer.value },
+                    onCancel: { transfer.cancel() })
+                defer { try? FileManager.default.removeItem(at: result.staged) }
+                guard let self, !Task.isCancelled, self.localCopyGeneration[id] == generation,
+                      self.downloads.contains(where: { $0.id == id && $0.state == .downloading }) else { return }
+                if FileManager.default.fileExists(atPath: result.destination.path) {
+                    _ = try FileManager.default.replaceItemAt(result.destination, withItemAt: result.staged)
+                } else { try FileManager.default.moveItem(at: result.staged, to: result.destination) }
+                self.localCopyByID[id] = nil; self.localCopyGeneration[id] = nil
+                self.update(id, immediate: true) {
+                    $0.localURL = result.destination; $0.progress = 1; $0.receivedBytes = result.size
+                    $0.expectedBytes = result.size; $0.state = .complete; $0.completedAt = Date()
+                    $0.errorMessage = nil; $0.bytesPerSecond = nil; $0.estimatedSecondsRemaining = nil
+                }
+                self.refreshAvailableStorage(); self.pumpQueue()
+            } catch {
+                guard let self, !Task.isCancelled, self.localCopyGeneration[id] == generation else { return }
+                self.localCopyByID[id] = nil; self.localCopyGeneration[id] = nil
+                self.fail(id, "The local file could not be copied. Check file access and available storage, then retry.")
+                self.pumpQueue()
             }
-            update(id, immediate: true) { $0.localURL = destination; $0.progress = 1; $0.receivedBytes = size
-                $0.expectedBytes = size; $0.state = .complete; $0.completedAt = Date() }
-            refreshAvailableStorage()
-        } catch { fail(id, error.localizedDescription) }
+        }
+    }
+
+    nonisolated private static func stageLocalCopy(id: UUID, source: URL) throws -> (staged: URL, destination: URL, size: Int64) {
+        let access = source.startAccessingSecurityScopedResource()
+        defer { if access { source.stopAccessingSecurityScopedResource() } }
+        let values = try source.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+        guard values.isRegularFile == true, (values.fileSize ?? 0) > 0 else { throw CocoaError(.fileReadCorruptFile) }
+        let destination = try destinationURL(id: id, sourceURL: source)
+        let staged = destination.deletingLastPathComponent().appendingPathComponent("\(id).\(UUID()).pending")
+        do {
+            try Task.checkCancellation()
+            guard FileManager.default.createFile(atPath: staged.path, contents: nil) else { throw CocoaError(.fileWriteUnknown) }
+            let input = try FileHandle(forReadingFrom: source)
+            defer { try? input.close() }
+            let output = try FileHandle(forWritingTo: staged)
+            defer { try? output.close() }
+            while true {
+                try Task.checkCancellation()
+                guard let chunk = try input.read(upToCount: 1_024 * 1_024), !chunk.isEmpty else { break }
+                try output.write(contentsOf: chunk)
+            }
+            try output.synchronize()
+            try Task.checkCancellation()
+            let size = fileSize(staged)
+            guard size > 0 else { throw CocoaError(.fileReadCorruptFile) }
+            return (staged, destination, size)
+        } catch { try? FileManager.default.removeItem(at: staged); throw error }
     }
 
     nonisolated func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
@@ -292,16 +367,17 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
         guard let text = downloadTask.taskDescription, let id = UUID(uuidString: text) else { return }
         Task { @MainActor [weak self] in
             guard let self, self.taskByID[id] === downloadTask, !self.intentionalPauses.contains(id) else { return }
-            let now = Date(), previous = self.samples[id] ?? (now, totalBytesWritten - bytesWritten)
-            let instantaneous = Double(max(0, totalBytesWritten - previous.1)) / max(now.timeIntervalSince(previous.0), 0.05)
+            let received = max(0, totalBytesWritten)
+            let now = Date(), previous = self.samples[id] ?? (now, received >= max(0, bytesWritten) ? received - max(0, bytesWritten) : 0)
+            let instantaneous = Double(max(0, received - max(0, previous.1))) / max(now.timeIntervalSince(previous.0), 0.05)
             let old = self.downloads.first { $0.id == id }?.bytesPerSecond ?? instantaneous
-            let rate = old * 0.7 + instantaneous * 0.3; self.samples[id] = (now, totalBytesWritten)
+            let rate = (old.isFinite && old > 0 ? old : 0) * 0.7 + instantaneous * 0.3; self.samples[id] = (now, received)
             self.update(id) {
-                $0.receivedBytes = totalBytesWritten; $0.expectedBytes = totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : nil
-                $0.progress = totalBytesExpectedToWrite > 0 ? min(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite), 1) : 0
+                $0.receivedBytes = received; $0.expectedBytes = totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : nil
+                $0.progress = MediaReliabilityPolicy.downloadProgress(received: received, expected: totalBytesExpectedToWrite)
                 $0.bytesPerSecond = rate > 0 ? rate : nil
-                $0.estimatedSecondsRemaining = totalBytesExpectedToWrite > totalBytesWritten && rate > 0
-                    ? Double(totalBytesExpectedToWrite - totalBytesWritten) / rate : nil
+                $0.estimatedSecondsRemaining = totalBytesExpectedToWrite > received && rate > 0
+                    ? Double(totalBytesExpectedToWrite - received) / rate : nil
             }
         }
     }
@@ -312,7 +388,7 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
         let response = downloadTask.response as? HTTPURLResponse
         let size = Self.fileSize(location)
         guard MediaReliabilityPolicy.validDownloadResponse(status: response?.statusCode, bytes: size),
-              !["text/html", "application/json", "application/problem+json"].contains(response?.mimeType?.lowercased() ?? "") else {
+              MediaReliabilityPolicy.downloadableMIME(response?.mimeType) else {
             let message = response.map { !(200..<300).contains($0.statusCode)
                 ? "The source returned HTTP \($0.statusCode). Choose another source or retry later."
                 : "The source did not return a playable download. Choose another source." }
@@ -403,9 +479,18 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
 
     private func loadPersisted() -> [OfflineDownload] {
         if let saved = store.load() { return saved }
-        guard let data = UserDefaults.standard.data(forKey: legacyDefaultsKey),
-              let legacy = try? JSONDecoder().decode([OfflineDownload].self, from: data) else { return [] }
+        persistenceError = store.lastError
+        guard !store.needsRecovery else { return [] }
+        guard let data = UserDefaults.standard.data(forKey: legacyDefaultsKey) else { return [] }
+        guard data.count <= 16 * 1_024 * 1_024,
+              let legacy = try? JSONDecoder().decode([OfflineDownload].self, from: data),
+              legacy.count <= 10_000, Set(legacy.map(\.id)).count == legacy.count else {
+            legacyNeedsRecovery = true
+            persistenceError = "Legacy download records need recovery. Their original data has been preserved."
+            return []
+        }
         if store.save(legacy) { UserDefaults.standard.removeObject(forKey: legacyDefaultsKey) }
+        else { persistenceError = store.lastError }
         return legacy
     }
     private static func recovered(_ record: OfflineDownload) -> OfflineDownload {
@@ -425,7 +510,8 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
     }
     private func update(_ id: UUID, immediate: Bool = false, _ mutation: (inout OfflineDownload) -> Void) {
         guard let index = downloads.firstIndex(where: { $0.id == id }) else { return }
-        mutation(&downloads[index]); downloads[index].lastUpdatedAt = Date(); immediate ? persistNow() : persistSoon()
+        mutation(&downloads[index]); downloads[index].lastUpdatedAt = Date()
+        if immediate { persistNow() } else { persistSoon() }
     }
     private func fail(_ id: UUID, _ message: String) {
         taskByID.removeValue(forKey: id); samples[id] = nil
@@ -438,9 +524,46 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
             try? await Task.sleep(for: .milliseconds(750)); guard !Task.isCancelled else { return }; self?.persistNow()
         }
     }
-    private func persistNow() {
-        persistTask?.cancel(); persistTask = nil; store.save(downloads)
+    @discardableResult private func persistNow() -> Bool {
+        persistTask?.cancel(); persistTask = nil
+        guard !legacyNeedsRecovery else { return false }
+        guard store.save(downloads) else { persistenceError = store.lastError; return false }
+        persistenceError = nil
         scheduleDeviceStatus()
+        return true
+    }
+
+    var requiresRecordRecovery: Bool { store.needsRecovery || legacyNeedsRecovery }
+
+    func resetRecordStorageKeepingOriginal() {
+        guard requiresRecordRecovery else { return }
+        guard store.resetRetainingOriginal(downloads) else { persistenceError = store.lastError; return }
+        // An invalid legacy defaults blob remains untouched. The new valid journal
+        // takes precedence on the next launch, preserving that old recovery evidence.
+        legacyNeedsRecovery = false
+        persistenceError = nil
+        pumpQueue(); scheduleDeviceStatus()
+    }
+
+    func retryPersistence() {
+        if store.needsRecovery || legacyNeedsRecovery {
+            if let restored = store.load() {
+                legacyNeedsRecovery = false
+                downloads = restored.map(Self.recovered)
+            } else {
+                guard !store.needsRecovery,
+                      let data = UserDefaults.standard.data(forKey: legacyDefaultsKey), data.count <= 16 * 1_024 * 1_024,
+                      let restored = try? JSONDecoder().decode([OfflineDownload].self, from: data),
+                      restored.count <= 10_000, Set(restored.map(\.id)).count == restored.count else {
+                    persistenceError = store.lastError ?? "Restore valid download records before retrying."
+                    return
+                }
+                legacyNeedsRecovery = false
+                downloads = restored.map(Self.recovered)
+            }
+            reconcileFiles()
+        }
+        if persistNow() { pumpQueue() }
     }
 
     func refreshDeviceStatuses() {
@@ -468,7 +591,7 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
 
     private func publishDeviceStatus() {
         let cloud = CloudSync.shared
-        guard cloud.accountAvailable, !cloud.isPaused(.library) else { return }
+        guard cloud.accountAvailable, !cloud.isPaused(.library), !store.needsRecovery, !legacyNeedsRecovery, persistenceError == nil else { return }
         let key = OfflineDeviceSnapshot.keyPrefix + deviceID.uuidString.lowercased()
         let keys = cloud.storedKeys.filter { $0.hasPrefix(OfflineDeviceSnapshot.keyPrefix) }
         guard keys.contains(key) || keys.count < OfflineDeviceSnapshot.maximumDevices else {
@@ -504,18 +627,23 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true); return folder
     }
     private func writeResumeData(_ data: Data, id: UUID) -> String? {
-        guard !data.isEmpty else { return nil }; let name = "\(id.uuidString).resume"
+        guard !data.isEmpty, data.count <= 8 * 1_024 * 1_024 else { return nil }; let name = "\(id.uuidString).resume"
         do { try data.write(to: resumeFolder.appendingPathComponent(name), options: .atomic); return name } catch { return nil }
     }
     private func removeResumeData(_ id: UUID) { try? FileManager.default.removeItem(at: resumeFolder.appendingPathComponent("\(id.uuidString).resume")) }
-    private func removeFiles(_ record: OfflineDownload) {
-        if let url = record.localURL, MediaReliabilityPolicy.ownedDownloadFile(url, id: record.id, in: Self.mediaFolder) {
-            try? FileManager.default.removeItem(at: url)
+    @discardableResult private func removeFiles(_ record: OfflineDownload) -> Bool {
+        do {
+            if let url = record.localURL, MediaReliabilityPolicy.ownedDownloadFile(url, id: record.id, in: Self.mediaFolder),
+               FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+            if let name = MediaReliabilityPolicy.resumeFilename(record.resumeDataFilename, id: record.id) {
+                let url = resumeFolder.appendingPathComponent(name)
+                if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+            } else { removeResumeData(record.id) }
+            return true
+        } catch {
+            update(record.id, immediate: true) { $0.errorMessage = "The downloaded file could not be removed. Check storage access and retry removal." }
+            return false
         }
-        if let name = MediaReliabilityPolicy.resumeFilename(record.resumeDataFilename, id: record.id) {
-            try? FileManager.default.removeItem(at: resumeFolder.appendingPathComponent(name))
-        }
-        else { removeResumeData(record.id) }
     }
     private func refreshAvailableStorage() {
         let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -524,8 +652,23 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
     nonisolated private static func destinationURL(id: UUID, sourceURL: URL) throws -> URL {
         let folder = mediaFolder
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        return folder.appendingPathComponent(id.uuidString).appendingPathExtension(sourceURL.pathExtension.isEmpty ? "media" : sourceURL.pathExtension)
+        return folder.appendingPathComponent(id.uuidString).appendingPathExtension(MediaReliabilityPolicy.downloadExtension(sourceURL.pathExtension))
     }
+    nonisolated private static func cleanupAbandonedStaging() {
+        guard let files = try? FileManager.default.contentsOfDirectory(at: mediaFolder,
+            includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey, .contentModificationDateKey]) else { return }
+        let cutoff = Date().addingTimeInterval(-86_400)
+        for file in files.prefix(512) {
+            let parts = file.lastPathComponent.split(separator: ".")
+            guard parts.count == 3, UUID(uuidString: String(parts[0])) != nil,
+                  UUID(uuidString: String(parts[1])) != nil, parts[2] == "pending",
+                  let values = try? file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .contentModificationDateKey]),
+                  values.isRegularFile == true, values.isSymbolicLink != true,
+                  let date = values.contentModificationDate, date < cutoff else { continue }
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
+
     nonisolated private static func fileSize(_ url: URL) -> Int64 {
         (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
     }
