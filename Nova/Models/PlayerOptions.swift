@@ -30,6 +30,25 @@ enum BuiltInPlayer: String, CaseIterable, Codable, Identifiable {
     case vlcHardware     // VLCKit tuned to prefer hardware decoding (smoother 4K)
     case vlcNetworkTuned // VLCKit with a larger network cache (better on slow links)
 
+    /// Keep persisted engine values portable, but offer only engines shipped on this platform.
+    static var availableCases: [BuiltInPlayer] {
+        #if targetEnvironment(macCatalyst)
+        return [.appleNative]
+        #else
+        return allCases
+        #endif
+    }
+
+    /// Mac engine availability is informational and must not overwrite the
+    /// cross-device playback preferences used by iPhone/iPad and Apple TV.
+    static var allowsPreferenceSelection: Bool {
+        #if targetEnvironment(macCatalyst)
+        return false
+        #else
+        return true
+        #endif
+    }
+
     var id: String { rawValue }
 
     var title: String {

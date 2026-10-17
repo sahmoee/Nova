@@ -332,12 +332,15 @@ struct SettingsView: View {
         ]))
         #endif
 
+        #if !targetEnvironment(macCatalyst)
         groups.append(CategoryGroup(header: "Testing", items: [
             Category(id: "qa", icon: "checkmark.seal.fill", color: Theme.Colors.iconGraphite,
                      title: "Quality Assurance", detail: "Off by default") {
                 AnyView(UnifiedQASettingsView())
             }
         ]))
+
+        #endif
 
         // Sync & system.
         var system: [Category] = []
@@ -361,10 +364,14 @@ struct SettingsView: View {
     // MARK: - Row detail values
 
     private var playerDetail: String {
+        #if targetEnvironment(macCatalyst)
+        return BuiltInPlayer.appleNative.title
+        #else
         #if os(iOS)
         if settings.useExternalPlayer { return settings.preferredExternalPlayer.title }
         #endif
         return settings.builtInPlayer.title
+        #endif
     }
 
     private var sourcesHealthDetail: String {

@@ -16,10 +16,14 @@ struct PlaybackSettingsContent: View {
     @EnvironmentObject private var settings: SettingsStore
 
     private var playerDetail: String {
+        #if targetEnvironment(macCatalyst)
+        return BuiltInPlayer.appleNative.title
+        #else
         #if os(iOS)
         if settings.useExternalPlayer { return settings.preferredExternalPlayer.title }
         #endif
         return settings.builtInPlayer.title
+        #endif
     }
 
     var body: some View {

@@ -12,12 +12,27 @@ import Foundation
 
 enum PlaybackEngineRouter {
 
+    static let macPlaybackFailureGuidance = "This Mac build uses Apple playback. MKV, AVI and other unsupported formats may need a compatible source or a separately installed player; embedded VLC is unavailable on Mac Catalyst."
+
+    /// Imported preferences must not send a Mac stream into iOS-only URL schemes.
+    static func shouldHandOffToExternalPlayer(preferred: Bool) -> Bool {
+        #if targetEnvironment(macCatalyst)
+        return false
+        #else
+        return preferred
+        #endif
+    }
+
     /// Extensions AVPlayer reliably plays.
     private static let avPlayerExtensions: Set<String> = ["mp4", "m4v", "mov"]
 
     /// Whether to use the VLC engine for this item, honoring the user's preferred
     /// built-in player profile (which can force VLC or force AVPlayer).
     static func shouldUseVLC(for item: MediaItem, preference: BuiltInPlayer = .auto) -> Bool {
+        #if targetEnvironment(macCatalyst)
+        // Probe actual content even for extensionless/transcoded provider URLs.
+        return false
+        #else
         // Explicit user choices win, except that AVPlayer can't open formats it doesn't
         // support — in that case fall back to VLC regardless.
         if preference.forcesVLC { return true }
@@ -33,6 +48,7 @@ enum PlaybackEngineRouter {
         }
 
         return !isAVPlayerCompatible(item)
+        #endif
     }
 
     /// Whether AVPlayer can reliably open this item based on its container/extension.

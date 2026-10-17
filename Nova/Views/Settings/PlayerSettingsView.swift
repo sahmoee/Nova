@@ -23,27 +23,30 @@ struct PlayerSettingsView: View {
                 Text("Built-in Player")
                     .font(Theme.Font.sectionTitle())
                     .foregroundStyle(Theme.Colors.textPrimary)
-                Text("How video plays inside Nova. Automatic picks the best engine for each file.")
+                Text(builtInPlayerExplanation)
                     .font(.appFont(16))
                     .foregroundStyle(Theme.Colors.textSecondary)
 
                 VStack(spacing: Theme.Spacing.sm) {
-                    ForEach(BuiltInPlayer.allCases) { player in
+                    ForEach(BuiltInPlayer.availableCases) { player in
                         choiceRow(
                             title: player.title,
                             detail: player.detail,
                             systemImage: player.systemImage,
-                            isSelected: settings.builtInPlayer == player && !externalActive
+                            isSelected: (BuiltInPlayer.availableCases.count == 1 || settings.builtInPlayer == player) && !externalActive
                         ) {
+                            #if !targetEnvironment(macCatalyst)
                             settings.builtInPlayer = player
                             #if os(iOS)
                             settings.useExternalPlayer = false
                             #endif
+                            #endif
                         }
+                        .disabled(!BuiltInPlayer.allowsPreferenceSelection)
                     }
                 }
 
-                #if os(iOS)
+                #if os(iOS) && !targetEnvironment(macCatalyst)
                 Divider().padding(.vertical, Theme.Spacing.sm)
 
                 // External players.
@@ -118,9 +121,17 @@ struct PlayerSettingsView: View {
         return trimmed
     }
 
+    private var builtInPlayerExplanation: String {
+        #if targetEnvironment(macCatalyst)
+        return "This Mac build uses Apple playback for MP4, MOV, and HLS. Embedded VLC is unavailable on Mac Catalyst; MKV and other unsupported formats need an external player."
+        #else
+        return "How video plays inside Nova. Automatic picks the best engine for each file."
+        #endif
+    }
+
     private var externalActive: Bool {
         #if os(iOS)
-        return settings.useExternalPlayer
+        return PlaybackEngineRouter.shouldHandOffToExternalPlayer(preferred: settings.useExternalPlayer)
         #else
         return false
         #endif

@@ -198,10 +198,10 @@
 		77E817CDE53CAF6CB15CEFEB /* CodableFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86F479B94958CAD981263A79 /* CodableFileStore.swift */; };
 		7A07FDDDE21E891E5A8D931B /* KeyboardDismiss.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC4024AFCF34AA9000C433D8 /* KeyboardDismiss.swift */; };
 		7A6FEC91C860C5975A48F114 /* ArtworkCachePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1820C4156ED3903D1DAEBC8F /* ArtworkCachePolicy.swift */; };
-		7A9FA299F782848AF8A6F005 /* VLCKitSPM in Frameworks */ = {isa = PBXBuildFile; productRef = 11C97F22D1BF9C1030943397 /* VLCKitSPM */; };
+		7A9FA299F782848AF8A6F005 /* VLCKitSPM in Frameworks */ = {isa = PBXBuildFile; platformFilter = ios; productRef = 11C97F22D1BF9C1030943397 /* VLCKitSPM */; };
 		7B1F6E82725B47D8AEEEFBE6 /* LibraryFolderStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57A309E70BDB4310B7F8E81F /* LibraryFolderStore.swift */; };
 		7B36E4AE2FF4425300D796FA /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7B36E4942FF440ED00D796FA /* SwiftUI.framework */; };
-		7B36E4BB2FF4425500D796FA /* NovaWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7B36E4AC2FF4425300D796FA /* NovaWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		7B36E4BB2FF4425500D796FA /* NovaWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7B36E4AC2FF4425300D796FA /* NovaWidgetsExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7B36E4C02FF4439D00D796FA /* WidgetShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E6B8309B22416370BC7095A /* WidgetShared.swift */; };
 		7BDF1BE72FF90387009C7888 /* LibraryEnricher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDF1BE62FF90387009C7888 /* LibraryEnricher.swift */; };
 		7BDF1BE82FF90387009C7888 /* LibraryEnricher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDF1BE62FF90387009C7888 /* LibraryEnricher.swift */; };
@@ -307,7 +307,7 @@
 		B03A5742B6AD27EBC64C49DA /* AISearchSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F15861ED4C9FDFCA38AE4F6C /* AISearchSettingsView.swift */; };
 		B0840F67A1C2C8965252DC49 /* SowensKit in Frameworks */ = {isa = PBXBuildFile; productRef = A239FDA30481432A369321DA /* SowensKit */; };
 		B0A2A52698898847ED7CA104 /* BackupContentsPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEE869D9AF813DD87B3D0012 /* BackupContentsPicker.swift */; };
-		B14000000000000000000006 /* Nova Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B14000000000000000000001 /* Nova Watch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B14000000000000000000006 /* Nova Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B14000000000000000000001 /* Nova Watch.app */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B140000000000000000000C9 /* NovaWatchProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14000000000000000000064 /* NovaWatchProtocol.swift */; };
 		B140000000000000000000CA /* NovaWatchProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14000000000000000000064 /* NovaWatchProtocol.swift */; };
 		B140000000000000000000CB /* NovaWatchConnectivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14000000000000000000065 /* NovaWatchConnectivity.swift */; };
@@ -2051,6 +2051,7 @@
 /* Begin PBXTargetDependency section */
 		7B36E4BA2FF4425500D796FA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
+			platformFilter = ios;
 			target = 7B36E4AB2FF4425300D796FA /* NovaWidgetsExtension */;
 			targetProxy = 7B36E4B92FF4425500D796FA /* PBXContainerItemProxy */;
 		};
@@ -2061,6 +2062,7 @@
 		};
 		B14000000000000000000009 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
+			platformFilter = ios;
 			target = B1400000000000000000000A /* Nova-watchOS */;
 			targetProxy = B14000000000000000000008 /* PBXContainerItemProxy */;
 		};
@@ -2277,6 +2279,9 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-iOS.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				"IPHONEOS_DEPLOYMENT_TARGET[sdk=macosx*]" = 18.0;
+				SUPPORTS_MACCATALYST = YES;
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.nova.app.mac;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				MARKETING_VERSION = 1.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.nova.app.ios;
@@ -2305,6 +2310,9 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Nova/Resources/Info-iOS.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				"IPHONEOS_DEPLOYMENT_TARGET[sdk=macosx*]" = 18.0;
+				SUPPORTS_MACCATALYST = YES;
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.nova.app.mac;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				MARKETING_VERSION = 1.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.nova.app.ios;
