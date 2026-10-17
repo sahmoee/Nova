@@ -5,7 +5,7 @@
 import Foundation
 import os
 
-#if !os(tvOS) && canImport(FoundationModels)
+#if !os(tvOS) && !targetEnvironment(macCatalyst) && canImport(FoundationModels)
 import FoundationModels
 #endif
 
@@ -59,7 +59,7 @@ enum NovaOnDeviceAI {
 
     /// False on Apple TV, always. Safe to call from shared code on any platform.
     static var isAvailable: Bool {
-        #if !os(tvOS) && canImport(FoundationModels)
+        #if !os(tvOS) && !targetEnvironment(macCatalyst) && canImport(FoundationModels)
         if case .available = SystemLanguageModel.default.availability { return true }
         return false
         #else
@@ -68,7 +68,9 @@ enum NovaOnDeviceAI {
     }
 
     static var unavailableReason: String? {
-        #if os(tvOS)
+        #if targetEnvironment(macCatalyst)
+        return "This Mac build uses the existing local parsers and optional server AI; Apple Intelligence is unavailable."
+        #elseif os(tvOS)
         return "Apple Intelligence isn't available on Apple TV."
         #elseif canImport(FoundationModels)
         switch SystemLanguageModel.default.availability {
@@ -94,7 +96,7 @@ enum NovaOnDeviceAI {
         let clean = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
         guard clean.count >= 3, isAvailable else { return nil }
 
-        #if !os(tvOS) && canImport(FoundationModels)
+        #if !os(tvOS) && !targetEnvironment(macCatalyst) && canImport(FoundationModels)
         do {
             return try await FoundationModelsNova.parseFilter(clean)
         } catch {
@@ -117,7 +119,7 @@ enum NovaOnDeviceAI {
     static func cleanTitles(_ filenames: [String], batchSize: Int = 20) async -> [String: String] {
         guard isAvailable, !filenames.isEmpty else { return [:] }
 
-        #if !os(tvOS) && canImport(FoundationModels)
+        #if !os(tvOS) && !targetEnvironment(macCatalyst) && canImport(FoundationModels)
         var out: [String: String] = [:]
         for batch in stride(from: 0, to: filenames.count, by: batchSize).map({
             Array(filenames[$0 ..< min($0 + batchSize, filenames.count)])
@@ -151,7 +153,7 @@ enum NovaOnDeviceAI {
             throw NovaOnDeviceError.unavailable(unavailableReason ?? "Apple Intelligence is unavailable.")
         }
 
-        #if !os(tvOS) && canImport(FoundationModels)
+        #if !os(tvOS) && !targetEnvironment(macCatalyst) && canImport(FoundationModels)
         return try await FoundationModelsNova.troubleshoot(errorText: clean, context: context)
         #else
         throw NovaOnDeviceError.unavailable("Apple Intelligence isn't available in this build.")
@@ -170,7 +172,7 @@ enum NovaOnDeviceAI {
         let clean = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
         guard clean.count >= 2, !titles.isEmpty, isAvailable else { return [] }
 
-        #if !os(tvOS) && canImport(FoundationModels)
+        #if !os(tvOS) && !targetEnvironment(macCatalyst) && canImport(FoundationModels)
         do {
             // Cap the candidate list so a 2,000-title library still fits the
             // context window. Alphabetical order is arbitrary but stable, which
@@ -192,7 +194,7 @@ enum NovaOnDeviceAI {
 
 // MARK: - Foundation Models
 
-#if !os(tvOS) && canImport(FoundationModels)
+#if !os(tvOS) && !targetEnvironment(macCatalyst) && canImport(FoundationModels)
 
 private enum FoundationModelsNova {
 

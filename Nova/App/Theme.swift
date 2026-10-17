@@ -33,7 +33,7 @@ enum Theme {
     // device trait. These design tokens are first read during SwiftUI rendering on
     // the main actor, so assume main isolation to read it for this constant.
     static let isPad: Bool = MainActor.assumeIsolated {
-        UIDevice.current.userInterfaceIdiom == .pad
+        PlatformCapabilities.platform == .iPad
     }
     /// iPad is treated as "regular" width (false) so the many `isCompact ? a : b`
     /// branches across the app give iPad the wider treatment automatically.

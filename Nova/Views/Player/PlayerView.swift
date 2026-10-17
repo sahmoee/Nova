@@ -65,7 +65,7 @@ struct PlayerView: View {
     var body: some View {
         Group {
             #if os(iOS)
-            if settings.useExternalPlayer {
+            if PlaybackEngineRouter.shouldHandOffToExternalPlayer(preferred: settings.useExternalPlayer) {
                 // Hand the stream to the chosen external app, then dismiss.
                 externalHandoffBody
             } else {
@@ -197,10 +197,19 @@ struct PlayerView: View {
                         PlayerMemory.forget(for: item)
                     }
 
+                #if targetEnvironment(macCatalyst)
+                Text(PlaybackEngineRouter.macPlaybackFailureGuidance)
+                    .font(.appFont(15))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 640)
+                #endif
+
                 VStack(spacing: Theme.Spacing.sm) {
                     // Try the other engine — surfaced first when a codec/engine issue.
                     // Setting the override re-routes the view to the other player, which
                     // builds a fresh model; no need to restart the failed one.
+                    #if !targetEnvironment(macCatalyst)
                     FocusableButton(title: "Try \(useVLCEngine ? "Apple Player" : "VLC Player")",
                                     systemImage: "arrow.triangle.2.circlepath",
                                     prominent: reason.suggestsOtherEngine) {
@@ -208,13 +217,15 @@ struct PlayerView: View {
                     }
                     .frame(maxWidth: 460)
 
+                    #endif
+
                     // Retry the same stream/engine.
                     FocusableButton(title: "Retry", systemImage: "gobackward") {
                         model.retry()
                     }
                     .frame(maxWidth: 460)
 
-                    #if os(iOS)
+                    #if os(iOS) && !targetEnvironment(macCatalyst)
                     FocusableButton(title: "Open in \(settings.preferredExternalPlayer.title)",
                                     systemImage: "arrow.up.forward.app") {
                         _ = settings.preferredExternalPlayer.open(item.playbackURL)
@@ -247,6 +258,11 @@ struct PlayerView: View {
         // WebM, or unknown), use the VLC-backed player which handles all formats.
         // The user's preferred built-in player can force one engine, and a recovery
         // override (from "Try other player") forces a specific engine for retry.
+        #if targetEnvironment(macCatalyst)
+        // Let AVFoundation inspect the actual media. Provider URL suffixes may
+        // describe the original file even when the server transcodes its response.
+        avPlayerBody
+        #else
         if useVLCEngine {
             VLCPlayerView(item: item, series: series, onStreamExpired: onStreamExpired, autoResume: autoResume,
                           onTryOtherEngine: { automatic in
@@ -261,11 +277,15 @@ struct PlayerView: View {
         } else {
             avPlayerBody
         }
+        #endif
     }
 
     /// Whether to use the VLC engine, honoring any recovery override first, then the
     /// normal routing. AVPlayer is never forced for a format it can't open.
     private var useVLCEngine: Bool {
+        #if targetEnvironment(macCatalyst)
+        return false
+        #else
         if let override = engineOverride {
             switch override {
             case .vlc:      return true
@@ -273,6 +293,7 @@ struct PlayerView: View {
             }
         }
         return PlaybackEngineRouter.shouldUseVLC(for: item, preference: settings.builtInPlayer)
+        #endif
     }
 
     #if os(iOS)
@@ -390,12 +411,14 @@ struct PlayerView: View {
             case .failed(let message):
                 playbackRecovery(message: message)
                     .task(id: message) {
+                        #if !targetEnvironment(macCatalyst)
                         guard item.sourceType == .smb,
                               engineOverride == nil,
                               !didAutoFallbackSMB else { return }
                         didAutoFallbackSMB = true
                         await Task.yield()
                         engineOverride = .vlc
+                        #endif
                     }
             }
         }
