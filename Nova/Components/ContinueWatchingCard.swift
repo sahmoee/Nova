@@ -39,7 +39,7 @@ struct ContinueWatchingCard: View {
         #if os(tvOS)
         return Theme.scaled(430, min: 300)
         #else
-        return UIDevice.current.userInterfaceIdiom == .pad ? 320 : 224
+        return PlatformCapabilities.platform == .iPad ? 320 : 224
         #endif
     }
 

@@ -112,6 +112,9 @@ struct RootView: View {
     private var rootContent: some View {
         #if os(tvOS)
         televisionTabRoot
+        #elseif targetEnvironment(macCatalyst)
+        // NavigationSplitView owns native column collapse when a Mac window narrows.
+        iPadSidebarRoot
         #else
         if horizontalSizeClass == .regular {
             iPadSidebarRoot

@@ -166,8 +166,10 @@ struct NovaHandheldControl: View {
                 if providesSurface {
                     if reduceTransparency || contrast == .increased || role == .row || role == .list || role == .prominent {
                         shape.fill(fill)
-                    } else {
+                    } else if #available(iOS 26.0, macCatalyst 26.0, *) {
                         shape.fill(fill.opacity(0.45)).glassEffect(.regular.interactive(), in: shape)
+                    } else {
+                        shape.fill(fill)
                     }
                 }
             }

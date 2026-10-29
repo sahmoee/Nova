@@ -366,7 +366,11 @@ struct ContentDetailView: View {
                              active: novaRating != nil)
                 }
             }
+            #if targetEnvironment(macCatalyst)
+            .buttonStyle(.bordered)
+            #else
             .buttonStyle(.glass)
+            #endif
             .buttonBorderShape(.roundedRectangle(radius: 14))
         }
         .padding(.horizontal, Theme.Spacing.edge)

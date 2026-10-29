@@ -1,3 +1,4 @@
+#if !targetEnvironment(macCatalyst)
 //
 //  NovaLiveActivity.swift
 //  Nova
@@ -204,3 +205,5 @@ struct NovaDynamicIslandCompact: View {
             .foregroundStyle(.secondary)
     }
 }
+
+#endif

@@ -131,9 +131,11 @@ struct SourceCard: View {
             let shape = RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
             if brightFocus || reduceTransparency || contrast == .increased {
                 shape.fill(brightFocus ? Color.white : Color(white: 0.16))
-            } else {
+            } else if #available(iOS 26.0, macCatalyst 26.0, *) {
                 shape.fill(Color(white: active ? 0.2 : 0.14).opacity(0.75))
                     .glassEffect(.regular.interactive(), in: shape)
+            } else {
+                shape.fill(Color(white: active ? 0.2 : 0.14))
             }
         }
         .overlay(

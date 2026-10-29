@@ -6,10 +6,14 @@ DerivedData/
 xcuserdata/
 *.xcscmblueprint
 .swiftpm/
+# Shared Nova dependency sources are versioned; package caches remain ignored.
 Packages/*
 !Packages/SowensKit/
-Packages/SowensKit/.build/
-Packages/SowensKit/.swiftpm/
+Packages/SowensKit/*
+!Packages/SowensKit/Package.swift
+!Packages/SowensKit/Package.resolved
+!Packages/SowensKit/Sources/
+!Packages/SowensKit/Tests/
 node_modules/
 .wrangler/
 .dev.vars
