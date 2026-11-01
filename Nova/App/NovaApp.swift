@@ -115,9 +115,6 @@ struct NovaApp: App {
                 .novaThemeBoundary()
         }
         .onChange(of: scenePhase) { _, phase in
-            #if os(iOS)
-            NovaPhoneWatchBridge.shared.sceneChanged()
-            #endif
             if phase == .active {
                 environment.episodeNotifier.requestAuthorization()
                 Task { await environment.episodeNotifier.checkForNewStreamableEpisodes() }

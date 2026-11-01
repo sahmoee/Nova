@@ -616,9 +616,6 @@ final class LibraryStore: ObservableObject {
     }
 
     func clearAll() {
-        #if os(iOS)
-        NovaPhoneWatchBridge.shared.invalidateEpoch(allowRecovery: true)
-        #endif
         items.removeAll()
         persist()
     }
@@ -667,9 +664,6 @@ final class LibraryStore: ObservableObject {
         CloudSync.shared.resumeSync(.history, pulling: true)
         // This is an explicit replacement request, including queue and collections.
         guard mergeFromCloudIfNewer(force: true) else { return }
-        #if os(iOS)
-        NovaPhoneWatchBridge.shared.invalidateEpoch()
-        #endif
         if let data = CloudSync.shared.data(forKey: queueDefaultsKey),
            let decoded = try? decoder.decode([UUID].self, from: data) {
             queueIDs = LibraryMutationPolicy.unique(decoded)
@@ -698,9 +692,6 @@ final class LibraryStore: ObservableObject {
 
     /// Resets only watch progress across the whole library.
     func clearWatchHistory() {
-        #if os(iOS)
-        NovaPhoneWatchBridge.shared.invalidateEpoch(allowRecovery: true)
-        #endif
         for idx in items.indices {
             items[idx].lastPlayedPosition = 0
             items[idx].lastPlayedDate = nil

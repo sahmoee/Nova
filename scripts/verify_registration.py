@@ -11,8 +11,6 @@ IOS_ONLY = {
     "Nova/App/PositionSync.swift", "Nova/App/LiveActivity.swift",
     "Nova/App/QuickActions.swift", "Nova/App/CarPlayDelegate.swift",
     "Nova/Views/Player/NovaChapterBar.swift", "Nova/Services/NovaEpisodeCalendar.swift",
-    "Nova/Services/Watch/NovaWatchRemotePlayer.swift",
-    "Nova/Services/Watch/NovaPhoneWatchBridge.swift",
 }
 # Retained source copies are not alternative active implementations. The app uses
 # UnifiedQAReporter and TrackingProvider's EpisodeAvailabilityNotifier.

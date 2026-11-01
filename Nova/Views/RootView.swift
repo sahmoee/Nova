@@ -58,19 +58,6 @@ struct RootView: View {
             )) {
                 PersonalMediaDisclosureView { hasSeenDisclosure = true }
             }
-            #if os(iOS)
-            .onAppear {
-                NovaPhoneWatchBridge.shared.openItem = { id in
-                    guard hasSeenDisclosure, !offerRestore, !showWhatsNew, reopenItem == nil,
-                          !PlaybackCoordinator.shared.hasActivePlayer,
-                          let item = env.library.items.first(where: { $0.id == id }) else { return false }
-                    nav.popToRoot(.library)
-                    nav.selection = .library
-                    nav.pendingContentKey = item.contentKey
-                    return true
-                }
-            }
-            #endif
             .onAppear(perform: maybeOfferRestore)
             .onAppear(perform: autoSyncFromCloud)
             .onAppear(perform: maybeShowWhatsNew)
