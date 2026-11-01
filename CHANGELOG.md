@@ -8,6 +8,21 @@ Newest at the top. Keep it plain ASCII (see .gitmessage.txt for the commit rules
 
 ## [Unreleased]
 
+### November 1: Omni-style interface
+- Replaced the presentation layer with an Omni-inspired design (spec and status: docs/OMNI_STYLE_REDESIGN.md; restore tag restore/nova-pre-omni-2026-11-01).
+- Navigation: tvOS persistent sidebar (icon rail that expands on focus; Back from a section root focuses it), iPad/Mac split-view sidebar, iPhone system tab bar. New Movies and Series catalog-group roots. The floating Back menu, NovaHomeBar and MenuOverlay are removed.
+- Home: logo-first featured hero fed by the Top Row catalogs, collapsing to preview the focused title on tvOS; Continue Watching; poster or landscape catalog rows.
+- Title page: full-bleed backdrop, TMDB title logo, metadata and a single action row.
+- Stream Rules: text/regex rules that tag, prefer, avoid or hide streams and choose auto-play picks; unit tests in Tests/StreamRuleTests.swift.
+- Catalog Management (rename, hide, Top Row pin, layout, item cap, reorder) and Appearance settings (card size, titles, compact Continue Watching, hero options, sidebar style, high-contrast focus).
+- Visual tokens: black canvas, neutral surfaces, tighter corners and a single soft violet accent.
+- Validation: tvOS and iOS simulator builds passed; tvOS simulator screenshots confirmed the sidebar and hero. Remote/focus walkthrough on hardware, iCloud sync of the new settings, and Mac Catalyst build remain pending.
+- Merged codex/portfolio-refinement (with codex/resume-native-2026-10-10) and the detached MainConsolidation snapshot/bundle-guard commits into main.
+- Removed the watchOS app, its target, scheme, bridge code and checks.
+- Replaced Mac Catalyst with a native macOS target (Nova-macOS, scheme Nova-Mac, com.nova.app.mac, macOS 15+) with AVPlayerView and VLC playback; see docs/MAC_BUILD.md.
+- Added Omni iOS specifics: stremio:// addon links with install confirmation, blurred hero backdrop, glass catalog group cards, glass secondary buttons, expandable synopsis, and Stream Rules row details.
+- Validation: iOS, tvOS and macOS builds pass; 86 unit tests pass. SharedPresentationTests.testProductionSurface fails against its Oct 13 references on the current simulator runtime and needs re-recording or review.
+
 ### September 8: tvOS reference interface
 - Validation: tvOS simulator 93, signed tvOS 94, and signed iOS/iPadOS 95 builds passed; 13 new native regression fixtures and source checks passed. Visual/remote and live iCloud checks remain pending; see [validation notes](docs/validation/TVOS_REFERENCE_2026_09_08.md).
 - Replaced persistent television tab navigation with a floating Back menu for Remote, Home, Search, Library, and Settings. Visited sections retain their state; pushed destinations keep native Back navigation.
