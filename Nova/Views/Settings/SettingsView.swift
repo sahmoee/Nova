@@ -332,7 +332,7 @@ struct SettingsView: View {
         ]))
         #endif
 
-        #if !targetEnvironment(macCatalyst)
+        #if !os(macOS)
         groups.append(CategoryGroup(header: "Testing", items: [
             Category(id: "qa", icon: "checkmark.seal.fill", color: Theme.Colors.iconGraphite,
                      title: "Quality Assurance", detail: "Off by default") {
@@ -364,7 +364,7 @@ struct SettingsView: View {
     // MARK: - Row detail values
 
     private var playerDetail: String {
-        #if targetEnvironment(macCatalyst)
+        #if os(macOS)
         return BuiltInPlayer.appleNative.title
         #else
         #if os(iOS)

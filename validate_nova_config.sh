@@ -24,7 +24,7 @@ ok()   { printf "  ✓ %s\n" "$1"; }
 if [[ ! -f "$PBX" ]]; then echo "validate_nova_config: pbxproj missing"; exit 2; fi
 
 echo "== Bundle identifiers =="
-EXPECTED_IDS=$(printf '%s\n' com.nova.app.ios com.nova.app.ios.widgets com.nova.app.tvos com.nova.app.ios.tests | sort)
+EXPECTED_IDS=$(printf '%s\n' com.nova.app.ios com.nova.app.ios.widgets com.nova.app.tvos com.nova.app.ios.tests com.nova.app.mac | sort)
 FOUND_IDS=$(grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' "$PBX" \
   | sed 's/PRODUCT_BUNDLE_IDENTIFIER = //; s/;$//; s/^"//; s/"$//' | sort -u)
 if [[ "$FOUND_IDS" == "$EXPECTED_IDS" ]]; then ok "all five intended app, extension, and test IDs"; else

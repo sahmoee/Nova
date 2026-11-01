@@ -1421,5 +1421,24 @@ struct VLCVideoSurface: UIViewRepresentable {
         if player.drawable == nil { player.drawable = uiView }
     }
 }
+#elseif os(macOS)
+import AppKit
+
+/// Hosts the VLC media player's video output in an NSView on the native Mac app.
+struct VLCVideoSurface: NSViewRepresentable {
+    let player: VLCMediaPlayer
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        view.wantsLayer = true
+        view.layer?.backgroundColor = NSColor.black.cgColor
+        player.drawable = view
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        if player.drawable == nil { player.drawable = nsView }
+    }
+}
 #endif
 #endif

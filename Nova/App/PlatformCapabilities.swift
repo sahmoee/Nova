@@ -64,7 +64,7 @@ enum PlatformCapabilities {
     static var platform: NovaPlatform {
         #if os(tvOS)
         return .appleTV
-        #elseif targetEnvironment(macCatalyst)
+        #elseif os(macOS)
         // Reuse the wide, sidebar-based composition on resizable Mac windows.
         return .iPad
         #else
@@ -81,7 +81,7 @@ enum PlatformCapabilities {
     }
 
     static func supports(_ feature: PlatformFeature) -> Bool {
-        #if targetEnvironment(macCatalyst)
+        #if os(macOS)
         if [.haptics, .widgets, .qrScanner, .pullToRefresh, .externalPlayers].contains(feature) { return false }
         #endif
         switch feature {

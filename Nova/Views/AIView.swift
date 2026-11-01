@@ -113,7 +113,7 @@ struct AIView: View {
             .navigationDestination(for: CatalogItem.self) { item in
                 ContentDetailView(item: item)
             }
-            .fullScreenCover(item: $playerItem) { item in
+            .novaFullScreenCover(item: $playerItem) { item in
                 // Present the player as a full-screen cover so no tab bar, sidebar,
                 // or mini-bar remains visible during playback on any platform.
                 NavigationStack { PlayerView(item: item) }

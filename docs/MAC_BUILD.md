@@ -1,37 +1,38 @@
 # Nova for Mac
 
-Nova-Mac is a Mac Catalyst scheme sharing Nova's iPad/SwiftUI application, library,
-settings, navigation and network integrations. It keeps the existing iOS and tvOS
-products and their minimum OS requirements unchanged. The Mac build supports
-macOS 15 or later (Catalyst 18 deployment target); build on Xcode 26.3 or later.
+Nova for Mac is a native macOS app (target `Nova-macOS`, scheme `Nova-Mac`), not
+Mac Catalyst. It shares Nova's SwiftUI sources with iOS and tvOS and uses the
+regular-width (iPad-style) sidebar composition. It supports macOS 15 or later and
+builds on Xcode 26.3 or later. Mac Catalyst is no longer enabled on the iOS target.
 
 ```
 xcodebuild -project Nova.xcodeproj -scheme Nova-Mac \
-  -destination 'platform=macOS,variant=Mac Catalyst,arch=x86_64' \
+  -destination 'platform=macOS,arch=x86_64' \
   -derivedDataPath /path/to/internal/build-directory CODE_SIGNING_ALLOWED=NO build
 ```
 
-Use the shared scheme so the existing automatic QA build reservation and stamp
-run. Marketing version stays manual. The Mac bundle identifier is
-`com.nova.app.mac`; iOS remains `com.nova.app.ios`.
+Use the shared scheme so the automatic QA build reservation and stamp run.
+Marketing version stays manual. The Mac bundle identifier is `com.nova.app.mac`;
+iOS remains `com.nova.app.ios`. Entitlements: `Nova/Resources/Nova-macOS.entitlements`
+(App Sandbox, network client/server, user-selected and Downloads files, calendars,
+the shared iCloud container and app group). Info: `Nova/Resources/Info-macOS.plist`.
 
 ## Platform boundaries
 
-- This build uses AVPlayer for Apple-compatible MP4, MOV and HLS sources. The
-  pinned VLCKit 3.6.0 XCFramework contains native macOS, iOS and tvOS slices but
-  **no Mac Catalyst slice**. VLC engine choices/recovery are not offered on Mac;
-  failed playback shows an explicit format explanation. AVPlayer probes actual
-  content even for extensionless or server-transcoded URLs. Existing iOS/tvOS VLC
-  playback is unchanged. A separately installed player may play those formats;
-  this build does not install an external player.
-- Apple Intelligence is unavailable in this Mac build. Existing deterministic
-  parsers and optional server AI remain the fallbacks. Live Activities are an
-  iOS-only implementation. Mac does not expose in-app QA.
-- Mac reuses the wide sidebar composition; haptics, embedded widgets, QR scanning
-  and pull-to-refresh are not advertised as Mac capabilities.
-- Local ad-hoc signing does not provision Apple push or iCloud capabilities.
-  Cloud signing/distribution needs a separately provisioned developer build.
-  No credentials or local NovaConfig.json belong in the application artifact.
+- Playback offers both engines. AVPlayer runs in AppKit's `AVPlayerView` with
+  native controls and Picture in Picture; VLCKit's macOS slice handles MKV, AVI and
+  other formats through an `NSView` surface. Engine choice works as on iOS.
+- Full-screen covers open as large resizable sheets (`novaFullScreenCover`).
+- iOS-only modifiers used by shared screens have Mac stand-ins in
+  `Nova/App/MacCompatibility.swift`; shared aliases live in `PlatformSupport.swift`.
+- Sports providers open in the default browser. Episode air dates can be added to
+  Calendar.
+- Not on Mac: Apple Intelligence (on-device AI), Live Activities, CarPlay, Home
+  screen quick actions, external player hand-off, in-app QA, haptics and
+  pull-to-refresh.
+- Local ad-hoc signing does not provision push or iCloud. Distribution needs a
+  provisioned developer build. No credentials or local NovaConfig.json belong in
+  the application artifact.
 
 ## Shared dependency provenance
 

@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import Combine
 import Darwin
 
@@ -104,6 +106,7 @@ struct NovaQAHitch: Codable, Identifiable, Sendable {
     var milliseconds: Double
 }
 
+#if canImport(UIKit)
 @MainActor
 final class NovaQARuntime: ObservableObject {
     static let shared = NovaQARuntime()
@@ -1170,3 +1173,12 @@ struct UnifiedQADeepView: View {
         """
     }
 }
+#else
+/// Mac builds don't expose in-app QA; flow events from shared screens are dropped.
+@MainActor
+final class NovaQARuntime {
+    static let shared = NovaQARuntime()
+    private init() {}
+    func record(_ kind: String, _ detail: String) {}
+}
+#endif

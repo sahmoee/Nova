@@ -16,7 +16,7 @@ struct PlaybackSettingsContent: View {
     @EnvironmentObject private var settings: SettingsStore
 
     private var playerDetail: String {
-        #if targetEnvironment(macCatalyst)
+        #if os(macOS)
         return BuiltInPlayer.appleNative.title
         #else
         #if os(iOS)

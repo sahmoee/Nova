@@ -96,7 +96,7 @@ struct StreamPickerView: View {
                 content
             }
         }
-        .fullScreenCover(item: $playable) { item in
+        .novaFullScreenCover(item: $playable) { item in
             // Present the player as a full-screen cover so no tab bar, sidebar,
             // or mini-bar remains visible during playback on any platform.
             NavigationStack {

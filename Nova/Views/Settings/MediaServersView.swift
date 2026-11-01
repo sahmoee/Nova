@@ -725,8 +725,8 @@ private struct MediaServerEditor: View {
         }.presentationBackground(Theme.Colors.appBackground)
     }
 
-    private func field(_ prompt: String, text: Binding<String>, content: UITextContentType?) -> some View {
-        TextField(prompt, text: text).textContentType(content).textInputAutocapitalization(.never)
+    private func field(_ prompt: String, text: Binding<String>, content: PlatformTextContentType?) -> some View {
+        TextField(prompt, text: text).textContentType(content).novaNoAutocapitalization()
             .autocorrectionDisabled().padding(14).background(.thinMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.button))
     }
     private func secureField(_ prompt: String, text: Binding<String>) -> some View {

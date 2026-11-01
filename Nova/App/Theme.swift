@@ -41,6 +41,12 @@ enum Theme {
     /// iPhone stays at a tight 0.52; iPad uses a larger 0.72 so posters, type, and
     /// spacing scale up for the bigger canvas without reaching full tvOS size.
     static let uiScale: CGFloat = isPad ? 0.72 : 0.52
+    #elseif os(macOS)
+    /// The native Mac app uses the iPad's regular-width composition and scale:
+    /// sidebar navigation, roomier cards and type sized for a desktop window.
+    static let isPad = true
+    static let isCompact = false
+    static let uiScale: CGFloat = 0.72
     #else
     static let isCompact = true
     static let uiScale: CGFloat = 0.52

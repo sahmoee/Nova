@@ -80,7 +80,7 @@ DISTINCT=$(grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' "$PBX" \
 
 # The intentional per-target identifiers. Having these is correct,
 # not a conflict — the old logic wrongly flagged them.
-ALLOWED_IDS="com.nova.app.ios com.nova.app.ios.widgets com.nova.app.tvos com.nova.app.ios.tests"
+ALLOWED_IDS="com.nova.app.ios com.nova.app.ios.widgets com.nova.app.tvos com.nova.app.ios.tests com.nova.app.mac"
 UNEXPECTED=""
 while read -r id; do
   [ -z "$id" ] && continue

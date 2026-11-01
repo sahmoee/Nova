@@ -1,6 +1,8 @@
 // QAAppConfig.swift — Nova
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#endif
 
 enum QAAppSetup {
 

@@ -391,7 +391,7 @@ struct ContentDetailView: View {
                              active: novaRating != nil)
                 }
             }
-            #if targetEnvironment(macCatalyst)
+            #if os(macOS)
             .buttonStyle(.bordered)
             #else
             .buttonStyle(.glass)

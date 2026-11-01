@@ -42,7 +42,7 @@ struct RootView: View {
             .environment(\.dynamicAccent, accentManager.accent)
             .tint(accentManager.accent)
             .onOpenURL { nav.handle(url: $0) }
-            .fullScreenCover(item: $reopenItem) { item in
+            .novaFullScreenCover(item: $reopenItem) { item in
                 // NavigationStack so the player's internal next-episode navigation
                 // works, and the cover guarantees nothing else is visible behind it.
                 NavigationStack {
@@ -52,7 +52,7 @@ struct RootView: View {
                 .environmentObject(nav)
             }
             .toastHost()
-            .fullScreenCover(isPresented: Binding(
+            .novaFullScreenCover(isPresented: Binding(
                 get: { !hasSeenDisclosure },
                 set: { newValue in if !newValue { hasSeenDisclosure = true } }
             )) {
@@ -99,7 +99,7 @@ struct RootView: View {
     private var rootContent: some View {
         #if os(tvOS)
         televisionTabRoot
-        #elseif targetEnvironment(macCatalyst)
+        #elseif os(macOS)
         // NavigationSplitView owns native column collapse when a Mac window narrows.
         iPadSidebarRoot
         #else
@@ -182,8 +182,8 @@ struct RootView: View {
     }
     #endif
 
-    #if os(iOS)
-    /// iPad uses the Apple TV / Music-style persistent sidebar with the active
+    #if os(iOS) || os(macOS)
+    /// iPad and Mac use the Apple TV / Music-style persistent sidebar with the active
     /// section filling the detail column. The mini-player remains pinned above the
     /// bottom safe area and never replaces the sidebar.
     private var iPadSidebarRoot: some View {

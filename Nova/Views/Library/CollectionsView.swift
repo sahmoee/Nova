@@ -60,7 +60,7 @@ struct CollectionsView: View {
             }
         }
         .navigationTitle("Collections")
-        .fullScreenCover(item: $selectedItem) { item in
+        .novaFullScreenCover(item: $selectedItem) { item in
             // Present the player as a full-screen cover so no tab bar, sidebar,
             // or mini-bar remains visible during playback on any platform.
             NavigationStack { PlayerView(item: item) }

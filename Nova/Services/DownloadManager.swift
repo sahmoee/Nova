@@ -1,6 +1,8 @@
 import Foundation
 import Combine
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// One durable transfer record. Optional metrics keep the v1 persistence format
 /// backward-compatible while adding resume, rate, ETA, retry and update state.
@@ -58,7 +60,11 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
     private let deviceID: UUID = {
         let key = "offline.device.identity.v1"
         let bindingKey = "offline.device.binding.v1"
+        #if canImport(UIKit)
         let binding = UIDevice.current.identifierForVendor?.uuidString
+        #else
+        let binding: String? = nil   // Macs have no vendor identifier; the saved id is kept.
+        #endif
         if let saved = UserDefaults.standard.string(forKey: key), let id = UUID(uuidString: saved),
            binding == nil || UserDefaults.standard.string(forKey: bindingKey) == binding { return id }
         // Restoring defaults onto another device must not create two writers for
@@ -611,6 +617,8 @@ final class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDeleg
         let platform: String
         #if os(tvOS)
         platform = "Apple TV"
+        #elseif os(macOS)
+        platform = "Mac"
         #else
         platform = UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
         #endif

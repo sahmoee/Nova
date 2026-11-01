@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 //
 //  NovaEpisodeCalendar.swift
 //  Nova
@@ -43,7 +43,7 @@ final class NovaEpisodeCalendar: ObservableObject {
 
     func requestAccess() async -> Bool {
         let status: Bool
-        if #available(iOS 17, *) {
+        if #available(iOS 17, macOS 14, *) {
             status = (try? await store.requestFullAccessToEvents()) ?? false
         } else {
             status = await withCheckedContinuation { cont in

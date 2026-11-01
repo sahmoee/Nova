@@ -54,7 +54,7 @@ struct HomeView: View {
             #else
             .toolbar(.hidden, for: .navigationBar)
             #endif
-            .fullScreenCover(item: $selectedItem) { item in
+            .novaFullScreenCover(item: $selectedItem) { item in
                 NavigationStack { PlayerView(item: item) }
             }
             .navigationDestination(for: CatalogItem.self) { item in

@@ -35,7 +35,7 @@ struct StudioAgeGate: ViewModifier {
             gate.frame(minWidth: 460, minHeight: 420).interactiveDismissDisabled()
         }
         #else
-        content.fullScreenCover(isPresented: .constant(needsGate)) { gate }
+        content.novaFullScreenCover(isPresented: .constant(needsGate)) { gate }
         #endif
     }
 

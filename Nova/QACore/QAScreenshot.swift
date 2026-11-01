@@ -3,7 +3,9 @@
 // Shared QACore — screenshot capture and window access helpers.
 // ─────────────────────────────────────────────────────────────────────────────
 
+#if canImport(UIKit)
 import UIKit
+#endif
 import SwiftUI
 
 @MainActor

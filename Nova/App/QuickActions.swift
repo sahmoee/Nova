@@ -18,7 +18,10 @@
 //  NovaQuickActionsManager.shared.donateRecentWatch(item: mediaItem)
 //
 
+#if os(iOS)
+#if canImport(UIKit)
 import UIKit
+#endif
 import CoreSpotlight
 import MobileCoreServices
 
@@ -151,3 +154,4 @@ extension Notification.Name {
     static let novaQuickActionSearch  = Notification.Name("nova.quickAction.search")
     static let novaQuickActionLibrary = Notification.Name("nova.quickAction.library")
 }
+#endif

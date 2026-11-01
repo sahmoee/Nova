@@ -15,6 +15,32 @@ import CryptoKit
 #if canImport(UIKit)
 import UIKit
 typealias PlatformImage = UIImage
+#elseif canImport(AppKit)
+import AppKit
+typealias PlatformImage = NSImage
+
+// Matches the small UIImage surface the shared image pipeline uses, so caching,
+// downsampling and accent extraction stay one implementation on every platform.
+extension NSImage {
+    var cgImage: CGImage? { cgImage(forProposedRect: nil, context: nil, hints: nil) }
+    convenience init(cgImage: CGImage) {
+        self.init(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+    }
+
+    func pngData() -> Data? {
+        cgImage.map { NSBitmapImageRep(cgImage: $0).representation(using: .png, properties: [:]) } ?? nil
+    }
+
+    func jpegData(compressionQuality: CGFloat) -> Data? {
+        cgImage.map {
+            NSBitmapImageRep(cgImage: $0).representation(using: .jpeg, properties: [.compressionFactor: compressionQuality])
+        } ?? nil
+    }
+}
+
+extension Image {
+    init(uiImage: NSImage) { self.init(nsImage: uiImage) }
+}
 #endif
 
 /// NSCache is internally synchronized. Boxing it lets views read already-decoded

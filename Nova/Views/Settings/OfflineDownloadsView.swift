@@ -113,7 +113,7 @@ private struct OfflineDownloadsContent: View {
         } message: {
             Text("Unreadable records are kept for recovery. Existing media files, your library and watch progress stay on this device. Old downloads may no longer appear in this queue.")
         }
-        .fullScreenCover(item: $playbackItem) { item in
+        .novaFullScreenCover(item: $playbackItem) { item in
             NavigationStack { PlayerView(item: item) }
         }
         .onAppear { manager.reconcileFiles(); manager.refreshDeviceStatuses() }

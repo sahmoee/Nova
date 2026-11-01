@@ -9,7 +9,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 
 // MARK: - QAFloatingButtonWindow
 
@@ -154,7 +156,7 @@ struct QAFloatingMenuPresenter: View {
             }
             .padding(24)
         }
-        .fullScreenCover(isPresented: $showGate) {
+        .novaFullScreenCover(isPresented: $showGate) {
             QAUnlockGate()
         }
     }

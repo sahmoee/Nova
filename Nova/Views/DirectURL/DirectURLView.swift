@@ -72,7 +72,7 @@ struct DirectURLView: View {
                 .frame(maxWidth: Theme.contentMaxWidth(1100), alignment: .leading)
             }
         }
-        .fullScreenCover(item: $addedItem) { item in
+        .novaFullScreenCover(item: $addedItem) { item in
             // Present the player as a full-screen cover so no tab bar, sidebar,
             // or mini-bar remains visible during playback on any platform.
             NavigationStack { PlayerView(item: item) }

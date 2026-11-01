@@ -92,7 +92,7 @@ struct NovaApp: App {
                     Spacer()
                     HStack {
                         Spacer()
-                        #if !targetEnvironment(macCatalyst)
+                        #if !os(macOS)
                         if qaEnabled {
                             UnifiedQAReporter(app: "Nova", source: "nova-app", prefix: "NVA",
                                               diagnostics: { environment.qaDiagnostics() })

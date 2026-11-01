@@ -197,7 +197,7 @@ struct PlayerView: View {
                         PlayerMemory.forget(for: item)
                     }
 
-                #if targetEnvironment(macCatalyst)
+                #if os(macOS)
                 Text(PlaybackEngineRouter.macPlaybackFailureGuidance)
                     .font(.appFont(15))
                     .foregroundStyle(Theme.Colors.textSecondary)
@@ -209,7 +209,7 @@ struct PlayerView: View {
                     // Try the other engine — surfaced first when a codec/engine issue.
                     // Setting the override re-routes the view to the other player, which
                     // builds a fresh model; no need to restart the failed one.
-                    #if !targetEnvironment(macCatalyst)
+                    #if !os(macOS)
                     FocusableButton(title: "Try \(useVLCEngine ? "Apple Player" : "VLC Player")",
                                     systemImage: "arrow.triangle.2.circlepath",
                                     prominent: reason.suggestsOtherEngine) {
@@ -225,7 +225,7 @@ struct PlayerView: View {
                     }
                     .frame(maxWidth: 460)
 
-                    #if os(iOS) && !targetEnvironment(macCatalyst)
+                    #if os(iOS) && !os(macOS)
                     FocusableButton(title: "Open in \(settings.preferredExternalPlayer.title)",
                                     systemImage: "arrow.up.forward.app") {
                         _ = settings.preferredExternalPlayer.open(item.playbackURL)
@@ -258,7 +258,7 @@ struct PlayerView: View {
         // WebM, or unknown), use the VLC-backed player which handles all formats.
         // The user's preferred built-in player can force one engine, and a recovery
         // override (from "Try other player") forces a specific engine for retry.
-        #if targetEnvironment(macCatalyst)
+        #if os(macOS)
         // Let AVFoundation inspect the actual media. Provider URL suffixes may
         // describe the original file even when the server transcodes its response.
         avPlayerBody
@@ -283,7 +283,7 @@ struct PlayerView: View {
     /// Whether to use the VLC engine, honoring any recovery override first, then the
     /// normal routing. AVPlayer is never forced for a format it can't open.
     private var useVLCEngine: Bool {
-        #if targetEnvironment(macCatalyst)
+        #if os(macOS)
         return false
         #else
         if let override = engineOverride {
@@ -411,7 +411,7 @@ struct PlayerView: View {
             case .failed(let message):
                 playbackRecovery(message: message)
                     .task(id: message) {
-                        #if !targetEnvironment(macCatalyst)
+                        #if !os(macOS)
                         guard item.sourceType == .smb,
                               engineOverride == nil,
                               !didAutoFallbackSMB else { return }
@@ -642,6 +642,7 @@ struct PlayerView: View {
 /// A player surface using AVPlayerViewController with its full native UI: transport
 /// bar, scrubbing, subtitle and audio menus, Picture in Picture, AirPlay, and the
 /// fullscreen toggle. PlayerView itself owns the full-screen presentation on iOS.
+#if canImport(UIKit)
 struct AVPlayerContainer: UIViewControllerRepresentable {
     let player: AVPlayer
     var title: String = ""
@@ -751,4 +752,34 @@ struct AVPlayerContainer: UIViewControllerRepresentable {
 extension AVPlayerContainer.Coordinator: @preconcurrency AVPlayerViewControllerDelegate {}
 #else
 extension AVPlayerContainer.Coordinator: AVPlayerViewControllerDelegate {}
+#endif
+#else
+/// macOS player surface: AppKit's AVPlayerView with floating native controls,
+/// Picture in Picture and the full-screen button. Parameters match the UIKit
+/// container so PlayerView stays shared; tvOS-only contextual actions are ignored.
+struct AVPlayerContainer: NSViewRepresentable {
+    let player: AVPlayer
+    var title: String = ""
+    var subtitle: String = ""
+    var onExitFullscreen: (() -> Void)? = nil
+    var nextEpisodeTitle: String? = nil
+    var onPlayNext: (() -> Void)? = nil
+    var onShowSubtitles: (() -> Void)? = nil
+
+    func makeNSView(context: Context) -> AVPlayerView {
+        let view = AVPlayerView()
+        view.player = player
+        view.controlsStyle = .floating
+        view.allowsPictureInPicturePlayback = true
+        view.showsFullScreenToggleButton = true
+        view.showsSharingServiceButton = false
+        view.videoGravity = .resizeAspect
+        view.updatesNowPlayingInfoCenter = true
+        return view
+    }
+
+    func updateNSView(_ view: AVPlayerView, context: Context) {
+        if view.player !== player { view.player = player }
+    }
+}
 #endif

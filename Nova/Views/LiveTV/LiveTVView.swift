@@ -87,7 +87,7 @@ struct LiveTVView: View {
                     .background(.black.opacity(0.5))
             }
         }
-        .fullScreenCover(item: $playable) { item in
+        .novaFullScreenCover(item: $playable) { item in
             // Present the player as a full-screen cover so no tab bar, sidebar,
             // or mini-bar remains visible during playback on any platform.
             NavigationStack { PlayerView(item: item) }
@@ -346,6 +346,9 @@ struct SportsProvidersView: View {
 
     @State private var tvProvider: Provider?
     @State private var showsCustomWebsite = false
+    #if os(macOS)
+    @Environment(\.openURL) private var openURL
+    #endif
     #if os(tvOS)
     @State private var pendingCustomWebsite: URL?
     #endif
@@ -390,6 +393,10 @@ struct SportsProvidersView: View {
                         #if os(iOS)
                         NavigationLink(value: provider) { providerCard(provider) }
                             .buttonStyle(NovaArtworkButtonStyle())
+                        #elseif os(macOS)
+                        // The Mac opens providers in the default browser.
+                        Button { openURL(provider.url) } label: { providerCard(provider) }
+                            .buttonStyle(NovaArtworkButtonStyle())
                         #else
                         Button { tvProvider = provider } label: { providerCard(provider) }
                             .buttonStyle(NovaArtworkButtonStyle())
@@ -416,7 +423,7 @@ struct SportsProvidersView: View {
         .navigationDestination(for: Provider.self) { provider in
             SportsProviderBrowser(title: provider.name, url: provider.url)
         }
-        #else
+        #elseif os(tvOS)
         .sheet(item: $tvProvider) { provider in
             SportsTVHandoffView(title: provider.name, payload: provider.url.absoluteString)
         }
@@ -477,6 +484,8 @@ private struct CustomSportsWebsiteEntryView: View {
     @State private var errorMessage: String?
     #if os(iOS)
     @State private var openedURL: URL?
+    #elseif os(macOS)
+    @Environment(\.openURL) private var openURL
     #endif
 
     var body: some View {
@@ -549,6 +558,9 @@ private struct CustomSportsWebsiteEntryView: View {
         errorMessage = nil
         #if os(iOS)
         openedURL = url
+        #elseif os(macOS)
+        openURL(url)
+        dismiss()
         #else
         onTVHandoff(url)
         dismiss()
