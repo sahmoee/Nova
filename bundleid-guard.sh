@@ -64,32 +64,35 @@ echo "========================================================"
 # 1. Audit every bundle id occurrence.
 # ----------------------------------------------------------------------------
 echo
+# Include SDK-qualified settings (Catalyst identity is conditional on macosx).
+bundle_ids() {
+  python3 - "$PBX" <<'PYIDS'
+import re, sys
+text = open(sys.argv[1]).read()
+pattern = r'"?PRODUCT_BUNDLE_IDENTIFIER(?:\[[^]]+\])?"?\s*=\s*"?([^";\s]+)"?\s*;'
+for value in re.findall(pattern, text):
+    print(value)
+PYIDS
+}
+
 echo "PRODUCT_BUNDLE_IDENTIFIER values found in project.pbxproj:"
 echo "--------------------------------------------------------"
 # Print each id with a count. Trims trailing semicolons/quotes.
-grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' "$PBX" \
-  | sed 's/PRODUCT_BUNDLE_IDENTIFIER = //; s/;$//; s/^"//; s/"$//' \
-  | sort | uniq -c | sort -rn \
+bundle_ids | sort | uniq -c | sort -rn \
   | while read -r count id; do
       printf "  %3sx  %s\n" "$count" "$id"
     done
 
-DISTINCT=$(grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' "$PBX" \
-  | sed 's/PRODUCT_BUNDLE_IDENTIFIER = //; s/;$//; s/^"//; s/"$//' \
-  | sort -u | wc -l | tr -d ' ')
-
-# The intentional per-target identifiers. Having these is correct,
-# not a conflict — the old logic wrongly flagged them.
+# Each target has an intentional identity; SDK-qualified overrides are audited too.
 ALLOWED_IDS="com.nova.app.ios com.nova.app.ios.widgets com.nova.app.tvos com.nova.app.ios.tests com.nova.app.mac"
 UNEXPECTED=""
 while read -r id; do
   [ -z "$id" ] && continue
   case " $ALLOWED_IDS " in
-    *" $id "*) : ;;                 # expected per-target id
+    *" $id "*) : ;;
     *) UNEXPECTED="$UNEXPECTED $id" ;;
   esac
-done < <(grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' "$PBX" \
-  | sed 's/PRODUCT_BUNDLE_IDENTIFIER = //; s/;$//; s/^"//; s/"$//' | sort -u)
+done < <(bundle_ids | sort -u)
 
 echo
 if [ -n "$UNEXPECTED" ]; then

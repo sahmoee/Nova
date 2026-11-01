@@ -5,6 +5,8 @@ import SnapshotTesting
 /// No app session, account, clock or live network is created by this harness.
 @MainActor
 public func assertSurfaceSnapshots<V: View>(of view: V, named name: String,
+                                           pixelPrecision: Float = 1,
+                                           perceptualPrecision: Float = 1,
                                            file: StaticString = #filePath, testName: String = #function, line: UInt = #line) throws {
     for dark in [false, true] {
         for width in [390, 820] {
@@ -20,7 +22,7 @@ public func assertSurfaceSnapshots<V: View>(of view: V, named name: String,
             let platform = "iOS"
             let image = try XCTUnwrap(renderer.uiImage, file: file, line: line)
             #endif
-            assertSnapshot(of: image, as: .image, named: "\(platform)-\(name)-\(dark ? "dark" : "light")-\(width)",
+            assertSnapshot(of: image, as: .image(precision: pixelPrecision, perceptualPrecision: perceptualPrecision), named: "\(platform)-\(name)-\(dark ? "dark" : "light")-\(width)",
                            file: file, testName: testName, line: line)
         }
     }
