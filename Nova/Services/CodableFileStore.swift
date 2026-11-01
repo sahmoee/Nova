@@ -21,16 +21,21 @@ final class CodableFileStore<Value: Codable & Equatable> {
     private let cloudKey: String?
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    private let maximumBytes = 16 * 1_024 * 1_024
+    private let validate: (Value) -> Bool
+    private(set) var lastError: String?
+    private(set) var needsRecovery = false
     private var cancellable: AnyCancellable?
 
     /// Called when an external (cloud) change replaces the value, so the owner can
     /// update its published state.
     var onExternalChange: ((Value) -> Void)?
 
-    init(filename: String, cloudKey: String? = nil, prettyPrinted: Bool = true) {
-        let support = FileManager.default
+    init(filename: String, cloudKey: String? = nil, prettyPrinted: Bool = true,
+         directory: URL? = nil, validate: @escaping (Value) -> Bool = { _ in true }) {
+        let support = directory ?? FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
+        self.validate = validate
         self.fileURL = support.appendingPathComponent(filename)
         self.cloudKey = cloudKey
         if prettyPrinted { encoder.outputFormatting = [.prettyPrinted] }
@@ -40,8 +45,7 @@ final class CodableFileStore<Value: Codable & Equatable> {
                 .receive(on: RunLoop.main)
                 .sink { [weak self] keys in
                     guard let self, keys.contains(cloudKey) else { return }
-                    if let merged = self.loadFromCloud() {
-                        self.writeLocal(merged)
+                    if !self.needsRecovery, let merged = self.loadFromCloud(), self.writeLocal(merged) {
                         self.onExternalChange?(merged)
                     }
                 }
@@ -53,21 +57,32 @@ final class CodableFileStore<Value: Codable & Equatable> {
     /// Loads the value, preferring a newer iCloud copy if present.
     func load() -> Value? {
         let local = loadLocal()
-        if let cloud = loadFromCloud(), cloud != local {
-            writeLocal(cloud)
+        if !needsRecovery, let cloud = loadFromCloud(), cloud != local, writeLocal(cloud) {
             return cloud
         }
         return local
     }
 
     private func loadLocal() -> Value? {
-        guard let data = try? Data(contentsOf: fileURL) else { return nil }
-        return try? decoder.decode(Value.self, from: data)
+        guard FileManager.default.fileExists(atPath: fileURL.path)
+            || (try? fileURL.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true else { return nil }
+        do {
+            let data = try LibraryFilePolicy.read(fileURL, maximumBytes: maximumBytes)
+            let value = try decoder.decode(Value.self, from: data)
+            guard validate(value) else { throw LibraryFilePolicy.Failure.invalidFile }
+            needsRecovery = false; lastError = nil
+            return value
+        } catch {
+            needsRecovery = true
+            lastError = "Saved download records could not be read. Their original file has been preserved; restore a valid backup before downloading."
+            return nil
+        }
     }
 
     private func loadFromCloud() -> Value? {
-        guard let cloudKey, let data = CloudSync.shared.data(forKey: cloudKey) else { return nil }
-        return try? decoder.decode(Value.self, from: data)
+        guard let cloudKey, let data = CloudSync.shared.data(forKey: cloudKey), data.count <= maximumBytes,
+              let value = try? decoder.decode(Value.self, from: data), validate(value) else { return nil }
+        return value
     }
 
     // MARK: - Save
@@ -75,17 +90,46 @@ final class CodableFileStore<Value: Codable & Equatable> {
     /// Persists locally and mirrors to iCloud (if a cloud key was provided).
     @discardableResult
     func save(_ value: Value) -> Bool {
-        guard let data = try? encoder.encode(value) else { return false }
-        do { try data.write(to: fileURL, options: [.atomic]) }
-        catch { return false }
-        if let cloudKey {
+        guard writeLocal(value) else { return false }
+        if let cloudKey, let data = try? encoder.encode(value) {
             CloudSync.shared.setData(data, forKey: cloudKey)
         }
         return true
     }
 
-    private func writeLocal(_ value: Value) {
-        guard let data = try? encoder.encode(value) else { return }
-        try? data.write(to: fileURL, options: [.atomic])
+    /// Explicit recovery only: retain the unreadable original beside the fresh
+    /// journal. Existing media files are not moved or deleted.
+    func resetRetainingOriginal(_ value: Value) -> Bool {
+        let backup = fileURL.appendingPathExtension("recovery-\(UUID().uuidString)")
+        let hadOriginal = FileManager.default.fileExists(atPath: fileURL.path)
+            || (try? fileURL.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true
+        do {
+            if hadOriginal { try FileManager.default.moveItem(at: fileURL, to: backup) }
+            needsRecovery = false
+            guard save(value) else {
+                if hadOriginal { try FileManager.default.moveItem(at: backup, to: fileURL) }
+                needsRecovery = true
+                return false
+            }
+            return true
+        } catch {
+            needsRecovery = true
+            lastError = "Download recovery could not preserve the original records. No reset was completed."
+            return false
+        }
+    }
+
+    private func writeLocal(_ value: Value) -> Bool {
+        guard !needsRecovery else { return false }
+        do {
+            guard validate(value) else { throw LibraryFilePolicy.Failure.invalidFile }
+            let data = try encoder.encode(value)
+            try LibraryFilePolicy.write(data, to: fileURL, maximumBytes: maximumBytes)
+            lastError = nil
+            return true
+        } catch {
+            lastError = "Download changes could not be saved. Check available storage and retry before quitting."
+            return false
+        }
     }
 }

@@ -22,6 +22,7 @@ private struct OfflineDownloadsContent: View {
     @State private var sort: Sort = .newest
     @State private var pendingRemoval: OfflineDownload?
     @State private var showRemoveCompleted = false
+    @State private var showRecordRecovery = false
     @State private var playbackItem: MediaItem?
     @State private var expandedDevices: Set<UUID> = []
 
@@ -56,6 +57,15 @@ private struct OfflineDownloadsContent: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Theme.Spacing.md) {
                 header
+                if let error = manager.persistenceError {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Label(error, systemImage: "exclamationmark.triangle")
+                        Button("Retry saving downloads") { manager.retryPersistence() }
+                        if manager.requiresRecordRecovery {
+                            Button("Start a fresh download queue", role: .destructive) { showRecordRecovery = true }
+                        }
+                    }.padding(Theme.Spacing.md).softCard()
+                }
                 if !manager.isNetworkAvailable { offlineBanner }
                 summary
                 controls
@@ -84,8 +94,9 @@ private struct OfflineDownloadsContent: View {
         .confirmationDialog("Remove this download?", isPresented: Binding(
             get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }
         ), titleVisibility: .visible) {
+            let id = pendingRemoval?.id
             Button("Remove Download", role: .destructive) {
-                if let id = pendingRemoval?.id { manager.remove(id) }; pendingRemoval = nil
+                if let id { manager.remove(id) }; pendingRemoval = nil
             }
             Button("Cancel", role: .cancel) { pendingRemoval = nil }
         } message: { Text("“\(pendingRemoval?.title ?? "This download")” will be removed from this device. Your library and watch progress are kept.") }
@@ -95,6 +106,12 @@ private struct OfflineDownloadsContent: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Remove \(manager.completedCount) completed downloads from this device. Your library and watch progress are kept.")
+        }
+        .confirmationDialog("Start a fresh download queue?", isPresented: $showRecordRecovery, titleVisibility: .visible) {
+            Button("Preserve records and start fresh", role: .destructive) { manager.resetRecordStorageKeepingOriginal() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Unreadable records are kept for recovery. Existing media files, your library and watch progress stay on this device. Old downloads may no longer appear in this queue.")
         }
         .fullScreenCover(item: $playbackItem) { item in
             NavigationStack { PlayerView(item: item) }
@@ -117,6 +134,7 @@ private struct OfflineDownloadsContent: View {
                         Label("\(device.platform) · \(String(device.id.uuidString.prefix(4))) · \(device.totalCount) downloads",
                               systemImage: expandedDevices.contains(device.id) ? "chevron.down" : "chevron.right")
                     }
+                    .accessibilityValue(expandedDevices.contains(device.id) ? "Expanded" : "Collapsed")
                     if expandedDevices.contains(device.id) {
                     Text("Last reported \(device.updatedAt.formatted(date: .abbreviated, time: .shortened)). This device may now be offline.")
                         .font(.caption).foregroundStyle(Theme.Colors.textSecondary)
@@ -245,23 +263,23 @@ private struct OfflineDownloadsContent: View {
     @ViewBuilder private func actionButtons(_ download: OfflineDownload) -> some View {
         HStack(spacing: Theme.Spacing.sm) {
             if let item = manager.playbackItem(for: download) {
-                compactButton("Play", "play.fill") { playbackItem = item }
-            } else if download.state == .downloading || download.state == .queued { compactButton("Pause", "pause.fill") { manager.pause(download.id) } }
-            else if download.state == .paused { compactButton("Resume", "play.fill") { manager.resume(download.id) } }
-            else if download.state == .failed { compactButton("Retry", "arrow.clockwise") { manager.retry(download.id) } }
+                compactButton("Play", "play.fill", mediaTitle: download.title) { playbackItem = item }
+            } else if download.state == .downloading || download.state == .queued { compactButton("Pause", "pause.fill", mediaTitle: download.title) { manager.pause(download.id) } }
+            else if download.state == .paused { compactButton("Resume", "play.fill", mediaTitle: download.title) { manager.resume(download.id) } }
+            else if download.state == .failed { compactButton("Retry", "arrow.clockwise", mediaTitle: download.title) { manager.retry(download.id) } }
             Button(role: .destructive) { pendingRemoval = download } label: {
                 Image(systemName: "trash")
             }.buttonStyle(NovaIconButtonStyle()).accessibilityLabel("Remove \(download.title)")
         }
     }
 
-    private func compactButton(_ title: String, _ icon: String, action: @escaping () -> Void) -> some View {
+    private func compactButton(_ title: String, _ icon: String, mediaTitle: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             if Theme.isCompact { Image(systemName: icon) }
             else { Label(title, systemImage: icon) }
         }
             .buttonStyle(NovaChipButtonStyle(providesSurface: true))
-            .accessibilityLabel(title)
+            .accessibilityLabel("\(title) \(mediaTitle)")
     }
 
     private func detail(_ download: OfflineDownload) -> String {

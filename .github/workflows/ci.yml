@@ -12,6 +12,7 @@ concurrency:
 jobs:
   apple-platforms:
     runs-on: macos-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: maxim-lobanov/setup-xcode@v1
@@ -27,6 +28,8 @@ jobs:
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for runtime in d.values() for x in runtime if x["name"].startswith("iPhone")))')
           echo "SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
+      - name: Create diagnostic directory
+        run: mkdir -p validation/native
       - name: Build and test iOS
         run: >-
           xcodebuild
@@ -34,16 +37,31 @@ jobs:
           -scheme Nova-iOS
           -configuration Debug
           -destination "platform=iOS Simulator,id=$SIMULATOR_UDID"
+          -jobs 2
+          -parallel-testing-enabled NO
+          -resultBundlePath validation/native/ios-tests.xcresult
           -skipPackagePluginValidation
           CODE_SIGNING_ALLOWED=NO
           test
       - name: Build tvOS
+        if: success() || failure()
         run: >-
           xcodebuild
           -project Nova.xcodeproj
           -scheme Nova-tvOS
           -configuration Debug
           -destination 'generic/platform=tvOS Simulator'
+          -jobs 2
           -skipPackagePluginValidation
           CODE_SIGNING_ALLOWED=NO
           build
+      - name: Retain native result bundle and visual candidates
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nova-native-diagnostics
+          path: |
+            validation/native/*.xcresult
+            Tests/__Snapshots__/**/*.png
+          if-no-files-found: warn
+          retention-days: 7
