@@ -327,10 +327,8 @@ struct ContentDetailView: View {
     private var compactHeroDetails: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             if let overview = item.overview, !overview.isEmpty {
-                Text(overview)
-                    .font(.appFont(16))
-                    .foregroundStyle(Theme.Colors.textSecondary)
-                    .padding(.horizontal, Theme.Spacing.edge)
+                OmniExpandableText(text: overview)
+                    .padding(.horizontal, OmniStyle.edge)
             }
             omniActionRow
                 .padding(.horizontal, OmniStyle.edge)

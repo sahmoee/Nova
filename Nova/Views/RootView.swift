@@ -77,6 +77,26 @@ struct RootView: View {
                 .presentationDragIndicator(.visible)
                 #endif
             }
+            .alert("Install this addon?", isPresented: Binding(
+                get: { nav.pendingAddonInstall != nil },
+                set: { if !$0 { nav.pendingAddonInstall = nil } }
+            )) {
+                Button("Install") {
+                    guard let url = nav.pendingAddonInstall else { return }
+                    nav.pendingAddonInstall = nil
+                    Task {
+                        do {
+                            let addon = try await env.addonStore.install(manifestURL: url)
+                            ToastCenter.shared.show("Installed \(addon.name)", systemImage: "puzzlepiece.extension.fill")
+                        } catch {
+                            ToastCenter.shared.show("Couldn't install that addon", systemImage: "exclamationmark.triangle")
+                        }
+                    }
+                }
+                Button("Cancel", role: .cancel) { nav.pendingAddonInstall = nil }
+            } message: {
+                Text("A link asked Nova to add the addon at \(nav.pendingAddonInstall?.host ?? "an unknown site"). Only install addons you trust.")
+            }
             .alert("Restore your setup?", isPresented: $offerRestore) {
                 Button("Restore from iCloud") {
                     if BackupManager.shared.restoreFromCloud() {

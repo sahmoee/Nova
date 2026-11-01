@@ -47,8 +47,39 @@ struct StreamRuleTagChip: View {
     }
 }
 
+/// Details shown on each stream row, in the user's order (Omni's stream button
+/// elements). Stored as a comma-separated list of the enabled details.
+enum StreamRowDetail: String, CaseIterable, Identifiable {
+    case addon, size, seeders, codec, audio, language
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .addon: return "Addon"
+        case .size: return "File Size"
+        case .seeders: return "Seeders"
+        case .codec: return "Video Codec"
+        case .audio: return "Audio Channels"
+        case .language: return "Language"
+        }
+    }
+
+    static let storageKey = "omni.streamRowDetails"
+    static let defaultValue = allCases.map(\.rawValue).joined(separator: ",")
+
+    static func decode(_ raw: String) -> [StreamRowDetail] {
+        var seen = Set<StreamRowDetail>()
+        return raw.split(separator: ",").compactMap { StreamRowDetail(rawValue: String($0)) }
+            .filter { seen.insert($0).inserted }
+    }
+
+    static func encode(_ details: [StreamRowDetail]) -> String {
+        details.map(\.rawValue).joined(separator: ",")
+    }
+}
+
 struct StreamRulesView: View {
     @ObservedObject private var store = StreamRuleStore.shared
+    @AppStorage(StreamRowDetail.storageKey) private var rowDetailsRaw = StreamRowDetail.defaultValue
     @State private var editing: StreamRule?
     #if os(iOS)
     @State private var importText = ""
@@ -81,6 +112,8 @@ struct StreamRulesView: View {
             } footer: {
                 Text("Rules run in order. Prefer and Avoid shift ranking; Hide removes a stream from the list unless nothing else is left. Auto-Play rules decide what Auto-Select picks first.")
             }
+
+            rowDetailsSection
 
             Section {
                 Button {
@@ -116,6 +149,47 @@ struct StreamRulesView: View {
         #if os(iOS)
         .sheet(isPresented: $showImport) { importSheet }
         #endif
+    }
+
+    private var rowDetails: [StreamRowDetail] { StreamRowDetail.decode(rowDetailsRaw) }
+
+    /// Enabled details first in their order, then the hidden ones.
+    private var rowDetailsSection: some View {
+        Section {
+            ForEach(rowDetails + StreamRowDetail.allCases.filter { !rowDetails.contains($0) }) { detail in
+                let enabled = rowDetails.contains(detail)
+                HStack {
+                    Toggle(detail.title, isOn: Binding(
+                        get: { enabled },
+                        set: { on in
+                            var list = rowDetails
+                            if on { list.append(detail) } else { list.removeAll { $0 == detail } }
+                            rowDetailsRaw = StreamRowDetail.encode(list)
+                        }
+                    ))
+                    if enabled {
+                        Button { moveDetail(detail, by: -1) } label: { Image(systemName: "chevron.up") }
+                            .disabled(rowDetails.first == detail)
+                            .accessibilityLabel("Move \(detail.title) earlier")
+                        Button { moveDetail(detail, by: 1) } label: { Image(systemName: "chevron.down") }
+                            .disabled(rowDetails.last == detail)
+                            .accessibilityLabel("Move \(detail.title) later")
+                    }
+                }
+                .buttonStyle(.borderless)
+            }
+        } header: {
+            Text("Row Details")
+        } footer: {
+            Text("Choose which details each stream row shows, and their order.")
+        }
+    }
+
+    private func moveDetail(_ detail: StreamRowDetail, by offset: Int) {
+        var list = rowDetails
+        guard let index = list.firstIndex(of: detail), list.indices.contains(index + offset) else { return }
+        list.swapAt(index, index + offset)
+        rowDetailsRaw = StreamRowDetail.encode(list)
     }
 
     private func row(_ rule: StreamRule) -> some View {

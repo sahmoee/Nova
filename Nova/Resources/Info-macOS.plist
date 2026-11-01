@@ -28,6 +28,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>nova</string>
+				<string>stremio</string>
 			</array>
 		</dict>
 	</array>

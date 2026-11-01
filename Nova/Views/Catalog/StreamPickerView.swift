@@ -22,6 +22,7 @@ struct StreamPickerView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ObservedObject private var network = NetworkConditionMonitor.shared
     @ObservedObject private var ruleStore = StreamRuleStore.shared
+    @AppStorage(StreamRowDetail.storageKey) private var rowDetailsRaw = StreamRowDetail.defaultValue
 
     @State private var streams: [StreamOption] = []
     @State private var deadStreamIDs: Set<String> = []
@@ -616,6 +617,19 @@ struct StreamPickerView: View {
         .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
     }
 
+    /// One user-ordered metadata item on a stream row (see StreamRowDetail).
+    @ViewBuilder
+    private func rowDetail(_ detail: StreamRowDetail, for stream: StreamOption) -> some View {
+        switch detail {
+        case .addon: Label(stream.addonName, systemImage: "puzzlepiece.extension")
+        case .size: if let size = stream.sizeDisplay { Text(size) }
+        case .seeders: if let seeders = stream.seeders { Label("\(seeders)", systemImage: "arrow.up.circle") }
+        case .codec: if stream.videoCodec != .unknown { Text(stream.videoCodec.rawValue) }
+        case .audio: if let ch = stream.audioChannels { Text(ch) }
+        case .language: if let lang = stream.languages.first { Text(lang) }
+        }
+    }
+
     private func streamRow(_ stream: StreamOption, labels: [StreamRanker.StreamLabel]) -> some View {
         Button { startPlayback(stream) } label: {
             (dynamicTypeSize.isAccessibilitySize || Theme.isCompact
@@ -687,12 +701,9 @@ struct StreamPickerView: View {
                         #endif
                     }
                     WrapFlowLayout(spacing: Theme.Spacing.sm, lineSpacing: 6) {
-                        Label(stream.addonName, systemImage: "puzzlepiece.extension")
-                        if let size = stream.sizeDisplay { Text(size) }
-                        if let seeders = stream.seeders { Label("\(seeders)", systemImage: "arrow.up.circle") }
-                        if stream.videoCodec != .unknown { Text(stream.videoCodec.rawValue) }
-                        if let ch = stream.audioChannels { Text(ch) }
-                        if let lang = stream.languages.first { Text(lang) }
+                        ForEach(StreamRowDetail.decode(rowDetailsRaw)) { detail in
+                            rowDetail(detail, for: stream)
+                        }
                     }
                     .font(.appFont(15))
                     .foregroundStyle(.secondary)

@@ -25,6 +25,7 @@ struct HomeView: View {
     @State private var heroItems: [CatalogItem] = []
     @State private var previewItem: CatalogItem?
     @State private var heroCollapsed = false
+    @State private var backdropURL: URL?
     @State private var shelfRefreshToken = UUID()
     @Environment(\.scenePhase) private var scenePhase
     @Namespace private var homeScope
@@ -89,14 +90,15 @@ struct HomeView: View {
                             onOpen: { path.append($0) },
                             onFocusChange: { focused in
                                 if focused { setCollapsed(false, proxy: proxy) }
-                            }
+                            },
+                            onShownChange: { backdropURL = $0?.backdropURL ?? $0?.posterURL }
                         )
                         .id("hero")
                         .overlay(alignment: .top) { topBar }
 
                         #if os(iOS)
                         if !env.tmdb.hasKey { setupBanner }
-                        if Theme.isCompact { browseChips }
+                        if Theme.isCompact { groupCards }
                         #endif
 
                         OmniContinueWatchingRow(
@@ -129,6 +131,9 @@ struct HomeView: View {
                 #endif
             }
         }
+        #if !os(tvOS)
+        .background { blurredBackdrop }
+        #endif
         .ignoresSafeArea(edges: .top)
         .onAppear {
             if heroItems.isEmpty { heroItems = historyHeroFallback }
@@ -194,32 +199,60 @@ struct HomeView: View {
         #endif
     }
 
-    #if os(iOS)
-    /// iPhone has no sidebar, so the catalog groups sit under the hero as chips.
-    private var browseChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                chip("Movies", systemImage: "film") { nav.selection = .movies }
-                chip("Series", systemImage: "tv") { nav.selection = .series }
-                if !env.liveTVSources.allChannels.isEmpty {
-                    chip("Live TV", systemImage: "dot.radiowaves.left.and.right") { path.append(HomeRoute.liveTV) }
+    #if !os(tvOS)
+    /// Omni iOS keeps a soft, blurred copy of the featured art behind the whole
+    /// page. Nova's is dimmer so rows stay the focus.
+    private var blurredBackdrop: some View {
+        ZStack {
+            Theme.Colors.background
+            if let backdropURL {
+                CachedAsyncImage(url: backdropURL, maxPixel: 600) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Color.clear
                 }
-                chip("Collections", systemImage: "rectangle.stack") { path.append(HomeRoute.collections) }
+                .blur(radius: 60, opaque: true)
+                .opacity(0.4)
+                .id(backdropURL)
+                .transition(.opacity)
+                LinearGradient(colors: [.clear, Theme.Colors.background.opacity(0.85), Theme.Colors.background],
+                               startPoint: .top, endPoint: .bottom)
+            }
+        }
+        .ignoresSafeArea()
+        .animation(Theme.isReduceMotion ? nil : .easeInOut(duration: 0.6), value: backdropURL)
+        .accessibilityHidden(true)
+    }
+    #endif
+
+    #if os(iOS)
+    /// iPhone has no sidebar, so catalog groups sit under the hero as cards.
+    private var groupCards: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                OmniGroupCard(title: "Movies", systemImage: "film",
+                              artwork: posters(series: false)) { nav.selection = .movies }
+                OmniGroupCard(title: "Series", systemImage: "tv",
+                              artwork: posters(series: true)) { nav.selection = .series }
+                if !env.liveTVSources.allChannels.isEmpty {
+                    OmniGroupCard(title: "Live TV", systemImage: "dot.radiowaves.left.and.right",
+                                  artwork: Array(env.liveTVSources.allChannels.compactMap(\.logoURL).prefix(2))) {
+                        path.append(HomeRoute.liveTV)
+                    }
+                }
+                OmniGroupCard(title: "Collections", systemImage: "rectangle.stack",
+                              artwork: Array(library.favorites.compactMap(\.posterURL).prefix(2))) {
+                    path.append(HomeRoute.collections)
+                }
             }
             .padding(.horizontal, OmniStyle.edge)
+            .padding(.vertical, 6)
         }
+        .scrollClipDisabled()
     }
 
-    private func chip(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.appFont(15, weight: .semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 16)
-                .frame(height: 36)
-                .background(Capsule().fill(Color.white.opacity(0.12)))
-        }
-        .buttonStyle(.plain)
+    private func posters(series: Bool) -> [URL] {
+        Array(library.items.filter { $0.isSeries == series }.compactMap(\.posterURL).prefix(2))
     }
     #endif
 

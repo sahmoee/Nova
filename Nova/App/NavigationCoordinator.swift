@@ -57,6 +57,8 @@ final class NavigationCoordinator: ObservableObject {
     /// and opens the matching item's detail, then clears it.
     @Published var pendingSearchQuery: String?
     @Published var pendingContentKey: String?
+    /// An addon manifest proposed by a stremio:// link, awaiting the user's OK.
+    @Published var pendingAddonInstall: URL?
 
     // One navigation path per tab.
     @Published var homePath = NavigationPath()
@@ -141,6 +143,8 @@ final class NavigationCoordinator: ObservableObject {
             // refactoring Settings to value-based navigation; deferred.)
             selection = .settings
             popToRoot(.settings)
+        case .installAddon(let manifestURL):
+            pendingAddonInstall = manifestURL
         case .content(let key, _):
             // Library holds the user's items; jump there and ask it to open the match.
             selection = .library

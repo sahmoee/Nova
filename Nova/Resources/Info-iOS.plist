@@ -2,10 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Choose a calendar and prevent duplicate episode air-date events when you tap Add to Calendar.</string>
-	<key>NSCalendarsUsageDescription</key>
-	<string>Add upcoming episode air dates to your selected calendar.</string>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>com.nova.ios.episode-refresh</string>
@@ -36,6 +32,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>nova</string>
+				<string>stremio</string>
 			</array>
 		</dict>
 	</array>
@@ -60,6 +57,10 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Choose a calendar and prevent duplicate episode air-date events when you tap Add to Calendar.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Add upcoming episode air dates to your selected calendar.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Nova uses the camera to scan a QR code that points to a snapshot you want to import.</string>
 	<key>NSLocalNetworkUsageDescription</key>

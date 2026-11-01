@@ -23,6 +23,8 @@ struct OmniHeroView: View {
     var onOpen: (CatalogItem) -> Void
     /// Reports when focus enters or leaves the hero's buttons (tvOS).
     var onFocusChange: ((Bool) -> Void)? = nil
+    /// Reports the title currently shown, so iPhone/iPad can blur its art behind Home.
+    var onShownChange: ((CatalogItem?) -> Void)? = nil
 
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var library: LibraryStore
@@ -66,6 +68,7 @@ struct OmniHeroView: View {
         .task(id: shown?.id) { await loadLogo(for: shown) }
         .task(id: rotationKey) { await rotate() }
         .onChange(of: items.map(\.id)) { _, _ in index = 0 }
+        .onChange(of: shown?.id, initial: true) { _, _ in onShownChange?(shown) }
         .onChange(of: focusedAction) { old, new in
             if (old == nil) != (new == nil) { onFocusChange?(new != nil) }
         }
@@ -307,9 +310,26 @@ struct OmniHeroButtonStyle: ButtonStyle {
                 .foregroundStyle(filled ? Color.black : Color.white)
                 .padding(.horizontal, padH)
                 .frame(minHeight: height)
-                .background(Capsule().fill(filled ? Color.white : Color.white.opacity(0.18)))
+                .background { background }
                 .scaleEffect(configuration.isPressed ? 0.96 : (focused && !reduceMotion ? 1.06 : 1))
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: focused)
+        }
+
+        /// iPhone, iPad and Mac use Liquid Glass for secondary buttons like Omni's
+        /// iOS app; the primary action stays solid white. tvOS keeps its focus fill.
+        @ViewBuilder
+        private var background: some View {
+            #if os(tvOS)
+            Capsule().fill(filled ? Color.white : Color.white.opacity(0.18))
+            #else
+            if filled {
+                Capsule().fill(Color.white)
+            } else if #available(iOS 26.0, macOS 26.0, *) {
+                Capsule().fill(Color.clear).glassEffect(.regular.interactive(), in: Capsule())
+            } else {
+                Capsule().fill(Color.white.opacity(0.18))
+            }
+            #endif
         }
 
         #if os(tvOS)
@@ -441,5 +461,93 @@ struct OmniContinueWatchingRow: View {
         #else
         Theme.isPad ? 15 : 13
         #endif
+    }
+}
+
+// MARK: - Catalog group cards (iPhone)
+
+/// Omni iOS shows catalog groups as cards under the hero. Nova's version is a
+/// compact glass tile with a symbol and a two-poster peek from the group.
+struct OmniGroupCard: View {
+    let title: String
+    let systemImage: String
+    var artwork: [URL] = []
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack(alignment: .bottomLeading) {
+                HStack(spacing: -18) {
+                    ForEach(Array(artwork.prefix(2).enumerated()), id: \.offset) { index, url in
+                        CachedAsyncImage(url: url, maxPixel: 200) { image in
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Theme.Colors.card
+                        }
+                        .frame(width: 46, height: 69)
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .rotationEffect(.degrees(index == 0 ? -8 : 6))
+                        .shadow(color: .black.opacity(0.4), radius: 6, y: 3)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                .padding(.top, 8)
+                .padding(.trailing, 14)
+                .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 18, weight: .semibold))
+                    Text(title)
+                        .font(.appFont(15, weight: .bold))
+                        .lineLimit(1)
+                }
+                .foregroundStyle(.white)
+                .padding(12)
+            }
+            .frame(width: 150, height: 92)
+            .background { cardBackground }
+            .clipShape(RoundedRectangle(cornerRadius: OmniStyle.cardRadius, style: .continuous))
+        }
+        .buttonStyle(OmniCardButtonStyle())
+        .accessibilityLabel(title)
+    }
+
+    @ViewBuilder
+    private var cardBackground: some View {
+        let shape = RoundedRectangle(cornerRadius: OmniStyle.cardRadius, style: .continuous)
+        if #available(iOS 26.0, macOS 26.0, tvOS 26.0, *) {
+            shape.fill(Color.white.opacity(0.04)).glassEffect(.regular, in: shape)
+        } else {
+            shape.fill(Theme.Colors.card)
+        }
+    }
+}
+
+// MARK: - Expandable description
+
+/// Omni iOS-style synopsis: three lines with a More/Less toggle.
+struct OmniExpandableText: View {
+    let text: String
+    var lineLimit = 3
+    @State private var expanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(text)
+                .font(.appFont(15))
+                .foregroundStyle(.white.opacity(0.82))
+                .lineLimit(expanded ? nil : lineLimit)
+                .fixedSize(horizontal: false, vertical: true)
+            if text.count > 140 {
+                Button(expanded ? "Less" : "More") {
+                    withAnimation(Theme.isReduceMotion ? nil : .easeInOut(duration: 0.2)) { expanded.toggle() }
+                }
+                .font(.appFont(14, weight: .bold))
+                .foregroundStyle(AccentManager.fallback)
+                .buttonStyle(.plain)
+                .accessibilityHint(expanded ? "Shows less of the description" : "Shows the full description")
+            }
+        }
     }
 }

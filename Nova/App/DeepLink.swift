@@ -31,9 +31,15 @@ enum DeepLink: Equatable {
     case content(contentKey: String, isShow: Bool)
     case continueWatching
     case search(query: String)
+    /// A Stremio-style addon link (stremio://host/path/manifest.json). Nova always
+    /// asks before installing; the link only proposes the manifest URL.
+    case installAddon(manifestURL: URL)
 
-    /// Parses a Nova URL (nova://…).
+    /// Parses a Nova URL (nova://…) or a stremio:// addon install link.
     static func parse(_ url: URL) -> DeepLink? {
+        if url.scheme?.lowercased() == "stremio" {
+            return addonManifestURL(fromStremioLink: url).map { .installAddon(manifestURL: $0) }
+        }
         let supportedSchemes = ["nova"]
         guard let scheme = url.scheme?.lowercased(), supportedSchemes.contains(scheme) else {
             return nil
@@ -71,6 +77,18 @@ enum DeepLink: Equatable {
             return nil
         }
     }
+    /// Maps stremio://host/path/manifest.json to its HTTPS manifest. Rejects links
+    /// without a host, with embedded credentials, or not ending in manifest.json.
+    static func addonManifestURL(fromStremioLink url: URL) -> URL? {
+        guard var parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let host = parts.host, !host.isEmpty,
+              parts.user == nil, parts.password == nil,
+              parts.path.lowercased().hasSuffix("/manifest.json"),
+              url.absoluteString.count <= 2048 else { return nil }
+        parts.scheme = "https"
+        return parts.url
+    }
+
     /// One bounded, encoded contract shared by Shortcuts and incoming links.
     static func normalizedSearchQuery(_ raw: String) -> String? {
         let query = raw.trimmingCharacters(in: .whitespacesAndNewlines)

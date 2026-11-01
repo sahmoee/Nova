@@ -135,3 +135,18 @@ Remaining follow-ups:
 - Interactive remote/focus behavior was checked by build and screenshot only; walk the sidebar, hero
   collapse and Back behavior on a real Apple TV.
 - Omni screenshots would let the proportions here be matched more closely.
+
+## iPhone and iPad specifics from Omni iOS (2026-11-01)
+
+| Omni iOS element | Nova iOS | Files |
+|---|---|---|
+| `stremio://` addon links | Registered on iOS and Mac. Links map to the HTTPS manifest and always ask before installing (credentials and non-manifest links are rejected) | `App/DeepLink.swift`, `Views/RootView.swift`, `Tests/AddonLinkTests.swift` |
+| Blurred hero art behind Home | A dimmer blur of the shown hero art fades behind the rows on iPhone, iPad and Mac | `Views/Home/HomeView.swift` |
+| Catalog group cards | Glass Movies / Series / Live TV / Collections cards with a two-poster peek, on iPhone | `Components/OmniHome.swift` |
+| Glass buttons | Secondary hero and title buttons use Liquid Glass; the primary button stays solid white | `Components/OmniHome.swift` |
+| Expandable description | Three-line synopsis with a More/Less toggle on the iPhone title page | `Components/OmniHome.swift`, `Views/Catalog/ContentDetailView.swift` |
+| Stream button ordering | Stream Rules › Row Details picks and orders the details on each stream row (all platforms) | `Views/Settings/StreamRulesView.swift`, `Views/Catalog/StreamPickerView.swift` |
+
+Follow-ups worth porting: a TMDB keyword Discover editor, Trakt list browsing and creation, an
+accent color picker, reviews and cast profile sheets, a custom player overlay, and iPhone-as-remote
+pairing with Apple TV.

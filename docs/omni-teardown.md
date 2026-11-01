@@ -110,3 +110,30 @@ KSPlayer (LGPL), FFmpegKit, libmpv, libplacebo, shaderc, dav1d, libdovi, libass,
 3. Work out the request and response shape of `StrmAPIService`: what stream data gets sent to strmapi.stkc.win.
 4. Find out what `SecurityManager` does after a positive check.
 5. Trace how regex scoring decides auto-play.
+
+## Addendum: Omni 1.7 (279) for iOS/iPadOS
+
+Same bundle ID, `win.stkc.omni`. iOS 17 and later, on iPhone and iPad. The binary isn't encrypted.
+
+- **URL schemes:** `omni://` and `stremio://`, so web "Install" links open the app.
+  `LSSupportsOpeningDocumentsInPlace` and `UIFileSharingEnabled` are on.
+- **Extras:** `OmniWidgetExtension` (Home screen widget), multiple scenes on iPad, and it
+  advertises the `omni-remote` service so the iPhone works as an Apple TV remote. Background modes: audio
+  and remote notifications.
+- **iOS-only screens, from type names:** `IOSContentView` (tab root), `iOSFeaturedHero` with
+  `HeroPageIndicator` and preloaded hero logos and backgrounds, `HeroBackgroundView` /
+  `BlurBackdropView` (blurred art behind the page), `IOSCatalogGroupShelf` / `IOSCatalogGroupCard`,
+  `IOSTopRowCard`, `IOSContinueWatchingCard`, `HistoryShelfCard`, and `ShortProgressBar`.
+- **Liquid Glass:** `GlassButtonModifier`, `GlassCapsuleModifier`, `GlassCardModifier`, `GlassCircleModifier`
+  and `CatalogCardGlassModifier`, plus Glur progressive blur.
+- **Title page:** `IOSTitleView`, `ExpandableDescriptionView`, `SeasonButtonModifier`, `IOSEpisodeCard`
+  with `EpisodeShortProgressBar`, `CastMemberProfileCard`, `IOSReviewsSheetView`, `ShowInfoSheet`, and
+  `MDBListRatingsRow`.
+- **Streams:** `IOSStreamsView` plus `IOSStreamButtonOrderingView` / `StreamButtonElementRow`, which let
+  the user choose and order the details shown on each stream button.
+- **Player:** `NativeiOSPlayerView` with `OmniControlsOverlay`, `OmniSeekBar`, audio and subtitle menus,
+  and AirPlay status.
+- **Discover and lists:** `IOSDiscoverView` with a TMDB keyword filter editor and discover history, plus
+  Trakt list browsing and creation.
+- **Settings:** an accent color picker, colored settings icons, a log viewer, a UserDefaults inspector,
+  and in-app addon and backup settings.
