@@ -2,9 +2,10 @@
 //  RootView.swift
 //  Nova
 //
-//  Adaptive Apple TV-style shell. iPhone uses a native bottom tab bar, iPad keeps a
-//  persistent sidebar, and tvOS opens a compact floating menu with Back.
-//  Every tab owns an independent NavigationStack through NavigationCoordinator.
+//  Omni-style adaptive shell. tvOS keeps a persistent sidebar (icon rail that
+//  expands on focus), iPad and Mac use a split-view sidebar with the same sections,
+//  and iPhone uses the system tab bar. Every section owns an independent
+//  NavigationStack through NavigationCoordinator.
 //
 
 import SwiftUI
@@ -17,10 +18,10 @@ struct RootView: View {
     @EnvironmentObject private var settings: SettingsStore
 
     #if os(tvOS)
-    @State private var showTVMenu = false
     @State private var showRemoteHelp = false
     @State private var mountedTVTabs: Set<AppTab> = [.home]
-    @State private var visibleTVRoots: Set<AppTab> = []
+    @FocusState private var sidebarFocus: AppTab?
+    @AppStorage(OmniLayoutKey.sidebarStyle) private var sidebarStyleRaw = OmniSidebarStyle.rail.rawValue
     #endif
     @State private var offerRestore = false
     @State private var showWhatsNew = false
@@ -29,15 +30,14 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @State private var mountedPhoneTabs: Set<AppTab> = [.home]
     #endif
 
     var body: some View {
         rootContent
             #if os(tvOS)
-            .buttonStyle(.glass)
             .buttonBorderShape(.roundedRectangle(radius: 14))
             #endif
+            .preferredColorScheme(.dark)
             .environmentObject(nav)
             .environment(\.dynamicAccent, accentManager.accent)
             .tint(accentManager.accent)
@@ -125,80 +125,73 @@ struct RootView: View {
     }
 
     #if os(iOS)
-    /// iPhone mirrors the Apple TV app's familiar bottom navigation and leaves each
-    /// section mounted, preserving scroll position and navigation history.
+    /// iPhone uses the system tab bar; each tab keeps its own stack and the
+    /// mini-player rides above the bar.
     private var iPhoneTabRoot: some View {
-        ZStack {
-            Theme.Colors.appBackground.ignoresSafeArea()
-            ForEach(AppTab.primaryTabs.filter { mountedPhoneTabs.contains($0) }, id: \.self) { tab in
+        TabView(selection: phoneSelection) {
+            ForEach(AppTab.phoneTabs, id: \.self) { tab in
                 screen(for: tab)
-                    .opacity(nav.selection == tab ? 1 : 0)
-                    .disabled(nav.selection != tab)
-                    .allowsHitTesting(nav.selection == tab)
-                    .accessibilityHidden(nav.selection != tab)
+                    .safeAreaInset(edge: .bottom, spacing: 0) { nowPlayingBar }
+                    .tabItem { Label(tab.title, systemImage: tab.systemImage) }
+                    .tag(tab)
             }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 6) {
-                nowPlayingBar
-                NovaHomeBar(selection: nav.selectionBinding)
-            }
-        }
-        .onChange(of: nav.selection) { _, tab in
-            let visibleTab = tab == .ai ? AppTab.discover : tab
-            if tab == .ai { nav.selection = .discover }
-            mountedPhoneTabs.insert(visibleTab)
-        }
+        .tint(.white)
+    }
+
+    /// Movies, Series and AI are not phone tabs; they route into Home and Search.
+    private var phoneSelection: Binding<AppTab> {
+        Binding(
+            get: {
+                switch nav.selection {
+                case .movies, .series: return .home
+                case .ai: return .discover
+                default: return nav.selection
+                }
+            },
+            set: { nav.selectionBinding.wrappedValue = $0 }
+        )
     }
     #endif
 
     #if os(tvOS)
-    /// Sections stay mounted after their first visit, retaining their focused
-    /// content, filters and navigation stack when the compact menu changes tabs.
+    private var sidebarStyle: OmniSidebarStyle { OmniSidebarStyle(rawValue: sidebarStyleRaw) ?? .rail }
+
+    /// Sections stay mounted after their first visit, retaining focus, filters and
+    /// navigation history. Content sits right of the icon rail; the expanded
+    /// sidebar overlays it.
     private var televisionTabRoot: some View {
-        ZStack(alignment: .bottom) {
-            TVReferenceStyle.canvas.ignoresSafeArea()
-            ZStack {
+        ZStack(alignment: .leading) {
+            Theme.Colors.background.ignoresSafeArea()
+            ZStack(alignment: .bottom) {
                 ForEach(AppTab.allCases.filter { mountedTVTabs.contains($0) }, id: \.self) { tab in
                     screen(for: tab)
-                        .environment(\.setTVRootVisible, { visible in
-                            if visible { visibleTVRoots.insert(tab) }
-                            else { visibleTVRoots.remove(tab) }
-                        })
                         .opacity(nav.selection == tab ? 1 : 0)
-                        .disabled(nav.selection != tab || showTVMenu)
-                        .allowsHitTesting(nav.selection == tab && !showTVMenu)
-                        .accessibilityHidden(nav.selection != tab || showTVMenu)
+                        .disabled(nav.selection != tab)
+                        .allowsHitTesting(nav.selection == tab)
+                        .accessibilityHidden(nav.selection != tab)
+                }
+                if nav.isAtRoot(nav.selection) {
+                    nowPlayingBar
+                        .padding(.horizontal, OmniStyle.edge)
+                        .padding(.bottom, 24)
                 }
             }
-            if visibleTVRoots.contains(nav.selection) {
-                nowPlayingBar
-                    .disabled(showTVMenu)
-                    .padding(.horizontal, TVReferenceStyle.edge)
-                    .padding(.bottom, 24)
-                    .onExitCommand {
-                        withAnimation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18)) { showTVMenu = true }
-                    }
+            .padding(.leading, sidebarStyle == .rail ? OmniStyle.sidebarRailWidth : 0)
+            .focusSection()
+
+            NovaSidebar(selection: nav.selectionBinding, focusedTab: $sidebarFocus) {
+                showRemoteHelp = true
             }
-            if showTVMenu {
-                TVMenuOverlay(selection: nav.selectionBinding, onDismiss: closeTVMenu) {
-                    closeTVMenu()
-                    showRemoteHelp = true
-                }
-                .zIndex(10)
-                .transition(.opacity.combined(with: .offset(x: -16)))
-            }
+            .zIndex(10)
         }
+        .ignoresSafeArea(edges: .leading)
         .environment(\.openTVMenu, {
             guard !nowPlaying.playerPresented else { return }
-            withAnimation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.18)) { showTVMenu = true }
+            sidebarFocus = nav.selection == .ai ? .discover : nav.selection
         })
         .onChange(of: nav.selection) { _, tab in mountedTVTabs.insert(tab) }
         .sheet(isPresented: $showRemoteHelp) { TVRemoteHelpView() }
-    }
-
-    private func closeTVMenu() {
-        withAnimation(Theme.isReduceMotion ? nil : .easeOut(duration: 0.16)) { showTVMenu = false }
     }
     #endif
 
@@ -215,6 +208,7 @@ struct RootView: View {
                     .padding(.vertical, 4)
             }
             .navigationTitle("Nova")
+            .navigationSplitViewColumnWidth(min: 200, ideal: 240)
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
             .background(.ultraThinMaterial)
@@ -255,6 +249,8 @@ struct RootView: View {
             switch tab {
             case .home:     HomeView(path: $nav.homePath)
             case .discover: DiscoverView(path: $nav.discoverPath)
+            case .movies:   CatalogBrowseView(contentType: .movie, path: $nav.moviesPath, addonStore: env.addonStore)
+            case .series:   CatalogBrowseView(contentType: .series, path: $nav.seriesPath, addonStore: env.addonStore)
             case .library:  LibraryView(path: $nav.libraryPath)
             case .ai:       AIView(path: $nav.aiPath)
             case .settings: SettingsView(path: $nav.settingsPath)
@@ -414,81 +410,6 @@ struct RootView: View {
     }
 }
 
-#if os(iOS)
-private struct NovaHomeBar: View {
-    @Binding var selection: AppTab
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(AppTab.primaryTabs, id: \.self) { tab in
-                Button {
-                    Haptics.selection()
-                    selection = tab
-                } label: {
-                    VStack(spacing: 3) {
-                        Image(systemName: tab.systemImage)
-                            .font(.system(size: 19, weight: .semibold))
-                            .symbolVariant(selection == tab ? .fill : .none)
-                        Text(tab.title)
-                            .font(.caption2.weight(.semibold))
-                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                            .multilineTextAlignment(.center)
-                    }
-                    .foregroundStyle(selection == tab ? Theme.Colors.accent : Color.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 49)
-                    .padding(.vertical, dynamicTypeSize.isAccessibilitySize ? 4 : 0)
-                    .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.navigationItem, style: .continuous))
-                }
-                .buttonStyle(NovaNavigationItemStyle(selected: selection == tab))
-                .accessibilityLabel(tab.title)
-                .accessibilityValue(selection == tab ? "Selected" : "")
-                .accessibilityHint(selection == tab ? "Returns to the main \(tab.title) page" : "Opens \(tab.title)")
-                .accessibilityAddTraits(selection == tab ? .isSelected : [])
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(Theme.Colors.backgroundElevated.opacity(reduceTransparency ? 1 : 0.97),
-                    in: RoundedRectangle(cornerRadius: Theme.Radius.navigationPanel, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.navigationPanel, style: .continuous)
-            .strokeBorder(Color.white.opacity(0.13), lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.30), radius: 18, y: 7)
-        .padding(.horizontal, 10)
-        .padding(.bottom, 5)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Main navigation")
-    }
-}
-
-/// Selection stays visible when the pointer or keyboard focus moves elsewhere.
-/// Feedback does not resize the bar or shift neighboring tabs.
-private struct NovaNavigationItemStyle: ButtonStyle {
-    let selected: Bool
-    func makeBody(configuration: Configuration) -> some View {
-        ItemBody(configuration: configuration, selected: selected)
-    }
-    private struct ItemBody: View {
-        let configuration: Configuration
-        let selected: Bool
-        @Environment(\.accessibilityReduceMotion) private var reduceMotion
-        @Environment(\.colorSchemeContrast) private var contrast
-        @Environment(\.isFocused) private var focused
-        @State private var hovering = false
-        var body: some View {
-            let shape = RoundedRectangle(cornerRadius: Theme.Radius.navigationItem, style: .continuous)
-            configuration.label
-                .background(Color.primary.opacity(configuration.isPressed ? 0.18 : selected ? 0.11 : hovering ? 0.06 : 0), in: shape)
-                .overlay(shape.strokeBorder(selected || focused ? Color.accentColor.opacity(contrast == .increased ? 1 : 0.65) : .clear,
-                                            lineWidth: focused || contrast == .increased ? 2 : 1))
-                .onHover { hovering = $0 }
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: hovering)
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: selected)
-        }
-    }
-}
-#endif
 
 
 // MARK: - Anime tab (boxd feature #3)

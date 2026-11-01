@@ -23,6 +23,7 @@ struct ContentDetailView: View {
     @State private var streamTarget: StreamTarget?
     @State private var favoriteRefresh = false   // toggles to re-read favorite state
     @State private var trailerURL: URL?          // fetched from TMDB if available
+    @State private var logoURL: URL?             // TMDB clear logo for the title header
     @State private var ratings = ExternalRatings()   // IMDb/RT/Metacritic from OMDb
     @State private var showCollectionPicker = false
     @State private var newCollectionName = ""
@@ -99,7 +100,7 @@ struct ContentDetailView: View {
             }
             .ignoresSafeArea(edges: .top)
         }
-        .background(Theme.Colors.appBackground.ignoresSafeArea())
+        .background(Theme.Colors.background.ignoresSafeArea())
         .navigationDestination(for: CatalogItem.self) { rel in
             ContentDetailView(item: rel)
         }
@@ -154,144 +155,169 @@ struct ContentDetailView: View {
 
     private func heroHeader(width: CGFloat, screenHeight: CGFloat) -> some View {
         #if os(tvOS)
-        televisionHero(width: width, height: screenHeight)
+        omniTitleHero(width: width, height: screenHeight * 0.9)
         #else
-        ZStack(alignment: .bottomLeading) {
-            CachedAsyncImage(url: item.backdropURL ?? item.posterURL, maxPixel: 1600) { image in
-                ZStack {
-                    image.resizable().aspectRatio(contentMode: .fill).blur(radius: 22).scaleEffect(1.08)
-                    image.resizable().aspectRatio(contentMode: .fit)
-                }
-            } placeholder: {
-                Rectangle().fill(Theme.Colors.card).shimmering()
-            }
-            .frame(width: width, height: heroHeight(screenHeight: screenHeight))
-            .clipped()
-            .overlay(Theme.Colors.heroGradient)
-            .overlay(
-                LinearGradient(colors: [Theme.Colors.background.opacity(0.92), .clear],
-                               startPoint: .leading, endPoint: .trailing)
-            )
-
-            HStack(alignment: .bottom, spacing: Theme.Spacing.lg) {
-                PosterImage(url: item.posterURL,
-                            width: Theme.scaled(250, min: 108),
-                            height: Theme.scaled(375, min: 162))
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
-                    .shadow(color: .black.opacity(0.55), radius: 24, y: 12)
-
-                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                    Text(item.title)
-                        .font(.appFont(Theme.isCompact ? 40 : 58, weight: .semibold, design: .serif))
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.72)
-
-                    Text(metaLine)
-                        .font(.appFont(17, weight: .medium))
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                        .lineLimit(2)
-
-                    // On regular width (iPad) the overview and action rails live
-                    // here, overlaid on the backdrop. On compact width (iPhone) they
-                    // move below the hero at full width (see compactHeroDetails) —
-                    // otherwise the action tiles are forced into a narrow one-per-row
-                    // column that overflows the fixed-height hero and overlaps the art.
-                    if !Theme.isCompact {
-                        if let overview = item.overview, !overview.isEmpty {
-                            Text(overview)
-                                .font(.appFont(16))
-                                .foregroundStyle(Theme.Colors.textSecondary)
-                                .lineLimit(4)
-                        }
-                        heroPrimaryActions
-                        secondaryActionsRail
-                    }
-                }
-                .frame(maxWidth: Theme.isCompact ? .infinity : 720, alignment: .leading)
-            }
-            .padding(.horizontal, Theme.Spacing.edge)
-            .padding(.bottom, Theme.Spacing.xl)
-        }
-        .frame(width: width, height: heroHeight(screenHeight: screenHeight))
-        .clipped()
+        omniTitleHero(width: width, height: heroHeight(screenHeight: screenHeight))
         #endif
     }
 
-
-    #if os(tvOS)
-    private func televisionHero(width: CGFloat, height: CGFloat) -> some View {
+    /// Omni-style title header: full-bleed backdrop, clear logo (or serif title),
+    /// metadata, overview and one action row. iPhone moves the overview and actions
+    /// below the artwork (see compactHeroDetails).
+    private func omniTitleHero(width: CGFloat, height: CGFloat) -> some View {
         ZStack(alignment: .bottomLeading) {
             CachedAsyncImage(url: item.backdropURL ?? item.posterURL, maxPixel: 1920) { image in
-                ZStack {
-                    image.resizable().aspectRatio(contentMode: .fill).blur(radius: 24)
-                    image.resizable().aspectRatio(contentMode: .fit)
-                }
-            } placeholder: { Color(white: 0.08) }
-            .frame(width: width, height: 760).clipped()
-            LinearGradient(stops: [.init(color: .black.opacity(0.82), location: 0),
-                                   .init(color: .black.opacity(0.38), location: 0.42),
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Rectangle().fill(Theme.Colors.backgroundElevated).shimmering()
+            }
+            .frame(width: width, height: height)
+            .clipped()
+            .accessibilityHidden(true)
+
+            LinearGradient(stops: [.init(color: .black.opacity(0.88), location: 0),
+                                   .init(color: .black.opacity(0.4), location: 0.45),
                                    .init(color: .clear, location: 0.8)],
                            startPoint: .leading, endPoint: .trailing)
-            LinearGradient(colors: [.clear, .black], startPoint: .center, endPoint: .bottom)
-            VStack(alignment: .leading, spacing: 18) {
-                Text(item.title).font(.system(size: 64, weight: .semibold, design: .serif)).lineLimit(2)
-                Text(metaLine).font(.system(size: 22, weight: .semibold)).foregroundStyle(.white.opacity(0.82))
-                if let overview = item.overview, !overview.isEmpty {
-                    Text(overview).font(.system(size: 23)).lineLimit(3)
-                        .foregroundStyle(.white.opacity(0.9))
+            LinearGradient(stops: [.init(color: .clear, location: 0.3),
+                                   .init(color: .black.opacity(0.75), location: 0.8),
+                                   .init(color: .black, location: 1)],
+                           startPoint: .top, endPoint: .bottom)
+
+            VStack(alignment: .leading, spacing: titleSpacing) {
+                titleArtwork
+                Text(metaLine)
+                    .font(.appFont(metaFontSize, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.78))
+                    .lineLimit(2)
+                if !Theme.isCompact {
+                    if let overview = item.overview, !overview.isEmpty {
+                        Text(overview)
+                            .font(.appFont(metaFontSize))
+                            .foregroundStyle(.white.opacity(0.86))
+                            .lineLimit(3)
+                    }
+                    omniActionRow
+                        .padding(.top, titleSpacing * 0.5)
                 }
-                HStack(spacing: 18) {
-                    Button {
-                        streamTarget = StreamTarget(catalog: item, episode: item.isSeries ? nextUnwatchedEpisode() : nil)
-                    } label: {
-                        Label(item.isSeries ? "Watch Now" : playButtonTitle, systemImage: "play.fill")
-                            .font(.system(size: 23, weight: .semibold))
-                            .padding(.horizontal, 24).frame(height: 60)
-                    }
-                    .buttonStyle(TVReferenceButtonStyle(cornerRadius: 30))
-                    Button { toggleWatched() } label: {
-                        Image(systemName: isWatched ? "checkmark.circle.fill" : "checkmark")
-                            .font(.system(size: 25, weight: .semibold)).frame(width: 60, height: 60)
-                    }
-                    .buttonStyle(TVReferenceButtonStyle(selected: isWatched, cornerRadius: 30))
-                    .accessibilityLabel(isWatched ? "Mark as unwatched" : "Mark as watched")
-                    .accessibilityValue(isWatched ? "Watched" : "Not watched")
-                    .accessibilityAddTraits(isWatched ? .isSelected : [])
-                    Menu {
-                        Button { streamTarget = StreamTarget(catalog: item, episode: item.isSeries ? nextUnwatchedEpisode() : nil, forceManual: true) } label: {
-                            Label("Choose Stream", systemImage: "list.bullet")
-                        }
-                        Button { toggleFavorite() } label: { Label(isFavorited ? "Remove Favorite" : "Favorite", systemImage: isFavorited ? "star.fill" : "star") }
-                        Button { showCollectionPicker = true } label: { Label("Add to Collection", systemImage: "rectangle.stack.badge.plus") }
-                        Button {
-                            RecommendationFeedbackStore.shared.moreLikeThis(genres: item.genres)
-                            ToastCenter.shared.show("We'll show more like this", systemImage: "hand.thumbsup.fill")
-                        } label: { Label("More Like This", systemImage: "hand.thumbsup") }
-                        Button {
-                            RecommendationFeedbackStore.shared.notInterested(key: item.contentID.stableKey, genres: item.genres)
-                            ToastCenter.shared.show("We'll show this less", systemImage: "hand.thumbsdown.fill")
-                        } label: { Label("Not Interested", systemImage: "hand.thumbsdown") }
-                        Button {
-                            RecommendationFeedbackStore.shared.alreadyWatched(key: item.contentID.stableKey)
-                            ToastCenter.shared.show("Hidden from recommendations", systemImage: "eye.slash")
-                        } label: { Label("Already Watched", systemImage: "eye") }
-                    } label: {
-                        Image(systemName: "ellipsis").font(.system(size: 25, weight: .semibold)).frame(width: 60, height: 60)
-                    }
-                    .buttonStyle(.glass).buttonBorderShape(.circle)
-                    .accessibilityLabel("More actions for \(item.title)")
-                }
-                .padding(.top, 10)
             }
             .foregroundStyle(.white)
-            .frame(maxWidth: min(width - 160, 760), alignment: .leading)
-            .padding(.horizontal, TVReferenceStyle.edge).padding(.bottom, 54)
+            .frame(maxWidth: min(width - OmniStyle.edge * 2, titleColumnWidth), alignment: .leading)
+            .padding(.horizontal, OmniStyle.edge)
+            .padding(.bottom, Theme.isCompact ? 18 : 56)
         }
-        .frame(width: width, height: 760).clipped()
+        .frame(width: width, height: height)
+        .clipped()
+        .task(id: item.contentID.stableKey) {
+            logoURL = try? await env.tmdb.titleLogoURL(for: item.contentID)
+        }
     }
+
+    @ViewBuilder
+    private var titleArtwork: some View {
+        if let logoURL {
+            CachedAsyncImage(url: logoURL, maxPixel: 1200) { image in
+                image.resizable().aspectRatio(contentMode: .fit)
+            } placeholder: {
+                titleText
+            }
+            .frame(maxWidth: logoMaxWidth, maxHeight: logoMaxHeight, alignment: .bottomLeading)
+            .accessibilityLabel(item.title)
+            .accessibilityAddTraits(.isHeader)
+        } else {
+            titleText
+        }
+    }
+
+    private var titleText: some View {
+        Text(item.title)
+            .font(.appFont(titleFontSize, weight: .bold, design: .serif))
+            .lineLimit(2)
+            .minimumScaleFactor(0.7)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    /// Play/Resume, Trailer, Watched, Favorite, then everything else in More.
+    private var omniActionRow: some View {
+        HStack(spacing: Theme.isCompact ? 10 : 16) {
+            Button {
+                streamTarget = StreamTarget(catalog: item, episode: item.isSeries ? nextUnwatchedEpisode() : nil)
+            } label: {
+                Label(item.isSeries ? "Watch Now" : playButtonTitle, systemImage: "play.fill")
+                    .font(.appFont(actionFontSize, weight: .bold))
+                    .lineLimit(1)
+            }
+            .buttonStyle(OmniHeroButtonStyle(prominent: true))
+
+            #if os(iOS)
+            if let trailer = trailerURL {
+                Button { UIApplication.shared.open(trailer) } label: {
+                    Image(systemName: "film").font(.appFont(actionFontSize, weight: .semibold))
+                }
+                .buttonStyle(OmniHeroButtonStyle(prominent: false))
+                .accessibilityLabel("Play Trailer")
+            }
+            #endif
+
+            Button { toggleWatched() } label: {
+                Image(systemName: isWatched ? "checkmark.circle.fill" : "checkmark")
+                    .font(.appFont(actionFontSize, weight: .semibold))
+            }
+            .buttonStyle(OmniHeroButtonStyle(prominent: false))
+            .accessibilityLabel(isWatched ? "Mark as unwatched" : "Mark as watched")
+            .accessibilityValue(isWatched ? "Watched" : "Not watched")
+            .accessibilityAddTraits(isWatched ? .isSelected : [])
+
+            Button { toggleFavorite() } label: {
+                Image(systemName: isFavorited ? "star.fill" : "star")
+                    .font(.appFont(actionFontSize, weight: .semibold))
+            }
+            .buttonStyle(OmniHeroButtonStyle(prominent: false))
+            .accessibilityLabel(isFavorited ? "Remove Favorite" : "Favorite")
+
+            Menu {
+                Button { streamTarget = StreamTarget(catalog: item, episode: item.isSeries ? nextUnwatchedEpisode() : nil, forceManual: true) } label: {
+                    Label("Choose Stream", systemImage: "list.bullet")
+                }
+                Button { showCollectionPicker = true } label: { Label("Add to Collection", systemImage: "rectangle.stack.badge.plus") }
+                Button {
+                    RecommendationFeedbackStore.shared.moreLikeThis(genres: item.genres)
+                    ToastCenter.shared.show("We'll show more like this", systemImage: "hand.thumbsup.fill")
+                } label: { Label("More Like This", systemImage: "hand.thumbsup") }
+                Button {
+                    RecommendationFeedbackStore.shared.notInterested(key: item.contentID.stableKey, genres: item.genres)
+                    ToastCenter.shared.show("We'll show this less", systemImage: "hand.thumbsdown.fill")
+                } label: { Label("Not Interested", systemImage: "hand.thumbsdown") }
+                Button {
+                    RecommendationFeedbackStore.shared.alreadyWatched(key: item.contentID.stableKey)
+                    ToastCenter.shared.show("Hidden from recommendations", systemImage: "eye.slash")
+                } label: { Label("Already Watched", systemImage: "eye") }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.appFont(actionFontSize, weight: .bold))
+            }
+            .buttonStyle(OmniHeroButtonStyle(prominent: false))
+            .accessibilityLabel("More actions for \(item.title)")
+        }
+        .omniFocusSection()
+    }
+
+    #if os(tvOS)
+    private let titleSpacing: CGFloat = 18
+    private let titleFontSize: CGFloat = 72
+    private let metaFontSize: CGFloat = 23
+    private let actionFontSize: CGFloat = 23
+    private let titleColumnWidth: CGFloat = 900
+    private let logoMaxWidth: CGFloat = 620
+    private let logoMaxHeight: CGFloat = 220
+    #else
+    private var titleSpacing: CGFloat { Theme.isPad ? 14 : 10 }
+    private var titleFontSize: CGFloat { Theme.isPad ? 52 : 36 }
+    private var metaFontSize: CGFloat { Theme.isPad ? 17 : 14 }
+    private var actionFontSize: CGFloat { Theme.isPad ? 17 : 15 }
+    private var titleColumnWidth: CGFloat { Theme.isPad ? 640 : 560 }
+    private var logoMaxWidth: CGFloat { Theme.isPad ? 420 : 260 }
+    private var logoMaxHeight: CGFloat { Theme.isPad ? 150 : 96 }
     #endif
 
     /// iPhone-only: the overview and both action rails render here, full width and
@@ -306,9 +332,8 @@ struct ContentDetailView: View {
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .padding(.horizontal, Theme.Spacing.edge)
             }
-            heroPrimaryActions
-                .padding(.horizontal, Theme.Spacing.edge)
-            secondaryActionsRail   // brings its own horizontal edge padding
+            omniActionRow
+                .padding(.horizontal, OmniStyle.edge)
         }
     }
 
@@ -423,230 +448,16 @@ struct ContentDetailView: View {
         }
     }
 
-    private var heroPrimaryActions: some View {
-        HStack(spacing: Theme.Spacing.sm) {
-            Button {
-                streamTarget = StreamTarget(catalog: item,
-                    episode: item.isSeries ? nextUnwatchedEpisode() : nil)
-            } label: {
-                Label(item.isSeries ? "Watch Now" : playButtonTitle, systemImage: "play.fill")
-                    .font(.appFont(18, weight: .bold))
-                    .frame(minHeight: Theme.minTouchTarget)
-            }
-            .buttonStyle(FocusableButtonStyle(prominent: true))
-
-            Button { toggleWatched() } label: {
-                Image(systemName: isWatched ? "checkmark.circle.fill" : "checkmark")
-                    .font(.appFont(21, weight: .semibold))
-                    .frame(width: Theme.minTouchTarget, height: Theme.minTouchTarget)
-            }
-            .buttonStyle(NovaIconButtonStyle(selected: isWatched))
-            .accessibilityLabel(isWatched ? "Mark as unwatched" : "Mark as watched")
-            .accessibilityValue(isWatched ? "Watched" : "Not watched")
-            .accessibilityAddTraits(isWatched ? .isSelected : [])
-        }
-    }
-
     /// "TV Show · Comedy · Animation" style line.
     private var metaLine: String {
-        var parts: [String] = [item.contentID.type == .series ? "TV Show" : "Movie"]
-        parts.append(contentsOf: item.genres.prefix(2))
+        var parts: [String] = []
+        if let year = item.year { parts.append(String(year)) }
+        parts.append(item.contentID.type == .series ? "Series" : "Movie")
+        parts.append(contentsOf: item.genres.prefix(3))
+        if let rating = item.rating, rating > 0 {
+            parts.append("★ " + rating.formatted(.number.precision(.fractionLength(1))))
+        }
         return parts.joined(separator: " · ")
-    }
-
-    private func firstEpisode() -> EpisodeInfo? {
-        let seasons = item.seasons.filter { $0.number > 0 }.isEmpty
-            ? item.seasons : item.seasons.filter { $0.number > 0 }
-        return seasons.sorted { $0.number < $1.number }
-            .first?.episodes.sorted { $0.number < $1.number }.first
-    }
-
-    // MARK: - Backdrop hero
-
-    @ViewBuilder
-    private var backdropHero: some View {
-        if let url = item.backdropURL {
-            CachedAsyncImage(url: url, maxPixel: 1600) { image in
-                image.resizable().aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Color.clear
-            }
-            .frame(height: Theme.isCompact ? 320 : 560)
-            .frame(maxWidth: .infinity)
-            .clipped()
-            .overlay(
-                // Vertical fade to the background, plus a subtle accent wash from the
-                // artwork color along the leading edge for an Apple TV cinematic feel.
-                ZStack {
-                    LinearGradient(
-                        colors: [
-                            Theme.Colors.background.opacity(0.15),
-                            Theme.Colors.background.opacity(0.7),
-                            Theme.Colors.background
-                        ],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                    LinearGradient(
-                        colors: [accent.opacity(0.28), .clear],
-                        startPoint: .bottomLeading, endPoint: .topTrailing
-                    )
-                    .blendMode(.plusLighter)
-                }
-            )
-            .ignoresSafeArea(edges: .top)
-        }
-    }
-
-    // MARK: - Header
-
-    private var header: some View {
-        HStack(alignment: .top, spacing: Theme.Spacing.lg) {
-            PosterImage(url: item.posterURL, width: Theme.scaled(280, min: 120), height: Theme.scaled(420, min: 180))
-
-            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                Text(item.title)
-                    .font(Theme.Font.screenTitle())
-                    .screenTitleStyle()
-                    .foregroundStyle(Theme.Colors.textPrimary)
-
-                WrapFlowLayout(spacing: Theme.Spacing.md, lineSpacing: Theme.Spacing.xs) {
-                    if let year = item.year {
-                        Text(String(year)).foregroundStyle(Theme.Colors.textSecondary)
-                    }
-                    Text(item.contentID.type.displayName)
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                    if let rating = item.rating, rating > 0 {
-                        Label(String(format: "%.1f", rating), systemImage: "star.fill")
-                            .foregroundStyle(Theme.Colors.warning)
-                    }
-                }
-                .font(.appFont(22))
-
-                // External ratings (IMDb / Rotten Tomatoes / Metacritic) from OMDb.
-                if !ratings.isEmpty {
-                    WrapFlowLayout(spacing: Theme.Spacing.sm, lineSpacing: Theme.Spacing.sm) {
-                        if let imdb = ratings.imdb {
-                            ratingBadge(text: String(format: "%.1f", imdb), label: "IMDb",
-                                        color: Color(red: 0.96, green: 0.77, blue: 0.13))
-                        }
-                        if let rt = ratings.rottenTomatoes {
-                            ratingBadge(text: "\(rt)%", label: "RT",
-                                        color: rt >= 60 ? Theme.Colors.error : Theme.Colors.success)
-                        }
-                        if let mc = ratings.metacritic {
-                            ratingBadge(text: "\(mc)", label: "MC",
-                                        color: mc >= 60 ? Theme.Colors.success : Theme.Colors.warning)
-                        }
-                    }
-                    .padding(.top, Theme.Spacing.xs)
-                }
-
-                // Open this title on external sites.
-                sourceLinks
-                    .padding(.top, Theme.Spacing.xs)
-
-                // Note: the show's overview is rendered once in heroHeader (shared by
-                // movies and shows), so it's intentionally not repeated here.
-
-                if !item.isSeries {
-                    // Primary action: full-width Play / Find Streams. For movies the
-                    // stream picker auto-loads and auto-selects the best stream, so
-                    // this goes straight to playback when auto-select is on.
-                    FocusableButton(title: playButtonTitle, systemImage: "play.fill", prominent: true) {
-                        streamTarget = StreamTarget(catalog: item, episode: nil)
-                    }
-                    .contextMenu {
-                        Button {
-                            streamTarget = StreamTarget(catalog: item, episode: nil, forceManual: true)
-                        } label: { Label("Choose Stream…", systemImage: "list.bullet") }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, Theme.Spacing.md)
-                }
-
-                if item.isSeries, let nextUp = nextUnwatchedEpisode() {
-                    FocusableButton(title: resumeButtonTitle(nextUp),
-                                    systemImage: "play.fill", prominent: true) {
-                        streamTarget = StreamTarget(catalog: item, episode: nextUp)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, Theme.Spacing.md)
-                }
-
-                // Secondary actions: a compact, evenly-sized rail that scrolls, so the
-                // buttons are consistent and aligned instead of a tall stack.
-                secondaryActionsRail
-                    .padding(.top, Theme.Spacing.sm)
-
-                if isHydrating {
-                    ProgressView().tint(Theme.Colors.accent).padding(.top, Theme.Spacing.sm)
-                }
-            }
-            Spacer(minLength: 0)
-        }
-    }
-
-    // MARK: - Secondary actions
-
-    /// A compact horizontal rail of consistent, evenly-sized secondary actions, so
-    /// they read as one aligned group instead of a tall stack of full-width buttons.
-    private var secondaryActionsRail: some View {
-        WrapFlowLayout(spacing: Theme.Spacing.sm, lineSpacing: Theme.Spacing.sm, alignment: .center) {
-            if !item.isSeries {
-                detailAction("Choose Stream", systemImage: "list.bullet") {
-                    streamTarget = StreamTarget(catalog: item, episode: nil, forceManual: true)
-                }
-            }
-            #if os(iOS)
-            if let trailer = trailerURL {
-                detailAction("Trailer", systemImage: "film") {
-                    UIApplication.shared.open(trailer)
-                }
-            }
-            #endif
-            detailAction(isFavorited ? "Favorited" : "Favorite",
-                         systemImage: isFavorited ? "star.fill" : "star",
-                         active: isFavorited) {
-                toggleFavorite()
-            }
-            detailAction("Collection", systemImage: "rectangle.stack.badge.plus") {
-                showCollectionPicker = true
-            }
-            if item.contentID.type == .movie {
-                detailAction(isWatched ? "Watched" : "Mark Watched",
-                             systemImage: isWatched ? "checkmark.circle.fill" : "checkmark.circle",
-                             active: isWatched) {
-                    toggleWatched()
-                }
-            }
-            // Recommendation feedback — tunes Discover & Home suggestions.
-            detailAction("More Like This", systemImage: "hand.thumbsup") {
-                RecommendationFeedbackStore.shared.moreLikeThis(genres: item.genres)
-                Haptics.selection()
-                ToastCenter.shared.show("We'll show more like this", systemImage: "hand.thumbsup.fill")
-            }
-            detailAction("Not Interested", systemImage: "hand.thumbsdown") {
-                RecommendationFeedbackStore.shared.notInterested(key: item.contentID.stableKey, genres: item.genres)
-                Haptics.selection()
-                ToastCenter.shared.show("We'll show this less", systemImage: "hand.thumbsdown.fill")
-            }
-            detailAction("Already Watched", systemImage: "eye") {
-                RecommendationFeedbackStore.shared.alreadyWatched(key: item.contentID.stableKey)
-                Haptics.selection()
-                ToastCenter.shared.show("Hidden from recommendations", systemImage: "eye.slash")
-            }
-        }
-        .padding(.horizontal, Theme.Spacing.edge)
-        .padding(.vertical, Theme.Spacing.xs)
-        .frame(maxWidth: .infinity)
-    }
-
-    /// One compact secondary action behind a concrete SwiftUI type boundary.
-    private func detailAction(_ title: String, systemImage: String,
-                              active: Bool = false,
-                              action: @escaping () -> Void) -> ContentDetailActionButton {
-        ContentDetailActionButton(title: title, systemImage: systemImage,
-                                  active: active, accent: accent, action: action)
     }
 
     // MARK: - Collection picker
@@ -1463,31 +1274,5 @@ struct WatchProgressBar: View {
             .allowsHitTesting(false)
             .accessibilityLabel(clamped != nil ? "Watched \(Int((clamped ?? 0).rounded())) percent" : "In progress")
         }
-    }
-}
-
-// A concrete View boundary keeps repeated action types out of the hero's
-// deeply nested generic metadata on the tvOS runtime.
-private struct ContentDetailActionButton: View {
-    let title: String
-    let systemImage: String
-    let active: Bool
-    let accent: Color
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.appFont(16, weight: .semibold))
-                .lineLimit(2)
-                .padding(.horizontal, 12)
-                .frame(minHeight: Theme.minTouchTarget)
-        }
-        #if os(tvOS)
-        .buttonStyle(TVReferenceButtonStyle(selected: active))
-        #else
-        .buttonStyle(NovaChipButtonStyle(selected: active, providesSurface: true))
-        #endif
-        .accessibilityAddTraits(active ? .isSelected : [])
     }
 }

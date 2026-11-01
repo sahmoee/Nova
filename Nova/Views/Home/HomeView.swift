@@ -2,9 +2,10 @@
 //  HomeView.swift
 //  Nova
 //
-//  Apple TV-style Watch Now experience shared by iPhone, iPad, and Apple TV.
-//  The same information architecture is used everywhere while navigation, focus,
-//  sheets, haptics, and device-only actions remain platform appropriate.
+//  Omni-style Home shared by Apple TV, iPad, Mac and iPhone: a logo-first featured
+//  hero fed by the Top Row catalogs, Continue Watching, the Top Row itself, then the
+//  remaining catalog rows in the user's order. On tvOS the hero collapses when focus
+//  moves into the rows and previews the focused title. See OMNI_STYLE_REDESIGN.md.
 //
 
 import SwiftUI
@@ -18,18 +19,15 @@ struct HomeView: View {
 
     @StateObject private var shelfStore = HomeShelfStore.shared
     @StateObject private var profiles = ViewingProfileStore.shared
-    @StateObject private var smbShares = SMBSharesModel()
 
     @State private var selectedItem: MediaItem?
-    // These are referenced only by the iOS Home composition; keeping the simple
-    // state declarations shared avoids duplicating otherwise shared menu helpers.
-    @State private var showCustomize = false
-    @State private var showQueue = false
     @State private var showProfiles = false
-    @State private var heroIndex = 0
+    @State private var heroItems: [CatalogItem] = []
+    @State private var previewItem: CatalogItem?
+    @State private var heroCollapsed = false
     @State private var shelfRefreshToken = UUID()
     @Environment(\.scenePhase) private var scenePhase
-    @Namespace private var heroFocusNS
+    @Namespace private var homeScope
 
     enum HomeRoute: Hashable {
         case liveTV
@@ -38,25 +36,25 @@ struct HomeView: View {
         case history
         case smartCollections
         case watchStats
+        case streams(CatalogItem)
     }
 
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
-                Theme.Colors.appBackground.ignoresSafeArea()
-
+                Theme.Colors.background.ignoresSafeArea()
                 if library.items.isEmpty && shelfStore.enabledShelves.isEmpty {
                     welcomeState
                 } else {
-                    watchNowContent
+                    homeContent
                 }
             }
             #if os(tvOS)
             .tvRootMenu()
+            #else
+            .toolbar(.hidden, for: .navigationBar)
             #endif
             .fullScreenCover(item: $selectedItem) { item in
-                // Present the player as a full-screen cover so no tab bar, sidebar,
-                // or mini-bar remains visible during playback on any platform.
                 NavigationStack { PlayerView(item: item) }
             }
             .navigationDestination(for: CatalogItem.self) { item in
@@ -66,12 +64,6 @@ struct HomeView: View {
                 destination(for: route)
             }
             #if os(iOS)
-            .sheet(isPresented: $showCustomize) {
-                HomeCustomizeView()
-            }
-            .sheet(isPresented: $showQueue) {
-                QueueManageView()
-            }
             .sheet(isPresented: $showProfiles) {
                 ViewingProfileSwitcherView(store: profiles)
             }
@@ -79,359 +71,157 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Watch Now
+    // MARK: - Content
 
-    private var watchNowContent: some View {
-        #if os(tvOS)
-        tvWatchNowContent
-        #else
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: Theme.Spacing.rowGap) {
-                if !env.tmdb.hasKey {
-                    setupBanner
+    private var homeContent: some View {
+        GeometryReader { geometry in
+            ScrollViewReader { proxy in
+                ScrollView(showsIndicators: false) {
+                    LazyVStack(alignment: .leading, spacing: OmniStyle.rowSpacing) {
+                        OmniHeroView(
+                            items: heroItems,
+                            previewItem: previewItem,
+                            collapsed: heroCollapsed,
+                            height: heroHeight(in: geometry.size.height),
+                            isActive: nav.selection == .home && path.isEmpty && selectedItem == nil
+                                && scenePhase == .active,
+                            onPlay: playFeatured,
+                            onOpen: { path.append($0) },
+                            onFocusChange: { focused in
+                                if focused { setCollapsed(false, proxy: proxy) }
+                            }
+                        )
+                        .id("hero")
+                        .overlay(alignment: .top) { topBar }
+
+                        #if os(iOS)
+                        if !env.tmdb.hasKey { setupBanner }
+                        if Theme.isCompact { browseChips }
+                        #endif
+
+                        OmniContinueWatchingRow(
+                            items: PersonalizedHomeEngine.upNext(library: library),
+                            onPlay: play,
+                            onRestart: restart,
+                            onRemove: removeFromUpNext,
+                            onFocusCard: { previewItem = nil; setCollapsed(true, proxy: proxy) }
+                        )
+
+                        Group {
+                            ForEach(Array(shelfStore.topRowShelves.enumerated()), id: \.element.id) { offset, shelf in
+                                OmniShelfRow(shelf: shelf,
+                                             onFocusItem: { focusRow($0, proxy: proxy) },
+                                             onLoaded: { items in
+                                                 if offset == 0 { feedHero(items) }
+                                             })
+                            }
+                            ForEach(shelfStore.remainingShelves) { shelf in
+                                OmniShelfRow(shelf: shelf, onFocusItem: { focusRow($0, proxy: proxy) })
+                            }
+                        }
+                        .id(shelfRefreshToken)
+                    }
+                    .padding(.bottom, 80)
                 }
-
-                heroCarousel
-
-                AppleTVUpNextRail(
-                    items: PersonalizedHomeEngine.upNext(library: library),
-                    onPlay: play,
-                    onRestart: restart,
-                    onRemove: removeFromUpNext,
-                    onManage: { showQueue = true }
-                )
-
-                additionalHomeSections
+                .scrollClipDisabled()
+                #if os(iOS)
+                .refreshable { await refreshShelves() }
+                #endif
             }
-            .padding(.bottom, Theme.Spacing.xl)
         }
-        // The artwork is the page header, so it reaches behind the status area.
-        // ImmersiveFeaturedHero keeps the complete foreground artwork aspect-fit.
         .ignoresSafeArea(edges: .top)
-        .refreshable { await refreshShelves() }
+        .onAppear {
+            if heroItems.isEmpty { heroItems = historyHeroFallback }
+        }
+    }
+
+    private func heroHeight(in pageHeight: CGFloat) -> CGFloat {
+        #if os(tvOS)
+        pageHeight * (heroCollapsed ? OmniStyle.heroCollapsedFraction : OmniStyle.heroHeightFraction)
+        #else
+        Theme.isPad ? max(460, pageHeight * 0.62) : max(420, pageHeight * 0.6)
         #endif
     }
 
-    #if os(tvOS)
-    private var tvWatchNowContent: some View {
-        GeometryReader { geometry in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 28) {
-                    TVHomeHeroCarousel(
-                        items: heroItems,
-                        height: max(620, geometry.size.height * 0.74),
-                        autoAdvance: profiles.preferences.autoAdvanceHero,
-                        isActive: nav.selection == .home && path.isEmpty && selectedItem == nil
-                            && scenePhase == .active,
-                        reduceArtworkMotion: profiles.preferences.reduceArtworkMotion,
-                        playFocusNamespace: heroFocusNS,
-                        onPlay: play,
-                        onOpen: openDetail
-                    )
-                    .overlay(alignment: .topLeading) {
-                        TVPageHeading(title: "Home", systemImage: "house")
-                            .accessibilityIdentifier("home.menu")
-                            .padding(.leading, TVReferenceStyle.edge)
-                            .padding(.top, TVReferenceStyle.top)
-                    }
-
-                    TVContinueWatchingRail(
-                        items: PersonalizedHomeEngine.upNext(library: library),
-                        availableWidth: geometry.size.width,
-                        onPlay: play,
-                        onRestart: restart,
-                        onRemove: removeFromUpNext
-                    )
-
-                    additionalHomeSections
-                }
-                .padding(.bottom, 64)
-            }
-            .scrollClipDisabled()
-            .focusScope(heroFocusNS)
-        }
-        .ignoresSafeArea()
+    /// The Top Row feeds the hero; history covers installs with no catalogs yet.
+    private func feedHero(_ items: [CatalogItem]) {
+        let featured = items.filter { $0.backdropURL != nil }.prefix(8)
+        heroItems = featured.isEmpty ? historyHeroFallback : Array(featured)
     }
 
-    #endif
+    private var historyHeroFallback: [CatalogItem] {
+        Array(library.viewingHistoryHeroItems.prefix(8)).map { $0.asCatalogItem() }
+    }
+
+    private func focusRow(_ item: CatalogItem, proxy: ScrollViewProxy) {
+        previewItem = item
+        setCollapsed(true, proxy: proxy)
+    }
+
+    private func setCollapsed(_ collapsed: Bool, proxy: ScrollViewProxy) {
+        #if os(tvOS)
+        guard heroCollapsed != collapsed else { return }
+        withAnimation(Theme.isReduceMotion ? nil : .easeInOut(duration: 0.3)) {
+            heroCollapsed = collapsed
+            if !collapsed { proxy.scrollTo("hero", anchor: .top) }
+        }
+        #endif
+    }
+
+    // MARK: - Chrome
 
     @ViewBuilder
-    private var additionalHomeSections: some View {
-        #if os(tvOS)
-        // Home is a viewing surface on television, not a setup dashboard. Source
-        // health, profile editing, and shelf configuration live in Settings.
-        if profiles.preferences.showBecauseYouWatched,
-           let anchor = library.recentlyWatched.first {
-            BecauseYouWatchedCatalogRail(anchor: anchor) { catalog in
-                path.append(catalog)
-            }
-        }
-
-        ForEach(Array(primarySmartRails.prefix(4))) { rail in
-            AppleTVSmartRailView(rail: rail, onSelect: openDetail)
-        }
-
-        Group {
-            ForEach(Array(shelfStore.enabledShelves.prefix(6))) { shelf in
-                CatalogShelfRow(shelf: shelf, showSourceLabel: false)
-            }
-        }
-        .id(shelfRefreshToken)
-        #else
-        if profiles.preferences.showQuickAccess {
-            StreamingDiscoverGrid(items: Array(quickAccessItems.prefix(4)))
-        }
-
-        if profiles.preferences.showBecauseYouWatched,
-           let anchor = library.recentlyWatched.first {
-            BecauseYouWatchedCatalogRail(anchor: anchor) { catalog in
-                path.append(catalog)
-            }
-        }
-
-        ForEach(primarySmartRails) { rail in
-            AppleTVSmartRailView(rail: rail, onSelect: openDetail)
-        }
-
-        // Editorial catalog rows remain network-backed and user-customizable,
-        // but now sit inside the same Watch Now feed as personal rails.
-        Group {
-            ForEach(shelfStore.enabledShelves) { shelf in
-                CatalogShelfRow(shelf: shelf, showSourceLabel: false)
-            }
-        }
-        .id(shelfRefreshToken)
-
-        if profiles.preferences.showSourceHub {
-            AppleTVSourceHub(items: sourceHealthItems) {
-                path.append(HomeRoute.sources)
-            }
-        }
-
-        if profiles.preferences.showSmartCollections {
-            smartCollectionsFooter
-        }
-        #endif
-    }
-
     private var topBar: some View {
-        HStack(alignment: .center, spacing: Theme.Spacing.sm) {
+        #if os(iOS)
+        HStack {
             Text("Nova")
-                .font(.appFont(PlatformCapabilities.platform == .appleTV ? 38 : 34, weight: .semibold, design: .serif))
-                .foregroundStyle(Theme.Colors.textPrimary)
+                .font(.appFont(Theme.isPad ? 30 : 26, weight: .semibold, design: .serif))
+                .foregroundStyle(.white)
                 .accessibilityLabel("Nova Home")
-            if !Theme.isCompact {
-                Text("WATCH NOW")
-                    .font(.appFont(13, weight: .bold))
-                    .tracking(1.4)
-                    .foregroundStyle(Theme.Colors.textSecondary)
-            }
             Spacer()
-            homeMenu
+            Button { showProfiles = true } label: {
+                Image(systemName: "person.crop.circle")
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+            }
+            .accessibilityLabel("Switch Profile")
         }
-        .padding(.horizontal, Theme.Spacing.edge)
-        .padding(.top, PlatformCapabilities.platform == .appleTV ? Theme.Spacing.xl : Theme.Spacing.md)
-    }
-
-    // MARK: - Hero
-
-    private var heroItems: [MediaItem] {
-        library.viewingHistoryHeroItems
+        .padding(.horizontal, OmniStyle.edge)
+        .padding(.top, 54)
+        #else
+        EmptyView()
+        #endif
     }
 
     #if os(iOS)
-    @ViewBuilder
-    private var heroCarousel: some View {
-        let items = heroItems
-        if items.isEmpty {
-            fallbackHeader
-        } else {
-            VStack(spacing: Theme.Spacing.sm) {
-                ZStack {
-                    let safeIndex = min(heroIndex, items.count - 1)
-                    let item = items[safeIndex]
-                    ImmersiveFeaturedHero(item: item,
-                                          height: PlatformCapabilities.homeHeroHeight,
-                                          onOpen: openDetail,
-                                          onPlay: play)
-                        .overlay(alignment: .top) { topBar }
-                        .id(item.id)
-                        .transition(.opacity)
+    /// iPhone has no sidebar, so the catalog groups sit under the hero as chips.
+    private var browseChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                chip("Movies", systemImage: "film") { nav.selection = .movies }
+                chip("Series", systemImage: "tv") { nav.selection = .series }
+                if !env.liveTVSources.allChannels.isEmpty {
+                    chip("Live TV", systemImage: "dot.radiowaves.left.and.right") { path.append(HomeRoute.liveTV) }
                 }
-                .animation(profiles.preferences.reduceArtworkMotion ? nil : .easeInOut(duration: 0.55),
-                           value: heroIndex)
-                .frame(height: PlatformCapabilities.homeHeroHeight)
-                .contentShape(Rectangle())
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 25)
-                        .onEnded { value in
-                            guard items.count > 1 else { return }
-                            if value.translation.width < -40 {
-                                heroIndex = (heroIndex + 1) % items.count
-                            } else if value.translation.width > 40 {
-                                heroIndex = (heroIndex - 1 + items.count) % items.count
-                            }
-                        }
-                )
-
-                if items.count > 1 {
-                    HStack(spacing: 6) {
-                        ForEach(items.indices, id: \.self) { index in
-                            // The current page stretches into a pill, like system page controls.
-                            Capsule()
-                                .fill(index == heroIndex ? Color.white : Color.white.opacity(0.32))
-                                .frame(width: index == heroIndex ? 18 : 7, height: 7)
-                        }
-                    }
-                    .animation(.easeOut(duration: 0.18), value: heroIndex)
-                    // Accessibility: the dots are decorative; VoiceOver reads the hero itself.
-                    .accessibilityHidden(true)
-                }
+                chip("Collections", systemImage: "rectangle.stack") { path.append(HomeRoute.collections) }
             }
-            .task(id: heroIndex) {
-                // Warm the neighbouring heroes' artwork so a swipe or auto-advance
-                // fades straight to a decoded image instead of a loading shimmer.
-                if items.count > 1 {
-                    let neighbours = [(heroIndex + 1) % items.count, (heroIndex - 1 + items.count) % items.count]
-                    let urls = neighbours.compactMap { items[$0].backdropURL ?? items[$0].posterURL }
-                    ImageLoader.shared.prefetch(urls, maxPixel: 1600)
-                }
-                guard profiles.preferences.autoAdvanceHero,
-                      !profiles.preferences.reduceArtworkMotion,
-                      items.count > 1 else { return }
-                try? await Task.sleep(for: .seconds(9))
-                guard !Task.isCancelled, scenePhase == .active else { return }
-                withAnimation(.easeInOut(duration: 0.5)) {
-                    heroIndex = (heroIndex + 1) % items.count
-                }
-            }
+            .padding(.horizontal, OmniStyle.edge)
         }
     }
 
+    private func chip(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.appFont(15, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 16)
+                .frame(height: 36)
+                .background(Capsule().fill(Color.white.opacity(0.12)))
+        }
+        .buttonStyle(.plain)
+    }
     #endif
-
-    private var homeMenu: some View {
-        Menu {
-            Button { nav.selection = .discover } label: {
-                Label("Search and Browse", systemImage: "magnifyingglass")
-            }
-            Button { showCustomize = true } label: {
-                Label("Customize Home", systemImage: "slider.horizontal.3")
-            }
-            Button { showProfiles = true } label: {
-                Label("Switch Profile", systemImage: "person.crop.circle")
-            }
-            Divider()
-            Button { nav.selection = .settings } label: {
-                Label("Settings", systemImage: "gearshape")
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.appFont(20, weight: .bold))
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .frame(width: Theme.minTouchTarget, height: Theme.minTouchTarget)
-                .background(.thinMaterial, in: Circle())
-                .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
-        }
-        .novaIconStyle()
-        .accessibilityLabel("Home menu")
-    }
-
-    // MARK: - Personal rails
-
-    private var primarySmartRails: [SmartHomeRail] {
-        let excluded: Set<SmartHomeRailKind> = [.becauseYouWatched, .recentlyAdded]
-        return PersonalizedHomeEngine.distinctRails(
-            library: library,
-            profile: profiles.activeProfile,
-            excluding: PersonalizedHomeEngine.upNext(library: library)
-        )
-            .filter { !excluded.contains($0.kind) }
-            .filter { rail in
-                if rail.kind == .recentlyWatched { return profiles.preferences.showWatchHistory }
-                return true
-            }
-            .prefix(7)
-            .map { $0 }
-    }
-
-    private var smartCollectionsFooter: some View {
-        Button { path.append(HomeRoute.smartCollections) } label: {
-            HStack(spacing: Theme.Spacing.md) {
-                Image(systemName: "rectangle.3.group.fill")
-                    .font(.appFont(34, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Browse All Smart Collections")
-                        .font(.appFont(21, weight: .bold))
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                    Text("Finish Tonight, 4K, Binge Next, personal media, history, and more")
-                        .font(.appFont(15))
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                        .lineLimit(2)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(Theme.Colors.textSecondary)
-            }
-            .padding(Theme.Spacing.lg)
-            .background(.thinMaterial,
-                        in: RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
-            )
-            .padding(.horizontal, Theme.Spacing.edge)
-        }
-        .buttonStyle(NovaListRowStyle())
-    }
-
-    // MARK: - Quick access / source hub
-
-    private var quickAccessItems: [AppleTVQuickAccessItem] {
-        [
-            AppleTVQuickAccessItem(id: "library", title: "Library", subtitle: "Everything you saved", systemImage: "rectangle.stack.fill",
-                                   artworkURLs: artworkURLs(from: library.items.sorted { $0.addedDate > $1.addedDate })) {
-                nav.selection = .library
-            },
-            AppleTVQuickAccessItem(id: "live", title: "Live TV", subtitle: "Channels and guide", systemImage: "dot.radiowaves.left.and.right",
-                                   artworkURLs: Array(env.liveTVSources.allChannels.compactMap(\.logoURL).prefix(3))) {
-                path.append(HomeRoute.liveTV)
-            },
-            AppleTVQuickAccessItem(id: "collections", title: "Collections", subtitle: "Your custom lists", systemImage: "rectangle.stack.badge.plus",
-                                   artworkURLs: collectionArtworkURLs) {
-                path.append(HomeRoute.collections)
-            },
-            AppleTVQuickAccessItem(id: "history", title: "Watch History", subtitle: "Recently played titles", systemImage: "clock.arrow.circlepath",
-                                   artworkURLs: artworkURLs(from: library.recentlyWatched)) {
-                path.append(HomeRoute.history)
-            },
-            AppleTVQuickAccessItem(id: "smart", title: "Smart Collections", subtitle: "Automatic viewing lanes", systemImage: "sparkles.rectangle.stack",
-                                   artworkURLs: artworkURLs(from: library.favorites)) {
-                path.append(HomeRoute.smartCollections)
-            },
-            AppleTVQuickAccessItem(id: "sources", title: "Sources", subtitle: "Accounts, addons, and shares", systemImage: "point.3.connected.trianglepath.dotted",
-                                   artworkURLs: artworkURLs(from: library.items)) {
-                path.append(HomeRoute.sources)
-            }
-        ]
-    }
-
-    private var collectionArtworkURLs: [URL] {
-        let items = library.collections.flatMap { library.items(in: $0) }
-        return artworkURLs(from: items)
-    }
-
-    private func artworkURLs(from items: [MediaItem]) -> [URL] {
-        var seen = Set<URL>()
-        return Array(items.compactMap { $0.backdropURL ?? $0.posterURL }
-            .filter { seen.insert($0).inserted }
-            .prefix(3))
-    }
-
-    private var sourceHealthItems: [SourceHealthItem] {
-        SourceHealth.all(addonStore: env.addonStore, smbShareCount: smbShares.shares.count)
-    }
 
     // MARK: - Destinations
 
@@ -450,18 +240,22 @@ struct HomeView: View {
             SmartCollectionsView()
         case .watchStats:
             WatchStatsView()
+        case .streams(let item):
+            StreamPickerView(catalog: item, episode: nil)
         }
     }
 
     // MARK: - Actions
 
+    /// Movies go straight to streams like Omni's hero; series open their page so
+    /// the viewer can pick an episode.
+    private func playFeatured(_ item: CatalogItem) {
+        if item.isSeries { path.append(item) } else { path.append(HomeRoute.streams(item)) }
+    }
+
     private func play(_ item: MediaItem) {
         Haptics.impact(.medium)
         selectedItem = item
-    }
-
-    private func openDetail(_ item: MediaItem) {
-        path.append(item.asCatalogItem())
     }
 
     private func restart(_ item: MediaItem) {
@@ -486,109 +280,57 @@ struct HomeView: View {
     // MARK: - Setup / empty states
 
     private var welcomeState: some View {
-        #if os(tvOS)
-        GeometryReader { geometry in
-            ZStack(alignment: .bottomLeading) {
-                Theme.Colors.background
-                RadialGradient(
-                    colors: [.white.opacity(0.08), .clear],
-                    center: .topTrailing,
-                    startRadius: 20,
-                    endRadius: geometry.size.width * 0.72
-                )
-
-                VStack(alignment: .leading, spacing: 18) {
-                    Text("All your entertainment.\nOne place.")
-                        .font(.appFont(64, weight: .bold))
-                        .foregroundStyle(.white)
-                        .lineLimit(2)
-                    Text("Connect a media source, then Nova will place your library, progress, and recommendations here.")
-                        .font(.appFont(25))
-                        .foregroundStyle(.white.opacity(0.70))
-                        .frame(maxWidth: 760, alignment: .leading)
-                    Button {
-                        nav.selection = .settings
-                    } label: {
-                        Label("Open Settings", systemImage: "gearshape")
-                            .font(.appFont(25, weight: .semibold))
-                            .padding(.horizontal, 26)
-                            .frame(height: 58)
-                    }
-                    .buttonStyle(TVReferenceButtonStyle(selected: true))
-                    .padding(.top, 10)
-                }
-                .padding(.leading, TVReferenceStyle.edge)
-                .padding(.bottom, 130)
-
-                TVPageHeading(title: "Home", systemImage: "house")
-                    .padding(.leading, TVReferenceStyle.edge)
-                    .padding(.top, TVReferenceStyle.top)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Nova")
+                .font(.appFont(welcomeTitle * 0.55, weight: .semibold, design: .serif))
+                .foregroundStyle(.white.opacity(0.7))
+            Text("All your entertainment.\nOne place.")
+                .font(.appFont(welcomeTitle, weight: .bold))
+                .foregroundStyle(.white)
+            Text("Connect a media source or install an addon, and Nova will build your Home from its catalogs.")
+                .font(.appFont(welcomeTitle * 0.38))
+                .foregroundStyle(.white.opacity(0.7))
+                .frame(maxWidth: 760, alignment: .leading)
+            Button { nav.selection = .settings } label: {
+                Label("Set Up Sources", systemImage: "gearshape")
+                    .font(.appFont(welcomeTitle * 0.36, weight: .semibold))
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
+            .buttonStyle(OmniHeroButtonStyle(prominent: true))
+            .padding(.top, 10)
         }
-        .ignoresSafeArea()
+        .padding(OmniStyle.edge)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        .padding(.bottom, 60)
+    }
+
+    private var welcomeTitle: CGFloat {
+        #if os(tvOS)
+        64
         #else
-        VStack(spacing: Theme.Spacing.lg) {
-            EmptyStateView(
-                systemImage: "play.tv.fill",
-                title: "Welcome to Nova",
-                message: "Connect your sources and Nova will build a personalized Watch Now experience across iPhone, iPad, and Apple TV.",
-                actionTitle: "Set Up Sources",
-                action: { nav.selection = .settings }
-            )
-            AppleTVProfileButton(store: profiles) { showProfiles = true }
-        }
+        Theme.isPad ? 46 : 34
         #endif
     }
 
     private var setupBanner: some View {
         Button { nav.selection = .settings } label: {
-            HStack(spacing: Theme.Spacing.md) {
+            HStack(spacing: 14) {
                 Image(systemName: "checklist")
-                    .font(.appFont(28, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Finish setting up Nova")
-                        .font(.appFont(20, weight: .bold))
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                    Text("Add your TMDB key for artwork, details, editorial shelves, and recommendations.")
-                        .font(.appFont(15))
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                        .lineLimit(2)
+                    .font(.system(size: 22, weight: .semibold))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Finish setting up Nova").font(.appFont(16, weight: .bold))
+                    Text("Add a TMDB key for artwork, logos and catalog rows.")
+                        .font(.appFont(13))
+                        .foregroundStyle(.white.opacity(0.65))
                 }
                 Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(Theme.Colors.textTertiary)
+                Image(systemName: "chevron.right").foregroundStyle(.white.opacity(0.5))
             }
-            .padding(Theme.Spacing.lg)
-            .background(.thinMaterial,
-                        in: RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.largeCard, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
-            )
-            .padding(.horizontal, Theme.Spacing.edge)
+            .foregroundStyle(.white)
+            .padding(16)
+            .background(Theme.Colors.card, in: RoundedRectangle(cornerRadius: OmniStyle.cardRadius, style: .continuous))
+            .padding(.horizontal, OmniStyle.edge)
         }
-        .buttonStyle(NovaListRowStyle())
-    }
-
-    private var fallbackHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text("Your personal media hub")
-                    .font(Theme.Font.screenTitle())
-                    .screenTitleStyle()
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                Text("Start watching a movie or show to build your rotating hero.")
-                    .font(.appFont(17))
-                    .foregroundStyle(Theme.Colors.textSecondary)
-            }
-            Spacer()
-            homeMenu
-        }
-        .padding(.horizontal, Theme.Spacing.edge)
-        .padding(.vertical, Theme.Spacing.lg)
+        .buttonStyle(.plain)
     }
 }
 

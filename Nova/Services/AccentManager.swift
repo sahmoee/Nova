@@ -15,9 +15,11 @@ import UIKit
 final class AccentManager: ObservableObject {
     static let shared = AccentManager()
 
-    /// The system action color. Nonisolated so it can
-    /// be used as an EnvironmentKey default value (which runs outside the main actor).
-    nonisolated static let fallback = Color(white: 0.84)
+    /// Nova's single restrained accent (Omni-style chrome stays neutral; this soft
+    /// violet marks tint, selection and progress). It reads on both the black canvas
+    /// and white tvOS focus fills. Nonisolated so it can be used as an
+    /// EnvironmentKey default value (which runs outside the main actor).
+    nonisolated static let fallback = Color(red: 0.55, green: 0.50, blue: 0.98)
 
     /// The current accent color, animated when it changes.
     @Published private(set) var accent: Color = AccentManager.fallback

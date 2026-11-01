@@ -82,6 +82,8 @@ enum StreamRanker {
         /// Addon names in the user's Addons-screen order; earlier addons score
         /// higher, so reordering addons directly biases stream ranking.
         var addonPriority: [String] = []
+        /// User stream rules: tag, prefer, avoid, hide, and auto-play picks.
+        var rules: StreamRuleEngine? = nil
     }
 
     /// Collapses streams that are the same underlying file offered by several
@@ -125,6 +127,10 @@ enum StreamRanker {
     /// are ordered by weighted score.
     static func rank(_ streams: [StreamOption], preferences p: StreamPreferences) -> [StreamOption] {
         streams.sorted { a, b in
+            // Rule-hidden streams stay reachable but always sink to the bottom.
+            let ha = p.rules?.isHidden(a) ?? false
+            let hb = p.rules?.isHidden(b) ?? false
+            if ha != hb { return hb }
             let pa = passesHardPreferences(a, p)
             let pb = passesHardPreferences(b, p)
             if pa != pb { return pa }   // passing streams sort above failing ones
@@ -159,7 +165,7 @@ enum StreamRanker {
     /// instant availability and resolution dominate, with HDR/codec/audio refining
     /// between otherwise-similar options.
     static func score(_ s: StreamOption, preferences p: StreamPreferences) -> Int {
-        var score = 0
+        var score = p.rules?.scoreAdjustment(for: s) ?? 0
         // User-ordered fallback chain: earlier source kinds get a graded bonus.
         if let idx = p.sourcePriority.firstIndex(of: s.sourceKind) {
             score += max(0, p.sourcePriority.count - idx) * 40
@@ -227,6 +233,15 @@ enum StreamRanker {
                            requireCached: Bool) -> StreamOption? {
         var pool = streams
         if requireCached { pool = pool.filter { $0.isCached } }
+        if let rules = p.rules {
+            // Never auto-play a hidden stream; prefer auto-play rule matches.
+            let visible = pool.filter { !rules.isHidden($0) }
+            if !visible.isEmpty { pool = visible }
+            if rules.hasAutoPlayRules {
+                let picks = pool.filter { rules.isAutoPlayPick($0) }
+                if !picks.isEmpty { pool = picks }
+            }
+        }
         let ranked = rank(pool, preferences: p)
         // Prefer the best stream that passes the hard caps; otherwise best overall.
         return ranked.first(where: { passesHardPreferences($0, p) })

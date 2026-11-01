@@ -151,13 +151,13 @@ enum Theme {
     // MARK: - Colors
 
     enum Colors {
-        static let background = Color(white: 0.075)
-        static let backgroundElevated = Color(white: 0.115)
+        static let background = Color.black
+        static let backgroundElevated = Color(white: 0.07)
 
-        static let card = Color(white: 0.16)
-        static let cardElevated = Color(white: 0.21)
+        static let card = Color(white: 0.12)
+        static let cardElevated = Color(white: 0.18)
 
-        static let accent = Color(white: 0.84)
+        static let accent = Color.white
         static let accentSecondary = Color(white: 0.72)
         static let onAccent = Color(white: 0.10)
         static let iconRed = Color.red
@@ -233,11 +233,11 @@ enum Theme {
     // MARK: - Radii
 
     enum Radius {
-        static var card: CGFloat { Theme.scaled(24, min: 20) }
-        static var largeCard: CGFloat { Theme.scaled(32, min: 26) }
+        static var card: CGFloat { Theme.scaled(14, min: 12) }
+        static var largeCard: CGFloat { Theme.scaled(20, min: 16) }
         static var button: CGFloat { Theme.scaled(20, min: 14) }
         static let pill: CGFloat = 999
-        static let poster: CGFloat = 16
+        static let poster: CGFloat = 12
         static let thumb: CGFloat = 12
         /// Compact selectors use the same continuous corners on both platforms.
         static let chip: CGFloat = 16

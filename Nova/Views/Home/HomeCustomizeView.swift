@@ -2,8 +2,10 @@
 //  HomeCustomizeView.swift
 //  Nova
 //
-//  Lets the user choose which catalog shelves appear on Home/Discover, reorder them,
-//  and add new ones (TMDB categories, Trakt, or addon catalogs).
+//  Omni-style Catalog Management: every Home row with its source, Top Row pin and
+//  layout. Selecting a catalog opens an editor to rename it, show or hide it, pin
+//  it to the Top Row under the hero, choose poster or landscape cards, cap its
+//  items, reorder it (remote-friendly up/down) or remove it.
 //
 
 import SwiftUI
@@ -13,60 +15,35 @@ struct HomeCustomizeView: View {
     @StateObject private var store = HomeShelfStore.shared
     @Environment(\.dismiss) private var dismiss
     @State private var showAdd = false
+    @State private var editingID: UUID?
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    ForEach($store.shelves) { $shelf in
-                        HStack {
-                            Toggle(isOn: $shelf.isEnabled) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(shelf.title)
-                                        .font(.appFont(19, weight: .semibold))
-                                        .foregroundStyle(Theme.Colors.textPrimary)
-                                    Text(shelf.kind.sourceLabel)
-                                        .font(.appFont(14))
-                                        .foregroundStyle(Theme.Colors.textTertiary)
-                                }
-                            }
-                            .tint(Theme.Colors.accent)
-                        }
-                        .listRowBackground(Theme.Colors.card)
+                    ForEach(store.shelves) { shelf in
+                        Button { editingID = shelf.id } label: { row(shelf) }
+                            .listRowBackground(Theme.Colors.card)
                     }
                     .onMove { store.move(from: $0, to: $1) }
                     .onDelete { store.shelves.remove(atOffsets: $0) }
                 } header: {
-                    Text("Shelves").foregroundStyle(Theme.Colors.textSecondary)
+                    Text("Catalogs").foregroundStyle(Theme.Colors.textSecondary)
                 } footer: {
-                    #if os(tvOS)
-                    Text("Turn shelves on or off. Use Nova on iPhone or iPad when you want to reorder or remove custom shelves.")
+                    Text("Pinned catalogs form the Top Row under the Home hero and feed its featured titles. Select a catalog to rename, restyle, reorder or hide it.")
                         .foregroundStyle(Theme.Colors.textTertiary)
-                    #else
-                    Text("Toggle shelves on or off, drag to reorder, or swipe to remove. These appear on Home and Discover.")
-                        .foregroundStyle(Theme.Colors.textTertiary)
-                    #endif
                 }
 
                 Section {
-                    Button {
-                        showAdd = true
-                    } label: {
-                        Label("Add a Shelf", systemImage: "plus.circle.fill")
-                            .foregroundStyle(Theme.Colors.accent)
+                    Button { showAdd = true } label: {
+                        Label("Add a Catalog", systemImage: "plus.circle.fill")
                     }
                     .listRowBackground(Theme.Colors.card)
 
-                    Button(role: .destructive) {
-                        store.resetToDefaults()
-                    } label: {
+                    Button(role: .destructive) { store.resetToDefaults() } label: {
                         Label("Reset to Defaults", systemImage: "arrow.counterclockwise")
                     }
                     .listRowBackground(Theme.Colors.card)
-                } footer: {
-                    Text("Shelves show recommendations tuned by your Not Interested / More Like This feedback.")
-                        .font(.appFont(13))
-                        .foregroundStyle(Theme.Colors.textTertiary)
                 }
 
                 if RecommendationFeedbackStore.shared.hasFeedback {
@@ -87,8 +64,8 @@ struct HomeCustomizeView: View {
             #if os(iOS)
             .scrollContentBackground(.hidden)
             #endif
-            .background(Theme.Colors.appBackground.ignoresSafeArea())
-            .navigationTitle("Customize Home")
+            .background(Theme.Colors.background.ignoresSafeArea())
+            .navigationTitle("Catalogs")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -98,9 +75,116 @@ struct HomeCustomizeView: View {
                 }
             }
             #endif
-            .sheet(isPresented: $showAdd) {
-                AddShelfView()
+            .sheet(isPresented: $showAdd) { AddShelfView() }
+            .sheet(item: Binding(get: { editingID.map(EditTarget.init) }, set: { editingID = $0?.id })) { target in
+                NavigationStack { CatalogEditorView(shelfID: target.id) }
             }
+        }
+    }
+
+    private struct EditTarget: Identifiable { let id: UUID }
+
+    private func row(_ shelf: ShelfConfig) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: shelf.resolvedLayout == .landscape ? "rectangle" : "rectangle.portrait")
+                .font(.appFont(20, weight: .medium))
+                .foregroundStyle(shelf.isEnabled ? Theme.Colors.textPrimary : Theme.Colors.textTertiary)
+                .frame(width: 30)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(shelf.title)
+                    .font(.appFont(19, weight: .semibold))
+                    .foregroundStyle(shelf.isEnabled ? Theme.Colors.textPrimary : Theme.Colors.textTertiary)
+                    .lineLimit(1)
+                Text(detail(for: shelf))
+                    .font(.appFont(14))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            if shelf.isPinnedToTopRow {
+                Image(systemName: "pin.fill")
+                    .foregroundStyle(AccentManager.fallback)
+                    .accessibilityLabel("Pinned to Top Row")
+            }
+            if !shelf.isEnabled {
+                Text("Hidden").font(.appFont(13, weight: .semibold)).foregroundStyle(Theme.Colors.textTertiary)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func detail(for shelf: ShelfConfig) -> String {
+        var parts = [shelf.kind.sourceLabel, shelf.resolvedLayout.title]
+        if let limit = shelf.itemLimit { parts.append("\(limit) items") }
+        return parts.joined(separator: " · ")
+    }
+}
+
+/// Edits one catalog row. Changes apply immediately through `HomeShelfStore`.
+struct CatalogEditorView: View {
+    let shelfID: UUID
+    @StateObject private var store = HomeShelfStore.shared
+    @Environment(\.dismiss) private var dismiss
+
+    private static let limits: [Int?] = [nil, 10, 20, 30, 50]
+
+    private var shelf: ShelfConfig? { store.shelves.first { $0.id == shelfID } }
+    private var index: Int? { store.shelves.firstIndex { $0.id == shelfID } }
+
+    private func binding<T>(_ keyPath: WritableKeyPath<ShelfConfig, T>, default value: T) -> Binding<T> {
+        Binding(get: { shelf?[keyPath: keyPath] ?? value },
+                set: { newValue in store.update(shelfID) { $0[keyPath: keyPath] = newValue } })
+    }
+
+    var body: some View {
+        Form {
+            if let shelf {
+                Section("Name") {
+                    TextField("Catalog name", text: binding(\.title, default: shelf.kind.defaultTitle))
+                    if shelf.title != shelf.kind.defaultTitle {
+                        Button("Restore Original Name") {
+                            store.update(shelfID) { $0.title = $0.kind.defaultTitle }
+                        }
+                    }
+                }
+                Section {
+                    Toggle("Show on Home", isOn: binding(\.isEnabled, default: true))
+                    Toggle("Pin to Top Row", isOn: binding(\.isPinnedToTopRow, default: false))
+                } footer: {
+                    Text("The first Top Row catalog supplies the titles featured in the Home hero.")
+                }
+                Section("Cards") {
+                    Picker("Layout", selection: binding(\.layout, default: nil)) {
+                        Text("Default").tag(OmniShelfLayout?.none)
+                        ForEach(OmniShelfLayout.allCases) { Text($0.title).tag(OmniShelfLayout?.some($0)) }
+                    }
+                    Picker("Items Shown", selection: binding(\.itemLimit, default: nil)) {
+                        ForEach(Self.limits, id: \.self) { limit in
+                            Text(limit.map { "\($0)" } ?? "All").tag(limit)
+                        }
+                    }
+                }
+                Section("Order") {
+                    Button { store.move(id: shelfID, offset: -1) } label: {
+                        Label("Move Up", systemImage: "arrow.up")
+                    }
+                    .disabled(index == 0)
+                    Button { store.move(id: shelfID, offset: 1) } label: {
+                        Label("Move Down", systemImage: "arrow.down")
+                    }
+                    .disabled(index == store.shelves.count - 1)
+                }
+                Section {
+                    Button("Remove Catalog", role: .destructive) {
+                        store.shelves.removeAll { $0.id == shelfID }
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .navigationTitle(shelf?.title ?? "Catalog")
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
         }
     }
 }

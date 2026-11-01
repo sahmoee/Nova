@@ -36,34 +36,33 @@ enum WhatsNew {
     static let releases: [ReleaseNote] = [
         ReleaseNote(
             version: "1.7",
-            headline: "Meet the new cinematic Nova",
+            headline: "A new look for Nova",
             features: [
                 ReleaseFeature(
-                    symbol: "play.rectangle.on.rectangle.fill",
-                    title: "New & Hot",
-                    detail: "Browse a full-screen editorial feed with Top 10 Today, Coming Soon, New This Week, and popular picks.",
-                    tryItTab: .ai
+                    symbol: "sidebar.left",
+                    title: "A sidebar for every section",
+                    detail: "Home, Search, Movies, Series, Library and Settings sit in one sidebar. On Apple TV it rests as icons and opens when you press Back.",
+                    tryItTab: .movies
                 ),
                 ReleaseFeature(
-                    symbol: "bell.fill",
-                    title: "Remind Me",
-                    detail: "Save upcoming movies and shows to a persistent reminder list, then filter the feed to see only your picks.",
-                    tryItTab: .ai
+                    symbol: "sparkles.tv",
+                    title: "A featured hero with title logos",
+                    detail: "Home leads with titles from your Top Row catalogs, then steps aside to preview whatever you focus in the rows below."
                 ),
                 ReleaseFeature(
-                    symbol: "rectangle.3.group.fill",
-                    title: "A sharper streaming layout",
-                    detail: "Edge-to-edge artwork, ranked poster rails, tighter cards, crimson accents, and a focused Library destination make browsing faster."
+                    symbol: "rectangle.3.group",
+                    title: "Catalogs your way",
+                    detail: "Rename, reorder, hide or pin any catalog to the Top Row, and pick poster or landscape cards for each row."
                 ),
                 ReleaseFeature(
-                    symbol: "textformat.size",
-                    title: "Built for every screen and text size",
-                    detail: "iPhone and iPad layouts respond to their live window size, while hero controls reflow for larger accessibility text."
+                    symbol: "tag",
+                    title: "Stream Rules",
+                    detail: "Tag, prefer, avoid or hide streams by name, and choose which matches Auto-Select plays first."
                 ),
                 ReleaseFeature(
-                    symbol: "wifi.slash",
-                    title: "Clear loading and offline states",
-                    detail: "New skeletons, retry actions, setup guidance, and connectivity messaging explain what Nova is doing without dead ends."
+                    symbol: "paintbrush",
+                    title: "Appearance options",
+                    detail: "Choose card size, always-visible titles, a compact Continue Watching row and a high-contrast focus outline."
                 )
             ]
         ),

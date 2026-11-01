@@ -734,6 +734,8 @@ final class SettingsStore: ObservableObject {
             preferEfficientCodec: preferEfficientCodec
         )
         prefs.sourcePriority = sourceKindPriority.compactMap(SourceKind.init(rawValue:))
+        let rules = StreamRuleStore.shared.engine
+        prefs.rules = rules.isEmpty ? nil : rules
         // Bandwidth saver tightens toward smaller, efficient streams.
         if bandwidthSaver {
             prefs.preferEfficientCodec = true

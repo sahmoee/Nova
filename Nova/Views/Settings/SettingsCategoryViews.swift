@@ -58,6 +58,12 @@ struct PlaybackSettingsContent: View {
 
 struct StreamingSettingsContent: View {
     @EnvironmentObject private var settings: SettingsStore
+    @ObservedObject private var ruleStore = StreamRuleStore.shared
+
+    private var streamRulesDetail: String {
+        let active = ruleStore.rules.filter(\.isEnabled).count
+        return active == 0 ? "None" : "\(active) active"
+    }
 
     private var audioLanguageOptions: [String] {
         ["", "EN", "ES", "FR", "DE", "IT", "PT", "JA", "KO", "ZH", "HI", "RU"]
@@ -74,6 +80,12 @@ struct StreamingSettingsContent: View {
     var body: some View {
         Group {
             SettingsGroup(rows: [
+                AnyView(
+                    NavigationLink { StreamRulesView() } label: {
+                        SettingsRow(icon: "tag", color: Theme.Colors.iconSilver,
+                                    title: "Stream Rules", detail: streamRulesDetail)
+                    }.buttonStyle(SettingsRowButtonStyle())
+                ),
                 AnyView(SettingsToggleRow(icon: "wand.and.stars", color: Theme.Colors.iconRed,
                                           title: "Auto-Select Best Stream", isOn: $settings.autoSelectStream)),
                 AnyView(SettingsToggleRow(icon: "bolt", color: Theme.Colors.iconSilver,
@@ -329,7 +341,13 @@ struct ExperienceSettingsContent: View {
                 AnyView(
                     NavigationLink { HomeCustomizeView() } label: {
                         SettingsRow(icon: "rectangle.3.group", color: Theme.Colors.iconGraphite,
-                                    title: "Home Rows", detail: "Choose editorial shelves")
+                                    title: "Catalogs", detail: "Order, Top Row and layout")
+                    }.buttonStyle(SettingsRowButtonStyle())
+                ),
+                AnyView(
+                    NavigationLink { AppearanceSettingsView() } label: {
+                        SettingsRow(icon: "paintbrush", color: Theme.Colors.iconSilver,
+                                    title: "Appearance", detail: "Posters, sidebar and focus")
                     }.buttonStyle(SettingsRowButtonStyle())
                 ),
             ])

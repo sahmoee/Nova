@@ -21,6 +21,7 @@ struct StreamPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ObservedObject private var network = NetworkConditionMonitor.shared
+    @ObservedObject private var ruleStore = StreamRuleStore.shared
 
     @State private var streams: [StreamOption] = []
     @State private var deadStreamIDs: Set<String> = []
@@ -349,7 +350,17 @@ struct StreamPickerView: View {
 
     /// Streams after applying the active filters, preserving rank order. Combines the
     /// chip filters with any active smart (natural-language) filter.
+    /// Streams after chip, smart and rule filters. Rule-hidden streams drop out
+    /// unless every remaining stream is hidden, so the list is never emptied by rules.
     private var filteredStreams: [StreamOption] {
+        let engine = ruleStore.engine
+        let candidates = chipFilteredStreams
+        guard !engine.isEmpty else { return candidates }
+        let visible = candidates.filter { !engine.isHidden($0) }
+        return visible.isEmpty ? candidates : visible
+    }
+
+    private var chipFilteredStreams: [StreamOption] {
         streams.filter { s in
             // Streams that already failed to resolve this session are excluded.
             if deadStreamIDs.contains(s.id) { return false }
@@ -632,6 +643,13 @@ struct StreamPickerView: View {
                             ForEach(labels, id: \.rawValue) { label in
                                 matchLabel(label)
                             }
+                        }
+                    }
+                    // User stream rule tags, in rule order.
+                    let ruleTags = ruleStore.engine.matches(stream)
+                    if !ruleTags.isEmpty {
+                        WrapFlowLayout(spacing: 6, lineSpacing: 6) {
+                            ForEach(ruleTags) { StreamRuleTagChip(rule: $0) }
                         }
                     }
                     // Playback confidence: an instant plain-language read.

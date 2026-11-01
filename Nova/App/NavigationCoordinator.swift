@@ -11,22 +11,24 @@ import SwiftUI
 import Combine
 
 enum AppTab: Hashable, CaseIterable {
-    case home, discover, library, ai, settings
+    case home, discover, movies, series, library, ai, settings
 
-    /// Primary destinations shown in app chrome. AI remains an internal destination
-    /// for older deep links and saved state, but is entered through Search.
-    static let primaryTabs: [AppTab] = [.home, .discover, .library, .settings]
+    /// Primary destinations shown in the Omni-style sidebar (tvOS, iPad, Mac). AI
+    /// remains an internal destination for older deep links and saved state, but is
+    /// entered through Search.
+    static let primaryTabs: [AppTab] = [.home, .discover, .movies, .series, .library, .settings]
+
+    /// iPhone's tab bar keeps four destinations; Movies and Series are reached from
+    /// the Home filter chips instead.
+    static let phoneTabs: [AppTab] = [.home, .discover, .library, .settings]
 
     /// Display name used by the tvOS menu and the iOS tab bar.
     var title: String {
         switch self {
         case .home:     return "Home"
-        case .discover:
-            #if os(tvOS)
-            return "Search"
-            #else
-            return "New & Hot"
-            #endif
+        case .discover: return "Search"
+        case .movies:   return "Movies"
+        case .series:   return "Series"
         case .ai:       return "Smart Search"
         case .library:  return "Library"
         case .settings: return "Settings"
@@ -36,8 +38,10 @@ enum AppTab: Hashable, CaseIterable {
     /// SF Symbol used by the tvOS menu and the iOS tab bar.
     var systemImage: String {
         switch self {
-        case .home:     return "play.square.stack.fill"
+        case .home:     return "house.fill"
         case .discover: return "magnifyingglass"
+        case .movies:   return "film.fill"
+        case .series:   return "tv.fill"
         case .ai:       return "sparkles"
         case .library:  return "rectangle.stack.fill"
         case .settings: return "gearshape.fill"
@@ -57,6 +61,8 @@ final class NavigationCoordinator: ObservableObject {
     // One navigation path per tab.
     @Published var homePath = NavigationPath()
     @Published var discoverPath = NavigationPath()
+    @Published var moviesPath = NavigationPath()
+    @Published var seriesPath = NavigationPath()
     @Published var aiPath = NavigationPath()
     @Published var libraryPath = NavigationPath()
     @Published var settingsPath = NavigationPath()
@@ -80,6 +86,8 @@ final class NavigationCoordinator: ObservableObject {
         switch tab {
         case .home:     homePath = NavigationPath()
         case .discover: discoverPath = NavigationPath()
+        case .movies:   moviesPath = NavigationPath()
+        case .series:   seriesPath = NavigationPath()
         case .ai:       aiPath = NavigationPath()
         case .library:  libraryPath = NavigationPath()
         case .settings: settingsPath = NavigationPath()
@@ -93,6 +101,8 @@ final class NavigationCoordinator: ObservableObject {
         switch tab {
         case .home:     return homePath.isEmpty
         case .discover: return discoverPath.isEmpty
+        case .movies:   return moviesPath.isEmpty
+        case .series:   return seriesPath.isEmpty
         case .ai:       return aiPath.isEmpty
         case .library:  return libraryPath.isEmpty
         case .settings: return settingsPath.isEmpty
@@ -104,6 +114,8 @@ final class NavigationCoordinator: ObservableObject {
         switch tab {
         case .home:     if !homePath.isEmpty { homePath.removeLast() }
         case .discover: if !discoverPath.isEmpty { discoverPath.removeLast() }
+        case .movies:   if !moviesPath.isEmpty { moviesPath.removeLast() }
+        case .series:   if !seriesPath.isEmpty { seriesPath.removeLast() }
         case .ai:       if !aiPath.isEmpty { aiPath.removeLast() }
         case .library:  if !libraryPath.isEmpty { libraryPath.removeLast() }
         case .settings: if !settingsPath.isEmpty { settingsPath.removeLast() }

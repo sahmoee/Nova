@@ -50,6 +50,8 @@ enum DeepLink: Equatable {
         case "ai":       return .tab(.discover)
         case "new", "new-and-hot": return .tab(.discover)
         case "library":  return .tab(.library)
+        case "movies":   return .tab(.movies)
+        case "shows":    return .tab(.series)
         case "continue": return .continueWatching
         case "search":
             let terms = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.filter { $0.name == "q" } ?? []
@@ -63,7 +65,7 @@ enum DeepLink: Equatable {
             guard let key = tail.first else { return nil }
             return .content(contentKey: key, isShow: false)
         case "show", "series", "tv":
-            guard let key = tail.first else { return nil }
+            guard let key = tail.first else { return head == "series" ? .tab(.series) : nil }
             return .content(contentKey: key, isShow: true)
         default:
             return nil
