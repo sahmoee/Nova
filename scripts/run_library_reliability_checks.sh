@@ -7,5 +7,5 @@ swiftc -parse-as-library Nova/Models/SourceType.swift Nova/Models/CatalogModels.
  Nova/Models/StreamModels.swift Nova/Models/MediaItem.swift Nova/Models/MediaCollection.swift \
  Nova/Utilities/LanguageNames.swift Nova/Services/MediaReliabilityPolicy.swift \
  Nova/Services/LibraryMutationPolicy.swift Nova/Services/LibraryFilePolicy.swift \
- Nova/Services/LibraryStore.swift scripts/LibraryReliabilityChecks.swift -o "$fixture_binary"
+ Nova/Services/CloudLibraryRecord.swift Nova/Services/LibraryStore.swift scripts/LibraryReliabilityChecks.swift -o "$fixture_binary"
 "$fixture_binary"

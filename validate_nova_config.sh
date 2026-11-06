@@ -51,9 +51,14 @@ if grep -rq 'group\.astra\.ios\|group\.frametv' "$ROOT/Nova" "$ROOT/NovaWidgets"
 else ok "source code uses the canonical App Group"; fi
 
 echo "== iCloud continuity =="
-if grep -q '\$(TeamIdentifierPrefix)\$(CFBundleIdentifier)' "$ROOT/Nova/Resources/Nova.entitlements"; then
-  ok "KVS follows the Nova bundle IDs"
-else bad "iCloud KVS entitlement is not tied to the retained app identity"; fi
+KVS_OK=1
+for ent in Nova/Resources/Nova.entitlements Nova/Resources/Nova-macOS.entitlements Nova/Resources/Nova-tvOS.entitlements; do
+  if [ "$(plutil -extract 'com\.apple\.developer\.ubiquity-kvstore-identifier' raw "$ROOT/$ent" 2>/dev/null)" != '$(TeamIdentifierPrefix)com.nova.app.ios' ]; then
+    KVS_OK=0
+  fi
+done
+if [ "$KVS_OK" -eq 1 ]; then ok "All app targets share the retained iOS KVS identity"
+else bad "iCloud KVS identities must match the retained iOS app identity"; fi
 
 echo "== URL scheme =="
 if grep -rq "nova" "$ROOT"/Nova/Resources/*.plist "$ROOT"/Nova/**/Info.plist 2>/dev/null || grep -rq '"nova"' "$ROOT/Nova" --include=*.swift 2>/dev/null; then

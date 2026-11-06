@@ -24,6 +24,11 @@ final class LibraryStore: ObservableObject {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private var durableItems: [MediaItem] = []
+    var playbackDidPersist: ((MediaItem) -> Void)?
+    var libraryDidReceiveCloud: (() -> Void)?
+    var libraryRecordsDidPersist: (() -> Void)?
+    var usesRecordLibrary = false
+    var usesRecordPlayback = false
     /// Uptime of the last widget refresh caused by a playback checkpoint.
     private var lastProgressWidgetRefresh: TimeInterval = -.greatestFiniteMagnitude
     private var libraryNeedsRecovery = false
@@ -84,6 +89,12 @@ final class LibraryStore: ObservableObject {
                     || keys.contains(SettingsDataDomain.history.deletionKey) {
                     self.mergeFromCloudIfNewer()
                 }
+                if keys.contains(self.collectionsCloudKey) {
+                    self.receiveCloudCollections()
+                }
+                if keys.contains(self.queueDefaultsKey) {
+                    self.receiveCloudQueue()
+                }
             }
             .store(in: &cancellables)
     }
@@ -96,10 +107,13 @@ final class LibraryStore: ObservableObject {
         applySettingsDeletions()
         // Progress lives inside the library payload. A device-only history reset
         // must suspend both directions until the user explicitly resumes sync.
-        guard !CloudSync.shared.isPaused(.history), (!libraryNeedsRecovery || force) else { return false }
+        guard !usesRecordLibrary, !CloudSync.shared.isPaused(.history), (!libraryNeedsRecovery || force) else { return false }
         guard let data = CloudSync.shared.data(forKey: cloudKey),
               data.count <= LibraryFilePolicy.maximumLibraryBytes,
               var decoded = try? decoder.decode([MediaItem].self, from: data) else { return false }
+        if usesRecordPlayback {
+            copyPlayback(from: durableItems, into: &decoded)
+        }
         let historyDeletion = CloudSync.shared.deletionDate(.history)
         for index in decoded.indices where historyDeletion > 0
             && (decoded[index].lastPlayedDate?.timeIntervalSince1970 ?? 0) <= historyDeletion {
@@ -132,6 +146,7 @@ final class LibraryStore: ObservableObject {
         durableItems = decoded
         defaults.set(cloudRev, forKey: cloudRevisionKey)
         applyingRemoteChange = false
+        libraryDidReceiveCloud?()
         SpotlightIndexer.reindex(items)
         writeWidgetSnapshot()
         return true
@@ -154,8 +169,14 @@ final class LibraryStore: ObservableObject {
     }
 
     private func pushToCloudNow() {
-        guard !applyingRemoteChange, !libraryNeedsRecovery, !CloudSync.shared.isPaused(.history) else { return }
-        guard let data = try? encoder.encode(items) else { return }
+        guard !usesRecordLibrary, !applyingRemoteChange, !libraryNeedsRecovery, !CloudSync.shared.isPaused(.history) else { return }
+        var mirror = items
+        if usesRecordPlayback {
+            let legacy = CloudSync.shared.data(forKey: cloudKey)
+                .flatMap { try? decoder.decode([MediaItem].self, from: $0) } ?? []
+            copyPlayback(from: legacy, into: &mirror)
+        }
+        guard let data = try? encoder.encode(mirror) else { return }
         // Skip if the payload exceeds iCloud KVS's per-value limit (~1MB); the local
         // file still holds everything, we just can't mirror an oversized library.
         guard data.count < 900_000 else {
@@ -167,6 +188,16 @@ final class LibraryStore: ObservableObject {
         CloudSync.shared.setData(data, forKey: cloudKey)
         CloudSync.shared.setDouble(rev, forKey: cloudRevisionKey)
         CloudSync.shared.flush()
+    }
+
+    private func copyPlayback(from source: [MediaItem], into destination: inout [MediaItem]) {
+        let playback = Dictionary(source.map { ($0.contentKey, $0) }, uniquingKeysWith: { first, _ in first })
+        for index in destination.indices {
+            let saved = playback[destination[index].contentKey]
+            destination[index].lastPlayedPosition = saved?.lastPlayedPosition ?? 0
+            destination[index].lastPlayedDate = saved?.lastPlayedDate
+            if let duration = saved?.duration { destination[index].duration = duration }
+        }
     }
 
     // MARK: - Persistence
@@ -225,23 +256,31 @@ final class LibraryStore: ObservableObject {
             }
             return
         }
-        if let json = CloudSync.shared.string(forKey: collectionsCloudKey),
-           let data = json.data(using: .utf8), data.count <= LibraryFilePolicy.maximumCollectionsBytes,
-           let decoded = try? decoder.decode([MediaCollection].self, from: data) {
-            _ = persistCollections(decoded)
-        }
+        receiveCloudCollections()
+    }
+
+    private func receiveCloudCollections() {
+        guard !usesRecordLibrary, !CloudSync.shared.isPaused(.library),
+              let json = CloudSync.shared.string(forKey: collectionsCloudKey),
+              let data = json.data(using: .utf8), data.count <= LibraryFilePolicy.maximumCollectionsBytes,
+              let decoded = try? decoder.decode([MediaCollection].self, from: data),
+              decoded != collections else { return }
+        _ = persistCollections(decoded, publishToCloud: false)
     }
 
     @discardableResult
-    private func persistCollections(_ candidate: [MediaCollection]? = nil) -> Bool {
+    private func persistCollections(_ candidate: [MediaCollection]? = nil, publishToCloud: Bool = true) -> Bool {
         do {
             guard !collectionsNeedRecovery else { throw LibraryFilePolicy.Failure.recoveryRequired }
             let value = candidate ?? collections
             let data = try encoder.encode(value)
             try LibraryFilePolicy.write(data, to: collectionsURL, maximumBytes: LibraryFilePolicy.maximumCollectionsBytes)
             if value != collections { collections = value }
-            if let json = String(data: data, encoding: .utf8) {
-                CloudSync.shared.setString(json, forKey: collectionsCloudKey)
+            if publishToCloud {
+                libraryRecordsDidPersist?()
+                if !usesRecordLibrary, let json = String(data: data, encoding: .utf8) {
+                    CloudSync.shared.setString(json, forKey: collectionsCloudKey)
+                }
             }
             if !libraryNeedsRecovery { lastPersistenceError = nil }
             return true
@@ -369,18 +408,148 @@ final class LibraryStore: ObservableObject {
     /// Writes only the local file, without touching iCloud (used when applying a
     /// change that came *from* iCloud, to avoid an echo).
     @discardableResult
-    private func persistLocalOnly() -> Bool {
+    private func persistLocalOnly(notifyPlayback: Bool = true) -> Bool {
         do {
             guard !libraryNeedsRecovery else { throw LibraryFilePolicy.Failure.recoveryRequired }
             let data = try encoder.encode(items)
             try LibraryFilePolicy.write(data, to: fileURL, maximumBytes: LibraryFilePolicy.maximumLibraryBytes)
+            let previous = durableItems
             durableItems = items
+            if notifyPlayback {
+                notifyPlaybackChanges(since: previous)
+                libraryRecordsDidPersist?()
+            }
             if !collectionsNeedRecovery { lastPersistenceError = nil }
             return true
         } catch {
             lastPersistenceError = error.localizedDescription
             return false
         }
+    }
+
+    private func notifyPlaybackChanges(since previous: [MediaItem]) {
+        guard let playbackDidPersist else { return }
+        let old = Dictionary(previous.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        for item in items where item.sourceType != .liveTV {
+            if let prior = old[item.id] {
+                guard item.lastPlayedDate != prior.lastPlayedDate
+                    || item.lastPlayedPosition != prior.lastPlayedPosition else { continue }
+            } else {
+                guard item.lastPlayedDate != nil else { continue }
+            }
+            playbackDidPersist(item)
+        }
+    }
+
+    func cloudLibraryRecords() -> [CloudLibraryRecord] {
+        let portable = items.compactMap { item -> MediaItem? in
+            guard var content = item.contentID,
+                  content.imdb != nil || content.tmdb != nil || content.trakt != nil else { return nil }
+            content.addonItemID = nil
+            var copy = item
+            copy.contentID = content
+            copy.playbackURL = content.catalogPlaceholderURL
+            copy.sourceType = .addon
+            copy.posterURL = nil
+            copy.backdropURL = nil
+            copy.metadata = MediaMetadata(year: item.metadata.year)
+            copy.subtitles = []
+            copy.alternateSources = []
+            copy.lastPlayedDate = nil
+            copy.lastPlayedPosition = 0
+            copy.duration = nil
+            copy.legalAccessConfirmed = false
+            return copy
+        }
+        let byID = Dictionary(portable.map { ($0.id, $0.contentKey) }, uniquingKeysWith: { first, _ in first })
+        let keys = Set(byID.values)
+        var records: [CloudLibraryRecord] = []
+        for var item in portable {
+            records.append(.favorite(item.contentKey, item.isFavorite))
+            item.isFavorite = false
+            records.append(.item(item.contentKey, item))
+        }
+        for collection in collections {
+            records.append(.collection(collection.id, .init(name: collection.name, systemImage: collection.systemImage,
+                                                            createdDate: collection.createdDate)))
+            for (index, key) in collection.contentKeys.enumerated() where keys.contains(key) {
+                records.append(.membership(collection.id, key, index))
+            }
+        }
+        for (index, id) in queueIDs.enumerated() {
+            if let key = byID[id] { records.append(.watchlist(key, index)) }
+        }
+        return records
+    }
+
+    func applyCloudLibraryRecords(_ records: [CloudLibraryRecord]) {
+        guard !libraryNeedsRecovery, !collectionsNeedRecovery, !CloudSync.shared.isPaused(.library) else { return }
+        var candidate = items
+        var headers = Dictionary(collections.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var favorites: [String: Bool] = [:]
+        var membership: [UUID: [(key: String, order: Int?)]] = [:]
+        var watchlist: [(key: String, order: Int?)] = []
+        for record in records {
+            switch record {
+            case .item(let key, let value):
+                if let value, value.contentKey == key {
+                    if let index = candidate.firstIndex(where: { $0.contentKey == key }) {
+                        candidate[index].isHidden = value.isHidden
+                        candidate[index].tags = value.tags
+                    } else {
+                        candidate.append(value)
+                    }
+                } else if value == nil {
+                    candidate.removeAll { $0.contentKey == key }
+                }
+            case .favorite(let key, let value):
+                favorites[key] = value ?? false
+            case .collection(let id, let header):
+                if let header {
+                    headers[id] = MediaCollection(id: id, name: header.name, systemImage: header.systemImage,
+                                                  contentKeys: headers[id]?.contentKeys ?? [], createdDate: header.createdDate)
+                } else {
+                    headers.removeValue(forKey: id)
+                }
+            case .membership(let id, let key, let order):
+                membership[id, default: []].append((key, order))
+            case .watchlist(let key, let order):
+                watchlist.append((key, order))
+            }
+        }
+        for index in candidate.indices {
+            if let favorite = favorites[candidate[index].contentKey] { candidate[index].isFavorite = favorite }
+        }
+        for (id, members) in membership {
+            guard var collection = headers[id] else { continue }
+            let managed = Set(members.map(\.key))
+            collection.contentKeys = orderedCloudKeys(members) + collection.contentKeys.filter { !managed.contains($0) }
+            headers[id] = collection
+        }
+        let byKey = Dictionary(candidate.map { ($0.contentKey, $0.id) }, uniquingKeysWith: { first, _ in first })
+        let managedIDs = Set(watchlist.compactMap { byKey[$0.key] })
+        let retainedIDs = Set(byKey.values)
+        let queue = LibraryMutationPolicy.unique(orderedCloudKeys(watchlist).compactMap { byKey[$0] }
+            + queueIDs.filter { retainedIDs.contains($0) && !managedIDs.contains($0) })
+        let nextCollections = headers.values.sorted { ($0.createdDate, $0.id.uuidString) < ($1.createdDate, $1.id.uuidString) }
+
+        if candidate != items {
+            items = candidate
+            guard persistLocalOnly(notifyPlayback: false) else { items = durableItems; return }
+            SpotlightIndexer.reindex(items)
+            writeWidgetSnapshot()
+        }
+        if nextCollections != collections { _ = persistCollections(nextCollections, publishToCloud: false) }
+        if queue != queueIDs, let data = try? Coders.encoder.encode(queue) {
+            defaults.set(data, forKey: queueDefaultsKey)
+            queueIDs = queue
+        }
+    }
+
+    private func orderedCloudKeys(_ values: [(key: String, order: Int?)]) -> [String] {
+        values.compactMap { value in value.order.map { (key: value.key, order: $0) } }
+            .sorted { ($0.order, $0.key) < ($1.order, $1.key) }
+            .map(\.key)
     }
 
     // MARK: - CRUD
@@ -452,6 +621,7 @@ final class LibraryStore: ObservableObject {
         if nextQueue != queueIDs { queueIDs = nextQueue; persistQueue() }
         let referencesSaved = nextCollections == collections || persistCollections(nextCollections)
         if referencesSaved && !collectionsNeedRecovery { lastPersistenceError = nil }
+        libraryRecordsDidPersist?()
         pushToCloud()
         SpotlightIndexer.reindex(items)
         writeWidgetSnapshot()
@@ -478,18 +648,26 @@ final class LibraryStore: ObservableObject {
     /// disk and mirror to iCloud exactly like `update(_:)`, but skip the Spotlight
     /// reindex (titles are unchanged) and refresh widgets at most once a minute unless
     /// the caller asks for an immediate refresh (pause, stop, completion).
-    func updateProgress(_ item: MediaItem, refreshWidgets: Bool) {
+    func updateProgress(_ item: MediaItem, immediate: Bool, publishToCloud: Bool = true) {
         guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
         guard items[idx] != item else { return }
         items[idx] = item
-        guard persistLocalOnly() else {
+        guard persistLocalOnly(notifyPlayback: publishToCloud) else {
             cloudPushTask?.cancel()
             if items != durableItems { items = durableItems }
             return
         }
-        pushToCloud()
+        if publishToCloud && !usesRecordPlayback {
+            // A pause or stop can be followed by suspension before the debounce fires.
+            if immediate {
+                cloudPushTask?.cancel()
+                pushToCloudNow()
+            } else {
+                pushToCloud()
+            }
+        }
         let now = ProcessInfo.processInfo.systemUptime
-        if refreshWidgets || now - lastProgressWidgetRefresh >= 60 {
+        if immediate || now - lastProgressWidgetRefresh >= 60 {
             lastProgressWidgetRefresh = now
             writeWidgetSnapshot()
         }
@@ -631,7 +809,7 @@ final class LibraryStore: ObservableObject {
             items = []
             collections = []
             queueIDs = []
-            var saved = persistLocalOnly()
+            var saved = persistLocalOnly(notifyPlayback: false)
             do { try encoder.encode(collections).write(to: collectionsURL, options: .atomic) }
             catch { saved = false; lastPersistenceError = error.localizedDescription }
             if !saved { cloud.retryDeletion(.library, consumer: ".library") }
@@ -645,7 +823,7 @@ final class LibraryStore: ObservableObject {
                 items[index].lastPlayedPosition = 0
                 items[index].lastPlayedDate = nil
             }
-            if !persistLocalOnly() { cloud.retryDeletion(.history, consumer: ".library") }
+            if !persistLocalOnly(notifyPlayback: false) { cloud.retryDeletion(.history, consumer: ".library") }
             writeWidgetSnapshot()
         }
     }
@@ -674,7 +852,7 @@ final class LibraryStore: ObservableObject {
            let decoded = try? decoder.decode([MediaCollection].self, from: data) {
             let wasBlocked = collectionsNeedRecovery
             collectionsNeedRecovery = false
-            if !persistCollections(decoded) { collectionsNeedRecovery = wasBlocked }
+            if !persistCollections(decoded, publishToCloud: false) { collectionsNeedRecovery = wasBlocked }
         }
     }
 
@@ -788,16 +966,24 @@ final class LibraryStore: ObservableObject {
             queueIDs = LibraryMutationPolicy.unique(ids)
             return // A deliberately empty local queue must not resurrect an old cloud copy.
         }
-        if let data = CloudSync.shared.data(forKey: queueDefaultsKey),
-           let ids = try? Coders.decoder.decode([UUID].self, from: data) {
-            queueIDs = LibraryMutationPolicy.unique(ids)
-        }
+        receiveCloudQueue()
+    }
+
+    private func receiveCloudQueue() {
+        guard !usesRecordLibrary, !CloudSync.shared.isPaused(.library),
+              let data = CloudSync.shared.data(forKey: queueDefaultsKey),
+              let ids = try? Coders.decoder.decode([UUID].self, from: data) else { return }
+        let uniqueIDs = LibraryMutationPolicy.unique(ids)
+        guard let encoded = try? Coders.encoder.encode(uniqueIDs) else { return }
+        defaults.set(encoded, forKey: queueDefaultsKey)
+        if uniqueIDs != queueIDs { queueIDs = uniqueIDs }
     }
 
     private func persistQueue() {
         if let data = try? Coders.encoder.encode(queueIDs) {
             defaults.set(data, forKey: queueDefaultsKey)
-            CloudSync.shared.setData(data, forKey: queueDefaultsKey)
+            libraryRecordsDidPersist?()
+            if !usesRecordLibrary { CloudSync.shared.setData(data, forKey: queueDefaultsKey) }
         }
     }
 
