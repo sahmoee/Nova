@@ -18,12 +18,14 @@ enum NovaPlatform: String, Codable, CaseIterable {
     case iPhone
     case iPad
     case appleTV
+    case mac
 
     var displayName: String {
         switch self {
         case .iPhone:  return "iPhone"
         case .iPad:    return "iPad"
         case .appleTV: return "Apple TV"
+        case .mac: return "Mac"
         }
     }
 }
@@ -65,6 +67,8 @@ enum PlatformCapabilities {
         #if os(tvOS)
         return .appleTV
         #elseif os(macOS)
+        return .mac
+        #elseif targetEnvironment(macCatalyst)
         // Reuse the wide, sidebar-based composition on resizable Mac windows.
         return .iPad
         #else
@@ -75,13 +79,13 @@ enum PlatformCapabilities {
     static var navigationStyle: PlatformNavigationStyle {
         switch platform {
         case .iPhone:  return .bottomTabs
-        case .iPad:    return .sidebar
+        case .iPad, .mac: return .sidebar
         case .appleTV: return .televisionTabs
         }
     }
 
     static func supports(_ feature: PlatformFeature) -> Bool {
-        #if os(macOS)
+        #if targetEnvironment(macCatalyst) || os(macOS)
         if [.haptics, .widgets, .qrScanner, .pullToRefresh, .externalPlayers].contains(feature) { return false }
         #endif
         switch feature {
@@ -102,7 +106,9 @@ enum PlatformCapabilities {
             #endif
 
         case .multiColumnNavigation:
-            #if os(iOS)
+            #if os(macOS)
+            return true
+            #elseif os(iOS)
             return idiom == .pad || idiom == .mac
             #else
             return false
@@ -114,7 +120,7 @@ enum PlatformCapabilities {
         switch platform {
         case .iPhone:
             return EdgeInsets(top: 12, leading: 20, bottom: 24, trailing: 20)
-        case .iPad:
+        case .iPad, .mac:
             return EdgeInsets(top: 18, leading: 34, bottom: 34, trailing: 34)
         case .appleTV:
             return EdgeInsets(top: 38, leading: 70, bottom: 52, trailing: 70)
@@ -124,7 +130,7 @@ enum PlatformCapabilities {
     static var homeHeroHeight: CGFloat {
         switch platform {
         case .iPhone:  return 620
-        case .iPad:    return 720
+        case .iPad, .mac: return 720
         case .appleTV: return 640
         }
     }
@@ -132,7 +138,7 @@ enum PlatformCapabilities {
     static var railPosterScale: CGFloat {
         switch platform {
         case .iPhone:  return 0.66
-        case .iPad:    return 0.78
+        case .iPad, .mac: return 0.78
         case .appleTV: return 1.0
         }
     }

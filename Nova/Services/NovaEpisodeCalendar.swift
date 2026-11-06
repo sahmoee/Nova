@@ -269,7 +269,7 @@ private struct CalendarPickerSheet: View {
                 }
             }
             .navigationTitle("Add to Calendar")
-            .navigationBarTitleDisplayMode(.inline)
+            .novaInlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -332,7 +332,7 @@ struct NovaCalendarSettingsView: View {
                 }
         }
         .navigationTitle("Calendar")
-        .navigationBarTitleDisplayMode(.inline)
+        .novaInlineNavigationTitle()
     }
 }
 

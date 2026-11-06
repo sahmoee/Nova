@@ -97,7 +97,7 @@ struct NovaUpNextQueueView: View {
             }
             .navigationTitle("Up Next")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+            .novaInlineNavigationTitle()
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

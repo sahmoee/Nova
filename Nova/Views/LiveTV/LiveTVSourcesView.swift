@@ -152,7 +152,7 @@ private struct AddLiveTVSourceView: View {
             }
             .navigationTitle("Add Playlist")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+            .novaInlineNavigationTitle()
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

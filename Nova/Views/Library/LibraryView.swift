@@ -153,11 +153,15 @@ struct LibraryView: View {
                 refreshed.playbackURL = try await env.smb.streamURL(for: remote)
                 library.update(refreshed)
                 selectedItem = refreshed
+                #if !os(macOS)
                 NovaQARuntime.shared.record("flow", "My Nova > SMB source refreshed > \(path)")
+                #endif
             } catch {
                 authenticatedSMBShareIDs.remove(share.id)
                 ToastCenter.shared.show("Couldn't reconnect to \(share.displayName): \(error.localizedDescription)")
+                #if !os(macOS)
                 NovaQARuntime.shared.record("error", "My Nova > SMB reconnect failed > \(error.localizedDescription)")
+                #endif
             }
         }
     }
@@ -1855,7 +1859,9 @@ private struct LibraryCategoryManagerView: View {
             .preferredColorScheme(.dark)
         #else
         categoryList
+            #if os(iOS)
             .toolbar { EditButton() }
+            #endif
             .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
                 do { try store.importJSON(from: result.get()) }
                 catch { importError = error.localizedDescription }

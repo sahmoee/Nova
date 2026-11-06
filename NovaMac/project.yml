@@ -1,0 +1,91 @@
+name: NovaMac
+options:
+  bundleIdPrefix: com.nova.app
+  deploymentTarget:
+    macOS: '15.0'
+  developmentLanguage: en
+settings:
+  base:
+    SWIFT_VERSION: '6.0'
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_EMIT_LOC_STRINGS: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: 5DV5N49VG8
+    CURRENT_PROJECT_VERSION: 43
+    MARKETING_VERSION: 1.7
+targets:
+  NovaMac:
+    type: application
+    platform: macOS
+    productName: Nova
+    sources:
+      - path: Assets.xcassets
+      - path: ../Nova
+        excludes:
+          - '**/NovaWidgetExtension/**'
+          - '**/NovaWidgets/**'
+          - '**/NovaWatch/**'
+          - '**/Services/Watch/**'
+          - '**/Services/UnifiedQAReporter.swift'
+          - '**/EpisodeAvailabilityNotifier.swift'
+          - '**/QA*'
+          - '**/QACore/**'
+          - '**/CarPlayDelegate.swift'
+          - '**/LiveActivity.swift'
+          - '**/NovaIntents.swift'
+          - '**/QuickActions.swift'
+          - '**/WidgetShared.swift'
+          - '**/VLCPlayerView.swift'
+          - '**/VLCPlayerModel.swift'
+          - '**/QRScannerView.swift'
+          - '**/Assets-tvOS.xcassets'
+          - '**/AppIcon.appiconset'
+          - '**/Info*.plist'
+          - '**/*.entitlements'
+          - '**/NovaConfig.json'
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nova.app.mac
+        PRODUCT_NAME: Nova
+        INFOPLIST_FILE: ../NovaMac/Info.plist
+        CODE_SIGN_ENTITLEMENTS: ../NovaMac/NovaMac.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        LD_RUNPATH_SEARCH_PATHS: '@executable_path/../Frameworks'
+    dependencies:
+      - package: SowensKit
+      - package: AMSMB2
+        embed: true
+      - package: ZIPFoundation
+    postBuildScripts:
+      - name: Stamp QA build number
+        script: |
+          set -eu
+          /usr/bin/python3 "$SRCROOT/../scripts/qa_build_number.py" --stamp-product "$TARGET_BUILD_DIR/$INFOPLIST_PATH" --reservation-dir "$PROJECT_TEMP_DIR"
+        inputFiles:
+          - $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
+        basedOnDependencyAnalysis: false
+schemes:
+  NovaMac:
+    build:
+      targets:
+        NovaMac: all
+      preActions:
+        - name: Reserve build number
+          settingsTarget: NovaMac
+          script: |
+            set -eu
+            /usr/bin/python3 "$SRCROOT/../scripts/qa_build_number.py" --project "$SRCROOT/../Nova.xcodeproj" --reservation-dir "$PROJECT_TEMP_DIR"
+    run:
+      config: Debug
+    archive:
+      config: Release
+packages:
+  SowensKit:
+    path: ../Packages/SowensKit
+  AMSMB2:
+    url: https://github.com/amosavian/AMSMB2
+    from: 3.0.0
+  ZIPFoundation:
+    url: https://github.com/weichsel/ZIPFoundation.git
+    from: 0.9.0

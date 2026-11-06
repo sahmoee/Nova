@@ -259,6 +259,25 @@ final class BackupManager: ObservableObject {
 
     @Published private(set) var lastBackupDate: Date?
     @Published private(set) var lastBackupOrigin: BackupOrigin?
+
+    /// Lightweight, view-facing summary of the newest iCloud snapshot. Views read
+    /// this cached value; the iCloud container lookup, file read and JSON decode
+    /// happen once, off the main thread, in `refreshCloudStatus()`. Doing that work
+    /// inside a SwiftUI body (as this screen used to) blocks the main thread on
+    /// `url(forUbiquityContainerIdentifier:)` several times per redraw and froze
+    /// Settings > iCloud Sync & Backup on macOS.
+    struct CloudSnapshotSummary {
+        let date: Date
+        let device: String
+        let origin: BackupOrigin
+        let contents: BackupContents
+    }
+    @Published private(set) var cloudSummary: CloudSnapshotSummary?
+    @Published private(set) var hasLoadedCloudStatus = false
+    private var cloudRecord: DecodedBackupSnapshot?
+    private var cloudRefreshTask: Task<Void, Never>?
+    private var cloudRefreshPending = false
+
     private let lastAutoSyncKey = "backup.lastAutoSyncedSnapshot"
     private let ubiquityContainerIdentifier = "iCloud.com.nova.ios"
     private let ubiquityBackupName = "Nova Setup.nova"
@@ -273,9 +292,93 @@ final class BackupManager: ObservableObject {
     nonisolated(unsafe) private static let isoFormatter = ISO8601DateFormatter()
 
     init() {
-        if let decoded = loadSnapshotRecordFromCloud() {
-            lastBackupDate = decoded.snapshot.createdAt
-            lastBackupOrigin = decoded.origin
+        Task { [weak self] in await self?.refreshCloudStatus() }
+    }
+
+    // MARK: - Cloud snapshot cache (all iCloud I/O stays off the main thread)
+
+    /// Re-reads the iCloud Documents mirror (off-main) and the KVS fallback, then
+    /// publishes the result. Concurrent callers share one in-flight refresh; a
+    /// request that arrives mid-flight schedules one more pass so it never reads stale.
+    func refreshCloudStatus() async {
+        if let task = cloudRefreshTask {
+            cloudRefreshPending = true
+            await task.value
+            return
+        }
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            repeat {
+                self.cloudRefreshPending = false
+                let id = self.ubiquityContainerIdentifier
+                let name = self.ubiquityBackupName
+                let data = await Task.detached(priority: .userInitiated) {
+                    BackupManager.readUbiquityDocument(containerID: id, name: name)
+                }.value
+                self.applyCloudDocument(data)
+            } while self.cloudRefreshPending
+            self.cloudRefreshTask = nil
+        }
+        cloudRefreshTask = task
+        await task.value
+    }
+
+    private func applyCloudDocument(_ documentData: Data?) {
+        let document = documentData.flatMap {
+            try? BackupCompatibility.decode($0, defaultOrigin: .nova)
+        }
+        let kvs = loadKVSSnapshotRecord()
+        let record: DecodedBackupSnapshot?
+        switch (document, kvs) {
+        case let (document?, kvs?):
+            record = document.snapshot.createdAt >= kvs.snapshot.createdAt ? document : kvs
+        case let (document?, nil): record = document
+        case let (nil, kvs?): record = kvs
+        case (nil, nil): record = nil
+        }
+        cloudRecord = record
+        hasLoadedCloudStatus = true
+        if let record {
+            let sanitized = sanitizedForCurrentDeletionState(record.snapshot)
+            cloudSummary = CloudSnapshotSummary(date: record.snapshot.createdAt,
+                                                device: record.snapshot.deviceName,
+                                                origin: record.origin,
+                                                contents: availableContents(in: sanitized))
+            lastBackupDate = record.snapshot.createdAt
+            lastBackupOrigin = record.origin
+        } else {
+            cloudSummary = nil
+        }
+    }
+
+    /// Resolves the iCloud container and reads the setup document. Blocking, so it
+    /// must only ever run off the main thread.
+    nonisolated private static func readUbiquityDocument(containerID: String, name: String) -> Data? {
+        guard let root = FileManager.default.url(forUbiquityContainerIdentifier: containerID) else {
+            return nil
+        }
+        let url = root.appendingPathComponent("Documents", isDirectory: true)
+            .appendingPathComponent(name)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return try? Data(contentsOf: url)
+    }
+
+    private enum UbiquityWriteOutcome: Sendable {
+        case written, unavailable, failed(String)
+    }
+
+    nonisolated private static func writeUbiquityDocument(_ data: Data, containerID: String,
+                                                          name: String) -> UbiquityWriteOutcome {
+        guard let root = FileManager.default.url(forUbiquityContainerIdentifier: containerID) else {
+            return .unavailable
+        }
+        let documents = root.appendingPathComponent("Documents", isDirectory: true)
+        try? FileManager.default.createDirectory(at: documents, withIntermediateDirectories: true)
+        do {
+            try data.write(to: documents.appendingPathComponent(name), options: [.atomic])
+            return .written
+        } catch {
+            return .failed(error.localizedDescription)
         }
     }
 
@@ -386,12 +489,12 @@ final class BackupManager: ObservableObject {
     // MARK: - Restore
 
     /// Whether a snapshot exists in iCloud that could be restored.
-    func hasCloudSnapshot() -> Bool { loadSnapshotFromCloud() != nil }
+    func hasCloudSnapshot() -> Bool { cloudSummary != nil }
 
     /// Returns metadata about the available snapshot for confirmation UI.
     func availableSnapshotInfo() -> (date: Date, device: String, origin: BackupOrigin)? {
-        guard let decoded = loadSnapshotRecordFromCloud() else { return nil }
-        return (decoded.snapshot.createdAt, decoded.snapshot.deviceName, decoded.origin)
+        guard let summary = cloudSummary else { return nil }
+        return (summary.date, summary.device, summary.origin)
     }
 
     /// Applies a newer iCloud snapshot from the user's other devices silently on
@@ -443,8 +546,7 @@ final class BackupManager: ObservableObject {
 
     /// The categories available in the current iCloud snapshot, for the restore UI.
     func cloudSnapshotContents() -> BackupContents? {
-        guard let snap = loadSnapshotFromCloud() else { return nil }
-        return availableContents(in: snap)
+        cloudSummary?.contents
     }
 
     /// What this device can currently export. Preferences and secrets are effectively
@@ -469,19 +571,7 @@ final class BackupManager: ObservableObject {
 
     /// Reads both the iCloud Documents mirror and the KVS fallback, preferring the
     /// newest valid snapshot. The document copy is not constrained by KVS's 1 MB cap.
-    private func loadSnapshotRecordFromCloud() -> DecodedBackupSnapshot? {
-        let document = readUbiquityBackup().flatMap {
-            try? BackupCompatibility.decode($0, defaultOrigin: .nova)
-        }
-        let kvs = loadKVSSnapshotRecord()
-        switch (document, kvs) {
-        case let (document?, kvs?):
-            return document.snapshot.createdAt >= kvs.snapshot.createdAt ? document : kvs
-        case let (document?, nil): return document
-        case let (nil, kvs?): return kvs
-        case (nil, nil): return nil
-        }
-    }
+    private func loadSnapshotRecordFromCloud() -> DecodedBackupSnapshot? { cloudRecord }
 
     private func loadKVSSnapshotRecord() -> DecodedBackupSnapshot? {
         let cloud = CloudSync.shared
@@ -508,33 +598,24 @@ final class BackupManager: ObservableObject {
         return nil
     }
 
-    private func ubiquityBackupURL() -> URL? {
-        guard let root = FileManager.default.url(
-            forUbiquityContainerIdentifier: ubiquityContainerIdentifier
-        ) else { return nil }
-        let documents = root.appendingPathComponent("Documents", isDirectory: true)
-        try? FileManager.default.createDirectory(at: documents, withIntermediateDirectories: true)
-        return documents.appendingPathComponent(ubiquityBackupName)
-    }
-
+    /// Writes the setup document to iCloud Documents off the main thread, then
+    /// refreshes the cached status so the UI reflects the new backup.
     private func writeUbiquityBackup(_ data: Data) {
-        guard let url = ubiquityBackupURL() else {
-            NovaLog.sync.warning("iCloud Documents container is unavailable; using KVS backup")
-            return
+        let id = ubiquityContainerIdentifier
+        let name = ubiquityBackupName
+        Task { [weak self] in
+            let outcome = await Task.detached(priority: .utility) {
+                BackupManager.writeUbiquityDocument(data, containerID: id, name: name)
+            }.value
+            switch outcome {
+            case .written: NovaLog.sync.info("Updated iCloud Documents setup backup")
+            case .unavailable:
+                NovaLog.sync.warning("iCloud Documents container is unavailable; using KVS backup")
+            case .failed(let message):
+                NovaLog.sync.error("Could not write iCloud Documents backup: \(message)")
+            }
+            await self?.refreshCloudStatus()
         }
-        do {
-            try data.write(to: url, options: [.atomic])
-            NovaLog.sync.info("Updated iCloud Documents setup backup")
-        } catch {
-            NovaLog.sync.error("Could not write iCloud Documents backup: \(error.localizedDescription)")
-        }
-    }
-
-    private func readUbiquityBackup() -> Data? {
-        guard let url = ubiquityBackupURL(), FileManager.default.fileExists(atPath: url.path) else {
-            return nil
-        }
-        return try? Data(contentsOf: url)
     }
 
     private func smbShareIDs(from json: Data?) -> [UUID] {
@@ -595,9 +676,48 @@ final class BackupManager: ObservableObject {
     private func deviceName() -> String {
         #if os(iOS)
         return UIDevice.current.name
+        #elseif os(macOS)
+        return Host.current().localizedName ?? "Mac"
         #else
         return "Apple TV"
         #endif
+    }
+
+    // MARK: - Household sync support
+
+    /// The complete setup (including logins) for household sync, plus a fingerprint
+    /// of its CONTENT that ignores the timestamp and device name, so "has anything
+    /// actually changed on this device?" has a stable answer.
+    func householdSnapshot() -> (data: Data, fingerprint: String)? {
+        guard let data = buildSnapshotData(including: .all),
+              var snap = (try? BackupCompatibility.decode(data))?.snapshot else { return nil }
+        snap.createdAt = Date(timeIntervalSince1970: 0)
+        snap.deviceName = ""
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        guard let canonical = try? encoder.encode(snap) else { return nil }
+        let digest = SHA256.hash(data: canonical).map { String(format: "%02x", $0) }.joined()
+        return (data, digest)
+    }
+
+    /// Applies a household snapshot (everything, including logins) to this device.
+    func applyHouseholdSnapshot(_ data: Data) -> Bool {
+        importSnapshotData(data, restoring: .all)
+    }
+
+    /// Keeps the three most recent local setups that a household sync replaced, so a
+    /// simultaneous edit on two devices is never silently lost.
+    func saveHouseholdConflictCopy(_ data: Data) {
+        let fm = FileManager.default
+        guard let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
+        let dir = support.appendingPathComponent("HouseholdConflictCopies", isDirectory: true)
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        let stamp = Self.isoFormatter.string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        try? data.write(to: dir.appendingPathComponent("Nova-local-\(stamp).nova"), options: [.atomic])
+        let existing = ((try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [])
+            .filter { $0.pathExtension == "nova" }
+            .sorted { $0.lastPathComponent > $1.lastPathComponent }
+        for stale in existing.dropFirst(3) { try? fm.removeItem(at: stale) }
     }
 
     // MARK: - Export / Import (shareable file)

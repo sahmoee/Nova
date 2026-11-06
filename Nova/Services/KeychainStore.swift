@@ -26,6 +26,44 @@ enum KeychainError: LocalizedError {
     }
 }
 
+/// In-process cache of Keychain reads. On macOS the legacy file-based keychain is
+/// slow (a single miss can scan the whole login keychain), and Settings reads several
+/// secrets from inside SwiftUI view bodies, so uncached reads froze the Mac app's
+/// Settings screen. Entries expire after a minute so changes that arrive through iCloud
+/// Keychain still show up, and every local write or delete invalidates immediately.
+private final class KeychainReadCache: @unchecked Sendable {
+    static let shared = KeychainReadCache()
+    private let lock = NSLock()
+    private var entries: [String: (result: Result<String, KeychainError>, at: Date)] = [:]
+    private let ttl: TimeInterval = 60
+
+    func value(for key: String) -> Result<String, KeychainError>? {
+        lock.lock(); defer { lock.unlock() }
+        guard let entry = entries[key], Date().timeIntervalSince(entry.at) < ttl else { return nil }
+        return entry.result
+    }
+
+    func store(_ result: Result<String, KeychainError>, for key: String) {
+        // Only cache definitive answers, never transient failures.
+        switch result {
+        case .success, .failure(.itemNotFound): break
+        default: return
+        }
+        lock.lock(); defer { lock.unlock() }
+        entries[key] = (result, Date())
+    }
+
+    func invalidate(_ key: String) {
+        lock.lock(); defer { lock.unlock() }
+        entries[key] = nil
+    }
+
+    func invalidateAll() {
+        lock.lock(); defer { lock.unlock() }
+        entries.removeAll()
+    }
+}
+
 /// A namespaced Keychain helper. All items share a service identifier so
 /// they can be enumerated/cleared as a group.
 struct KeychainStore {
@@ -38,6 +76,7 @@ struct KeychainStore {
     // MARK: - Save / Update
 
     func set(_ value: String, for account: String) throws {
+        defer { KeychainReadCache.shared.invalidate(service + "|" + account) }
         guard let data = value.data(using: .utf8) else {
             throw KeychainError.dataConversionFailed
         }
@@ -88,6 +127,14 @@ struct KeychainStore {
     /// collapsing both to nil, so callers can log or surface real Keychain failures
     /// (corruption, entitlement issues) rather than silently treating them as unset.
     func getResult(_ account: String) -> Result<String, KeychainError> {
+        let cacheKey = service + "|" + account
+        if let cached = KeychainReadCache.shared.value(for: cacheKey) { return cached }
+        let result = readUncached(account)
+        KeychainReadCache.shared.store(result, for: cacheKey)
+        return result
+    }
+
+    private func readUncached(_ account: String) -> Result<String, KeychainError> {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -115,6 +162,7 @@ struct KeychainStore {
     // MARK: - Delete
 
     func delete(_ account: String) throws {
+        defer { KeychainReadCache.shared.invalidate(service + "|" + account) }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -129,6 +177,7 @@ struct KeychainStore {
 
     /// Removes every secret stored by this app under our service identifier.
     func deleteAll() throws {
+        defer { KeychainReadCache.shared.invalidateAll() }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

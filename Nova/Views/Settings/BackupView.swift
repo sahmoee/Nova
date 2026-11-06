@@ -66,7 +66,14 @@ struct BackupView: View {
 
                 // Status card.
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    if let info = backup.availableSnapshotInfo() {
+                    if !backup.hasLoadedCloudStatus {
+                        HStack(spacing: Theme.Spacing.sm) {
+                            ProgressView().controlSize(.small)
+                            Text("Checking iCloud…")
+                                .font(.appFont(19))
+                                .foregroundStyle(Theme.Colors.textSecondary)
+                        }
+                    } else if let info = backup.availableSnapshotInfo() {
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(info.origin.isLegacy
@@ -124,8 +131,6 @@ struct BackupView: View {
                     .font(.appFont(15))
                     .foregroundStyle(Theme.Colors.textTertiary)
                     .padding(.top, Theme.Spacing.sm)
-
-                Divider().padding(.vertical, Theme.Spacing.md)
 
                 Text("Share with a Code")
                     .font(Theme.Font.sectionTitle())
@@ -213,6 +218,8 @@ struct BackupView: View {
             .frame(maxWidth: Theme.contentMaxWidth(1000), alignment: .leading)
         }
         .background(Theme.Colors.appBackground.ignoresSafeArea())
+        // Refresh the cached iCloud status off the main thread each time the screen opens.
+        .task { await backup.refreshCloudStatus() }
         // iCloud restore: pick what to restore.
         .sheet(isPresented: $showCloudRestorePicker) {
             BackupContentsPicker(mode: .restore,

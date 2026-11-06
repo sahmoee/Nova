@@ -64,7 +64,7 @@ struct LibraryHealthView: View {
         }
         .navigationTitle("Library Health")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+        .novaInlineNavigationTitle()
         #endif
     }
 }

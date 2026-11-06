@@ -37,7 +37,7 @@ struct PlayFromLinkView: View {
         }
         .navigationTitle("Play from Link")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+        .novaInlineNavigationTitle()
         #endif
     }
 }

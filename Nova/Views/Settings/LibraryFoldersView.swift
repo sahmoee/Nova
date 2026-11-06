@@ -151,7 +151,7 @@ private struct SMBFolderPickerView: View {
             }
             .navigationTitle(selectedShare == nil ? "Choose Share" : "Choose Folder")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+            .novaInlineNavigationTitle()
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

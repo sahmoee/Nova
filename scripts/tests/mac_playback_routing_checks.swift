@@ -16,7 +16,7 @@ struct RoutingChecks {
         for (index, raw) in urls.enumerated() {
             let item = MediaItem(playbackURL: URL(string: raw)!)
             for preference in BuiltInPlayer.allCases {
-                #if targetEnvironment(macCatalyst)
+                #if targetEnvironment(macCatalyst) || os(macOS)
                 precondition(!PlaybackEngineRouter.shouldUseVLC(for: item, preference: preference))
                 #else
                 let expected = preference.forcesVLC || index >= 2
@@ -25,7 +25,7 @@ struct RoutingChecks {
                 count += 1
             }
         }
-        #if targetEnvironment(macCatalyst)
+        #if targetEnvironment(macCatalyst) || os(macOS)
         precondition(BuiltInPlayer.availableCases == [.appleNative])
         precondition(!BuiltInPlayer.allowsPreferenceSelection, "Mac engine row cannot write cloud preferences")
         precondition(!PlaybackEngineRouter.shouldHandOffToExternalPlayer(preferred: true))

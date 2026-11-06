@@ -1266,31 +1266,6 @@ struct BufferingBadge: View {
 }
 
 /// Watched-percentage and time-left line for the resume prompt.
-struct ResumeProgressSummary: View {
-    let position: TimeInterval
-    let duration: TimeInterval?
-
-    var body: some View {
-        if let duration, duration.isFinite, duration > 0, position.isFinite {
-            let fraction = min(max(position / duration, 0), 1)
-            let minutesLeft = max(1, Int(((duration - position) / 60).rounded(.up)))
-            VStack(spacing: 6) {
-                GeometryReader { proxy in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(.white.opacity(0.2))
-                        Capsule().fill(.white).frame(width: max(4, proxy.size.width * fraction))
-                    }
-                }
-                .frame(width: 240, height: 4)
-                Text("\(Int((fraction * 100).rounded()))% watched · \(minutesLeft >= 60 ? "\(minutesLeft / 60)h \(minutesLeft % 60)m" : "\(minutesLeft) min") left")
-                    .font(.appFont(15, weight: .medium))
-                    .monospacedDigit()
-                    .foregroundStyle(.white.opacity(0.7))
-            }
-            .accessibilityElement(children: .combine)
-        }
-    }
-}
 
 /// Timer button in the player's top bar, visible only while a sleep timer runs.
 private struct SleepTimerBadge: View {

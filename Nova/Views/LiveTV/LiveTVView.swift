@@ -8,7 +8,7 @@
 //
 
 import SwiftUI
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import WebKit
 #elseif os(tvOS)
 import CoreImage.CIFilterBuiltins
@@ -390,7 +390,7 @@ struct SportsProvidersView: View {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 250), spacing: Theme.Spacing.md)],
                           spacing: Theme.Spacing.md) {
                     ForEach(providers) { provider in
-                        #if os(iOS)
+                        #if os(iOS) || os(macOS)
                         NavigationLink(value: provider) { providerCard(provider) }
                             .buttonStyle(NovaArtworkButtonStyle())
                         #elseif os(macOS)
@@ -419,7 +419,7 @@ struct SportsProvidersView: View {
                 #endif
             }
         }
-        #if os(iOS)
+        #if os(iOS) || os(macOS)
         .navigationDestination(for: Provider.self) { provider in
             SportsProviderBrowser(title: provider.name, url: provider.url)
         }
@@ -482,7 +482,7 @@ private struct CustomSportsWebsiteEntryView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var address = ""
     @State private var errorMessage: String?
-    #if os(iOS)
+    #if os(iOS) || os(macOS)
     @State private var openedURL: URL?
     #elseif os(macOS)
     @Environment(\.openURL) private var openURL
@@ -537,7 +537,7 @@ private struct CustomSportsWebsiteEntryView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
-            #if os(iOS)
+            #if os(iOS) || os(macOS)
             .navigationDestination(isPresented: Binding(
                 get: { openedURL != nil },
                 set: { if !$0 { openedURL = nil } }
@@ -556,7 +556,7 @@ private struct CustomSportsWebsiteEntryView: View {
             return
         }
         errorMessage = nil
-        #if os(iOS)
+        #if os(iOS) || os(macOS)
         openedURL = url
         #elseif os(macOS)
         openURL(url)
@@ -611,24 +611,38 @@ private struct SportsTVHandoffView: View {
 }
 #endif
 
-#if os(iOS)
+#if os(iOS) || os(macOS)
 private struct SportsProviderBrowser: View {
     let title: String
     let url: URL
     var body: some View {
         PopupBlockingWebView(url: url)
             .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
+            .novaInlineNavigationTitle()
             .background(Theme.Colors.appBackground)
     }
 }
 
-private struct PopupBlockingWebView: UIViewRepresentable {
+#if os(macOS)
+private typealias SportsWebRepresentable = NSViewRepresentable
+#else
+private typealias SportsWebRepresentable = UIViewRepresentable
+#endif
+
+private struct PopupBlockingWebView: SportsWebRepresentable {
     let url: URL
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    func makeUIView(context: Context) -> WKWebView {
+    #if os(macOS)
+    func makeNSView(context: Context) -> WKWebView { makeWebView(context: context) }
+    func updateNSView(_ view: WKWebView, context: Context) { updateWebView(view, context: context) }
+    #else
+    func makeUIView(context: Context) -> WKWebView { makeWebView(context: context) }
+    func updateUIView(_ view: WKWebView, context: Context) { updateWebView(view, context: context) }
+    #endif
+
+    private func makeWebView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         configuration.websiteDataStore = .default()
@@ -641,7 +655,7 @@ private struct PopupBlockingWebView: UIViewRepresentable {
         return webView
     }
 
-    func updateUIView(_ webView: WKWebView, context: Context) {
+    private func updateWebView(_ webView: WKWebView, context: Context) {
         guard webView.url == nil else { return }
         webView.load(URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad,
                                 timeoutInterval: 30))

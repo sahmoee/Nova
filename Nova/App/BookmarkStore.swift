@@ -141,7 +141,7 @@ struct NovaAddBookmarkSheet: View {
             }
             .navigationTitle("Add Bookmark")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+            .novaInlineNavigationTitle()
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -216,7 +216,7 @@ struct NovaBookmarksView: View {
         }
         .navigationTitle("Bookmarks")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+        .novaInlineNavigationTitle()
         #endif
     }
 }

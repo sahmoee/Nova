@@ -89,7 +89,7 @@ struct SubtitlePickerView: View {
                 }
             }
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+            .novaInlineNavigationTitle()
             #endif
         }
     }

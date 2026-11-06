@@ -15,26 +15,20 @@ import CryptoKit
 #if canImport(UIKit)
 import UIKit
 typealias PlatformImage = UIImage
-#elseif canImport(AppKit)
+#elseif os(macOS)
 import AppKit
 typealias PlatformImage = NSImage
 
-// Matches the small UIImage surface the shared image pipeline uses, so caching,
-// downsampling and accent extraction stay one implementation on every platform.
 extension NSImage {
     var cgImage: CGImage? { cgImage(forProposedRect: nil, context: nil, hints: nil) }
-    convenience init(cgImage: CGImage) {
-        self.init(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
-    }
-
+    convenience init(cgImage: CGImage) { self.init(cgImage: cgImage, size: .zero) }
     func pngData() -> Data? {
-        cgImage.map { NSBitmapImageRep(cgImage: $0).representation(using: .png, properties: [:]) } ?? nil
+        guard let cgImage else { return nil }
+        return NSBitmapImageRep(cgImage: cgImage).representation(using: .png, properties: [:])
     }
-
     func jpegData(compressionQuality: CGFloat) -> Data? {
-        cgImage.map {
-            NSBitmapImageRep(cgImage: $0).representation(using: .jpeg, properties: [.compressionFactor: compressionQuality])
-        } ?? nil
+        guard let cgImage else { return nil }
+        return NSBitmapImageRep(cgImage: cgImage).representation(using: .jpeg, properties: [.compressionFactor: compressionQuality])
     }
 }
 

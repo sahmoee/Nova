@@ -28,6 +28,17 @@ extension View {
 }
 
 extension View {
+    @ViewBuilder
+    func novaInlineNavigationTitle() -> some View {
+        #if os(iOS)
+        navigationBarTitleDisplayMode(.inline)
+        #else
+        self
+        #endif
+    }
+}
+
+extension View {
     /// Full-screen cover on iPhone, iPad and Apple TV. macOS has no full-screen
     /// cover, so the content opens in a large resizable sheet instead.
     func novaFullScreenCover<Item: Identifiable, Content: View>(

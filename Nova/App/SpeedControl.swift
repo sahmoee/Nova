@@ -124,7 +124,7 @@ struct NovaSpeedPickerSheet: View {
             }
             .navigationTitle("Playback Speed")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+            .novaInlineNavigationTitle()
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

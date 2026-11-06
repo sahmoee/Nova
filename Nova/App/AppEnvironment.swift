@@ -49,6 +49,7 @@ final class AppEnvironment: ObservableObject {
     let shelfLoader: ShelfLoader
     let aiSearch: AISearchService
 
+    #if !os(macOS)
     func qaDiagnostics() -> NovaQADiagnostics {
         let network = NetworkConditionMonitor.shared
         let flags = [network.isCellular ? "cellular" : nil,
@@ -65,6 +66,8 @@ final class AppEnvironment: ObservableObject {
             networkFlags: flags.isEmpty ? "none" : flags.joined(separator: ", ")
         )
     }
+
+    #endif
 
     /// Resolve the best playable stream for a catalog item and enqueue it for offline
     /// download. Movies pass episode = nil; series pass the chosen EpisodeInfo. Returns

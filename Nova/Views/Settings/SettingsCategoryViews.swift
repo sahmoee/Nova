@@ -326,6 +326,7 @@ struct ExperienceSettingsContent: View {
         case .iPhone: return "iphone"
         case .iPad:   return "ipad"
         case .appleTV: return "appletv.fill"
+        case .mac: return "desktopcomputer"
         }
     }
 

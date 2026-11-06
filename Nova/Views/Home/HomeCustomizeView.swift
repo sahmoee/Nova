@@ -67,7 +67,7 @@ struct HomeCustomizeView: View {
             .background(Theme.Colors.background.ignoresSafeArea())
             .navigationTitle("Catalogs")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+            .novaInlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { EditButton() }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -263,7 +263,7 @@ struct AddShelfView: View {
             .background(Theme.Colors.appBackground.ignoresSafeArea())
             .navigationTitle("Add a Shelf")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+            .novaInlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } }
             }

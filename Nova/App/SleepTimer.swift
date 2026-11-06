@@ -174,7 +174,7 @@ struct NovaSleepTimerSheet: View {
             }
             .navigationTitle("Sleep Timer")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+            .novaInlineNavigationTitle()
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

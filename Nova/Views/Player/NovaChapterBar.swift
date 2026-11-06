@@ -247,7 +247,7 @@ struct NovaChapterListSheet: View {
                 }
             }
             .navigationTitle("Chapters")
-            .navigationBarTitleDisplayMode(.inline)
+            .novaInlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }

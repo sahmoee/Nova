@@ -375,6 +375,7 @@ final class LibraryStore: ObservableObject {
     /// Builds and stores the compact snapshot the iOS widget reads from the shared
     /// App Group container, and asks WidgetKit to refresh.
     private func writeWidgetSnapshot() {
+        #if !os(macOS)
         func entry(_ item: MediaItem) -> WidgetEntry {
             let isShow = item.contentID?.type == .series
             let subtitle: String
@@ -403,6 +404,7 @@ final class LibraryStore: ObservableObject {
         )
         WidgetShared.write(snapshot)
         WidgetRefresher.reload()
+        #endif
     }
 
     /// Writes only the local file, without touching iCloud (used when applying a
