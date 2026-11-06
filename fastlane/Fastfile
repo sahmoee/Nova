@@ -18,16 +18,6 @@ lane :archive_app do |options|
   sh("python3", File.join(ROOT, "scripts/release.py"), "archive", "--scheme", options[:scheme], "--archive", options[:archive_path])
 end
 
-desc "Compare presentation snapshots on an explicitly selected simulator or Mac destination"
-lane :presentation do |options|
-  UI.user_error!("Provide destination and SOWENS_BUILD_ROOT") unless options[:destination] && ENV["SOWENS_BUILD_ROOT"]
-  sh("python3", File.join(ROOT, "scripts/release.py"), "check-output")
-  config = JSON.parse(File.read(File.join(ROOT, "tooling.json")))
-  sh("xcodebuild", "-project", File.join(ROOT, config.fetch("project")), "-scheme", "Presentation",
-     "-destination", options[:destination], "-derivedDataPath", File.join(ENV.fetch("SOWENS_BUILD_ROOT"), File.basename(ROOT), "Presentation"),
-     "CODE_SIGNING_ALLOWED=NO", "test")
-end
-
 desc "Explicitly export a validated archive and upload it to TestFlight"
 lane :testflight do |options|
   UI.user_error!("Provide archive_path and SOWENS_BUILD_ROOT") unless options[:archive_path] && ENV["SOWENS_BUILD_ROOT"]

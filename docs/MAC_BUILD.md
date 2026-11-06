@@ -1,7 +1,7 @@
 # Nova for Mac
 
 Nova for Mac is a native macOS app (target `Nova-macOS`, scheme `Nova-Mac`), not
-Mac Catalyst. It shares Nova's SwiftUI sources with iOS and tvOS and uses the
+Mac Catalyst. It shares domain and SwiftUI sources with iOS and tvOS while using
 regular-width (iPad-style) sidebar composition. It supports macOS 15 or later and
 builds on Xcode 26.3 or later. Mac Catalyst is no longer enabled on the iOS target.
 
