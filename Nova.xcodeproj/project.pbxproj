@@ -90,6 +90,8 @@
 		30BF6037871EA9216F222BAE /* ContentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB93FE6531785B3E58686B8D /* ContentDetailView.swift */; };
 		3167C2EAE91670A5FF46D71E /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC594B0BAEC0D365B05066C1 /* LibraryStore.swift */; };
 		3180A8DF0AC50FFE7D788635 /* PlaybackProgressStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8DDEC4592E90E4DF8676EBD /* PlaybackProgressStore.swift */; };
+		D193570ABF6848B4A44C0043 /* CloudPlaybackSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = D193570ABF6848B4A44C0041 /* CloudPlaybackSync.swift */; };
+		D193570ABF6848B4A44C0053 /* CloudLibraryRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = D193570ABF6848B4A44C0051 /* CloudLibraryRecord.swift */; };
 		31B0CB7D474392BBD6EE8BDD /* SetupChecklistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06B9BFD55EBC9B683B9709 /* SetupChecklistView.swift */; };
 		31EBF9B2E94AABA9F84CA4A0 /* FocusableRowStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBB22B0CB6ED38942A23EEF9 /* FocusableRowStyle.swift */; };
 		32B921547DCA569746AA435A /* CollectionPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0CB13C2E1D3A27BA21C7FB5 /* CollectionPickerSheet.swift */; };
@@ -229,6 +231,8 @@
 		82263ED3CE76B98BA37E0762 /* AIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BBA535D3FA0EA37713AD2EA /* AIView.swift */; };
 		822ABC768797B2F3C293F1C0 /* AccountsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91B171DD6121F6DDC2FF67C /* AccountsView.swift */; };
 		827EF6B04218B4A1E2AA9227 /* PlaybackProgressStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8DDEC4592E90E4DF8676EBD /* PlaybackProgressStore.swift */; };
+		D193570ABF6848B4A44C0042 /* CloudPlaybackSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = D193570ABF6848B4A44C0041 /* CloudPlaybackSync.swift */; };
+		D193570ABF6848B4A44C0052 /* CloudLibraryRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = D193570ABF6848B4A44C0051 /* CloudLibraryRecord.swift */; };
 		82C9194FD94344AC8766FE88 /* LibraryQualityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 360D8A22268241E9BC1980EA /* LibraryQualityView.swift */; };
 		840624CE7FAEF93F7FD964A0 /* KeyboardDismiss.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC4024AFCF34AA9000C433D8 /* KeyboardDismiss.swift */; };
 		85257439153140EEC7ACDEE0 /* PlayerOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD61DA3F4315330B41ED6EF7 /* PlayerOptions.swift */; };
@@ -568,6 +572,8 @@
 		470E19D2BE1BA8E5A4F8482F /* RecommendationFeedbackStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BD943F44F89A49EAC1736DD /* RecommendationFeedbackStore.swift */; };
 		99FE51EC823ACBCE63526BDD /* PlaybackCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3EF3A6949DBE620FBC19616 /* PlaybackCoordinator.swift */; };
 		879C5C6F7C7D9EB4EA9264EA /* PlaybackProgressStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8DDEC4592E90E4DF8676EBD /* PlaybackProgressStore.swift */; };
+		D193570ABF6848B4A44C0044 /* CloudPlaybackSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = D193570ABF6848B4A44C0041 /* CloudPlaybackSync.swift */; };
+		D193570ABF6848B4A44C0054 /* CloudLibraryRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = D193570ABF6848B4A44C0051 /* CloudLibraryRecord.swift */; };
 		C04F6C757046A0340D4842C5 /* RealDebridClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2090DCADB481BDF4EDDCA1AF /* RealDebridClient.swift */; };
 		E3D93914C6E9112B3C16B1EA /* RealSMBProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5414ACC0FB76135E40B8DCB /* RealSMBProvider.swift */; };
 		18426A85F5AB68B56F8DBD13 /* SMBService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E02843FF0C186D60397EFC2 /* SMBService.swift */; };
@@ -959,6 +965,8 @@
 		E711D43340B04FC38EB970CA /* DebugReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../Views/Settings/DebugReportView.swift; sourceTree = "<group>"; };
 		E739E2597C4A8700F5D8AA04 /* SourcesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/SourcesView.swift; sourceTree = "<group>"; };
 		E8DDEC4592E90E4DF8676EBD /* PlaybackProgressStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackProgressStore.swift; sourceTree = "<group>"; };
+		D193570ABF6848B4A44C0041 /* CloudPlaybackSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudPlaybackSync.swift; sourceTree = "<group>"; };
+		D193570ABF6848B4A44C0051 /* CloudLibraryRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudLibraryRecord.swift; sourceTree = "<group>"; };
 		EBB22B0CB6ED38942A23EEF9 /* FocusableRowStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusableRowStyle.swift; sourceTree = "<group>"; };
 		EE0682914797AE3EA83CDB1A /* SMBCheckerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMBCheckerView.swift; sourceTree = "<group>"; };
 		EE3ABE58915541F160C540E1 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
@@ -1332,6 +1340,8 @@
 				6BD943F44F89A49EAC1736DD /* RecommendationFeedbackStore.swift */,
 				D3EF3A6949DBE620FBC19616 /* PlaybackCoordinator.swift */,
 				E8DDEC4592E90E4DF8676EBD /* PlaybackProgressStore.swift */,
+				D193570ABF6848B4A44C0041 /* CloudPlaybackSync.swift */,
+				D193570ABF6848B4A44C0051 /* CloudLibraryRecord.swift */,
 				2090DCADB481BDF4EDDCA1AF /* RealDebridClient.swift */,
 				C5414ACC0FB76135E40B8DCB /* RealSMBProvider.swift */,
 				0E02843FF0C186D60397EFC2 /* SMBService.swift */,
@@ -1925,6 +1935,8 @@
 				C67136304C3B55F7861A66EA /* RecommendationFeedbackStore.swift in Sources */,
 				3F380348032B86AE1C4825AE /* PlaybackCoordinator.swift in Sources */,
 				827EF6B04218B4A1E2AA9227 /* PlaybackProgressStore.swift in Sources */,
+				D193570ABF6848B4A44C0042 /* CloudPlaybackSync.swift in Sources */,
+				D193570ABF6848B4A44C0052 /* CloudLibraryRecord.swift in Sources */,
 				CE8C02D01EB26FB096971EAB /* RealDebridClient.swift in Sources */,
 				5D3267EB0C547C96A9FD62A6 /* RealSMBProvider.swift in Sources */,
 				85E00B32BD77EB8B8930FE70 /* SMBService.swift in Sources */,
@@ -2153,6 +2165,8 @@
 				93A19CECE9815A7A27D56B36 /* RecommendationFeedbackStore.swift in Sources */,
 				DF4E01B19535E44056C95650 /* PlaybackCoordinator.swift in Sources */,
 				3180A8DF0AC50FFE7D788635 /* PlaybackProgressStore.swift in Sources */,
+				D193570ABF6848B4A44C0043 /* CloudPlaybackSync.swift in Sources */,
+				D193570ABF6848B4A44C0053 /* CloudLibraryRecord.swift in Sources */,
 				74364A7B259B873F821DC6DA /* RealDebridClient.swift in Sources */,
 				249FFBDE8F9434A41638857C /* RealSMBProvider.swift in Sources */,
 				A578F60DD65F852F9833715D /* SMBService.swift in Sources */,
@@ -2381,6 +2395,8 @@
 				470E19D2BE1BA8E5A4F8482F /* RecommendationFeedbackStore.swift in Sources */,
 				99FE51EC823ACBCE63526BDD /* PlaybackCoordinator.swift in Sources */,
 				879C5C6F7C7D9EB4EA9264EA /* PlaybackProgressStore.swift in Sources */,
+				D193570ABF6848B4A44C0044 /* CloudPlaybackSync.swift in Sources */,
+				D193570ABF6848B4A44C0054 /* CloudLibraryRecord.swift in Sources */,
 				C04F6C757046A0340D4842C5 /* RealDebridClient.swift in Sources */,
 				E3D93914C6E9112B3C16B1EA /* RealSMBProvider.swift in Sources */,
 				18426A85F5AB68B56F8DBD13 /* SMBService.swift in Sources */,
@@ -2574,7 +2590,7 @@
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "Nova/Resources/Nova-tvOS.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 43;
@@ -2603,7 +2619,7 @@
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = Nova/Resources/Nova.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "Nova/Resources/Nova-tvOS.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 43;

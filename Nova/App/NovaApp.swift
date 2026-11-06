@@ -114,8 +114,12 @@ struct NovaApp: App {
                 .environmentObject(environment.settings)
                 .novaThemeBoundary()
         }
-        .onChange(of: scenePhase) { _, phase in
+        .onChange(of: scenePhase, initial: true) { _, phase in
             if phase == .active {
+                CloudSync.shared.pull()
+                #if DEBUG
+                Task { await environment.progress.refreshCloudPlayback() }
+                #endif
                 environment.episodeNotifier.requestAuthorization()
                 Task { await environment.episodeNotifier.checkForNewStreamableEpisodes() }
             } else if phase == .background {

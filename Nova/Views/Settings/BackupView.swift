@@ -91,6 +91,13 @@ struct BackupView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .refinedCardBackground()
 
+                FocusableButton(title: "Sync Now", systemImage: "arrow.triangle.2.circlepath.icloud") {
+                    let cloud = CloudSync.shared
+                    cloud.flush()
+                    ToastCenter.shared.show(cloud.syncIssue ?? "iCloud sync requested.", systemImage: "icloud")
+                }
+                .frame(maxWidth: Theme.isCompact ? .infinity : 360)
+
                 // Back up now.
                 FocusableButton(title: "Back Up Now", systemImage: "icloud.and.arrow.up",
                                 prominent: true) {

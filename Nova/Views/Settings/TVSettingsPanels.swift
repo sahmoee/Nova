@@ -382,6 +382,10 @@ struct TVCloudSettingsPanel: View {
                 Text("Local storage needs attention: \(issue)").font(.appFont(20)).foregroundStyle(Theme.Colors.warning)
             }
             section("Manual Sync")
+            TVSettingAction(title: "Sync Now", detail: "Request updates from iCloud", icon: "arrow.triangle.2.circlepath.icloud") {
+                cloud.flush()
+                message = cloud.syncIssue ?? "iCloud sync requested."
+            }
             TVSettingAction(title: "Push Settings to iCloud", detail: "Send preferences, watch history, library, and addons from this device", icon: "arrow.up.to.line") {
                 settings.pushPreferencesToCloud()
                 library.pushSettingsDataToCloud()

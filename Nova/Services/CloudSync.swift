@@ -216,8 +216,7 @@ final class CloudSync: ObservableObject {
 
     func object(forKey key: String) -> Any? { canRead(key) ? store.object(forKey: key) : nil }
 
-    /// Pushes any pending changes to iCloud immediately.
-    /// Pulls the newest iCloud values down before reading a snapshot.
+    /// Requests synchronization. Incoming values arrive through external-change notifications.
     func pull() {
         requestSync()
     }

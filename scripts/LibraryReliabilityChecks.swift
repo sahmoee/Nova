@@ -259,6 +259,81 @@ enum WidgetRefresher { static func reload() {} }
         _ = badCollections.createCollection(name: "Should not replace recovery data")
         check(badCollections.collections.isEmpty && tryData(badCollectionsFile) == sample, "Corrupt collections do not publish or overwrite")
         check(badCollections.lastPersistenceError != nil, "Collection recovery failure is surfaced")
+        CloudSync.shared.values = [:]
+        let liveDir = root.appendingPathComponent("live-cloud")
+        let liveDefaults = UserDefaults(suiteName: suite + ".live")!
+        let live = LibraryStore(directory: liveDir, defaults: liveDefaults)
+        let remoteCollection = MediaCollection(name: "From another device", createdDate: Date(timeIntervalSince1970: 1_700_000_000))
+        CloudSync.shared.values[PrefKey.cloudCollections] = String(
+            decoding: try cloudEncoder.encode([remoteCollection]), as: UTF8.self)
+        CloudSync.shared.values[PrefKey.libraryQueue] = try Coders.encoder.encode([fresh.id])
+        let writesBeforeRemote = CloudSync.shared.writes
+        CloudSync.shared.externalChange.send([PrefKey.cloudCollections, PrefKey.libraryQueue])
+        try await Task.sleep(for: .milliseconds(50))
+        check(live.collections == [remoteCollection], "Live cloud notification applies collections")
+        check(live.queueIDs == [fresh.id], "Live cloud notification applies watchlist")
+        check(CloudSync.shared.writes == writesBeforeRemote, "Remote changes do not echo to iCloud")
+        CloudSync.shared.values = [:]
+        let reopened = LibraryStore(directory: liveDir, defaults: liveDefaults)
+        check(reopened.collections == [remoteCollection], "Remote collections persist locally")
+        check(reopened.queueIDs == [fresh.id], "Remote watchlist persists locally")
+        var persistedPlayback: [MediaItem] = []
+        reopened.playbackDidPersist = { persistedPlayback.append($0) }
+        reopened.add(fresh)
+        let checkpointCount = persistedPlayback.count
+        reopened.markWatched(fresh)
+        reopened.markUnwatched(fresh)
+        check(persistedPlayback.count == checkpointCount + 2, "Watched and unwatched emit durable playback changes")
+        check(persistedPlayback.last?.lastPlayedDate == nil, "Mark unwatched emits a playback reset")
+        var incoming = reopened.item(id: fresh.id)!
+        incoming.lastPlayedDate = Date()
+        incoming.lastPlayedPosition = 15
+        reopened.updateProgress(incoming, immediate: true, publishToCloud: false)
+        check(persistedPlayback.count == checkpointCount + 2, "Incoming progress does not echo to playback sync")
+        reopened.usesRecordPlayback = true
+        var staleMirror = incoming
+        staleMirror.lastPlayedPosition = 900
+        CloudSync.shared.values[PrefKey.cloudLibrary] = try cloudEncoder.encode([staleMirror])
+        CloudSync.shared.values[PrefKey.cloudLibraryRevision] = Date().timeIntervalSince1970 + 10
+        reopened.pullSettingsDataFromCloud()
+        check(reopened.item(id: fresh.id)?.lastPlayedPosition == 15, "Legacy pull preserves record-backed playback")
+        reopened.pushSettingsDataToCloud()
+        let legacyData = CloudSync.shared.data(forKey: PrefKey.cloudLibrary)!
+        let legacyDecoder = JSONDecoder()
+        legacyDecoder.dateDecodingStrategy = .iso8601
+        let legacyItems = try legacyDecoder.decode([MediaItem].self, from: legacyData)
+        check(legacyItems.first?.lastPlayedPosition == 900, "Legacy metadata writes preserve the legacy checkpoint")
+        CloudSync.shared.values = [:]
+        let catalogA = item("Cloud A", tmdb: 501)
+        let catalogB = item("Cloud B", tmdb: 502)
+        let privateItem = item("Device source")
+        let replica = LibraryStore(directory: root.appendingPathComponent("record-replica"),
+                                   defaults: UserDefaults(suiteName: suite + ".record-replica")!)
+        replica.add(catalogA)
+        replica.add(catalogB)
+        replica.add(privateItem)
+        let records = replica.cloudLibraryRecords()
+        check(records.count == 4, "Portable library items and favorites sync independently")
+        let remoteItems = records.compactMap { record -> MediaItem? in
+            if case .item(_, let item) = record { return item }
+            return nil
+        }
+        check(remoteItems.allSatisfy { $0.playbackURL.scheme == "nova" && $0.lastPlayedDate == nil },
+              "Library records carry catalog references and exclude playback URLs and history")
+        let sharedCollection = UUID()
+        let header = CloudLibraryRecord.collection(sharedCollection, .init(
+            name: "Concurrent edits", systemImage: "folder", createdDate: Date(timeIntervalSince1970: 1_700_000_000)))
+        let memberA = CloudLibraryRecord.membership(sharedCollection, catalogA.contentKey, 0)
+        let memberB = CloudLibraryRecord.membership(sharedCollection, catalogB.contentKey, 0)
+        replica.applyCloudLibraryRecords([memberB, header, memberA, .favorite(catalogA.contentKey, true),
+                                          .watchlist(catalogB.contentKey, 0)])
+        check(replica.collections.first?.contentKeys == [catalogA.contentKey, catalogB.contentKey],
+              "Independent collection additions survive an ordering tie")
+        check(replica.isQueued(catalogB), "Watchlist records resolve to the local item ID")
+        check(replica.item(id: catalogA.id)?.isFavorite == true, "Favorite records update independently")
+        replica.applyCloudLibraryRecords([header, memberA.tombstone, memberB])
+        check(replica.collections.first?.contentKeys == [catalogB.contentKey], "Membership tombstones remove only their own item")
+        check(replica.item(id: privateItem.id) != nil, "Cloud merges retain device-local sources")
         print("PASS: \(count) library reliability checks")
     }
     static func tryData(_ file: URL) -> Data? { try? Data(contentsOf: file) }
