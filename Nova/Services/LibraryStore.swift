@@ -1059,7 +1059,6 @@ final class LibraryStore: ObservableObject {
                 .sorted { ($0.lastPlayedDate ?? .distantPast) > ($1.lastPlayedDate ?? .distantPast) }
         )
     }
-
 }
 // MARK: - Duplicate detection & merge
 
@@ -1152,7 +1151,6 @@ extension LibraryStore {
         if item.isFavorite { s += 5 }
         return s
     }
-
 }
 
 // MARK: - Queries (used by Home/Library rows)
